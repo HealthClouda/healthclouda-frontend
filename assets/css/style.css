@@ -357,6 +357,22 @@ nav.shrink {
   object-fit: cover;
 }
 
+.one-platform-login{
+  width: 80%;
+  padding: 0.8rem 1.5rem;
+  background-color: #0075FF;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-align: center;
+
+}
+
 /* Reusable animation classes */
 .fade-left, .fade-right, .zoom-in {
   opacity: 0; /* start invisible */
