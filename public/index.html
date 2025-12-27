@@ -11,36 +11,62 @@
 
     <link rel="stylesheet" href="../assets/css/style.css">
 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+
   </head>
   
   <body>
     <header>
       <!-- HEADER / NAV -->
-      <nav>
-        <div class="logo"><a href="#home">HealthClouda</a></div>
-        <ul class="nav-links">  
-          <li><a href="#home">Home</a></li>
-          <li><a href="#about-us">About Us</a></li>
-          <li><a href="#features">Features</a></li>
-          <li><a href="#contact-us">Contact Us</a></li>
-        </ul>
-        <a href="login.html" class="nav-btn">Login</a>
+      <nav class="navbar navbar-expand-md fixed-top px-lg-5">
+        <div class="container-fluid">
+          <a class="navbar-brand logo" href="#home">
+            HealthClouda
+          </a>
+
+          <button
+            class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavId" aria-controls="collapsibleNavId" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+
+          <div class="collapse navbar-collapse" id="collapsibleNavId">
+            <ul class="navbar-nav ms-auto nav-links mt-0 mt-lg-0 space-font mx-auto">
+              <li class="nav-item ms-0">
+                <a class="nav-link active" href="#home" aria-current="page">Home</a>
+              </li>
+              <li class="nav-item ms-0">
+                <a class="nav-link" href="#about-us">About Us</a>
+              </li>
+              <li class="nav-item ms-0">
+                <a class="nav-link" href="#features">Features</a>
+              </li>
+              <li class="nav-item ms-0">
+                <a class="nav-link" href="#contact-us">Contact Us</a>
+              </li>
+            </ul>
+
+            <form class="d-flex my-2 my-lg-0">
+              <a class="nav-btn my-sm-0 space-font px-4" href="login.html"> Login </a>
+            </form>
+          </div>
+        </div>
       </nav>
+
 
       <!-- HERO SECTION -->
 
       <section class="hero" id="home">
         <div class="hero-content">
-          <h1>Modern EHR Built for Student Healthcare</h1>
+          <h1>Modern EHR Built for Smarter Healthcare</h1>
           <p>
-            Revolutionize campus healthcare delivery with our comprehensive Electronic Health Record system designed specifically for university and college clinics. Secure, scalable, and compliant, HealthClouda replaces paper records with a modern, cloud-based solution that gives students and healthcare staff faster, easier access to essential medical data.
+            Revolutionize healthcare delivery with our comprehensive Electronic Health Record system designed specifically for African healthcare providers, Secure, scalable, and complaint.
           </p>
         </div>
-        <!-- <div class="hero-btn">
-          <a href="#" class="nav-btn" id="free-trial">Start Your Free Trial</a>
 
-          <a href="login.html" class="login-btn">Login to Your Account</a>
-        </div> -->
+        <a href="login.html" class="login-btn">Login to Your Account</a>
+    
         <div class="hero-img">
           <img src="../assets/images/Hero_picture.png" alt="Hero_image">
         </div>
@@ -60,7 +86,7 @@
       <!-- Need Section -->
       <section class="need">
         <div class="need-heading" id="features">
-          <h2>Everything You Need for Modern CAMPUS Healthcare</h2>
+          <h2>Everything You Need for Modern Healthcare</h2>
           <p>Comprehensive features designed for the future of African healthcare environments</p>
         </div> 
         
@@ -70,28 +96,31 @@
               <img src="../assets/images/person_add.png" alt="Patient Record">
             </div>
             <div class="need-info">
-              <h3>Student Record Management</h3>
-              <p>Cloud-based storage of health records, eliminating paper files and making them securely available anytime.</p>
+              <h3>Patient Record</h3>
+              <p>Comprehensive electronic health records with secure patient data management</p>
             </div>
           </div>
+
           <div class="need-items">
             <div class="need-img">
               <img src="../assets/images/science.png" alt="Laboratory Integration">
             </div>
             <div class="need-info">
               <h3>Lab Integration</h3>
-              <p>Seamless ordering, tracking, and result management for student diagnostic tests.</p>
+                <p>Seemless laboratory test, ordering, tracking, and result management</p>
             </div>
           </div>
+
           <div class="need-items">
             <div class="need-img">
               <img src="../assets/images/pill.png" alt="Prescription">
             </div>
             <div class="need-info">
-              <h3>Prescription & Pharmacy Support</h3>
+              <h3>Prescription</h3>
               <p>Digital prescription management with integration for school pharmacies.</p>
             </div>
           </div>
+          
           <div class="need-items">
             <div class="need-img">
               <img src="../assets/images/chat_bubble.png" alt="Secure Messaging">
@@ -109,10 +138,7 @@
         <div class="one-platform-note fade-right">
           <h2>One Platform, Every Healthcare Role Covered</h2>
   
-          <p>Our secure, user-friendly Electronic Health Record system is purpose-built for hospitals and health facilities looking to simplify documentation, enhance collaboration, and improve patient care.</p>
-  
-          <a href="login.html" class="login-btn one-platform-login">Login to Your Account</a>
-        
+          <p>Our secure, user-friendly Electronic Health Record system is purpose-built for hospitals and health facilities looking to simplify documentation, enhance collaboration, and improve patient care.</p>        
         </div>
         <div class="one-platform-img fade fade-left">
           <img src="../assets/images/Female_doctor.jpg" alt="one-platform">
@@ -121,10 +147,22 @@
   
       <!-- Benefit -->
       <section class="benefit">
+        <div class="benefit-item zoom-in note-1">
+          <img src="../assets/images/BENEFIT_ONE.png" alt="Health_Heart">
+          <div class="benefit-note">
+            <h2>
+              Effortless Patient Workflows
+            </h2>
+            <p>
+              Every clinic operates differently and HealthClouda adapts. You’ll get smart, customizable clinical forms that reflect your exact workflow: registration, history taking, vitals, diagnostic notes and follow ups, all shaped around how your team works. There is no forcing patients or staff into rigid processes. That means faster onboarding for new staff, fewer input errors and more time to focus on delivering care rather than clicking through screens.
+            </p>
+          </div>
+        </div>
+        
         <div class="benefit-item zoom-in">
           <div class="benefit-note">
             <h2>
-              Proactive Intelligence that Keeps Students Safe
+              Proactive Intelligence that Keeps Patients Safe
             </h2>
             <p>
               HealthClouda includes safety alerts for allergies, drug interactions, critical vitals, duplicate records, and follow-up reminders. When something looks off, the system prompts staff to double-check and intervene early, helping ensure students receive the right care at the right time.
@@ -133,67 +171,106 @@
           <img src="../assets/images/Heart.png" alt="Health_Heart">
         </div>
   
-        <div class="benefit-item zoom-in">
+        <div class="benefit-item zoom-in note-3">
           <img src="../assets/images/noun-africa.png" alt="Africa">
           <div class="benefit-note">
             <h2>
-              Built for Campus Realities
+              Built for Africa's Realities
             </h2>
             <p>
-              HealthClouda is tailored to the unique challenges of African universities:
+              HealthClouda does not just work in Africa, it is built for it. Clinics benefit from a full offline mode so work continues even during power or connectivity drops. The platform is cost effective for varying budgets and scales gracefully whether you are a single practitioner clinic or a growing hospital. Intuitive designs and optional local language support help everyone on your team, from receptionists to clinicians, adopt the system quickly.
             </p>
-            <ul>
-              <li>
-                Offline Mode: Clinics keep working even during power or connectivity interruptions.
-              </li>
-              <li>
-                Cost-Effective Licensing: Flexible subscription plans that scale with student populations.
-              </li>
-              <li>
-                Custom Workflows: From vitals to pharmacy, workflows match existing student care processes.
-              </li>
-              <li>
-                Local Language Support: Easier adoption by campus healthcare teams.
-              </li>
-            </ul>
           </div>
         </div>
       </section>  
     </div>
       
+    <!-- wellbeing matters section -->
+
+    <section class="wellbeing container">
+      <div class="text text-center mx-auto py-5">
+        <h2>Your Wellbeing Matters...</h2>
+        <p>Here’s a quick dose of wellness inspiration to keep your mind and body in sync throughout the semester.</p>
+        
+        <div class="wellbeing-grid row d-flex justify-content-around mt-5 px-5 mx-5">
+          <div class="wellbeing-card col-md-2 col-lg-3 col-sm-12 text-start shadow border rounded-4 p-4 mb-4">
+            <img class="img-fluid" src="../assets/images/P-1.png" alt="">
+            <h6 class="pt-2">Drink More Water</h6>
+            <p>Your brain runs on water. Keep a reusable bottle with you and aim for 8 glasses daily. It helps focus, energy, and memory retention.</p>
+          </div>
+          <div class="wellbeing-card col-md-2 col-lg-3 col-sm-12 text-start shadow border rounded-4 p-4 mb-4">
+            <img class="img-fluid" src="../assets/images//P-2.png" alt="">
+            <h6 class="pt-2">Mental Health is Health</h6>
+            <p>Listen to your emotions. If you’re constantly tired, anxious, or demotivated, reach out early support is confidential and free.</p>
+          </div>
+          <div class="wellbeing-card col-md-2 col-lg-3 col-sm-12 text-start shadow border rounded-4 p-4 mb-4">
+            <img class="img-fluid" src="../assets/images//P-3.png" alt="">
+            <h6 class="pt-2">Wash & Protect</h6>
+            <p>Frequent handwashing reduces infections. Carry sanitizer, avoid sharing cups, and mask up if you feel unwell.</p>
+          </div>
+        </div>
+
+        <div class="wellbeing-grid row d-flex justify-content-around my-4 px-5 mx-5">
+          <div class="wellbeing-card col-md-2 col-lg-3 col-sm-12 text-start shadow border rounded-4 p-4 mb-4">
+            <img class="img-fluid" src="../assets/images//P-4.png" alt="">
+            <h6 class="pt-2">Eat Real Food</h6>
+            <p>Good grades need good fuel. Choose whole foods over processed snacks; your body and brain will thank you.</p>
+          </div>
+          <div class="wellbeing-card col-md-2 col-lg-3 col-sm-12 text-start shadow border rounded-4 p-4 mb-4">
+            <img class="img-fluid" src="../assets/images//P-5.png" alt="">
+            <h6 class="pt-2">Morning Light Matters</h6>
+            <p>10 minutes of morning sunlight boosts your energy and focus. It helps your body produce serotonin for a happier mood.</p>
+          </div>
+          <div class="wellbeing-card col-md-2 col-lg-3 col-sm-12 text-start shadow border rounded-4 p-4 mb-4">
+            <img class="img-fluid" src="../assets/images//P-6.png" alt="">
+            <h6 class="pt-2">Rest Well</h6>
+            <p>Quality rest helps your immune system and focus. Aim for 7–8 hours and let your mind reset — rest is part of progress.</p>
+          </div>
+        </div>
+        <a href="login.html" class="login-btn one-platform-login">Login to Your Account</a>
+      </div>
+
+    </section>
+
 
     <!-- About us -->
 
     <section class="landingpage-about-us" id="about-us">
-      <div class="fade-up landingpage-about-us-heading">
-        <h2>ABOUT US</h2>
-        <p>Connecting Africa's Healthcare - One Record at a Time</p>
+      <div class="fade-up landingpage-about-us-heading landingpage-about-us-note">
+        <h2>WHO WE ARE</h2>
+    
+        <p>
+          Healthclouda is a secure, cloud-based Electronic Health Record (EHR) and patient data platform designed to reduce long hospital queues and enable seamless, secure sharing of medical records between healthcare facilities in Nigeria and Sub-Saharan Africa. It is built to serve hospitals, clinics, schools with medical staff, and pharmacies. The system is built on Microsoft Azure Healthcare Cloud Services for performance, reliability, and compliance.
+
+        </p>
+        <!-- <div class="landingpage-about-us-note-img">
+          <img src="../assets/images/EHR.png" alt="EHR">
+        </div> -->
       </div>
 
-      <div class="fade-up landingpage-about-us-note">
-        <p>
-          Healthclouda is a secure, cloud-based Electronic Health Record (EHR) and student data platform built for African universities. We reduce queues, replace paper records, and enable secure record-sharing within campus health systems. By leveraging Microsoft Azure Healthcare Cloud Services, we provide reliability, performance, and compliance while tailoring solutions to the unique realities of African students and clinics.
-        </p>
-        <div class="landingpage-about-us-note-img">
-          <img src="../assets/images/EHR.png" alt="EHR">
-        </div>
-      </div>
+        <!-- fade-up hover-scale -->
 
       <div class="landingpage-about-us-mission">
-        <div class="fade-up hover-scale">
-          <h2>Our Mission</h2>
-          <p>To empower university clinics and students through instant, reliable, and secure access to health records, reducing administrative bottlenecks and enabling healthier student communities.</p>
+        <div>
+          <div class="landingpage-about-us-mission-content">
+            <img src="../assets/images/target.png" alt="">
+            <h2>Our Mission</h2>
+            <p>To empower healthcare providers and patients through instant, reliable, and secure access to medical records, improving efficiency and saving lives</p>
+          </div>
         </div>
-        <div class="fade-up hover-scale">
+        <div>
+          <div class="landingpage-about-us-mission-content">
+          <img src="../assets/images/eye.png" alt="">
           <h2>Our Vision</h2>
-          <p>A future where every African student’s health record is available in the cloud, easily accessible at their campus clinic, and securely shared between departments when needed. By eliminating paper files and long queues, HealthClouda-Campus supports faster care and stronger student well-being.</p>
+          <p>A  cloud-based EHR platform built for seamless hospital-to-hospital record sharing in Nigeria/Africa, solving long queues by improving data retrieval.</p>
+          </div>
         </div>
       </div>
       
       <div class="landingpage-about-us-problems-solution">
         <div class="fade-up hover-scale">
           <h2>Problem We Solve</h2>
-          <p>In many African universities, student health records are still stored in paper files, locked away in clinic offices. Students often face repeated tests, long queues, and delays because their records are inaccessible. This results in wasted time, unnecessary costs, and delayed treatment.</p>
+          <p>Built on Microsoft Azure Healthcare Cloud Services, HealthClouda offers high performance, reliability, and compliance with global healthcare data standards. With a unique HealthClouda ID, patient records are securely accessible from any registered healthcare facility instantly.</p>
         </div>
         <div class="fade-up hover-scale" id="landingpage-about-us-problems-solution">
           <h2>Our Solution</h2>
@@ -201,6 +278,8 @@
         </div>
       </div>
     </section>
+
+    <!-- security -->
     
     <div class="landingpage-cloud">
       <div class="landingpage-cloud-1 hidden">
@@ -228,6 +307,8 @@
       </div>
     </div>
 
+    <!-- contact us -->
+
     <div class="landingpage-contact-us" id="contact-us">
 
       <div class="landingpage-contact-us-page-title">
@@ -245,7 +326,7 @@
             <input type="text" name="lastName" id="last_name" required placeholder="Last Name*">
           </div>
           <div class="contact_us"> 
-            <input type="text" name="email" id="email" required placeholder="Email*">
+            <input type="text" name="email" id="email" required placeholder="Email span*">
 
             <input type="text" name="phoneNumber" id="phone_number" required placeholder="Phone Number*">
           </div>    
@@ -270,9 +351,10 @@
 
     </div>
 
+    <!-- transform -->
     
     <div class="landingpage-transform">
-      <h2>Ready to Transform Yourt Healthcare Practice?</h2>
+      <h2>Ready to Transform Your Healthcare Practice?</h2>
       <p>Join hundreds of healthcare providers across Africa who trust Healthclouda</p>
     </div>
 
