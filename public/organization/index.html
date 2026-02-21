@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthClouda</title>
+
+  <link rel="stylesheet" href="./style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
+  <!-- Load order: config → api → org-config -->
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav>
+    <div class="logo d-flex align-items-center gap-3">
+      <img class="img-fluid" id="nav-logo" src="" alt="">
+      <a href="#home" id="nav-brand-name">HealthClouda</a>
+    </div>
+    <a href="./signin.html" class="btn nav-btn btn-primary">Sign in to Portal</a>
+  </nav>
+
+  <!-- HERO -->
+  <main class="main-hero d-flex align-items-center row d-flex justify-content-between ms-5 ps-5" id="home">
+    <div class="col-md-4 col-sm-8 text-center text-md-start sm-mx-auto ms-5 mb-5">
+      <h1 class="text fs-10 fw-bold">
+        Welcome to <br>
+        <span class="text-primary" id="hero-org-name">University of Ilorin</span> <br>
+        HealthClouda
+      </h1>
+      <p>Your gateway to health services and information.</p>
+      <a class="btn hero-btn" href="./signin.html">Sign In to Portal</a>
+    </div>
+    <div class="col-md-6">
+      <img class="img-fluid" id="hero-image" src="" alt="">
+    </div>
+  </main>
+
+  <!-- ANNOUNCEMENTS -->
+  <section class="announcement" id="announcementSection">
+    <div class="text text-center mx-auto mt-5">
+      <h2>Campus Health Announcements</h2>
+      <p>Stay informed about health activities on campus.</p>
+    </div>
+    <div class="row d-flex flex-wrap mt-4 justify-content-center gap-4" id="announcementCards"></div>
+  </section>
+
+  <!-- WELLBEING -->
+  <section class="wellbeing">
+    <div class="text text-center mx-auto py-5 mt-5">
+      <h2>Your Wellbeing Matters...</h2>
+      <p>Here's a quick dose of wellness inspiration to keep your mind and body in sync throughout the semester.</p>
+    </div>
+
+    <div class="wellbeing-carousel-wrapper" id="wellbeingCarousel">
+      <button class="carousel-btn carousel-btn-prev" id="wPrev" aria-label="Previous">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M15 18l-6-6 6-6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <div class="wellbeing-carousel-track" id="wellbeingTrack">
+        <div class="wellbeing-card">
+          <img src="../../assets/images/P-1.png" alt="Drink More Water">
+          <h6 class="pt-2">Drink More Water</h6>
+          <p>Your brain runs on water. Keep a reusable bottle with you and aim for 8 glasses daily.</p>
+        </div>
+        <div class="wellbeing-card">
+          <img src="../../assets/images/P-2.png" alt="Mental Health is Health">
+          <h6 class="pt-2">Mental Health is Health</h6>
+          <p>Listen to your emotions. If you're constantly tired, anxious, or demotivated, reach out — early support is confidential and free.</p>
+        </div>
+        <div class="wellbeing-card">
+          <img src="../../assets/images/P-3.png" alt="Wash & Protect">
+          <h6 class="pt-2">Wash & Protect</h6>
+          <p>Frequent handwashing reduces infections. Carry sanitizer, avoid sharing cups, and mask up if you feel unwell.</p>
+        </div>
+        <div class="wellbeing-card">
+          <img src="../../assets/images/P-4.png" alt="Eat Real Food">
+          <h6 class="pt-2">Eat Real Food</h6>
+          <p>Good grades need good fuel. Choose whole foods over processed snacks; your body and brain will thank you.</p>
+        </div>
+        <div class="wellbeing-card">
+          <img src="../../assets/images/P-5.png" alt="Morning Light Matters">
+          <h6 class="pt-2">Morning Light Matters</h6>
+          <p>10 minutes of morning sunlight boosts your energy and focus. It helps your body produce serotonin for a happier mood.</p>
+        </div>
+        <div class="wellbeing-card">
+          <img src="../../assets/images/P-6.png" alt="Rest Well">
+          <h6 class="pt-2">Rest Well</h6>
+          <p>Quality rest helps your immune system and focus. Aim for 7–8 hours and let your mind reset — rest is part of progress.</p>
+        </div>
+      </div>
+
+      <button class="carousel-btn carousel-btn-next" id="wNext" aria-label="Next">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M9 18l6-6-6-6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="carousel-dots" id="carouselDots"></div>
+  </section>
+
+  <!-- CONTACT US -->
+  <section class="container contact-us d-flex flex-column gap-3 p-5 mt-5">
+    <div class="text text-center">
+      <h2>Need help or Medical Assistance?</h2>
+      <p class="text">Reach out to the University Health Centre or the HealthClouda support team, we're here to help</p>
+    </div>
+
+    <section class="contact-us-middle">
+      <div>
+        <dl>
+          <dt class="fs-5 mt-2" id="contact-clinic-name">University Clinic</dt>
+          <dd id="contact-clinic-address"></dd>
+          <dd id="contact-clinic-hours"></dd>
+          <dd id="contact-clinic-phone"></dd>
+          <dd id="contact-clinic-email"></dd>
+
+          <dt class="mt-5 fs-5">Portal &amp; Technical Support</dt>
+          <dd>For login issues or portal errors:</dd>
+          <dd id="contact-support-email"></dd>
+          <dd id="contact-support-chat"></dd>
+
+          <dt class="mt-5 fs-5">Emergency Line</dt>
+          <dd>In case of medical emergency, call immediately:</dd>
+          <dd id="contact-emergency-phone"></dd>
+          <dd>Available 24/7</dd>
+        </dl>
+      </div>
+
+      <div class="contact-us-form">
+        <!-- ✅ FIX: has id + submit handler wired in script.js -->
+        <form id="orgContactForm" class="d-flex flex-column gap-3">
+          <h4 class="text text-center">Need Quick Help?</h4>
+          <input type="text" placeholder="Full Name" id="contact-name">
+          <input type="email" required id="contact-email" placeholder="Your Email">
+          <textarea id="contact-message" placeholder="Message"></textarea>
+          <div id="contactFormMsg" style="font-size:0.85rem; min-height:1rem; text-align:center;"></div>
+          <button class="btn contact-us-btn" type="submit" id="orgContactBtn">Submit</button>
+        </form>
+      </div>
+    </section>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="landingpage-footer">
+    <div class="landingpage-footer-container">
+      <div class="landingpage-footer-section">
+        <h2 class="landingpage-footer-logo">HealthClouda</h2>
+        <p>Empowering African Universities healthcare with secure, cloud-based EHR solutions.</p>
+      </div>
+      <div class="landingpage-footer-section col-sm-6">
+        <h3 class="landingpage-footer-heading">Product</h3>
+        <ul class="landingpage-footer-list">
+          <li><a href="#">Features</a></li>
+          <li><a href="#">Pricing</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+      <div class="landingpage-footer-section col-sm-6">
+        <h3 class="landingpage-footer-heading">Support</h3>
+        <ul class="landingpage-footer-list">
+          <li><a href="#">Documentation</a></li>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+      <div class="landingpage-footer-section col-sm-6">
+        <h3 class="landingpage-footer-heading">Company</h3>
+        <ul class="landingpage-footer-list">
+          <li><a href="#">About</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="landingpage-footer-bottom">
+      © <span id="landingpage-footer-year"></span> HealthClouda. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS — once, one version -->
+  <!-- JS at bottom: DOM is fully parsed before any script runs -->
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/api.js"></script>
+  <!-- No auth.js needed — org/index.html is a public landing page -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+  <script src="./org-config.js"></script>
+  <script src="./script.js"></script>
+
+  <script>
+    function applyOrgBranding() {
+      const c = ORG_CONFIG;
+      document.title = c.pageTitle;
+
+      document.getElementById('nav-logo').src = c.logo;
+      document.getElementById('nav-logo').alt = c.name + ' logo';
+      document.getElementById('nav-brand-name').textContent = 'HealthClouda';
+
+      document.getElementById('hero-org-name').textContent = c.name;
+      document.getElementById('hero-image').src = c.heroImage;
+      document.getElementById('hero-image').alt = c.name + ' health illustration';
+
+      document.getElementById('contact-clinic-name').textContent    = c.clinic.name;
+      document.getElementById('contact-clinic-address').textContent = c.clinic.address;
+      document.getElementById('contact-clinic-hours').textContent   = 'Open: ' + c.clinic.hours;
+      document.getElementById('contact-clinic-phone').textContent   = 'Phone: ' + c.clinic.phone;
+      document.getElementById('contact-support-chat').textContent   = 'Chat: ' + c.support.chat;
+      document.getElementById('contact-emergency-phone').textContent = c.emergency.phone;
+
+      // ✅ XSS-safe email links via createElement
+      function makeEmailLink(id, label, email) {
+        const dd   = document.getElementById(id);
+        const link = document.createElement('a');
+        link.href        = 'mailto:' + email;
+        link.textContent = email;
+        dd.textContent   = label + ': ';
+        dd.appendChild(link);
+      }
+      makeEmailLink('contact-clinic-email',  'Email', c.clinic.email);
+      makeEmailLink('contact-support-email', 'Email', c.support.email);
+
+      const yr = document.getElementById('landingpage-footer-year');
+      if (yr) yr.textContent = new Date().getFullYear();
+    }
+
+    applyOrgBranding();
+  </script>
+
+</body>
+</html>

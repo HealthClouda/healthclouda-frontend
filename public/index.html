@@ -1,12 +1,365 @@
-<!-- THIS IS THE HOMEPAGE -->
- <!DOCTYPE html>
- <html lang="en">
- <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HealthClouda</title>
- </head>
- <body>
-    <h1>Welcome To HealthClouda</h1>
- </body>
- </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="HealthClouda is a cloud-based electronic health record platform enabling seamless hospital-to-hospital medical record sharing across Africa.">
+  <title>HealthClouda | Cloud-Based EHR Platform</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Styles from assets/css/ -->
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="navbar">
+    <div class="nav-logo">
+      <a href="#home">HealthClouda</a>
+    </div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#home"       class="nav-link active">Home</a></li>
+      <li><a href="#features"   class="nav-link">Features</a></li>
+      <li><a href="#about-us"   class="nav-link">About Us</a></li>
+      <li><a href="#contact-us" class="nav-link">Contact Us</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="./signin.html" class="nav-btn">Sign In</a>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile drawer -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <ul>
+      <li><a href="#home"       class="mobile-link">Home</a></li>
+      <li><a href="#features"   class="mobile-link">Features</a></li>
+      <li><a href="#about-us"   class="mobile-link">About Us</a></li>
+      <li><a href="#contact-us" class="mobile-link">Contact Us</a></li>
+      <li><a href="./signin.html" class="mobile-signin">Sign In</a></li>
+    </ul>
+  </div>
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+
+  <!-- HERO -->
+  <section class="hero" id="home">
+    <div class="hero-content">
+      <h1>Modern EHR Built for Smarter Healthcare</h1>
+      <p>Revolutionize healthcare delivery with our comprehensive Electronic Health Record system designed specifically for African healthcare providers. Secure, scalable, and compliant.</p>
+      <a href="./signin.html" class="hero-cta">Login to Your Account</a>
+    </div>
+    <div class="hero-img">
+      <img src="../assets/images/Hero_picture.png" alt="HealthClouda dashboard preview">
+    </div>
+  </section>
+
+
+  <!-- LOGO STRIP -->
+  <div class="logo-strip">
+    <div class="logo-strip-inner">
+      <img src="../assets/images/Fictional_company_logo1.png" alt="Partner logo">
+      <img src="../assets/images/Fictional_company_logo2.png" alt="Partner logo">
+      <img src="../assets/images/Fictional_company_logo3.png" alt="Partner logo">
+      <img src="../assets/images/Fictional_company_logo4.png" alt="Partner logo">
+      <img src="../assets/images/Fictional_company_logo5.png" alt="Partner logo">
+    </div>
+  </div>
+
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="section-header features-head-alt">
+      <h2>Everything You Need for Modern Healthcare</h2>
+      <p>Comprehensive features designed for the future of African healthcare environments</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <img src="../assets/images/person_add.png" alt="Patient Record">
+        </div>
+        <h3>Patient Record</h3>
+        <p>Comprehensive electronic health records with secure patient data management</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <img src="../assets/images/science.png" alt="Lab Integration">
+        </div>
+        <h3>Lab Integration</h3>
+        <p>Seamless laboratory test ordering, tracking, and result management</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <img src="../assets/images/pill.png" alt="Prescription">
+        </div>
+        <h3>Prescription</h3>
+        <p>Digital prescription management with integration for school pharmacies</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <img src="../assets/images/chat_bubble.png" alt="Secure Messaging">
+        </div>
+        <h3>Secure Messaging</h3>
+        <p>HIPAA-compliant communication between nurses, doctors, labs, and pharmacists</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ONE PLATFORM -->
+  <section class="one-platform">
+    <div class="one-platform-note">
+      <h2>One Platform, Every Healthcare Role Covered</h2>
+      <p>Our secure, user-friendly Electronic Health Record system is purpose-built for hospitals and health facilities looking to simplify documentation, enhance collaboration, and improve patient care.</p>
+      <a href="./signin.html" class="hero-cta one-platform-cta">Login to Your Account</a>
+    </div>
+    <div class="one-platform-img">
+      <img src="../assets/images/Female_doctor.jpg" alt="Doctor using HealthClouda">
+    </div>
+  </section>
+
+
+  <!-- BENEFITS -->
+  <section class="benefits">
+    <div class="benefit-item benefit-note-alt">
+      <img src="../assets/images/BENEFIT_ONE.png" alt="Effortless workflows">
+      <div class="benefit-note">
+        <h2>Effortless Patient Workflows</h2>
+        <p>Every clinic operates differently and HealthClouda adapts. You'll get smart, customizable clinical forms that reflect your exact workflow: registration, history taking, vitals, diagnostic notes and follow-ups, all shaped around how your team works. Faster onboarding, fewer errors, more time for care.</p>
+      </div>
+    </div>
+    <div class="benefit-item">
+      <div class="benefit-note">
+        <h2>Proactive Intelligence that Keeps Patients Safe</h2>
+        <p>HealthClouda includes safety alerts for allergies, drug interactions, critical vitals, duplicate records, and follow-up reminders. When something looks off, the system prompts staff to double-check and intervene early — ensuring patients receive the right care at the right time.</p>
+      </div>
+      <img src="../assets/images/Heart.png" alt="Patient safety">
+    </div>
+    <div class="benefit-item benefit-note-alt">
+      <img src="../assets/images/noun-africa.png" alt="Built for Africa">
+      <div class="benefit-note">
+        <h2>Built for Africa's Realities</h2>
+        <p>HealthClouda doesn't just work in Africa — it's built for it. Full offline mode keeps work going during power or connectivity drops. Cost-effective for varying budgets, it scales from a single-practitioner clinic to a growing hospital. Intuitive design and optional local language support help every team member adopt it quickly.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- WELLBEING -->
+  <section class="wellbeing">
+    <div class="section-header">
+      <h2>Your Wellbeing Matters...</h2>
+      <p>Here's a quick dose of wellness inspiration to keep your mind and body in sync throughout the semester.</p>
+    </div>
+    <div class="wellbeing-grid">
+      <div class="wellbeing-card fade-in">
+        <img src="../assets/images/P-1.png" alt="Drink More Water">
+        <h6>Drink More Water</h6>
+        <p>Your brain runs on water. Keep a reusable bottle with you and aim for 8 glasses daily.</p>
+      </div>
+      <div class="wellbeing-card fade-in">
+        <img src="../assets/images/P-2.png" alt="Mental Health is Health">
+        <h6>Mental Health is Health</h6>
+        <p>Listen to your emotions. If you're constantly tired, anxious, or demotivated, reach out — early support is confidential and free.</p>
+      </div>
+      <div class="wellbeing-card fade-in">
+        <img src="../assets/images/P-3.png" alt="Wash & Protect">
+        <h6>Wash &amp; Protect</h6>
+        <p>Frequent handwashing reduces infections. Carry sanitizer, avoid sharing cups, and mask up if you feel unwell.</p>
+      </div>
+      <div class="wellbeing-card fade-in">
+        <img src="../assets/images/P-4.png" alt="Eat Real Food">
+        <h6>Eat Real Food</h6>
+        <p>Good grades need good fuel. Choose whole foods over processed snacks; your body and brain will thank you.</p>
+      </div>
+      <div class="wellbeing-card fade-in">
+        <img src="../assets/images/P-5.png" alt="Morning Light Matters">
+        <h6>Morning Light Matters</h6>
+        <p>10 minutes of morning sunlight boosts your energy and focus. It helps your body produce serotonin for a happier mood.</p>
+      </div>
+      <div class="wellbeing-card fade-in">
+        <img src="../assets/images/P-6.png" alt="Rest Well">
+        <h6>Rest Well</h6>
+        <p>Quality rest helps your immune system and focus. Aim for 7–8 hours and let your mind reset — rest is part of progress.</p>
+      </div>
+    </div>
+    <div class="wellbeing-cta">
+      <a href="./signin.html" class="hero-cta">Login to Your Account</a>
+    </div>
+  </section>
+
+
+  <!-- ABOUT US -->
+  <section class="about" id="about-us">
+    <div class="about-intro">
+      <h2>Who We Are</h2>
+      <p>HealthClouda is a secure, cloud-based Electronic Health Record (EHR) and patient data platform designed to reduce long hospital queues and enable seamless, secure sharing of medical records between healthcare facilities in Nigeria and Sub-Saharan Africa.</p>
+    </div>
+    <div class="about-mission-grid">
+      <div class="mission-card">
+        <img src="../assets/images/target.png" alt="Mission">
+        <h3>Our Mission</h3>
+        <p>To empower healthcare providers and patients through instant, reliable, and secure access to medical records, improving efficiency and saving lives.</p>
+      </div>
+      <div class="mission-card">
+        <img src="../assets/images/eye.png" alt="Vision">
+        <h3>Our Vision</h3>
+        <p>A cloud-based EHR platform built for seamless hospital-to-hospital record sharing in Nigeria and Africa, solving long queues by improving data retrieval.</p>
+      </div>
+    </div>
+    <div class="about-ps-grid">
+      <div class="ps-card">
+        <h3>Problem We Solve</h3>
+        <p>In many African healthcare facilities, patient records are still stored in paper files. Patients face repeated tests, long queues, and delays because their records are inaccessible — wasting time and delaying treatment.</p>
+      </div>
+      <div class="ps-card ps-card-alt">
+        <h3>Our Solution</h3>
+        <p>Built on Microsoft Azure Healthcare Cloud Services, HealthClouda delivers high performance, reliability, and compliance. With a unique HealthClouda ID, patient records are securely accessible from any registered facility instantly.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- SECURITY -->
+  <section class="security">
+    <div class="security-text">
+      <div class="security-badge">
+        <img src="../assets/images/encrypted.png" alt="Encrypted">
+        <span>Enterprise Security</span>
+      </div>
+      <h2>HIPAA &amp; NDPR Compliant</h2>
+      <p>Protecting sensitive patient health data with enterprise-grade security</p>
+      <ul class="security-list">
+        <li>256-bit SSL encryption</li>
+        <li>Role-based access control</li>
+        <li>Comprehensive audit trails</li>
+      </ul>
+    </div>
+    <div class="security-card">
+      <img src="../assets/images/cloud.png" alt="Cloud architecture">
+      <h3>Cloud-Native Architecture</h3>
+      <p>Scalable, reliable, and always accessible. HealthClouda is built to handle both small clinics and large multi-campus healthcare centers with ease.</p>
+    </div>
+  </section>
+
+
+  <!-- CONTACT -->
+  <section class="contact" id="contact-us">
+    <div class="section-header">
+      <h2>Contact Us</h2>
+      <p>Feel free to reach out for any enquiries or questions you might have.</p>
+    </div>
+    <div class="contact-form-wrap">
+      <form id="contactForm">
+        <div class="form-row-2">
+          <input type="text"  name="firstName"   id="first_name"   required placeholder="First Name*">
+          <input type="text"  name="lastName"    id="last_name"    required placeholder="Last Name*">
+        </div>
+        <div class="form-row-2">
+          <input type="email" name="email"       id="email"        required placeholder="Email*">
+          <input type="tel"   name="phoneNumber" id="phone_number" required placeholder="Phone Number*">
+        </div>
+        <label for="message">Your Message</label>
+        <textarea name="yourMessage" id="message" maxlength="500" required placeholder="Your Message"></textarea>
+        <button type="submit" class="contact-submit-btn" id="contactSubmitBtn">Send Message</button>
+      </form>
+    </div>
+  </section>
+
+
+  <!-- CTA BANNER -->
+  <div class="cta-banner">
+    <h2>Ready to Transform Your Healthcare Practice?</h2>
+    <p>Join hundreds of healthcare providers across Africa who trust HealthClouda</p>
+    <a href="./signin.html" class="cta-btn">Get Started Today</a>
+  </div>
+
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h2>HealthClouda</h2>
+        <p>Empowering African healthcare with secure, cloud-based EHR solutions.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#">Features</a></li>
+          <li><a href="#">Pricing</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Documentation</a></li>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#contact-us">Contact Us</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#about-us">About</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; <span id="footerYear"></span> HealthClouda. All rights reserved.
+    </div>
+  </footer>
+
+
+  <!-- JS load order: config → api → animations → page-specific -->
+  <script src="../assets/js/config.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/animations.js"></script>
+
+  <!-- Contact form: page-specific, stays inline -->
+  <script>
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+      contactForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('contactSubmitBtn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Sending...';
+        btn.disabled    = true;
+
+        try {
+          await publicApiRequest(HC_CONFIG.ENDPOINTS.CONTACT_FORM, {
+            method: 'POST',
+            body: JSON.stringify({
+              first_name:   document.getElementById('first_name').value.trim(),
+              last_name:    document.getElementById('last_name').value.trim(),
+              email:        document.getElementById('email').value.trim(),
+              phone_number: document.getElementById('phone_number').value.trim(),
+              message:      document.getElementById('message').value.trim(),
+            }),
+          });
+          btn.textContent    = '✓ Message sent!';
+          btn.style.background = '#16a34a';
+          contactForm.reset();
+        } catch (err) {
+          btn.textContent    = '✗ Failed. Please try again.';
+          btn.style.background = '#dc2626';
+        } finally {
+          setTimeout(() => {
+            btn.textContent    = originalText;
+            btn.style.background = '';
+            btn.disabled       = false;
+          }, 3000);
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
