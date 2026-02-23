@@ -53,9 +53,8 @@ function hc_initSigninForm() {
         user:    res.user,
       });
 
-      // Redirect based on user role
-      const redirect = HC_CONFIG.ROLE_REDIRECTS[res.user?.role];
-      window.location.href = redirect || '/public/index.html';
+      // Redirect based on user role — hc_redirectByRole handles normalisation
+      hc_redirectByRole(res.user?.role, '/public/index.html');
 
     } catch (err) {
       error.textContent = err.message || 'Invalid email or password.';
@@ -303,6 +302,38 @@ function hc_initResetForm(redirectOnSuccess = './password-success.html') {
       updateBtn.disabled      = false;
       updateBtn.style.opacity = '1';
     }
+  });
+}
+
+
+// ── Wire up password success page ───────────────────────────
+// Called on password-success.html only
+function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
+  // Clean up — reset flow is complete, clear sensitive sessionStorage
+  sessionStorage.removeItem('hc_reset_email');
+
+  // Countdown timer → auto redirect
+  let seconds = 5;
+  const countdownEl  = document.getElementById('countdown');
+  const continueBtn  = document.getElementById('continueBtn');
+
+  function tick() {
+    if (countdownEl) countdownEl.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(timer);
+      window.location.href = redirectTo;
+      return;
+    }
+    seconds--;
+  }
+
+  tick(); // run immediately so user sees 5 not blank
+  const timer = setInterval(tick, 1000);
+
+  // Manual continue button — skip countdown
+  continueBtn?.addEventListener('click', () => {
+    clearInterval(timer);
+    window.location.href = redirectTo;
   });
 }
 
