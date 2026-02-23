@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthClouda | Super Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./dashboard.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <span>HealthClouda</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <button class="nav-item active" data-page="dashboard">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </span>
+      Dashboard
+    </button>
+
+    <button class="nav-item" data-page="organisations">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+      </span>
+      Organisations
+    </button>
+
+    <button class="nav-item" data-page="users">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </span>
+      Users
+    </button>
+
+    <button class="nav-item" data-page="records">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </span>
+      Records
+    </button>
+
+    <button class="nav-item" data-page="billing">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </span>
+      Billing
+    </button>
+
+    <button class="nav-item" data-page="messages">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </span>
+      Messages
+      <span class="nav-badge">4</span>
+    </button>
+
+    <button class="nav-item" data-page="audit">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </span>
+      Audit Logs
+    </button>
+
+    <span class="nav-section-label" style="margin-top:0.5rem">System</span>
+
+    <button class="nav-item" data-page="settings">
+      <span class="nav-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </span>
+      Settings
+    </button>
+  </nav>
+
+  <!-- Sidebar user profile — IDs populated by authGuard() in dashboard.js -->
+  <div class="sidebar-bottom">
+    <div class="sidebar-avatar" id="sidebarAvatar">SA</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarUserName">Super Admin</div>
+      <div class="sidebar-user-role" id="sidebarUserRole">Super Admin</div>
+    </div>
+    <button class="sidebar-logout" title="Logout" onclick="hc_logoutAdmin()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</aside>
+
+
+<!-- ══════════════════════════════════════════════
+     MAIN WRAP
+══════════════════════════════════════════════ -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-brand">
+      HealthClouda
+      <span>Super Admin</span>
+    </div>
+
+    <div class="header-search">
+      <span class="header-search-icon">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="text" id="globalSearch" placeholder="Search organisations or users…">
+    </div>
+
+    <div class="header-right">
+      <div class="date-range">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        10-06-2026 → 10-10-2026
+      </div>
+      <button class="header-notif" title="Notifications">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="header-notif-dot"></span>
+      </button>
+    </div>
+  </header>
+
+
+  <!-- ════════════ PAGE: DASHBOARD ════════════ -->
+  <div class="page-content active" id="page-dashboard">
+
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">Welcome back. Here's what's happening today.</div>
+      </div>
+    </div>
+
+    <!-- Stat cards — values populated by loadStats() -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Users</span>
+          <span class="stat-icon purple">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+        </div>
+        <div class="stat-value" id="statTotalUsers">—</div>
+        <div class="stat-trend" id="trendUsers"></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Organisations</span>
+          <span class="stat-icon purple">
+            <svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"/></svg>
+          </span>
+        </div>
+        <div class="stat-value" id="statTotalOrgs">—</div>
+        <div class="stat-trend" id="trendOrgs"></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Monthly Revenue</span>
+          <span class="stat-icon green">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+        </div>
+        <div class="stat-value" id="statRevenue">—</div>
+        <div class="stat-trend" id="trendRevenue"></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Active Records</span>
+          <span class="stat-icon blue">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          </span>
+        </div>
+        <div class="stat-value" id="statRecords">—</div>
+        <div class="stat-trend" id="trendRecords"></div>
+      </div>
+    </div>
+
+    <!-- System Health + Security Alert -->
+    <div class="info-row">
+
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg viewBox="0 0 24 24" style="color:var(--success)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          System Health
+        </div>
+        <!-- Populated by loadSystemHealth() -->
+        <div class="health-item" id="healthApi">
+          <span class="status-dot online"></span>
+          <span>API Status: <b>Loading…</b></span>
+        </div>
+        <div class="health-item" id="healthDb">
+          <span class="status-dot online"></span>
+          <span>Database: <b>Loading…</b></span>
+        </div>
+        <div class="health-item" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-soft);fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          <span style="font-size:0.78rem;color:var(--text-soft)">Last Backup: <b style="color:var(--text-mid)" id="healthBackup">Loading…</b></span>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg viewBox="0 0 24 24" style="color:var(--warning)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Security Alert
+        </div>
+        <!-- .sec-count spans populated by loadSecurityAlerts() -->
+        <div class="alert-item warn" id="secFailedLogins">
+          <span>⚠️</span>
+          <span><span class="sec-count">…</span> Failed logins detected</span>
+        </div>
+        <div class="alert-item danger" id="secLockedAccounts">
+          <span>🔒</span>
+          <span><span class="sec-count">…</span> Locked accounts</span>
+        </div>
+        <div class="alert-item safe" id="secSuspicious">
+          <span>✓</span>
+          <span class="sec-label">Loading…</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Recent Activity Table -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <span class="table-card-title">Recent Activity</span>
+        <button class="btn btn-ghost" style="font-size:0.78rem;padding:0.4rem 0.8rem" onclick="document.querySelector('[data-page=audit]').click()">View all</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>User ID</th>
+            <th>Action</th>
+            <th>Entity</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="activityTbody">
+          <!-- Populated by loadRecentActivity() -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: ORGANISATIONS ════════════ -->
+  <div class="page-content" id="page-organisations">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Organisations</div>
+        <div class="page-subtitle">Manage hospitals and clinics using HealthClouda</div>
+      </div>
+      <button class="btn btn-primary" onclick="openPanel('addOrgPanel')">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Organisation
+      </button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="page-search">
+          <span class="page-search-icon">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input type="text" id="orgSearch" placeholder="Search by name or ID…" oninput="filterOrgs(this.value)">
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Organisation Name</th>
+            <th>Type</th>
+            <th>ID</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="orgTableBody">
+          <!-- Populated by loadOrgs() -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: USERS ════════════ -->
+  <div class="page-content" id="page-users">
+    <div class="page-header"><div><div class="page-title">Users</div><div class="page-subtitle">All registered users across organisations</div></div></div>
+    <div class="placeholder-page">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <h2>Users Module</h2>
+      <p>User management wired to the API in the next sprint.</p>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: RECORDS ════════════ -->
+  <div class="page-content" id="page-records">
+    <div class="page-header"><div><div class="page-title">Records</div><div class="page-subtitle">Patient health records across all organisations</div></div></div>
+    <div class="placeholder-page">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      <h2>Records Module</h2>
+      <p>Patient records wired to the EHR API in the next sprint.</p>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: BILLING ════════════ -->
+  <div class="page-content" id="page-billing">
+    <div class="page-header"><div><div class="page-title">Billing</div><div class="page-subtitle">Organisation plans and revenue overview</div></div></div>
+    <div class="placeholder-page">
+      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      <h2>Billing Module</h2>
+      <p>Subscription and revenue management in the next sprint.</p>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: MESSAGES ════════════ -->
+  <div class="page-content" id="page-messages">
+    <div class="page-header"><div><div class="page-title">Messages</div><div class="page-subtitle">Internal communications and notifications</div></div></div>
+    <div class="placeholder-page">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <h2>Messages Module</h2>
+      <p>Secure messaging in the next sprint.</p>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: AUDIT LOGS ════════════ -->
+  <div class="page-content" id="page-audit">
+    <div class="page-header"><div><div class="page-title">Audit Logs</div><div class="page-subtitle">System-wide activity and security trail</div></div></div>
+    <div class="table-card">
+      <div class="table-card-header"><span class="table-card-title">All Activity</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>User ID</th>
+            <th>Action</th>
+            <th>Entity</th>
+            <th>IP Address</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="auditTbody">
+          <!-- Populated by loadAuditLogs() -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ════════════ PAGE: SETTINGS ════════════ -->
+  <div class="page-content" id="page-settings">
+    <div class="page-header"><div><div class="page-title">Settings</div><div class="page-subtitle">System configuration and preferences</div></div></div>
+    <div class="placeholder-page">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <h2>Settings Module</h2>
+      <p>System configuration panel in the next sprint.</p>
+    </div>
+  </div>
+
+</div><!-- /main-wrap -->
+
+
+<!-- ══════════════════════════════════════════════
+     OVERLAY (closes panels on click)
+══════════════════════════════════════════════ -->
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+
+<!-- ══════════════════════════════════════════════
+     VIEW ORGANISATION PANEL
+══════════════════════════════════════════════ -->
+<div class="slide-panel" id="viewOrgPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="viewOrgTitle">Loading…</div>
+      <div id="viewOrgBadge"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel('viewOrgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body">
+    <div class="org-profile-header">
+      <div class="org-profile-avatar" id="viewOrgAvatar">—</div>
+      <div>
+        <div class="org-profile-name" id="viewOrgName">—</div>
+        <div class="org-profile-meta" id="viewOrgAdmin">—</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this,'tabOverview')">Overview</button>
+      <button class="tab-btn" onclick="switchTab(this,'tabUsers')">Users</button>
+      <button class="tab-btn" onclick="switchTab(this,'tabBilling')">Billing</button>
+    </div>
+
+    <div class="tab-content active" id="tabOverview">
+      <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-soft);margin-bottom:0.85rem">Contact Info</div>
+
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+        <div>
+          <div class="contact-info-label">Email</div>
+          <div class="contact-info-value" id="viewOrgEmail">—</div>
+        </div>
+      </div>
+
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <div>
+          <div class="contact-info-label">Phone</div>
+          <div class="contact-info-value" id="viewOrgPhone">—</div>
+        </div>
+      </div>
+
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div>
+          <div class="contact-info-label">Address</div>
+          <div class="contact-info-value" id="viewOrgAddress">—</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-soft);margin:1.25rem 0 0.5rem">Performance</div>
+      <div class="mini-chart" id="viewOrgChart"></div>
+    </div>
+
+    <div class="tab-content" id="tabUsers">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <h3>No users loaded</h3>
+        <p>User list fetched from the API in the next sprint.</p>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tabBilling">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <h3>Billing data</h3>
+        <p>Subscription and invoice data in the next sprint.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-footer" style="display:flex;gap:0.75rem">
+    <button class="btn btn-danger" style="flex:1" onclick="panelSuspendOrg()">Suspend</button>
+    <button class="btn btn-primary" style="flex:1" onclick="showToast('Edit coming soon','')">Edit Details</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     ADD ORGANISATION PANEL
+══════════════════════════════════════════════ -->
+<div class="slide-panel" id="addOrgPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Add Organisation</div>
+      <div class="panel-subtitle">Register a new hospital or clinic</div>
+    </div>
+    <button class="panel-close" onclick="closePanel('addOrgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body">
+    <form id="addOrgForm" onsubmit="submitAddOrg(event)">
+      <div class="form-group">
+        <label class="form-label">Organisation Name *</label>
+        <input class="form-input" type="text" id="newOrgName" placeholder="e.g. City Hospital" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address *</label>
+        <input class="form-input" type="text" id="newOrgAddress" placeholder="Street, City, State" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input class="form-input" type="email" id="newOrgEmail" placeholder="admin@organisation.com" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number *</label>
+        <input class="form-input" type="tel" id="newOrgPhone" placeholder="e.g. 09012345678" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organisation Type *</label>
+        <select class="form-input" id="newOrgType" required>
+          <option value="">Select type…</option>
+          <option value="Hospital">Hospital</option>
+          <option value="Clinic">Clinic</option>
+          <option value="Laboratory">Laboratory</option>
+          <option value="Pharmacy">Pharmacy</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plan</label>
+        <select class="form-input" id="newOrgPlan">
+          <option value="Basic">Basic</option>
+          <option value="Pro">Pro</option>
+          <option value="Premium">Premium</option>
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel-footer">
+    <button class="btn btn-primary" style="width:100%" onclick="submitAddOrg(event)">Add Organisation</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     TOAST
+══════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+
+<!-- ══════════════════════════════════════════════
+     SCRIPTS — load order matters
+══════════════════════════════════════════════ -->
+<script src="../../assets/js/config.js"></script>
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script src="./dashboard.js"></script>
+
+</body>
+</html>

@@ -1,18 +1,47 @@
+/* ════════════════════════════════════════════════════
+   HealthClouda — Org Landing + Auth Shared Styles
+   
+   FIX #1: Single :root — all variables in one place
+   FIX #2: Fonts changed to Inter + Lato (actually loaded)
+   FIX #3: input-icon uses top:50% + transform (not px)
+   FIX #4: background-image path corrected
+   FIX #5: Card styles on .signin-card, not .signin-form
+   FIX #6: nav logo uses fixed height, not percentage width
+════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════
+   VARIABLES — single :root, all tokens unified
+════════════════════════════════════════════════════ */
 :root {
-    --primary-color: #0075FF;
-    --secondary-color: #005FCC;
-    --background-color: rgba(243, 244, 245, 1);
-    --text-color: #000000;
+    /* Brand colours — used by landing page */
+    --primary-color:     #0075FF;
+    --secondary-color:   #005FCC;
+    --background-color:  rgba(243, 244, 245, 1);
+    --text-color:        #000000;
+
+    /* Auth page colour aliases — used by signin/forgot/otp/reset */
+    --primary:    #0075FF;   /* same value, different name for auth CSS */
+    --primary-dk: #005FCC;
+    --primary-lt: #EBF3FF;
+    --text-dark:  #000825;
+    --text-mid:   #374151;
+    --text-soft:  #6B7280;
+    --border:     #DDE3EE;
+
+    /* FIX #2: Use fonts that are actually loaded via Google Fonts <link> */
+    --font-head: 'Inter', sans-serif;
+    --font-body: 'Lato', sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     background-color: var(--background-color);
-    background-image: url(./ASSETS/Backgroud_flare.png);
+    background-image: url(../../assets/images/Backgroud_flare.png);
     background-repeat: no-repeat;
     background-size: cover;
 }
+
 
 /* ════════════════════════════════════
    NAV
@@ -29,7 +58,8 @@ nav {
     z-index: 100;
 }
 
-nav .logo img { width: 8%; }
+/* FIX #6: Fixed height instead of % width — logo stays legible on all screens */
+nav .logo img { height: 40px; width: auto; }
 
 nav .logo a {
     text-decoration: none;
@@ -49,6 +79,7 @@ nav .logo a {
     transition: all 0.3s ease;
 }
 .nav-btn:hover { background-color: var(--secondary-color); transform: scale(1.05); }
+
 
 /* ════════════════════════════════════
    HERO
@@ -77,19 +108,17 @@ main > div > .hero-btn {
 }
 main > div > .hero-btn:hover { background-color: var(--secondary-color); transform: scale(1.05); }
 
+
 /* ════════════════════════════════════
    ANNOUNCEMENTS
 ════════════════════════════════════ */
 .announcement { padding: 2rem 1rem 3rem; }
 
-.announcement-card {
-    background-color: #fff;
-}
+.announcement-card { background-color: #fff; }
 .announcement-card h3 { font-size: 1.3rem; }
 .announcement-card h6 { border-bottom: 3px solid var(--primary-color); }
 .announcement-card p  { font-size: 1rem; }
 
-/* Urgent state */
 .announcement-urgent {
     border: 2px solid #f59e0b !important;
     background-color: #fffbeb !important;
@@ -105,7 +134,6 @@ main > div > .hero-btn:hover { background-color: var(--secondary-color); transfo
     margin-bottom: 0.6rem;
 }
 
-/* Empty state */
 .announcement-empty {
     text-align: center;
     padding: 3rem 1rem;
@@ -115,15 +143,15 @@ main > div > .hero-btn:hover { background-color: var(--secondary-color); transfo
 .announcement-empty h4  { font-size: 1.15rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem; }
 .announcement-empty p   { font-size: 0.9rem; color: #9ca3af; }
 
+
 /* ════════════════════════════════════
-   WELLBEING SECTION
+   WELLBEING
 ════════════════════════════════════ */
 .wellbeing {
     background-color: rgba(211, 220, 230, 0.91);
     padding-bottom: 3rem;
 }
 
-/* ── Carousel ── */
 .wellbeing-carousel-wrapper {
     position: relative;
     width: 100%;
@@ -156,7 +184,6 @@ main > div > .hero-btn:hover { background-color: var(--secondary-color); transfo
 .wellbeing-card h6    { font-size: 1rem; font-weight: 700; color: #111; }
 .wellbeing-card p     { font-size: 0.875rem; color: #555; line-height: 1.55; }
 
-/* Nav buttons */
 .carousel-btn {
     position: absolute;
     top: 50%; transform: translateY(-60%);
@@ -175,10 +202,10 @@ main > div > .hero-btn:hover { background-color: var(--secondary-color); transfo
 .carousel-btn-prev { left: 8px; }
 .carousel-btn-next { right: 8px; }
 
-/* Dots */
 .carousel-dots { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.25rem; padding-bottom: 1rem; }
 .carousel-dot  { width: 8px; height: 8px; border-radius: 50%; background: #b0bbc7; border: none; cursor: pointer; padding: 0; transition: background 0.3s, transform 0.3s; }
 .carousel-dot.active { background: var(--primary-color); transform: scale(1.4); }
+
 
 /* ════════════════════════════════════
    CONTACT US
@@ -195,7 +222,6 @@ main > div > .hero-btn:hover { background-color: var(--secondary-color); transfo
 }
 
 .contact-us-middle > div:first-child { flex: 1 1 260px; min-width: 0; }
-
 .contact-us-form { flex: 1 1 320px; min-width: 0; }
 
 form { width: 100%; display: flex; flex-direction: column; gap: 1rem; }
@@ -223,6 +249,7 @@ form > textarea { height: 160px; resize: vertical; }
     transition: background 0.3s;
 }
 .contact-us-btn:hover { background-color: var(--secondary-color); }
+
 
 /* ════════════════════════════════════
    FOOTER
@@ -258,100 +285,39 @@ form > textarea { height: 160px; resize: vertical; }
     color: #aaa;
 }
 
-/* ════════════════════════════════════
-   TABLET  (≤ 900px)
-════════════════════════════════════ */
-@media (max-width: 900px) {
-
-    /* Nav */
-    nav .logo a { font-size: 1.4rem; }
-
-    /* Hero */
-    main > div > h1   { font-size: 2.2rem; line-height: 3.2rem; }
-    main > div > p    { font-size: 1rem; }
-
-    /* Announcements — 2 per row */
-    .announcement-card { font-size: 0.9rem; }
-    .announcement-card h3 { font-size: 1.1rem; }
-    .announcement-card p  { font-size: 0.9rem; }
-
-    /* Carousel — 2 cards */
-    .wellbeing-card { flex: 0 0 calc((100% - 7.5rem) / 2); }
-
-    /* Contact */
-    .contact-us { padding: 2.5rem 1.5rem; }
-    .contact-us-middle { gap: 1.5rem; }
-
-    /* Footer — 2 columns */
-    .landingpage-footer { padding: 40px 30px; }
-    .landingpage-footer-container { grid-template-columns: repeat(2, 1fr); gap: 28px; }
-}
-
-/* ════════════════════════════════════
-   MOBILE  (≤ 576px)
-════════════════════════════════════ */
-@media (max-width: 576px) {
-
-    /* Nav */
-    nav { flex-direction: column; gap: 8px; padding: 0.75rem 1rem; }
-    nav .logo a { font-size: 1.2rem; }
-    .nav-btn    { font-size: 0.85rem; padding: 0.5rem 1rem; }
-
-    /* Hero */
-    .main-hero { padding-top: 110px; }
-    main > div > h1 { font-size: 1.7rem; line-height: 2.5rem; }
-    main > div > p  { font-size: 0.95rem; }
-
-    /* Announcements — 1 per row, less padding */
-    .announcement { padding: 1.5rem 0.75rem 2rem; }
-    .announcement-card h3 { font-size: 1rem; }
-    .announcement-card p  { font-size: 0.85rem; }
-
-    /* Carousel — 1 card */
-    .wellbeing-card { flex: 0 0 80vw; }
-    .wellbeing-carousel-track { padding: 0.5rem 1.5rem; gap: 1rem; }
-
-    /* Contact — stacked */
-    .contact-us { padding: 2rem 1rem; }
-    .contact-us-middle { flex-direction: column; gap: 2rem; }
-    .contact-us-middle > div:first-child { width: 100%; }
-    .contact-us-form { width: 100%; }
-    form > input    { height: 46px; }
-    form > textarea { height: 130px; }
-
-    /* Footer — 1 column */
-    .landingpage-footer { padding: 28px 16px; }
-    .landingpage-footer-container { grid-template-columns: 1fr; gap: 20px; }
-    .landingpage-footer-logo { font-size: 20px; }
-    .landingpage-footer-section p { font-size: 13px; }
-    .landingpage-footer-heading   { font-size: 13px; }
-    .landingpage-footer-list li a { font-size: 13px; }
-    .landingpage-footer-bottom    { font-size: 12px; padding-top: 16px; margin-top: 20px; }
-}
 
 /* ════════════════════════════════════════════════════
-   SIGNIN PAGE — minimal centered card
+   AUTH PAGES — signin, forgot, otp, reset, success
+   
+   NOTE: signin.css is loaded ON TOP of this file
+   on all auth pages and handles the card, OTP widget,
+   strength bar, etc. These styles handle only what's
+   shared between landing and auth (nav, body, blobs).
 ════════════════════════════════════════════════════ */
 
-:root {
-    --primary:    #0075FF;
-    --primary-dk: #005FCC;
-    --primary-lt: #EBF3FF;
-    --text-dark:  #000825;
-    --text-mid:   #374151;
-    --text-soft:  #6B7280;
-    --border:     #DDE3EE;
-    --font-head:  'Sora', sans-serif;
-    --font-body:  'DM Sans', sans-serif;
-}
-
-.signin-page {
+/* Auth page body shell */
+body.signin-page {
     font-family: var(--font-body);
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
     background: linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);
 }
 
-/* ── Nav ─────────────────────────────── */
+/* Decorative blobs */
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+}
+.blob-1 { width: 420px; height: 420px; background: #c7daff; top: -80px;   left: -100px; }
+.blob-2 { width: 340px; height: 340px; background: #bdd4ff; bottom: 60px; right: -60px; }
+
+/* Auth nav */
 .signin-nav {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -360,9 +326,9 @@ form > textarea { height: 160px; resize: vertical; }
     align-items: center;
     justify-content: space-between;
     padding: 0 2rem;
-    background: rgba(255,255,255,0.9);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0,117,255,0.08);
+    border-bottom: 1px solid rgba(0, 117, 255, 0.08);
     z-index: 100;
 }
 
@@ -371,9 +337,6 @@ form > textarea { height: 160px; resize: vertical; }
     align-items: center;
     gap: 0.6rem;
 }
-
-.signin-nav-logo img { height: 30px; }
-
 .signin-nav-logo span {
     font-family: var(--font-head);
     font-size: 1.2rem;
@@ -382,82 +345,113 @@ form > textarea { height: 160px; resize: vertical; }
 }
 
 .signin-back-btn {
+    font-family: var(--font-body);
     font-size: 0.85rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--primary);
     text-decoration: none;
     padding: 0.35rem 0.9rem;
     border: 1px solid var(--primary);
     border-radius: 8px;
-    transition: all 0.2s ease;
+    transition: background 0.2s, color 0.2s;
 }
-.signin-back-btn:hover {
-    background: var(--primary);
-    color: #fff;
-}
+.signin-back-btn:hover { background: var(--primary); color: #fff; }
 
-/* Page body  */
+/* Auth page body */
 .signin-page-body {
-    /* min-height: 100vh; */
+    position: relative;
+    z-index: 1;
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem; 
-    background-image: url(./ASSETS/Backgroud_flare.png);
+    padding: 100px 1.25rem 3rem;
+    gap: 1.5rem;
+    /* FIX #4: correct path from public/org/ */
+    background-image: url(../../assets/images/Backgroud_flare.png);
     background-size: cover;
-
+    background-repeat: no-repeat;
 }
 
-/* Card */
-
-/* ── Card header ─────────────────────── */
+/* Card header */
 .signin-card-header {
-  text-align: center;
-  margin-bottom: 1rem;
-  margin-top: 5rem;
+    text-align: center;
+    max-width: 480px;
 }
-
-.signin-logo-img {
-  height: 60px;
-  width: 60px;
-  object-fit: contain;
-  border-radius: 14px;
-  background: var(--primary-lt);
-  padding: 8px;
-  margin-bottom: 1rem;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  }
-  
-  .signin-card-header h1 {
+.signin-card-header h1 {
     font-family: var(--font-head);
-    font-size: 2.5rem;
+    font-size: 1.9rem;
     font-weight: 700;
     color: var(--text-dark);
-    margin-bottom: 0.3rem;
-    line-height: 3.5rem;
-  }
-  
-  .signin-card-header h1 span {
-    color: var(--primary);
-    font-size: 2.5rem;
-  }
-  
-  .signin-card-header p {
-    font-size: 0.9rem;
+    line-height: 1.3;
+    margin-bottom: 0.5rem;
+}
+.signin-card-header h1 span { color: var(--primary); }
+.signin-card-header p {
+    font-size: 0.95rem;
     color: var(--text-soft);
-  }
-  
-    
-    .signin-form {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      border-radius: 20px;
-      border: 1px solid rgba(0,117,255,0.1);
-      box-shadow: 0 6px 32px rgba(55, 123, 201, 0.09);
+}
+
+/* Icon above header */
+.fp-icon {
+    width: 56px; height: 56px;
+    background: var(--primary-lt);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    color: var(--primary);
+}
+
+/* Success icon */
+.success-icon {
+    width: 72px; height: 72px;
+    background: var(--primary-lt);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+    position: relative;
+}
+.success-icon svg { animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both; }
+@keyframes pop {
+    0%   { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.success-icon::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    opacity: 0;
+    animation: ring 0.6s ease 0.1s forwards;
+}
+@keyframes ring {
+    0%   { opacity: 0;   transform: scale(0.8); }
+    60%  { opacity: 0.4; transform: scale(1.1); }
+    100% { opacity: 0;   transform: scale(1.2); }
+}
+.success-sub { font-size: 0.875rem; color: var(--text-soft); line-height: 1.6; }
+
+/* FIX #5: Card styles on .signin-card — NOT on .signin-form */
+.signin-card {
+    width: 100%;
+    max-width: 480px;
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 117, 255, 0.1);
+    box-shadow: 0 4px 32px rgba(0, 117, 255, 0.09);
+    padding: 2.25rem 2rem;
+}
+
+.signin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
 .form-group {
@@ -466,12 +460,11 @@ form > textarea { height: 160px; resize: vertical; }
     gap: 0.35rem;
     margin-bottom: 1.1rem;
 }
-
 .form-group label {
+    font-family: var(--font-head);
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-mid);
-    letter-spacing: 0.01em;
 }
 
 .input-wrap {
@@ -480,10 +473,12 @@ form > textarea { height: 160px; resize: vertical; }
     align-items: center;
 }
 
+/* FIX #3: top:50% + transform — never breaks regardless of input height */
 .input-icon {
     position: absolute;
     left: 13px;
-    top: 35px;
+    top: 50%;
+    transform: translateY(-50%);
     color: #b0b8c9;
     display: flex;
     align-items: center;
@@ -493,23 +488,22 @@ form > textarea { height: 160px; resize: vertical; }
 .input-wrap input {
     width: 100%;
     height: 48px;
-    padding: 0 42px;
-    border: 1.5px solid var(--primary-lt);
+    padding: 0 44px;
+    border: 1.5px solid var(--border);
     border-radius: 11px;
     font-family: var(--font-body);
     font-size: 0.9rem;
     color: var(--text-dark);
     background: #fafbff;
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
-
 .input-wrap input:focus {
     border-color: var(--primary);
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(0,117,255,0.09);
+    box-shadow: 0 0 0 3px rgba(0, 117, 255, 0.09);
 }
-
 .input-wrap input::placeholder { color: #c0c8d8; }
 
 .toggle-pw {
@@ -526,39 +520,38 @@ form > textarea { height: 160px; resize: vertical; }
 }
 .toggle-pw:hover { color: var(--primary); }
 
-/* ── Remember / forgot ───────────────── */
+/* Remember / forgot row */
 .form-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 1.5rem;
 }
-
 .checkbox-label {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    font-size: 0.85rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
     color: var(--text-mid);
     cursor: pointer;
 }
-
 .checkbox-label input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+    width: 16px; height: 16px;
     accent-color: var(--primary);
     cursor: pointer;
+    margin: 0;
 }
-
 .forgot-link {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 700;
     color: var(--primary);
     text-decoration: none;
 }
 .forgot-link:hover { text-decoration: underline; }
 
-/* ── Submit ──────────────────────────── */
+/* Submit button */
 .signin-btn {
     width: 100%;
     height: 48px;
@@ -566,37 +559,35 @@ form > textarea { height: 160px; resize: vertical; }
     color: #fff;
     border: none;
     border-radius: 11px;
-    font-family: var(--font-body);
+    font-family: var(--font-head);
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-    box-shadow: 0 3px 14px rgba(0,117,255,0.28);
-    margin-bottom: 3rem;
+    box-shadow: 0 3px 14px rgba(0, 117, 255, 0.28);
+    margin-bottom: 1.25rem;
 }
 .signin-btn:hover {
     background: var(--primary-dk);
     transform: translateY(-1px);
-    box-shadow: 0 5px 18px rgba(0,117,255,0.35);
+    box-shadow: 0 5px 18px rgba(0, 117, 255, 0.35);
 }
-.signin-btn:active { transform: translateY(0); }
+.signin-btn:active  { transform: translateY(0); }
+.signin-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
-/* ── No account ──────────────────────── */
+/* No account + notice */
 .no-account-text {
     text-align: center;
     font-size: 0.82rem;
     color: var(--text-soft);
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.85rem;
 }
-
-/* ── Notice ──────────────────────────── */
 .signin-notice {
     background: var(--primary-lt);
-    border: 1px solid rgba(0,117,255,0.15);
+    border: 1px solid rgba(0, 117, 255, 0.15);
     border-radius: 10px;
-    padding: 1rem 1.2rem;
+    padding: 0.9rem 1rem;
 }
-
 .signin-notice p {
     font-size: 0.78rem;
     color: #1a4b8c;
@@ -605,23 +596,225 @@ form > textarea { height: 160px; resize: vertical; }
     text-align: center;
 }
 
-/* ════════════════════════════════
-   MOBILE (≤ 480px)
-════════════════════════════════ */
+/* Back to login link */
+.back-to-login {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-decoration: none;
+    margin-top: 0.5rem;
+}
+.back-to-login:hover { text-decoration: underline; }
+
+/* Password strength bar */
+.strength-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+.strength-bar {
+    height: 100%;
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.35s ease, background 0.35s ease;
+}
+.strength-label {
+    font-size: 0.75rem;
+    margin-top: 0.3rem;
+    font-family: var(--font-body);
+    color: var(--text-soft);
+    min-height: 1rem;
+}
+
+/* Requirements list */
+.pw-requirements {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.pw-requirements li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: #9CA3AF;
+    transition: color 0.2s;
+}
+.pw-requirements li.met { color: #16a34a; }
+.pw-requirements li .req-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+.pw-requirements li.met .req-dot { background: #16a34a; }
+
+/* Match message */
+.match-msg { font-size: 0.78rem; font-family: var(--font-body); margin-top: 0.35rem; min-height: 1rem; }
+.match-msg.ok  { color: #16a34a; }
+.match-msg.err { color: #dc2626; }
+
+/* OTP widget */
+.otp-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+    cursor: text;
+}
+.otp-real-input {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    z-index: 10;
+    cursor: text;
+    font-size: 16px;
+    border: none; outline: none;
+    background: transparent;
+    caret-color: transparent;
+}
+.otp-display {
+    display: flex;
+    gap: 0.75rem;
+    pointer-events: none;
+    user-select: none;
+}
+.otp-box {
+    width: 52px; height: 56px;
+    border: 1.5px solid var(--border);
+    border-radius: 11px;
+    background: #fafbff;
+    font-family: var(--font-head);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.otp-box.filled { border-color: var(--primary); background: #fff; }
+.otp-box.active {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 117, 255, 0.09);
+}
+.otp-box.active.empty::after {
+    content: '';
+    display: block;
+    width: 2px; height: 1.5rem;
+    background: var(--primary);
+    border-radius: 1px;
+    animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* Resend row */
+.resend-row {
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    margin-top: 0.5rem;
+}
+.resend-row a { color: var(--primary); font-weight: 700; text-decoration: none; cursor: pointer; }
+.resend-row a:hover { text-decoration: underline; }
+.resend-row a.disabled { color: #b0b8c9; pointer-events: none; cursor: default; }
+
+/* Check email sub */
+.check-email-sub { font-size: 0.875rem; color: var(--text-soft); margin-top: 0.4rem; line-height: 1.6; }
+.email-display { font-family: var(--font-head); font-size: 0.85rem; font-weight: 600; color: var(--primary); }
+
+
+/* ════════════════════════════════════
+   TABLET  (≤ 900px)
+════════════════════════════════════ */
+@media (max-width: 900px) {
+    nav .logo a { font-size: 1.4rem; }
+
+    main > div > h1   { font-size: 2.2rem; line-height: 3.2rem; }
+    main > div > p    { font-size: 1rem; }
+
+    .announcement-card { font-size: 0.9rem; }
+    .announcement-card h3 { font-size: 1.1rem; }
+    .announcement-card p  { font-size: 0.9rem; }
+
+    .wellbeing-card { flex: 0 0 calc((100% - 7.5rem) / 2); }
+
+    .contact-us { padding: 2.5rem 1.5rem; }
+    .contact-us-middle { gap: 1.5rem; }
+
+    .landingpage-footer { padding: 40px 30px; }
+    .landingpage-footer-container { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+}
+
+
+/* ════════════════════════════════════
+   MOBILE  (≤ 576px)
+════════════════════════════════════ */
+@media (max-width: 576px) {
+    nav { flex-direction: column; gap: 8px; padding: 0.75rem 1rem; }
+    nav .logo a { font-size: 1.2rem; }
+    .nav-btn    { font-size: 0.85rem; padding: 0.5rem 1rem; }
+
+    .main-hero { padding-top: 110px; }
+    main > div > h1 { font-size: 1.7rem; line-height: 2.5rem; }
+    main > div > p  { font-size: 0.95rem; }
+
+    .announcement { padding: 1.5rem 0.75rem 2rem; }
+    .announcement-card h3 { font-size: 1rem; }
+    .announcement-card p  { font-size: 0.85rem; }
+
+    .wellbeing-card { flex: 0 0 80vw; }
+    .wellbeing-carousel-track { padding: 0.5rem 1.5rem; gap: 1rem; }
+
+    .contact-us { padding: 2rem 1rem; }
+    .contact-us-middle { flex-direction: column; gap: 2rem; }
+    .contact-us-middle > div:first-child { width: 100%; }
+    .contact-us-form { width: 100%; }
+    form > input    { height: 46px; }
+    form > textarea { height: 130px; }
+
+    .landingpage-footer { padding: 28px 16px; }
+    .landingpage-footer-container { grid-template-columns: 1fr; gap: 20px; }
+    .landingpage-footer-logo { font-size: 20px; }
+    .landingpage-footer-section p { font-size: 13px; }
+    .landingpage-footer-heading   { font-size: 13px; }
+    .landingpage-footer-list li a { font-size: 13px; }
+    .landingpage-footer-bottom    { font-size: 12px; padding-top: 16px; margin-top: 20px; }
+}
+
+
+/* ════════════════════════════════════
+   AUTH MOBILE  (≤ 480px)
+════════════════════════════════════ */
 @media (max-width: 480px) {
     .signin-nav { padding: 0 1rem; }
     .signin-nav-logo span { font-size: 1rem; }
     .signin-back-btn { font-size: 0.78rem; padding: 0.3rem 0.7rem; }
 
-    .signin-page-body { padding: 72px 1rem 2rem; }
+    .signin-page-body { padding: 80px 1rem 2.5rem; gap: 1.25rem; }
 
-    .signin-card { padding: 2rem 1.25rem; border-radius: 16px; }
+    .signin-card { padding: 1.75rem 1.25rem; border-radius: 16px; }
+    .signin-card-header h1 { font-size: 1.4rem; }
 
-    .signin-card-header h1 { font-size: 1.35rem; }
-
-    .input-wrap input { height: 46px; font-size: 0.88rem; }
+    .input-wrap input { height: 44px; font-size: 0.85rem; }
+    .signin-btn { height: 44px; }
 
     .form-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 
-    .signin-btn { height: 46px; }
+    .otp-box { width: 42px; height: 48px; font-size: 1.2rem; }
+    .otp-display { gap: 0.5rem; }
 }
