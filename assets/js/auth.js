@@ -19,16 +19,103 @@ function hc_requireAuth() {
 
 
 // ── Logout ───────────────────────────────────────────────────
-function hc_logout() {
+async function hc_logout() {
+  const refresh = hc_getRefreshToken();
+  try {
+    if (refresh) {
+      await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGOUT, {
+        method: 'POST',
+        body: JSON.stringify({ refresh }),
+      });
+    }
+  } catch {
+    // Logout even if the API call fails
+  }
   hc_clearTokens();
   window.location.href = '/public/signin.html';
 }
 
 
-// ── Wire up the main signin form ─────────────────────────────
-// Called on signin.html only
+// ══════════════════════════════════════════════════════════════
+//  General portal sign-in (patients only)
+// ══════════════════════════════════════════════════════════════
+
 function hc_initSigninForm() {
-  const form  = document.getElementById('signinForm');
+  console.log('[HC] hc_initSigninForm CALLED');
+  const form = document.getElementById('signinForm');
+  if (!form) { console.log('[HC] ERROR: signinForm not found'); return; }
+  console.log('[HC] Form found, attaching submit listener');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log('[HC] FORM SUBMITTED - calling API...');
+
+    const btn   = document.getElementById('signinBtn');
+    const error = document.getElementById('signinError');
+
+    btn.textContent   = 'Signing in...';
+    btn.disabled      = true;
+    error.textContent = '';
+
+    try {
+      const res = await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGIN, {
+        method: 'POST',
+        body: JSON.stringify({
+          email:    document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value,
+        }),
+      });
+
+      const role = res.user?.role;
+
+      // ── DEBUG: log role comparison (remove after confirming login works) ──
+      const backendRole  = (role || '').toUpperCase();
+      const configRole   = HC_CONFIG.ROLES.PATIENT.toUpperCase();
+      const isPatient    = backendRole === configRole;
+      console.log('[HC Auth Debug]', {
+        'Backend role (raw)':  role,
+        'Backend role (upper)': backendRole,
+        'Config PATIENT':       configRole,
+        'Match?':               isPatient,
+        'Full user object':     res.user,
+      });
+
+      // Block staff from the general portal
+      if (role && !isPatient) {
+        const orgSlug = res.user?.organization_slug || '';
+        let hint = '';
+        if (orgSlug) {
+          hint = ' Please use your organization portal: /' + orgSlug + '/signin.html';
+        }
+        error.textContent = 'Staff members cannot log in here.' + hint;
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
+
+      hc_saveTokens({
+        access:  res.access,
+        refresh: res.refresh,
+        user:    res.user,
+      });
+
+      hc_redirectByRole(role, '/public/patient/index.html');
+
+    } catch (err) {
+      error.textContent = err.message || 'Invalid email or password.';
+      btn.textContent   = 'Sign In';
+      btn.disabled      = false;
+    }
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  Organization portal sign-in (staff + patients)
+// ══════════════════════════════════════════════════════════════
+
+function hc_initOrgSigninForm(orgSlug) {
+  const form = document.getElementById('signinForm');
   if (!form) return;
 
   form.addEventListener('submit', async (e) => {
@@ -42,9 +129,15 @@ function hc_initSigninForm() {
     error.textContent = '';
 
     try {
-      const res = await apiPost(HC_CONFIG.ENDPOINTS.LOGIN, {
-        email:    document.getElementById('email').value.trim(),
-        password: document.getElementById('password').value,
+      // Use org-specific login endpoint
+      const loginEndpoint = '/auth/login/' + orgSlug + '/';
+
+      const res = await publicApiRequest(loginEndpoint, {
+        method: 'POST',
+        body: JSON.stringify({
+          email:    document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value,
+        }),
       });
 
       hc_saveTokens({
@@ -53,8 +146,8 @@ function hc_initSigninForm() {
         user:    res.user,
       });
 
-      // Redirect based on user role — hc_redirectByRole handles normalisation
-      hc_redirectByRole(res.user?.role, '/public/index.html');
+      // Redirect based on role
+      hc_redirectByRole(res.user?.role, '/public/patient/index.html');
 
     } catch (err) {
       error.textContent = err.message || 'Invalid email or password.';
@@ -65,7 +158,68 @@ function hc_initSigninForm() {
 }
 
 
-// ── Wire up the forgot password form ─────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  Organization branding loader
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Fetch org branding from the API and update the page.
+ * @param {string} slug – organization slug from the URL
+ * @returns {Promise<object|null>} the org data, or null on failure
+ */
+async function hc_loadOrgBranding(slug) {
+  const errorEl = document.getElementById('signinError');
+
+  try {
+    const org = await publicApiRequest(HC_CONFIG.ENDPOINTS.ORG_BY_SLUG + slug + '/', {
+      method: 'GET',
+    });
+
+    // Update page title
+    document.title = org.name + ' | HealthClouda';
+
+    // Update nav org name
+    const navOrgName = document.getElementById('nav-org-name');
+    if (navOrgName) navOrgName.textContent = 'HealthClouda';
+
+    // Update nav logo
+    const navLogo = document.getElementById('nav-logo');
+    if (navLogo && org.logo_url) {
+      navLogo.src = org.logo_url;
+      navLogo.alt = org.name + ' logo';
+      navLogo.style.display = '';
+    } else if (navLogo) {
+      navLogo.style.display = 'none';
+    }
+
+    // Update header org name
+    const headerOrgName = document.getElementById('header-org-name');
+    if (headerOrgName) headerOrgName.textContent = org.name;
+
+    // Update email placeholder
+    const emailInput = document.getElementById('email');
+    if (emailInput && org.email_domain) {
+      emailInput.placeholder = 'e.g. user@' + org.email_domain;
+    }
+
+    return org;
+
+  } catch (err) {
+    if (err.status === 404) {
+      if (errorEl) errorEl.textContent = 'Organization not found. Redirecting to general login...';
+      setTimeout(() => { window.location.href = '/public/signin.html'; }, 3000);
+    } else {
+      if (errorEl) errorEl.textContent = 'Cannot connect to server. Please try again.';
+    }
+    return null;
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  Password reset flows (unchanged)
+// ══════════════════════════════════════════════════════════════
+
 function hc_initForgotForm() {
   const form = document.getElementById('forgotForm');
   if (!form) return;
@@ -88,7 +242,6 @@ function hc_initForgotForm() {
         body: JSON.stringify({ email }),
       });
 
-      // Store email safely — never put in URL
       sessionStorage.setItem('hc_reset_email', email);
       window.location.href = './check-email.html';
 
@@ -102,7 +255,6 @@ function hc_initForgotForm() {
 }
 
 
-// ── Wire up the OTP verify form ───────────────────────────────
 function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
   const form      = document.getElementById('otpForm');
   const otpInput  = document.getElementById('otpInput');
@@ -112,12 +264,10 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
 
   if (!form || !otpInput) return;
 
-  // Show email from sessionStorage
   const resetEmail = sessionStorage.getItem('hc_reset_email');
   const emailDisplay = document.getElementById('sentEmailDisplay');
   if (resetEmail && emailDisplay) emailDisplay.textContent = resetEmail;
 
-  // OTP box rendering
   const boxes = document.querySelectorAll('.otp-box');
   function renderBoxes() {
     const val       = otpInput.value;
@@ -147,7 +297,6 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
   otpInput.addEventListener('blur',  renderBoxes);
   document.getElementById('otpWrapper')?.addEventListener('click', () => otpInput.focus());
 
-  // Submit
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const code = otpInput.value;
@@ -170,7 +319,6 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
     }
   });
 
-  // Resend countdown
   let seconds = 30;
   const timerDisplay = document.getElementById('timerDisplay');
   const resendLink   = document.getElementById('resendLink');
@@ -181,7 +329,7 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
     clearInterval(countdownInterval);
     countdownInterval = setInterval(() => {
       seconds--;
-      if (timerDisplay) timerDisplay.textContent = `(0:${seconds.toString().padStart(2, '0')})`;
+      if (timerDisplay) timerDisplay.textContent = '(0:' + seconds.toString().padStart(2, '0') + ')';
       if (seconds <= 0) {
         clearInterval(countdownInterval);
         if (timerDisplay) timerDisplay.textContent = '';
@@ -208,7 +356,6 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
 }
 
 
-// ── Wire up the reset password form ──────────────────────────
 function hc_initResetForm(redirectOnSuccess = './password-success.html') {
   const form = document.getElementById('resetForm');
   if (!form) return;
@@ -260,10 +407,10 @@ function hc_initResetForm(redirectOnSuccess = './password-success.html') {
 
     if (confirm.length > 0) {
       if (pw === confirm) {
-        matchMsg.textContent = '✓ Passwords match';
+        matchMsg.textContent = 'Passwords match';
         matchMsg.className   = 'match-msg ok';
       } else {
-        matchMsg.textContent = '✗ Passwords do not match';
+        matchMsg.textContent = 'Passwords do not match';
         matchMsg.className   = 'match-msg err';
       }
     } else {
@@ -306,13 +453,9 @@ function hc_initResetForm(redirectOnSuccess = './password-success.html') {
 }
 
 
-// ── Wire up password success page ───────────────────────────
-// Called on password-success.html only
 function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
-  // Clean up — reset flow is complete, clear sensitive sessionStorage
   sessionStorage.removeItem('hc_reset_email');
 
-  // Countdown timer → auto redirect
   let seconds = 5;
   const countdownEl  = document.getElementById('countdown');
   const continueBtn  = document.getElementById('continueBtn');
@@ -327,10 +470,9 @@ function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
     seconds--;
   }
 
-  tick(); // run immediately so user sees 5 not blank
+  tick();
   const timer = setInterval(tick, 1000);
 
-  // Manual continue button — skip countdown
   continueBtn?.addEventListener('click', () => {
     clearInterval(timer);
     window.location.href = redirectTo;

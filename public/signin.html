@@ -86,11 +86,12 @@
 
   </div>
 
-  <!-- JS load order: config → api → auth -->
-  <script src="../assets/js/config.js"></script>
-  <script src="../assets/js/api.js"></script>
-  <script src="../assets/js/auth.js"></script>
+  <!-- JS load order: config → api → auth  (cache-bust with ?v=3) -->
+  <script src="../assets/js/config.js?v=3"></script>
+  <script src="../assets/js/api.js?v=3"></script>
+  <script src="../assets/js/auth.js?v=3"></script>
   <script>
+    console.log('[HC] Scripts loaded. HC_CONFIG.ROLES.PATIENT =', HC_CONFIG.ROLES.PATIENT);
     hc_makePasswordToggle('togglePw', 'eyeIcon', 'password');
     hc_initSigninForm();
     hc_fadeInCard();
