@@ -24,14 +24,23 @@ const HC_CONFIG = {
 
   // ── Auth endpoints ─────────────────────────────────────────
   ENDPOINTS: {
-    LOGIN:        '/auth/login/',
-    LOGOUT:       '/auth/logout/',
-    REFRESH:      '/auth/token/refresh/',
+    LOGIN:        '/auth/login/',           // POST — general login
+    LOGIN_ORG:    '/auth/login/',           // POST — org login: /auth/login/{slug}/
+    LOGOUT:       '/auth/logout/',          // POST { refresh }
+    REFRESH:      '/auth/token/refresh/',   // POST { refresh }
+    ME:           '/auth/me/',              // GET  — current user profile
     FORGOT_PW:    '/auth/forgot-password/',
     VERIFY_OTP:   '/auth/verify-otp/',
     RESEND_OTP:   '/auth/resend-otp/',
     RESET_PW:     '/auth/reset-password/',
     CONTACT_FORM: '/contact-form/',
+
+    // ── Organizations ────────────────────────────────────
+    ORG_BY_SLUG:  '/org/by-slug/',  // GET /{slug}/ → branding
+
+    // ── Patients & Episodes ──────────────────────────────
+    PATIENTS:     '/patients/',               // GET, POST
+    EPISODES:     '/episodes/',               // GET, POST
 
     // ── Super Admin ───────────────────────────────────────
     // Dashboard overview
@@ -73,14 +82,17 @@ const HC_CONFIG = {
     PATIENT:      '/public/patient/index.html',
   },
 
-  // ── Role names (must match what the backend returns) ──────
+  // ── Role names ────────────────────────────────────────────
+  // All comparisons use .toUpperCase() so these work regardless
+  // of what case the backend actually returns.
   ROLES: {
-    SUPERADMIN:   'superadmin',
-    ORG_ADMIN:    'org_admin',
-    DOCTOR:       'doctor',
-    NURSE:        'nurse',
-    RECEPTIONIST: 'receptionist',
-    PATIENT:      'patient',
+    SUPERADMIN:   'SUPERADMIN',
+    SUPER_ADMIN:  'SUPER_ADMIN',
+    ORG_ADMIN:    'ORG_ADMIN',
+    DOCTOR:       'DOCTOR',
+    NURSE:        'NURSE',
+    RECEPTIONIST: 'RECEPTIONIST',
+    PATIENT:      'PATIENT',
   },
 
   // ── UI constants ───────────────────────────────────────────
