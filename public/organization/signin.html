@@ -13,16 +13,16 @@
 
   <nav class="signin-nav">
     <div class="signin-nav-logo">
-      <img id="nav-logo" src="" alt="" style="height:32px;">
-      <span id="nav-org-name"></span>
+      <img id="nav-logo" src="" alt="" style="height:32px; display:none;">
+      <span id="nav-org-name">HealthClouda</span>
     </div>
-    <a href="./index.html" class="signin-back-btn">← Back to Home</a>
+    <a href="./index.html" class="signin-back-btn">&larr; Back to Home</a>
   </nav>
 
   <div class="signin-page-body">
 
     <div class="signin-card-header">
-      <h1>Sign in to <br><span id="header-org-name"></span><br> HealthClouda</h1>
+      <h1>Sign in to <br><span id="header-org-name">your organisation</span><br> HealthClouda</h1>
       <p>Access your healthcare dashboard</p>
     </div>
 
@@ -38,7 +38,7 @@
                 <polyline points="22,6 12,12 2,6"/>
               </svg>
             </span>
-            <input type="text" id="email" name="email" placeholder="" required autocomplete="email">
+            <input type="text" id="email" name="email" placeholder="Enter your email or HealthClouda ID" required autocomplete="email">
           </div>
         </div>
 
@@ -68,7 +68,7 @@
             <input type="checkbox" name="remember" id="remember">
             <span>Remember me</span>
           </label>
-          <a href="./forgot-password.html" class="forgot-link">Forgot password?</a>
+          <a href="./org-forgot-password.html" class="forgot-link">Forgot password?</a>
         </div>
 
         <button type="submit" class="signin-btn" id="signinBtn">Sign In</button>
@@ -76,31 +76,51 @@
         <p class="no-account-text">Don't have an account?</p>
 
         <div class="signin-notice">
-          <p><strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the reception desk at your organisation clinic — admin staff will create your login.</p>
+          <p><strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the reception desk at your organisation clinic &mdash; admin staff will create your login.</p>
         </div>
 
       </form>
     </div>
   </div>
 
-  <!-- JS at bottom of body: DOM is fully parsed before any script runs -->
-  <script src="../../assets/js/config.js"></script>
-  <script src="../../assets/js/api.js"></script>
-  <script src="../../assets/js/auth.js"></script>
-  <script src="./org-config.js"></script>
+  <!-- JS load order: config → api → auth  (cache-bust with ?v=3) -->
+  <script src="../../assets/js/config.js?v=3"></script>
+  <script src="../../assets/js/api.js?v=3"></script>
+  <script src="../../assets/js/auth.js?v=3"></script>
   <script>
-    // Org branding — DOM is ready here
-    document.title = ORG_CONFIG.name + ' | HealthClouda Sign In';
-    document.getElementById('nav-logo').src                = ORG_CONFIG.logo;
-    document.getElementById('nav-logo').alt                = ORG_CONFIG.name + ' logo';
-    document.getElementById('nav-org-name').textContent    = 'HealthClouda';
-    document.getElementById('header-org-name').textContent = ORG_CONFIG.name;
-    document.getElementById('email').placeholder           = ORG_CONFIG.emailPlaceholder || 'Enter your email or HealthClouda ID';
+    (async function () {
+      // 1. Detect org slug from URL path
+      //    Supports: /luth-hospital/signin.html  OR  ?org=luth-hospital
+      const params = new URLSearchParams(window.location.search);
+      let orgSlug = params.get('org');
 
-    // Auth logic from auth.js — DOM is ready here too
-    hc_makePasswordToggle('togglePw', 'eyeIcon', 'password');
-    hc_initSigninForm();
-    hc_fadeInCard();
+      if (!orgSlug) {
+        // Try to extract from path: /luth-hospital/signin.html → luth-hospital
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        // The slug is the segment before "signin.html" that isn't "public" or "organization"
+        const ignore = new Set(['public', 'organization', 'signin.html']);
+        for (const part of parts) {
+          if (!ignore.has(part) && !part.endsWith('.html')) {
+            orgSlug = part;
+            break;
+          }
+        }
+      }
+
+      // 2. Load org branding from API (if slug found)
+      if (orgSlug) {
+        await hc_loadOrgBranding(orgSlug);
+        hc_initOrgSigninForm(orgSlug);
+      } else {
+        // No slug — fall back to general login behaviour
+        document.getElementById('header-org-name').textContent = '';
+        hc_initSigninForm();
+      }
+
+      // 3. Shared UI setup
+      hc_makePasswordToggle('togglePw', 'eyeIcon', 'password');
+      hc_fadeInCard();
+    })();
   </script>
 
 </body>

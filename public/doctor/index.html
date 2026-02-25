@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor Dashboard | HealthClouda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Lato', sans-serif; background: #f4f8ff; min-height: 100vh; }
+
+    /* ── Top bar ───────────────────────── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem;
+      background: #fff; border-bottom: 1px solid rgba(0,117,255,0.08);
+      z-index: 100;
+    }
+    .topbar-brand { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 1.15rem; color: #000825; }
+    .topbar-right { display: flex; align-items: center; gap: 1rem; }
+    .topbar-user { font-size: 0.85rem; color: #374151; }
+    .topbar-role { font-size: 0.72rem; color: #0075FF; background: #EBF3FF; padding: 2px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; }
+
+    .logout-btn {
+      padding: 0.4rem 1rem; font-size: 0.82rem; font-weight: 600;
+      color: #dc2626; background: #fef2f2; border: 1px solid #fecaca;
+      border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    }
+    .logout-btn:hover { background: #dc2626; color: #fff; }
+
+    /* ── Main ──────────────────────────── */
+    .dashboard-body { max-width: 900px; margin: 0 auto; padding: 100px 1.5rem 3rem; }
+
+    .welcome-card {
+      background: linear-gradient(135deg, #0075FF 0%, #0055cc 100%);
+      color: #fff; border-radius: 16px; padding: 2rem 2.25rem; margin-bottom: 2rem;
+    }
+    .welcome-card h1 { font-family: 'Inter', sans-serif; font-size: 1.6rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .welcome-card p { font-size: 0.9rem; opacity: 0.85; }
+
+    .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+
+    .action-card {
+      background: #fff; border-radius: 14px; padding: 1.5rem;
+      border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 2px 12px rgba(0,117,255,0.06);
+      text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s;
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .action-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,117,255,0.12); }
+    .action-card h3 { font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 600; color: #000825; }
+    .action-card p { font-size: 0.82rem; color: #6B7280; }
+    .action-icon { font-size: 1.6rem; margin-bottom: 0.25rem; }
+
+    .loading-msg { text-align: center; color: #6B7280; padding: 2rem; }
+    .error-msg { text-align: center; color: #dc2626; padding: 2rem; }
+
+    @media (max-width: 640px) {
+      .topbar { padding: 0 1rem; }
+      .dashboard-body { padding: 80px 1rem 2rem; }
+      .welcome-card { padding: 1.5rem; }
+      .welcome-card h1 { font-size: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <span class="topbar-brand">HealthClouda</span>
+    <div class="topbar-right">
+      <span class="topbar-role" id="userRole">Doctor</span>
+      <span class="topbar-user" id="userName">Loading...</span>
+      <button class="logout-btn" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main class="dashboard-body">
+    <div class="welcome-card">
+      <h1 id="welcomeMsg">Welcome, Doctor</h1>
+      <p id="orgName">Loading organization...</p>
+    </div>
+
+    <section class="quick-actions">
+      <a class="action-card" href="#">
+        <span class="action-icon">👥</span>
+        <h3>View Patients</h3>
+        <p>See your assigned patients and their records.</p>
+      </a>
+      <a class="action-card" href="#">
+        <span class="action-icon">📋</span>
+        <h3>Create Episode</h3>
+        <p>Start a new clinical episode for a patient.</p>
+      </a>
+      <a class="action-card" href="#">
+        <span class="action-icon">📊</span>
+        <h3>Recent Episodes</h3>
+        <p>Review your recent clinical episodes.</p>
+      </a>
+    </section>
+
+    <div id="statusMsg" class="loading-msg">Loading your profile...</div>
+  </main>
+
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/api.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    // Auth guard
+    hc_requireAuth();
+
+    (async function () {
+      const statusMsg = document.getElementById('statusMsg');
+
+      try {
+        const me = await apiGet(HC_CONFIG.ENDPOINTS.ME);
+
+        // Update UI
+        const fullName = [me.first_name, me.last_name].filter(Boolean).join(' ') || me.email;
+        document.getElementById('userName').textContent = fullName;
+        document.getElementById('userRole').textContent = me.role || 'Doctor';
+        document.getElementById('welcomeMsg').textContent = 'Welcome, Dr. ' + fullName;
+        document.getElementById('orgName').textContent = me.organization_name || 'HealthClouda';
+        document.title = 'Doctor Dashboard - ' + (me.organization_name || 'HealthClouda');
+
+        statusMsg.textContent = '';
+      } catch (err) {
+        statusMsg.className = 'error-msg';
+        statusMsg.textContent = err.message || 'Failed to load profile.';
+      }
+
+      // Logout
+      document.getElementById('logoutBtn').addEventListener('click', hc_logout);
+    })();
+  </script>
+
+</body>
+</html>
