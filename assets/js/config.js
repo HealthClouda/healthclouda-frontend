@@ -45,6 +45,8 @@ const HC_CONFIG = {
     SA_ORG_DETAIL:    '/superadmin/organisations/',    // GET /:id, PATCH /:id, DELETE /:id
     SA_ORG_SUSPEND:   '/superadmin/organisations/',    // PATCH /:id/suspend/
     SA_ORG_ACTIVATE:  '/superadmin/organisations/',    // PATCH /:id/activate/
+    SA_ORG_USERS:     '/superadmin/organisations/',    // GET  /:id/users/
+    SA_ORG_BILLING:   '/superadmin/organisations/',    // GET  /:id/billing/
 
     // Users
     SA_USERS:         '/superadmin/users/',            // GET  → paginated list

@@ -1203,6 +1203,195 @@ tr.row-suspended:hover {
   margin-top: 0.3rem;
 }
 
+/* ══════════════════════════════════════════════
+   NOTIFICATIONS
+══════════════════════════════════════════════ */
+.notif-wrapper {
+  position: relative;
+}
+
+/* Dropdown panel */
+.notif-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 360px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.13);
+  z-index: 500;
+  flex-direction: column;
+  overflow: hidden;
+  animation: notifSlideIn 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+.notif-panel.open { display: flex; }
+
+@keyframes notifSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Header */
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.notif-panel-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.notif-mark-all {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+.notif-mark-all:hover { opacity: 0.7; }
+
+/* List */
+.notif-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 380px;
+}
+.notif-loading {
+  text-align: center;
+  padding: 2.5rem;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+/* Individual notification item */
+.notif-item {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #f3f6fb;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--bg); }
+.notif-item.unread { background: #f0f6ff; }
+.notif-item.unread:hover { background: #e6f0ff; }
+
+/* Unread indicator dot */
+.notif-item.unread::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 1.25rem;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+/* Icon bubble */
+.notif-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+.notif-icon.info    { background: var(--primary-lt);  color: var(--primary); }
+.notif-icon.success { background: var(--success-bg);  color: var(--success); }
+.notif-icon.warning { background: var(--warning-bg);  color: var(--warning); }
+.notif-icon.danger  { background: var(--danger-bg);   color: var(--danger); }
+.notif-icon svg     { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Text */
+.notif-body { flex: 1; min-width: 0; padding-right: 1rem; }
+.notif-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+.notif-desc {
+  font-size: 0.76rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notif-time {
+  font-size: 0.7rem;
+  color: #b0bcc8;
+  margin-top: 4px;
+}
+
+/* Badge count on bell */
+.notif-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--white);
+  padding: 0 3px;
+}
+
+/* Footer */
+.notif-panel-footer {
+  padding: 0.65rem 1.25rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.notif-clear-all {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.notif-clear-all:hover { color: var(--danger); }
+
+/* Empty state */
+.notif-empty {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+.notif-empty svg {
+  width: 36px; height: 36px;
+  stroke: #c0ccd8; fill: none;
+  stroke-width: 1.5; stroke-linecap: round;
+  display: block; margin: 0 auto 0.75rem;
+}
+.notif-empty p {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
   </style>
 </head>
 <body>
@@ -1275,14 +1464,30 @@ tr.row-suspended:hover {
       <input type="text" id="globalSearch" placeholder="Search organisations or users…">
     </div>
     <div class="header-right">
-      <div class="date-range">
+      <div class="date-range" id="headerDateRange">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        10-06-2026 → 10-10-2026
+        <span id="headerDateText">Loading…</span>
       </div>
-      <button class="header-notif" title="Notifications">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span class="header-notif-dot"></span>
-      </button>
+      <div class="notif-wrapper" id="notifWrapper">
+        <button class="header-notif" id="notifBtn" title="Notifications" onclick="toggleNotifPanel()">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="header-notif-dot" id="notifDot"></span>
+        </button>
+
+        <!-- Notification Dropdown -->
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-header">
+            <span class="notif-panel-title">Notifications</span>
+            <button class="notif-mark-all" onclick="markAllRead()">Mark all read</button>
+          </div>
+          <div class="notif-list" id="notifList">
+            <div class="notif-loading">Loading…</div>
+          </div>
+          <div class="notif-panel-footer">
+            <button class="notif-clear-all" onclick="clearAllNotifs()">Clear all</button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -1503,31 +1708,218 @@ tr.row-suspended:hover {
 
   <!-- ════ PAGE: BILLING ════ -->
   <div class="page-content" id="page-billing">
-    <div class="page-header"><div><div class="page-title">Billing</div><div class="page-subtitle">Revenue and subscription management</div></div></div>
-    <div class="placeholder-page">
-      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      <h2>Billing Module</h2><p>Coming in the next sprint.</p>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Billing</div>
+        <div class="page-subtitle">Revenue, subscriptions and plan management across all organisations</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportBillingCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Revenue stat cards -->
+    <div class="stats-grid" style="margin-bottom:1.25rem">
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Total Revenue</span><span class="stat-icon green"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span></div>
+        <div class="stat-value" id="billStatRevenue">—</div>
+        <div class="stat-trend" id="billTrendRevenue"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Active Subscriptions</span><span class="stat-icon blue"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span></div>
+        <div class="stat-value" id="billStatActive">—</div>
+        <div class="stat-trend" id="billTrendActive"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Overdue Payments</span><span class="stat-icon orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span></div>
+        <div class="stat-value" id="billStatOverdue">—</div>
+        <div class="stat-trend" id="billTrendOverdue"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">MRR</span><span class="stat-icon purple"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span></div>
+        <div class="stat-value" id="billStatMRR">—</div>
+        <div class="stat-trend" id="billTrendMRR"></div>
+      </div>
+    </div>
+
+    <!-- Plan breakdown + recent transactions -->
+    <div class="info-row" style="margin-bottom:1.25rem">
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          Plan Distribution
+        </div>
+        <div id="billPlanBreakdown">
+          <div class="bill-plan-row">
+            <div class="bill-plan-info"><span class="bill-plan-dot" style="background:#7c3aed"></span><span>Premium</span></div>
+            <div class="bill-plan-bar-wrap"><div class="bill-plan-bar" id="barPremium" style="width:0%;background:#7c3aed"></div></div>
+            <span class="bill-plan-count" id="countPremium">—</span>
+          </div>
+          <div class="bill-plan-row">
+            <div class="bill-plan-info"><span class="bill-plan-dot" style="background:#0075FF"></span><span>Pro</span></div>
+            <div class="bill-plan-bar-wrap"><div class="bill-plan-bar" id="barPro" style="width:0%;background:#0075FF"></div></div>
+            <span class="bill-plan-count" id="countPro">—</span>
+          </div>
+          <div class="bill-plan-row">
+            <div class="bill-plan-info"><span class="bill-plan-dot" style="background:#16a34a"></span><span>Basic</span></div>
+            <div class="bill-plan-bar-wrap"><div class="bill-plan-bar" id="barBasic" style="width:0%;background:#16a34a"></div></div>
+            <span class="bill-plan-count" id="countBasic">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          Payment Status
+        </div>
+        <div class="health-item" id="billStatusPaid"><span class="status-dot online"></span><span>Paid this month: <b id="billPaidCount">—</b></span></div>
+        <div class="health-item" id="billStatusPending"><span class="status-dot" style="background:var(--warning);box-shadow:0 0 0 3px var(--warning-bg)"></span><span>Pending: <b id="billPendingCount">—</b></span></div>
+        <div class="health-item" id="billStatusOverdue"><span class="status-dot offline"></span><span>Overdue: <b id="billOverdueCount">—</b></span></div>
+      </div>
+    </div>
+
+    <!-- Transactions table -->
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="billSearch" placeholder="Search by organisation…" oninput="billFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterBillPlan" onchange="billFilterChange()">
+            <option value="">All Plans</option>
+            <option value="Basic">Basic</option>
+            <option value="Pro">Pro</option>
+            <option value="Premium">Premium</option>
+          </select>
+          <select class="filter-select" id="filterBillStatus" onchange="billFilterChange()">
+            <option value="">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearBillFilters()">Clear</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Organisation</th>
+              <th><button class="sort-btn" onclick="sortBilling('plan')">Plan <span class="sort-icon" id="bsort-plan">↕</span></button></th>
+              <th><button class="sort-btn" onclick="sortBilling('amount')">Amount <span class="sort-icon" id="bsort-amount">↕</span></button></th>
+              <th>Status</th>
+              <th><button class="sort-btn" onclick="sortBilling('date')">Due Date <span class="sort-icon" id="bsort-date">↕</span></button></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="billTableBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span class="table-count" id="billCount">Showing 0 transactions</span>
+        <div class="pagination" id="billPagination"></div>
+      </div>
     </div>
   </div>
 
   <!-- ════ PAGE: MESSAGES ════ -->
   <div class="page-content" id="page-messages">
-    <div class="page-header"><div><div class="page-title">Messages</div><div class="page-subtitle">Internal communications</div></div></div>
-    <div class="placeholder-page">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <h2>Messages Module</h2><p>Coming in the next sprint.</p>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Messages</div>
+        <div class="page-subtitle">Communications between Super Admin and organisations</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openComposePanel()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Message
+        </button>
+      </div>
+    </div>
+
+    <div class="messages-layout">
+      <!-- Inbox list -->
+      <div class="msg-sidebar">
+        <div class="msg-sidebar-header">
+          <div class="page-search" style="width:100%">
+            <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input type="text" id="msgSearch" placeholder="Search messages…" oninput="msgFilterChange()">
+          </div>
+          <div class="msg-filter-tabs">
+            <button class="msg-tab active" onclick="setMsgFilter('all', this)">All</button>
+            <button class="msg-tab" onclick="setMsgFilter('unread', this)">Unread</button>
+            <button class="msg-tab" onclick="setMsgFilter('sent', this)">Sent</button>
+          </div>
+        </div>
+        <div class="msg-list" id="msgList">
+          <div class="notif-loading">Loading messages…</div>
+        </div>
+      </div>
+
+      <!-- Message viewer -->
+      <div class="msg-viewer" id="msgViewer">
+        <div class="msg-viewer-empty">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <p>Select a message to read it</p>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- ════ PAGE: AUDIT LOGS ════ -->
   <div class="page-content" id="page-audit">
-    <div class="page-header"><div><div class="page-title">Audit Logs</div><div class="page-subtitle">System-wide activity and security trail</div></div></div>
+    <div class="page-header">
+      <div>
+        <div class="page-title">Audit Logs</div>
+        <div class="page-subtitle">Full system-wide activity and security trail</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportAuditCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
     <div class="table-card">
-      <div class="table-card-header"><span class="table-card-title">All Activity</span></div>
-      <table>
-        <thead><tr><th>Timestamp</th><th>User ID</th><th>Action</th><th>Entity</th><th>IP Address</th><th>Status</th></tr></thead>
-        <tbody id="auditTbody"></tbody>
-      </table>
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="auditSearch" placeholder="Search by user, action, entity…" oninput="auditFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterAuditStatus" onchange="auditFilterChange()">
+            <option value="">All Status</option>
+            <option value="successful">Successful</option>
+            <option value="failed">Failed</option>
+            <option value="suspended">Suspended</option>
+            <option value="completed">Completed</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearAuditFilters()">Clear</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th><button class="sort-btn" onclick="sortAudit('time')">Timestamp <span class="sort-icon" id="asort-time">↕</span></button></th>
+              <th>User ID</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>IP Address</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="auditTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span class="table-count" id="auditCount">Showing 0 logs</span>
+        <div class="pagination" id="auditPagination"></div>
+      </div>
     </div>
   </div>
 
@@ -1789,31 +2181,776 @@ tr.row-suspended:hover {
   </div>
 </div>
 
+
+<!-- ══════════ PANEL: COMPOSE MESSAGE ══════════ -->
+<div class="slide-panel" id="composeMsgPanel">
+  <div class="panel-header">
+    <div><div class="panel-title">New Message</div><div class="panel-subtitle">Send a message to an organisation</div></div>
+    <button class="panel-close" onclick="closePanel('composeMsgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <div class="form-group">
+      <label class="form-label">To (Organisation) *</label>
+      <select class="form-input" id="msgTo">
+        <option value="">Select organisation…</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Subject *</label>
+      <input class="form-input" type="text" id="msgSubject" placeholder="e.g. Action Required: Billing Update">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Priority</label>
+      <select class="form-input" id="msgPriority">
+        <option value="normal">Normal</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message *</label>
+      <textarea class="form-input" id="msgBody" rows="6" placeholder="Type your message here…" style="resize:vertical;min-height:120px"></textarea>
+    </div>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('composeMsgPanel')">Cancel</button>
+    <button class="btn btn-primary" id="msgSendBtn" onclick="sendMessage()">Send Message</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: VIEW MESSAGE ══════════ -->
+<div class="slide-panel" id="viewMsgPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="viewMsgSubject">Loading…</div>
+      <div class="panel-subtitle" id="viewMsgMeta"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel('viewMsgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <div class="msg-view-header">
+      <div class="org-profile-header" style="margin-bottom:1rem">
+        <div class="org-profile-avatar" id="viewMsgAvatar" style="background:#0075FF">—</div>
+        <div>
+          <div class="org-profile-name" id="viewMsgFrom">—</div>
+          <div class="org-profile-meta" id="viewMsgTime">—</div>
+        </div>
+      </div>
+      <span id="viewMsgPriorityBadge"></span>
+    </div>
+    <div class="msg-view-body" id="viewMsgBody">—</div>
+    <div class="section-label" style="margin-top:1.5rem">Reply</div>
+    <div class="form-group">
+      <textarea class="form-input" id="replyBody" rows="4" placeholder="Type your reply…" style="resize:vertical;min-height:90px"></textarea>
+    </div>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('viewMsgPanel')">Close</button>
+    <button class="btn btn-primary" onclick="sendReply()">Send Reply</button>
+  </div>
+</div>
+
 <!-- ══════════ TOAST ══════════ -->
 <div class="toast" id="toast"></div>
 
+<!-- ══════════ SCRIPTS ══════════ -->
 <script>
+/* ── config.js ── */
+/**
+ * HealthClouda — Global Configuration
+ * ─────────────────────────────────────────────────────────────
+ * RULES:
+ *  1. This is the ONLY file where URLs and constants live.
+ *  2. Never hardcode API URLs anywhere else in the project.
+ *  3. To switch environments, change API_BASE_URL only.
+ * ─────────────────────────────────────────────────────────────
+ */
 
 const HC_CONFIG = {
-  ROLES: { SUPERADMIN:'superadmin', ORG_ADMIN:'org_admin', DOCTOR:'doctor', NURSE:'nurse', RECEPTIONIST:'receptionist', PATIENT:'patient' },
-  ENDPOINTS: {
-    SA_STATS:'/superadmin/stats/', SA_SYSTEM_HEALTH:'/superadmin/system-health/',
-    SA_SECURITY:'/superadmin/security-alerts/', SA_ACTIVITY:'/superadmin/recent-activity/',
-    SA_ORGS:'/superadmin/organisations/', SA_ORG_DETAIL:'/superadmin/organisations/',
-    SA_ORG_SUSPEND:'/superadmin/organisations/', SA_ORG_ACTIVATE:'/superadmin/organisations/',
-    SA_ORG_USERS:'/superadmin/organisations/', SA_ORG_BILLING:'/superadmin/organisations/',
-    SA_USERS:'/superadmin/users/', SA_USER_DETAIL:'/superadmin/users/',
-    SA_USER_SUSPEND:'/superadmin/users/', SA_USER_ACTIVATE:'/superadmin/users/',
-    SA_AUDIT:'/superadmin/audit-logs/', SA_BILLING:'/superadmin/billing/',
-    LOGOUT:'/auth/logout/',
-  }
-};
-function hc_getAccessToken()  { return localStorage.getItem('hc_access_token'); }
-function hc_getRefreshToken() { return localStorage.getItem('hc_refresh_token'); }
-function hc_getUser()         { try { return JSON.parse(localStorage.getItem('hc_user')); } catch { return null; } }
-function hc_clearTokens()     { ['hc_access_token','hc_refresh_token','hc_user'].forEach(k=>localStorage.removeItem(k)); }
-function hc_redirectByRole(role) { window.location.href = '/dashboard/' + (role||'') + '/'; }
 
+  // ── API ────────────────────────────────────────────────────
+  // Switch this one line to move between dev and production.
+  API_BASE_URL: 'http://localhost:8000/api/v1',
+
+  // ── Token storage keys ─────────────────────────────────────
+  // Centralised so a rename never breaks 10 files.
+  TOKEN_KEYS: {
+    ACCESS:  'hc_access_token',
+    REFRESH: 'hc_refresh_token',
+    USER:    'hc_user',
+  },
+
+  // ── Auth endpoints ─────────────────────────────────────────
+  ENDPOINTS: {
+    LOGIN:        '/auth/login/',
+    LOGOUT:       '/auth/logout/',
+    REFRESH:      '/auth/token/refresh/',
+    FORGOT_PW:    '/auth/forgot-password/',
+    VERIFY_OTP:   '/auth/verify-otp/',
+    RESEND_OTP:   '/auth/resend-otp/',
+    RESET_PW:     '/auth/reset-password/',
+    CONTACT_FORM: '/contact-form/',
+
+    // ── Super Admin ───────────────────────────────────────
+    // Dashboard overview
+    SA_STATS:         '/superadmin/stats/',            // GET  → { total_users, total_orgs, monthly_revenue, active_records }
+    SA_SYSTEM_HEALTH: '/superadmin/system-health/',    // GET  → { api_status, db_status, last_backup }
+    SA_SECURITY:      '/superadmin/security-alerts/',  // GET  → { failed_logins, locked_accounts, suspicious_activity }
+    SA_ACTIVITY:      '/superadmin/recent-activity/',  // GET  → [ { time, user_id, action, entity, status } ]
+
+    // Organisations CRUD
+    SA_ORGS:          '/superadmin/organisations/',    // GET  → paginated list, POST → create
+    SA_ORG_DETAIL:    '/superadmin/organisations/',    // GET /:id, PATCH /:id, DELETE /:id
+    SA_ORG_SUSPEND:   '/superadmin/organisations/',    // PATCH /:id/suspend/
+    SA_ORG_ACTIVATE:  '/superadmin/organisations/',    // PATCH /:id/activate/
+    SA_ORG_USERS:     '/superadmin/organisations/',    // GET  /:id/users/
+    SA_ORG_BILLING:   '/superadmin/organisations/',    // GET  /:id/billing/
+
+    // Users
+    SA_USERS:         '/superadmin/users/',            // GET  → paginated list
+    SA_USER_DETAIL:   '/superadmin/users/',            // GET /:id, PATCH /:id
+    SA_USER_SUSPEND:  '/superadmin/users/',            // PATCH /:id/suspend/
+    SA_USER_ACTIVATE: '/superadmin/users/',            // PATCH /:id/activate/
+
+    // Billing
+    SA_BILLING:       '/superadmin/billing/',          // GET  → revenue, plans breakdown
+
+    // Audit logs
+    SA_AUDIT:         '/superadmin/audit-logs/',       // GET  → paginated log entries
+  },
+
+  // ── Role → dashboard redirect map ─────────────────────────
+  // Keys must match the NORMALISED role string:
+  //   backend role → toUpperCase().replace(/_/g,'') → key here
+  //   'super_admin' → 'SUPERADMIN'
+  //   'org_admin'   → 'ORGADMIN'
+  //   'doctor'      → 'DOCTOR'
+  // Add new roles here as dashboards are built.
+  ROLE_REDIRECTS: {
+    SUPERADMIN:   '/public/superadmin/index.html',
+    ORGADMIN:     '/public/org-admin/index.html',
+    DOCTOR:       '/public/doctor/index.html',
+    NURSE:        '/public/nurse/index.html',
+    RECEPTIONIST: '/public/receptionist/index.html',
+    PATIENT:      '/public/patient/index.html',
+  },
+
+  // ── Role names (must match what the backend returns) ──────
+  ROLES: {
+    SUPERADMIN:   'superadmin',
+    ORG_ADMIN:    'org_admin',
+    DOCTOR:       'doctor',
+    NURSE:        'nurse',
+    RECEPTIONIST: 'receptionist',
+    PATIENT:      'patient',
+  },
+
+  // ── UI constants ───────────────────────────────────────────
+  SESSION_TIMEOUT_MS: 30 * 60 * 1000, // 30 minutes
+};
+
+// Make it available globally (no ES modules needed for vanilla JS)
+// Usage in any file:  HC_CONFIG.API_BASE_URL
+
+
+/* ── api.js ── */
+/**
+ * HealthClouda — API Communication Layer
+ * ─────────────────────────────────────────────────────────────
+ * RULES:
+ *  1. ALL fetch() calls in this project go through apiRequest().
+ *  2. Never call fetch() directly in HTML files or other scripts.
+ *  3. This file handles: auth headers, token refresh, errors.
+ *
+ * REQUIRES: config.js loaded before this file.
+ * ─────────────────────────────────────────────────────────────
+ */
+
+
+// ── Token helpers ────────────────────────────────────────────
+
+function hc_getAccessToken() {
+  return localStorage.getItem(HC_CONFIG.TOKEN_KEYS.ACCESS);
+}
+
+function hc_getRefreshToken() {
+  return localStorage.getItem(HC_CONFIG.TOKEN_KEYS.REFRESH);
+}
+
+function hc_getUser() {
+  try {
+    return JSON.parse(localStorage.getItem(HC_CONFIG.TOKEN_KEYS.USER));
+  } catch {
+    return null;
+  }
+}
+
+function hc_saveTokens({ access, refresh, user }) {
+  if (access)  localStorage.setItem(HC_CONFIG.TOKEN_KEYS.ACCESS,  access);
+  if (refresh) localStorage.setItem(HC_CONFIG.TOKEN_KEYS.REFRESH, refresh);
+  if (user)    localStorage.setItem(HC_CONFIG.TOKEN_KEYS.USER, JSON.stringify(user));
+}
+
+function hc_clearTokens() {
+  Object.values(HC_CONFIG.TOKEN_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
+
+// ── Token refresh ────────────────────────────────────────────
+
+let _refreshPromise = null; // Prevents multiple simultaneous refresh calls
+
+async function hc_refreshAccessToken() {
+  // If a refresh is already in flight, wait for that one
+  if (_refreshPromise) return _refreshPromise;
+
+  _refreshPromise = (async () => {
+    const refresh = hc_getRefreshToken();
+    if (!refresh) throw new Error('No refresh token available');
+
+    const res = await fetch(`${HC_CONFIG.API_BASE_URL}${HC_CONFIG.ENDPOINTS.REFRESH}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh }),
+    });
+
+    if (!res.ok) {
+      // Refresh token is also expired → force logout
+      hc_clearTokens();
+      window.location.href = '/public/signin.html';
+      throw new Error('Session expired. Please log in again.');
+    }
+
+    const data = await res.json();
+    hc_saveTokens({ access: data.access });
+    return data.access;
+  })();
+
+  try {
+    return await _refreshPromise;
+  } finally {
+    _refreshPromise = null;
+  }
+}
+
+
+// ── Core request function ────────────────────────────────────
+
+/**
+ * apiRequest(endpoint, options)
+ *
+ * @param {string} endpoint   - e.g. '/patients/' (no base URL needed)
+ * @param {object} options    - standard fetch options (method, body, headers…)
+ * @returns {Promise<any>}    - parsed JSON response
+ *
+ * @example
+ *   const patients = await apiRequest('/patients/');
+ *   const result   = await apiRequest('/episodes/', {
+ *     method: 'POST',
+ *     body: JSON.stringify({ patient: id, notes: '...' })
+ *   });
+ */
+async function apiRequest(endpoint, options = {}) {
+  const token = hc_getAccessToken();
+
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers, // allow caller to override headers
+    },
+  };
+
+  let response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+
+  // ── 401: Try to refresh token once, then retry ──
+  if (response.status === 401) {
+    try {
+      const newToken = await hc_refreshAccessToken();
+      config.headers['Authorization'] = `Bearer ${newToken}`;
+      response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+    } catch {
+      // Refresh failed — redirect to login (already handled in hc_refreshAccessToken)
+      return;
+    }
+  }
+
+  // ── 204 No Content ──
+  if (response.status === 204) return null;
+
+  // ── Parse response ──
+  const data = await response.json().catch(() => ({}));
+
+  // ── Non-OK responses → throw structured error ──
+  if (!response.ok) {
+    const message =
+      data.detail ||
+      data.message ||
+      data.non_field_errors?.[0] ||
+      `Request failed with status ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.data   = data; // full response body for form validation errors
+    throw error;
+  }
+
+  return data;
+}
+
+
+// ── Convenience wrappers ────────────────────────────────────
+
+/**
+ * apiGet('/patients/')
+ * apiPost('/episodes/', { patient: id, notes: '...' })
+ * apiPut('/episodes/123/', { diagnosis: '...' })
+ * apiDelete('/patients/123/')
+ */
+function apiGet(endpoint, options = {}) {
+  return apiRequest(endpoint, { ...options, method: 'GET' });
+}
+
+function apiPost(endpoint, body = {}, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+function apiPut(endpoint, body = {}, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+function apiPatch(endpoint, body = {}, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+function apiDelete(endpoint, options = {}) {
+  return apiRequest(endpoint, { ...options, method: 'DELETE' });
+}
+
+
+// ── Public API (no auth needed) ────────────────────────────
+
+/**
+ * publicApiRequest(endpoint, options)
+ * For endpoints that don't require authentication
+ * e.g. contact form, public org info
+ */
+async function publicApiRequest(endpoint, options = {}) {
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  };
+
+  const response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+
+  if (response.status === 204) return null;
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = data.detail || data.message || `Request failed (${response.status})`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.data   = data;
+    throw error;
+  }
+
+  return data;
+}
+
+
+/* ── auth.js ── */
+/**
+ * HealthClouda — Authentication Logic
+ * ─────────────────────────────────────────────────────────────
+ * Handles login form submission, logout, and protecting
+ * pages that require authentication.
+ *
+ * REQUIRES: config.js and api.js loaded before this file.
+ * ─────────────────────────────────────────────────────────────
+ */
+
+
+// ── Protect a page (redirect to login if not authed) ────────
+function hc_requireAuth() {
+  const token = hc_getAccessToken();
+  if (!token) {
+    window.location.href = '/public/signin.html';
+  }
+}
+
+
+// ── Logout ───────────────────────────────────────────────────
+function hc_logout() {
+  hc_clearTokens();
+  window.location.href = '/public/signin.html';
+}
+
+
+// ── Wire up the main signin form ─────────────────────────────
+// Called on signin.html only
+function hc_initSigninForm() {
+  const form  = document.getElementById('signinForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn   = document.getElementById('signinBtn');
+    const error = document.getElementById('signinError');
+
+    btn.textContent   = 'Signing in...';
+    btn.disabled      = true;
+    error.textContent = '';
+
+    try {
+      const res = await apiPost(HC_CONFIG.ENDPOINTS.LOGIN, {
+        email:    document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      });
+
+      hc_saveTokens({
+        access:  res.access,
+        refresh: res.refresh,
+        user:    res.user,
+      });
+
+      // Redirect based on user role — hc_redirectByRole handles normalisation
+      hc_redirectByRole(res.user?.role, '/public/index.html');
+
+    } catch (err) {
+      error.textContent = err.message || 'Invalid email or password.';
+      btn.textContent   = 'Sign In';
+      btn.disabled      = false;
+    }
+  });
+}
+
+
+// ── Wire up the forgot password form ─────────────────────────
+function hc_initForgotForm() {
+  const form = document.getElementById('forgotForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn   = document.getElementById('submitBtn');
+    const error = document.getElementById('forgotError');
+    const email = document.getElementById('email').value.trim();
+
+    btn.textContent   = 'Sending...';
+    btn.disabled      = true;
+    btn.style.opacity = '0.75';
+    error.textContent = '';
+
+    try {
+      await publicApiRequest(HC_CONFIG.ENDPOINTS.FORGOT_PW, {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+
+      // Store email safely — never put in URL
+      sessionStorage.setItem('hc_reset_email', email);
+      window.location.href = './check-email.html';
+
+    } catch (err) {
+      error.textContent   = err.message || 'Failed to send reset email. Please try again.';
+      btn.textContent     = 'Reset Password';
+      btn.disabled        = false;
+      btn.style.opacity   = '1';
+    }
+  });
+}
+
+
+// ── Wire up the OTP verify form ───────────────────────────────
+function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
+  const form      = document.getElementById('otpForm');
+  const otpInput  = document.getElementById('otpInput');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const otpError  = document.getElementById('otpError');
+  const OTP_LEN   = 6;
+
+  if (!form || !otpInput) return;
+
+  // Show email from sessionStorage
+  const resetEmail = sessionStorage.getItem('hc_reset_email');
+  const emailDisplay = document.getElementById('sentEmailDisplay');
+  if (resetEmail && emailDisplay) emailDisplay.textContent = resetEmail;
+
+  // OTP box rendering
+  const boxes = document.querySelectorAll('.otp-box');
+  function renderBoxes() {
+    const val       = otpInput.value;
+    const focused   = document.activeElement === otpInput;
+    const cursorPos = val.length;
+
+    boxes.forEach((box, i) => {
+      const char   = val[i] || '';
+      const filled = char !== '';
+      const active = focused && (i === cursorPos || (cursorPos === OTP_LEN && i === OTP_LEN - 1));
+      const empty  = active && !filled;
+      box.textContent = char;
+      box.classList.toggle('filled', filled && !active);
+      box.classList.toggle('active', active);
+      box.classList.toggle('empty',  empty);
+    });
+
+    verifyBtn.disabled   = val.length !== OTP_LEN;
+    otpError.textContent = '';
+  }
+
+  otpInput.addEventListener('input', () => {
+    otpInput.value = otpInput.value.replace(/\D/g, '').slice(0, OTP_LEN);
+    renderBoxes();
+  });
+  otpInput.addEventListener('focus', renderBoxes);
+  otpInput.addEventListener('blur',  renderBoxes);
+  document.getElementById('otpWrapper')?.addEventListener('click', () => otpInput.focus());
+
+  // Submit
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = otpInput.value;
+    if (code.length !== OTP_LEN) return;
+
+    verifyBtn.textContent = 'Verifying...';
+    verifyBtn.disabled    = true;
+    otpError.textContent  = '';
+
+    try {
+      await publicApiRequest(HC_CONFIG.ENDPOINTS.VERIFY_OTP, {
+        method: 'POST',
+        body: JSON.stringify({ code, email: resetEmail }),
+      });
+      window.location.href = redirectOnSuccess;
+    } catch (err) {
+      otpError.textContent  = err.message || 'Invalid code. Please try again.';
+      verifyBtn.textContent = 'Verify';
+      verifyBtn.disabled    = false;
+    }
+  });
+
+  // Resend countdown
+  let seconds = 30;
+  const timerDisplay = document.getElementById('timerDisplay');
+  const resendLink   = document.getElementById('resendLink');
+  let countdownInterval = null;
+
+  function startCountdown() {
+    resendLink?.classList.add('disabled');
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      seconds--;
+      if (timerDisplay) timerDisplay.textContent = `(0:${seconds.toString().padStart(2, '0')})`;
+      if (seconds <= 0) {
+        clearInterval(countdownInterval);
+        if (timerDisplay) timerDisplay.textContent = '';
+        resendLink?.classList.remove('disabled');
+      }
+    }, 1000);
+  }
+  startCountdown();
+
+  resendLink?.addEventListener('click', async function () {
+    if (this.classList.contains('disabled')) return;
+    seconds = 30;
+    if (timerDisplay) timerDisplay.textContent = '(0:30)';
+    startCountdown();
+    try {
+      await publicApiRequest(HC_CONFIG.ENDPOINTS.RESEND_OTP, {
+        method: 'POST',
+        body: JSON.stringify({ email: resetEmail }),
+      });
+    } catch (err) {
+      if (otpError) otpError.textContent = 'Failed to resend. Please try again.';
+    }
+  });
+}
+
+
+// ── Wire up the reset password form ──────────────────────────
+function hc_initResetForm(redirectOnSuccess = './password-success.html') {
+  const form = document.getElementById('resetForm');
+  if (!form) return;
+
+  const pwInput       = document.getElementById('password');
+  const confirmInput  = document.getElementById('confirmPassword');
+  const strengthBar   = document.getElementById('strengthBar');
+  const strengthLabel = document.getElementById('strengthLabel');
+  const matchMsg      = document.getElementById('matchMsg');
+  const updateBtn     = document.getElementById('updateBtn');
+
+  function checkStrength(pw) {
+    const checks = {
+      len:     pw.length >= 8,
+      upper:   /[A-Z]/.test(pw),
+      num:     /[0-9]/.test(pw),
+      special: /[^A-Za-z0-9]/.test(pw),
+    };
+    document.getElementById('req-len')?.classList.toggle('met',     checks.len);
+    document.getElementById('req-upper')?.classList.toggle('met',   checks.upper);
+    document.getElementById('req-num')?.classList.toggle('met',     checks.num);
+    document.getElementById('req-special')?.classList.toggle('met', checks.special);
+
+    const score  = Object.values(checks).filter(Boolean).length;
+    const colors = ['#dc2626','#f97316','#eab308','#16a34a'];
+    const labels = ['Weak','Fair','Good','Strong'];
+    const widths = ['25%','50%','75%','100%'];
+
+    if (pw.length === 0) {
+      if (strengthBar)  strengthBar.style.width = '0';
+      if (strengthLabel) strengthLabel.textContent = '';
+    } else {
+      if (strengthBar) {
+        strengthBar.style.width      = widths[score - 1] || '25%';
+        strengthBar.style.background = colors[score - 1] || colors[0];
+      }
+      if (strengthLabel) {
+        strengthLabel.textContent = labels[score - 1] || 'Weak';
+        strengthLabel.style.color = colors[score - 1] || colors[0];
+      }
+    }
+    return score === 4;
+  }
+
+  function validateForm() {
+    const pw      = pwInput.value;
+    const confirm = confirmInput.value;
+    const strong  = checkStrength(pw);
+
+    if (confirm.length > 0) {
+      if (pw === confirm) {
+        matchMsg.textContent = '✓ Passwords match';
+        matchMsg.className   = 'match-msg ok';
+      } else {
+        matchMsg.textContent = '✗ Passwords do not match';
+        matchMsg.className   = 'match-msg err';
+      }
+    } else {
+      matchMsg.textContent = '';
+      matchMsg.className   = 'match-msg';
+    }
+    updateBtn.disabled = !(strong && pw === confirm && confirm.length > 0);
+  }
+
+  pwInput?.addEventListener('input',      validateForm);
+  confirmInput?.addEventListener('input', validateForm);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const error = document.getElementById('resetError');
+    updateBtn.textContent   = 'Updating...';
+    updateBtn.disabled      = true;
+    updateBtn.style.opacity = '0.75';
+    if (error) error.textContent = '';
+
+    try {
+      const email = sessionStorage.getItem('hc_reset_email');
+      await publicApiRequest(HC_CONFIG.ENDPOINTS.RESET_PW, {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          password:  pwInput.value,
+          password2: confirmInput.value,
+        }),
+      });
+      sessionStorage.removeItem('hc_reset_email');
+      window.location.href = redirectOnSuccess;
+    } catch (err) {
+      if (error) error.textContent = err.message || 'Failed to update password. Please try again.';
+      updateBtn.textContent   = 'Update Password';
+      updateBtn.disabled      = false;
+      updateBtn.style.opacity = '1';
+    }
+  });
+}
+
+
+// ── Wire up password success page ───────────────────────────
+// Called on password-success.html only
+function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
+  // Clean up — reset flow is complete, clear sensitive sessionStorage
+  sessionStorage.removeItem('hc_reset_email');
+
+  // Countdown timer → auto redirect
+  let seconds = 5;
+  const countdownEl  = document.getElementById('countdown');
+  const continueBtn  = document.getElementById('continueBtn');
+
+  function tick() {
+    if (countdownEl) countdownEl.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(timer);
+      window.location.href = redirectTo;
+      return;
+    }
+    seconds--;
+  }
+
+  tick(); // run immediately so user sees 5 not blank
+  const timer = setInterval(tick, 1000);
+
+  // Manual continue button — skip countdown
+  continueBtn?.addEventListener('click', () => {
+    clearInterval(timer);
+    window.location.href = redirectTo;
+  });
+}
+
+
+// ── Card fade-in (shared across all auth pages) ──────────────
+function hc_fadeInCard() {
+  const card = document.querySelector('.signin-card');
+  if (!card) return;
+  card.style.opacity    = '0';
+  card.style.transform  = 'translateY(24px)';
+  card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+  requestAnimationFrame(() => {
+    card.style.opacity   = '1';
+    card.style.transform = 'translateY(0)';
+  });
+}
+
+
+// ── Password toggle (shared across all auth pages) ───────────
+function hc_makePasswordToggle(btnId, iconId, inputId) {
+  const btn   = document.getElementById(btnId);
+  const icon  = document.getElementById(iconId);
+  const input = document.getElementById(inputId);
+  if (!btn || !icon || !input) return;
+
+  btn.addEventListener('click', () => {
+    const show   = input.type === 'password';
+    input.type   = show ? 'text' : 'password';
+    icon.innerHTML = show
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  });
+}
+
+
+/* ── dashboard.js ── */
 /* ═══════════════════════════════════════════════════════════
    HealthClouda — Super Admin Dashboard
    Load order: config.js → api.js → auth.js → this file
@@ -1889,6 +3026,8 @@ function loadPage(page) {
     case 'dashboard':     loadDashboard(); break;
     case 'organisations': loadOrgs();      break;
     case 'users':         loadUsers();     break;
+    case 'billing':       loadBilling();   break;
+    case 'messages':      loadMessages();  break;
     case 'audit':         loadAuditLogs(); break;
   }
 }
@@ -2890,6 +4029,148 @@ async function hc_logoutAdmin() {
 }
 
 
+
+
+/* ══════════════════════════════════════════
+   NOTIFICATIONS
+══════════════════════════════════════════ */
+
+const DEMO_NOTIFS = [
+  { id:'n1', type:'danger',  title:'Organisation suspended',     desc:'MediCare Clinic was suspended due to failed payment.',      time: new Date(Date.now()-1000*60*5).toISOString(),    read: false },
+  { id:'n2', type:'warning', title:'Failed login attempts',      desc:'5 failed login attempts detected from IP 192.168.1.10.',   time: new Date(Date.now()-1000*60*32).toISOString(),   read: false },
+  { id:'n3', type:'success', title:'New organisation registered', desc:'FirstCare Hospital successfully joined HealthClouda.',     time: new Date(Date.now()-1000*60*60*2).toISOString(), read: false },
+  { id:'n4', type:'info',    title:'Billing plan upgraded',       desc:'City General Hospital upgraded from Pro to Premium.',      time: new Date(Date.now()-1000*60*60*5).toISOString(), read: true  },
+  { id:'n5', type:'warning', title:'Storage nearing limit',       desc:'System storage is at 87% capacity. Consider expanding.',   time: new Date(Date.now()-1000*60*60*24).toISOString(),read: true  },
+  { id:'n6', type:'success', title:'Backup completed',            desc:'Daily system backup completed successfully at 07:19 AM.',  time: new Date(Date.now()-1000*60*60*25).toISOString(),read: true  },
+];
+
+let _notifs     = [];
+let _notifOpen  = false;
+let _notifLoaded= false;
+
+const NOTIF_ICONS = {
+  info:    `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  success: `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+  warning: `<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  danger:  `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+};
+
+function notifTimeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)   return 'Just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400)return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+async function loadNotifications() {
+  try {
+    const d  = await safeApiGet('/superadmin/notifications/');
+    _notifs  = Array.isArray(d) ? d : (d.results || []);
+  } catch {
+    _notifs = DEMO_NOTIFS;
+  }
+  renderNotifBadge();
+}
+
+function renderNotifBadge() {
+  const unread = _notifs.filter(n => !n.read).length;
+  const dot    = document.getElementById('notifDot');
+  const btn    = document.getElementById('notifBtn');
+
+  // Remove old count badge if any
+  const old = btn?.querySelector('.notif-count');
+  if (old) old.remove();
+  if (dot) dot.style.display = unread > 0 ? 'block' : 'none';
+
+  if (unread > 0 && btn) {
+    const badge = document.createElement('span');
+    badge.className   = 'notif-count';
+    badge.textContent = unread > 9 ? '9+' : unread;
+    btn.appendChild(badge);
+  }
+}
+
+function renderNotifList() {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+
+  if (!_notifs.length) {
+    list.innerHTML = `<div class="notif-empty">
+      <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <p>You're all caught up!</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = _notifs.map(n => `
+    <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotifRead('${n.id}')">
+      <div class="notif-icon ${n.type}">${NOTIF_ICONS[n.type] || NOTIF_ICONS.info}</div>
+      <div class="notif-body">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-desc">${n.desc}</div>
+        <div class="notif-time">${notifTimeAgo(n.time)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleNotifPanel() {
+  _notifOpen = !_notifOpen;
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+
+  if (_notifOpen) {
+    panel.classList.add('open');
+    if (!_notifLoaded) {
+      _notifLoaded = true;
+      loadNotifications().then(renderNotifList);
+    } else {
+      renderNotifList();
+    }
+  } else {
+    panel.classList.remove('open');
+  }
+}
+
+function markNotifRead(id) {
+  const n = _notifs.find(n => n.id === id);
+  if (!n || n.read) return;
+  n.read = true;
+  // Fire and forget to API
+  safeApiPatch(`/superadmin/notifications/${id}/read/`).catch(() => {});
+  renderNotifList();
+  renderNotifBadge();
+}
+
+function markAllRead() {
+  _notifs.forEach(n => n.read = true);
+  safeApiPatch('/superadmin/notifications/read-all/').catch(() => {});
+  renderNotifList();
+  renderNotifBadge();
+  showToast('All notifications marked as read', 'success');
+}
+
+function clearAllNotifs() {
+  _notifs = [];
+  safeApiDelete('/superadmin/notifications/').catch(() => {});
+  renderNotifList();
+  renderNotifBadge();
+  showToast('Notifications cleared', '');
+}
+
+// Close notif panel when clicking outside
+document.addEventListener('click', (e) => {
+  const wrapper = document.getElementById('notifWrapper');
+  if (_notifOpen && wrapper && !wrapper.contains(e.target)) {
+    _notifOpen = false;
+    document.getElementById('notifPanel')?.classList.remove('open');
+  }
+});
+
+// Load badge count on init (without opening panel)
+loadNotifications();
+
+
 /* ══════════════════════════════════════════
    12. GLOBAL SEARCH
 ══════════════════════════════════════════ */
@@ -2913,3 +4194,705 @@ document.getElementById('globalSearch')?.addEventListener('input', function() {
 
 </body>
 </html>
+<style>
+/* ══════════════════════════════════════════════
+   BILLING
+══════════════════════════════════════════════ */
+.stat-icon.orange { background: #fff4ed; color: #ea580c; }
+
+.bill-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.bill-plan-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 80px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  flex-shrink: 0;
+}
+.bill-plan-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.bill-plan-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bill-plan-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.bill-plan-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-mid);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.badge-paid    { background: #dcfce7; color: #16a34a; }
+.badge-pending { background: #fef3c7; color: #b45309; }
+.badge-overdue { background: #fee2e2; color: #dc2626; }
+
+/* ══════════════════════════════════════════════
+   MESSAGES
+══════════════════════════════════════════════ */
+.messages-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.25rem;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+}
+.msg-sidebar {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.msg-sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.msg-filter-tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+.msg-tab {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-soft);
+  transition: all 0.15s;
+}
+.msg-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.msg-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.msg-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f3f6fb;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.msg-item:hover { background: var(--bg); }
+.msg-item.active { background: #f0f6ff; border-left: 3px solid var(--primary); }
+.msg-item.unread .msg-item-subject { font-weight: 700; color: var(--text-dark); }
+.msg-item-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.msg-item-body { flex: 1; min-width: 0; }
+.msg-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.msg-item-from { font-size: 0.8rem; font-weight: 600; color: var(--text-dark); }
+.msg-item-time { font-size: 0.7rem; color: #b0bcc8; }
+.msg-item-subject { font-size: 0.78rem; color: var(--text-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.msg-item-preview { font-size: 0.73rem; color: var(--text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-unread-dot {
+  position: absolute; top: 50%; right: 1rem;
+  transform: translateY(-50%);
+  width: 7px; height: 7px;
+  background: var(--primary); border-radius: 50%;
+}
+.msg-priority-urgent { border-left: 3px solid var(--danger) !important; }
+.msg-priority-high   { border-left: 3px solid var(--warning) !important; }
+
+/* Message viewer */
+.msg-viewer {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.msg-viewer-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--text-soft); gap: 0.75rem;
+}
+.msg-viewer-empty svg {
+  width: 40px; height: 40px;
+  stroke: #c0ccd8; fill: none; stroke-width: 1.5; stroke-linecap: round;
+}
+.msg-viewer-empty p { font-size: 0.85rem; font-weight: 500; }
+.msg-view-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.msg-view-subject {
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--text-dark); margin-bottom: 0.25rem;
+}
+.msg-view-meta { font-size: 0.78rem; color: var(--text-soft); }
+.msg-view-body-wrap { flex: 1; padding: 1.5rem; overflow-y: auto; }
+.msg-view-body {
+  font-size: 0.88rem; color: var(--text-mid);
+  line-height: 1.7; white-space: pre-wrap;
+}
+.msg-view-reply {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 0.75rem;
+}
+.msg-view-reply textarea {
+  flex: 1; resize: none; height: 60px;
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.6rem 0.8rem; font-size: 0.82rem;
+  font-family: inherit; color: var(--text-dark);
+  background: var(--bg);
+  transition: border-color 0.2s;
+}
+.msg-view-reply textarea:focus { outline: none; border-color: var(--primary); background: var(--white); }
+
+/* badge priority */
+.badge-urgent { background: #fee2e2; color: #dc2626; }
+.badge-high   { background: #fef3c7; color: #b45309; }
+.badge-normal { background: #f0f9ff; color: #0075FF; }
+
+/* ══════════════════════════════════════════════
+   AUDIT LOGS
+══════════════════════════════════════════════ */
+.td-action.danger { color: var(--danger); font-weight: 600; }
+.td-mono { font-family: 'DM Mono', monospace; font-size: 0.76rem; color: var(--text-soft); }
+</style>
+<script>
+/* ══════════════════════════════════════════════
+   DYNAMIC DATE — first day of current month → today
+══════════════════════════════════════════════ */
+(function setHeaderDate() {
+  const now   = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const fmt   = d => d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  const el    = document.getElementById('headerDateText');
+  if (el) el.textContent = fmt(start) + ' → ' + fmt(now);
+})();
+
+
+/* ══════════════════════════════════════════════
+   BILLING
+══════════════════════════════════════════════ */
+const DEMO_BILLING = [
+  { id:'b1',  org:'City General Hospital',  plan:'Premium', amount:150000, status:'paid',    due:'2026-02-01' },
+  { id:'b2',  org:'Brightview Clinic',       plan:'Pro',     amount:75000,  status:'paid',    due:'2026-02-05' },
+  { id:'b3',  org:'Metro Medical Centre',    plan:'Pro',     amount:75000,  status:'paid',    due:'2026-02-05' },
+  { id:'b4',  org:'HealthPlus Centre',       plan:'Premium', amount:150000, status:'pending', due:'2026-03-01' },
+  { id:'b5',  org:'MediCare Clinic',         plan:'Basic',   amount:25000,  status:'overdue', due:'2026-01-15' },
+  { id:'b6',  org:'NovaCare Diagnostics',    plan:'Basic',   amount:25000,  status:'paid',    due:'2026-02-10' },
+  { id:'b7',  org:'PharmaPlus',              plan:'Basic',   amount:25000,  status:'pending', due:'2026-03-01' },
+  { id:'b8',  org:'St. Mary\'s Hospital',    plan:'Premium', amount:150000, status:'paid',    due:'2026-02-01' },
+  { id:'b9',  org:'FirstCare Hospital',      plan:'Pro',     amount:75000,  status:'paid',    due:'2026-02-08' },
+  { id:'b10', org:'LagosLab Diagnostics',    plan:'Pro',     amount:75000,  status:'overdue', due:'2026-01-20' },
+  { id:'b11', org:'CityPharm',               plan:'Basic',   amount:25000,  status:'paid',    due:'2026-02-12' },
+  { id:'b12', org:'Medicare Plus',           plan:'Pro',     amount:75000,  status:'pending', due:'2026-03-05' },
+];
+
+let _billCache    = [];
+let _billFiltered = [];
+let _billPage     = 1;
+let _billSortF    = '';
+let _billSortD    = 'asc';
+const BILL_PER_PAGE = 10;
+
+async function loadBilling() {
+  showSkeletonRows('billTableBody', 6, 6);
+  try {
+    const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_BILLING);
+    _billCache = Array.isArray(d) ? d : (d.results || []);
+  } catch {
+    _billCache = DEMO_BILLING;
+  }
+  _billFiltered = [..._billCache];
+  _billPage = 1;
+  renderBillingSummary();
+  renderBillingPage();
+}
+
+function renderBillingSummary() {
+  const total   = _billCache.reduce((s, b) => s + (b.amount || 0), 0);
+  const active  = _billCache.filter(b => b.status !== 'overdue').length;
+  const overdue = _billCache.filter(b => b.status === 'overdue').length;
+  const mrr     = _billCache.filter(b => b.status === 'paid').reduce((s, b) => s + (b.amount || 0), 0);
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+  set('billStatRevenue', formatMoney(total));
+  set('billStatActive',  active);
+  set('billStatOverdue', overdue);
+  set('billStatMRR',     formatMoney(mrr));
+
+  if (overdue > 0) setTrend('billTrendOverdue', `${overdue} need attention`, false);
+  setTrend('billTrendRevenue', 'This billing cycle', true);
+  setTrend('billTrendActive',  `${active} of ${_billCache.length} orgs`, true);
+  setTrend('billTrendMRR',     'Monthly recurring', true);
+
+  // Plan breakdown
+  const plans   = { Premium: 0, Pro: 0, Basic: 0 };
+  _billCache.forEach(b => { if (plans[b.plan] !== undefined) plans[b.plan]++; });
+  const maxPlan = Math.max(...Object.values(plans)) || 1;
+  Object.entries(plans).forEach(([plan, count]) => {
+    const bar = document.getElementById('bar' + plan);
+    const cnt = document.getElementById('count' + plan);
+    if (bar) bar.style.width = Math.round((count / maxPlan) * 100) + '%';
+    if (cnt) cnt.textContent = count;
+  });
+
+  // Payment status
+  const paid    = _billCache.filter(b => b.status === 'paid').length;
+  const pending = _billCache.filter(b => b.status === 'pending').length;
+  set('billPaidCount',    paid);
+  set('billPendingCount', pending);
+  set('billOverdueCount', overdue);
+}
+
+function billFilterChange() {
+  const q      = (document.getElementById('billSearch')?.value || '').toLowerCase().trim();
+  const plan   =  document.getElementById('filterBillPlan')?.value || '';
+  const status =  document.getElementById('filterBillStatus')?.value || '';
+  _billFiltered = _billCache.filter(b =>
+    (!q      || b.org?.toLowerCase().includes(q)) &&
+    (!plan   || b.plan   === plan) &&
+    (!status || b.status === status)
+  );
+  _billPage = 1;
+  renderBillingPage();
+}
+function clearBillFilters() {
+  ['billSearch','filterBillPlan','filterBillStatus'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  _billFiltered = [..._billCache];
+  _billPage = 1;
+  renderBillingPage();
+}
+function sortBilling(field) {
+  _billSortD = _billSortF === field ? (_billSortD === 'asc' ? 'desc' : 'asc') : 'asc';
+  _billSortF = field;
+  ['plan','amount','date'].forEach(f => {
+    const el = document.getElementById('bsort-' + f); if (!el) return;
+    el.textContent = f === field ? (_billSortD === 'asc' ? '↑' : '↓') : '↕';
+  });
+  const planOrder = { Basic:1, Pro:2, Premium:3 };
+  _billFiltered.sort((a, b) => {
+    let va, vb;
+    if (field === 'plan')   { va = planOrder[a.plan] || 0; vb = planOrder[b.plan] || 0; }
+    if (field === 'amount') { va = a.amount || 0; vb = b.amount || 0; }
+    if (field === 'date')   { va = new Date(a.due || 0); vb = new Date(b.due || 0); }
+    if (va < vb) return _billSortD === 'asc' ? -1 : 1;
+    if (va > vb) return _billSortD === 'asc' ?  1 : -1;
+    return 0;
+  });
+  _billPage = 1;
+  renderBillingPage();
+}
+function renderBillingPage() {
+  const total = _billFiltered.length;
+  const pages = Math.ceil(total / BILL_PER_PAGE) || 1;
+  _billPage   = Math.min(_billPage, pages);
+  const from  = (_billPage - 1) * BILL_PER_PAGE;
+  const slice = _billFiltered.slice(from, from + BILL_PER_PAGE);
+  const countEl = document.getElementById('billCount');
+  if (countEl) countEl.textContent = total === 0
+    ? 'No transactions found'
+    : `Showing ${from + 1}–${Math.min(from + BILL_PER_PAGE, total)} of ${total} transaction${total !== 1 ? 's' : ''}`;
+  renderBillingTable(slice);
+  renderBillingPagination(pages);
+}
+function renderBillingTable(data) {
+  const tbody = document.getElementById('billTableBody');
+  if (!tbody) return;
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:2.5rem">
+      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      <h3>No transactions found</h3><p>Try adjusting your filters.</p>
+    </div></td></tr>`;
+    return;
+  }
+  const planCls = p => p === 'Premium' ? 'badge-warning' : p === 'Pro' ? 'badge-purple' : 'badge-info';
+  const stCls   = s => s === 'paid' ? 'badge-paid' : s === 'pending' ? 'badge-pending' : 'badge-overdue';
+  tbody.innerHTML = data.map(b => `
+    <tr class="${b.status === 'overdue' ? 'row-suspended' : ''}">
+      <td>
+        <div class="org-name-cell">
+          <div class="org-avatar" style="background:${ORG_COLOURS[Math.abs(b.id?.charCodeAt(1) || 0) % ORG_COLOURS.length]}">${(b.org || '??').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}</div>
+          <span class="org-name">${b.org || '—'}</span>
+        </div>
+      </td>
+      <td><span class="badge ${planCls(b.plan)}">${b.plan || '—'}</span></td>
+      <td style="font-weight:600;color:var(--text-dark)">₦${Number(b.amount || 0).toLocaleString()}</td>
+      <td><span class="badge ${stCls(b.status)}">${b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : '—'}</span></td>
+      <td class="td-date">${formatDate(b.due)}</td>
+      <td>
+        <div class="row-actions">
+          ${b.status === 'overdue' ? `<button class="row-btn warn" onclick="sendPaymentReminder('${b.id}','${(b.org||'').replace(/'/g,"\\'")}')">Remind</button>` : ''}
+          ${b.status !== 'paid' ? `<button class="row-btn success" onclick="markBillPaid('${b.id}')">Mark Paid</button>` : '<span style="font-size:0.75rem;color:var(--success);font-weight:600">✓ Paid</span>'}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+function renderBillingPagination(totalPages) {
+  const el = document.getElementById('billPagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  let html = `<button class="page-btn" onclick="goBillPage(${_billPage - 1})" ${_billPage === 1 ? 'disabled' : ''}>‹</button>`;
+  for (let p = 1; p <= totalPages; p++) {
+    if (totalPages > 7 && p > 2 && p < totalPages - 1 && Math.abs(p - _billPage) > 1) {
+      if (p === 3 || p === totalPages - 2) html += `<span class="page-ellipsis">…</span>`;
+      continue;
+    }
+    html += `<button class="page-btn ${p === _billPage ? 'active' : ''}" onclick="goBillPage(${p})">${p}</button>`;
+  }
+  html += `<button class="page-btn" onclick="goBillPage(${_billPage + 1})" ${_billPage === totalPages ? 'disabled' : ''}>›</button>`;
+  el.innerHTML = html;
+}
+function goBillPage(p) {
+  _billPage = Math.max(1, Math.min(p, Math.ceil(_billFiltered.length / BILL_PER_PAGE) || 1));
+  renderBillingPage();
+}
+function markBillPaid(id) {
+  const b = _billCache.find(b => b.id === id);
+  if (!b) return;
+  b.status = 'paid';
+  safeApiPatch(`/superadmin/billing/${id}/paid/`).catch(() => {});
+  billFilterChange();
+  renderBillingSummary();
+  showToast(`${b.org} marked as paid`, 'success');
+}
+function sendPaymentReminder(id, org) {
+  safeApiPost(`/superadmin/billing/${id}/remind/`).catch(() => {});
+  showToast(`Payment reminder sent to ${org}`, 'success');
+}
+function exportBillingCSV() {
+  if (!_billFiltered.length) { showToast('No data to export', ''); return; }
+  const headers = ['Organisation', 'Plan', 'Amount', 'Status', 'Due Date'];
+  const rows    = _billFiltered.map(b => [
+    b.org, b.plan, b.amount, b.status,
+    b.due ? new Date(b.due).toLocaleDateString() : '',
+  ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: `billing-${new Date().toISOString().slice(0, 10)}.csv` });
+  a.click(); URL.revokeObjectURL(url);
+  showToast('CSV downloaded', 'success');
+}
+
+
+/* ══════════════════════════════════════════════
+   MESSAGES
+══════════════════════════════════════════════ */
+const DEMO_MSGS = [
+  { id:'m1', from:'City General Hospital',    subject:'Billing query for February',    body:'Dear Admin,\n\nWe noticed a discrepancy in our February billing statement. The amount charged was ₦150,000 but we expected ₦120,000 based on our agreement.\n\nKindly review and revert.\n\nThank you.',           time: new Date(Date.now()-1000*60*15).toISOString(),    unread:true,  priority:'high',   direction:'in',  color:'#0075FF' },
+  { id:'m2', from:'MediCare Clinic',           subject:'Request to reactivate account', body:'Hello,\n\nOur account was suspended last month due to a payment delay. We have since cleared all outstanding payments. Please reactivate our account at your earliest convenience.\n\nRegards,\nDr. John Peters', time: new Date(Date.now()-1000*60*60*2).toISOString(),  unread:true,  priority:'urgent', direction:'in',  color:'#dc2626' },
+  { id:'m3', from:'Brightview Clinic',         subject:'New staff onboarding support',  body:'Hi,\n\nWe are onboarding 5 new nurses and 2 doctors next week. Could you please guide us on how to bulk-add users to our organisation dashboard?\n\nThanks,\nDr. Chinwe',                                     time: new Date(Date.now()-1000*60*60*5).toISOString(),  unread:false, priority:'normal', direction:'in',  color:'#16a34a' },
+  { id:'m4', from:'Super Admin',               subject:'System Maintenance Notice',     body:'Dear Organisations,\n\nPlease be informed that HealthClouda will undergo scheduled maintenance on Saturday, March 1st 2026 from 12:00 AM to 4:00 AM WAT.\n\nDuring this window, the platform will be temporarily unavailable.\n\nWe apologise for any inconvenience.', time: new Date(Date.now()-1000*60*60*24).toISOString(), unread:false, priority:'high',   direction:'out', color:'#7c3aed' },
+  { id:'m5', from:'NovaCare Diagnostics',      subject:'Feature request: Lab integration', body:'Hello Admin,\n\nWe would love to see a direct lab results integration feature in our dashboard. This would help our doctors access results faster.\n\nIs this on the roadmap?\n\nBest,\nFatima Sani',          time: new Date(Date.now()-1000*60*60*48).toISOString(), unread:false, priority:'normal', direction:'in',  color:'#0891b2' },
+];
+
+let _msgs        = [];
+let _msgsFilter  = 'all';
+let _activeMsgId = null;
+
+async function loadMessages() {
+  const list = document.getElementById('msgList');
+  if (list) list.innerHTML = '<div class="notif-loading">Loading messages…</div>';
+  try {
+    const d = await safeApiGet('/superadmin/messages/');
+    _msgs = Array.isArray(d) ? d : (d.results || []);
+  } catch {
+    _msgs = DEMO_MSGS;
+  }
+  populateMsgOrgDropdown();
+  renderMsgList();
+}
+
+function populateMsgOrgDropdown() {
+  const sel = document.getElementById('msgTo');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select organisation…</option>' +
+    _orgsCache.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+}
+
+function msgFilterChange() {
+  renderMsgList();
+}
+function setMsgFilter(filter, btn) {
+  _msgsFilter = filter;
+  document.querySelectorAll('.msg-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderMsgList();
+}
+function renderMsgList() {
+  const q    = (document.getElementById('msgSearch')?.value || '').toLowerCase().trim();
+  const list = document.getElementById('msgList');
+  if (!list) return;
+  let filtered = _msgs.filter(m => {
+    if (_msgsFilter === 'unread') return m.unread;
+    if (_msgsFilter === 'sent')   return m.direction === 'out';
+    return true;
+  }).filter(m => !q || m.from?.toLowerCase().includes(q) || m.subject?.toLowerCase().includes(q));
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="notif-empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><p>No messages found</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(m => {
+    const initials = m.from.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const priCls   = m.priority === 'urgent' ? 'msg-priority-urgent' : m.priority === 'high' ? 'msg-priority-high' : '';
+    return `<div class="msg-item ${m.unread ? 'unread' : ''} ${m.id === _activeMsgId ? 'active' : ''} ${priCls}" onclick="openMsg('${m.id}')">
+      <div class="msg-item-avatar" style="background:${m.color || '#0075FF'}">${initials}</div>
+      <div class="msg-item-body">
+        <div class="msg-item-header">
+          <span class="msg-item-from">${m.from}</span>
+          <span class="msg-item-time">${notifTimeAgo(m.time)}</span>
+        </div>
+        <div class="msg-item-subject">${m.subject}</div>
+        <div class="msg-item-preview">${m.body?.split('\n')[0] || ''}</div>
+      </div>
+      ${m.unread ? '<span class="msg-unread-dot"></span>' : ''}
+    </div>`;
+  }).join('');
+}
+function openMsg(id) {
+  const m = _msgs.find(m => m.id === id);
+  if (!m) return;
+  _activeMsgId = id;
+  m.unread = false;
+  renderMsgList();
+
+  // Show inline in viewer pane
+  const viewer = document.getElementById('msgViewer');
+  if (!viewer) return;
+  const initials = m.from.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const priCls   = { urgent: 'badge-urgent', high: 'badge-high', normal: 'badge-normal' };
+  viewer.innerHTML = `
+    <div class="msg-view-header">
+      <div>
+        <div class="msg-view-subject">${m.subject}</div>
+        <div class="msg-view-meta">${m.direction === 'out' ? 'Sent to all organisations' : 'From: ' + m.from} · ${notifTimeAgo(m.time)}</div>
+      </div>
+      <span class="badge ${priCls[m.priority] || 'badge-normal'}">${m.priority?.charAt(0).toUpperCase() + m.priority?.slice(1)}</span>
+    </div>
+    <div class="msg-view-body-wrap">
+      <div class="msg-view-body">${m.body || '—'}</div>
+    </div>
+    <div class="msg-view-reply">
+      <textarea id="inlineReply" placeholder="Type a reply…"></textarea>
+      <button class="btn btn-primary" style="align-self:flex-end" onclick="sendInlineReply('${m.id}')">Reply</button>
+    </div>`;
+
+  safeApiPatch(`/superadmin/messages/${id}/read/`).catch(() => {});
+  updateMsgBadge();
+}
+function updateMsgBadge() {
+  const unread = _msgs.filter(m => m.unread).length;
+  const badge  = document.querySelector('[data-page="messages"] .nav-badge');
+  if (badge) badge.textContent = unread > 0 ? unread : '';
+  if (badge && unread === 0) badge.style.display = 'none';
+}
+function sendInlineReply(id) {
+  const body = document.getElementById('inlineReply')?.value.trim();
+  if (!body) { showToast('Please type a reply first', ''); return; }
+  safeApiPost('/superadmin/messages/', { reply_to: id, body }).catch(() => {});
+  document.getElementById('inlineReply').value = '';
+  showToast('Reply sent', 'success');
+}
+function openComposePanel() {
+  if (!_loaded.has('organisations')) loadPage('organisations');
+  setTimeout(populateMsgOrgDropdown, 300);
+  openPanel('composeMsgPanel');
+}
+function sendMessage() {
+  const to       = document.getElementById('msgTo')?.value;
+  const subject  = document.getElementById('msgSubject')?.value.trim();
+  const priority = document.getElementById('msgPriority')?.value;
+  const body     = document.getElementById('msgBody')?.value.trim();
+  if (!subject || !body) { showToast('Subject and message are required', ''); return; }
+
+  const btn = document.getElementById('msgSendBtn');
+  setButtonLoading(btn, true, 'Send Message');
+  safeApiPost('/superadmin/messages/', { to, subject, priority, body })
+    .catch(() => {})
+    .finally(() => {
+      const orgName = document.getElementById('msgTo')?.selectedOptions[0]?.text || 'All Organisations';
+      _msgs.unshift({ id: 'm' + Date.now(), from: 'Super Admin', subject, body, priority, time: new Date().toISOString(), unread: false, direction: 'out', color: '#7c3aed' });
+      renderMsgList();
+      closePanel('composeMsgPanel');
+      document.getElementById('msgSubject').value = '';
+      document.getElementById('msgBody').value    = '';
+      showToast(`Message sent to ${orgName}`, 'success');
+      setButtonLoading(btn, false, 'Send Message');
+    });
+}
+
+
+/* ══════════════════════════════════════════════
+   AUDIT LOGS (full version)
+══════════════════════════════════════════════ */
+const DEMO_AUDIT = [
+  { id:'a1',  time:new Date(Date.now()-1000*60*5).toISOString(),     user_id:'HC-25-00001', action:'Update Billing Plan',    entity:'City General Hospital', ip:'197.210.52.11',  status:'successful' },
+  { id:'a2',  time:new Date(Date.now()-1000*60*32).toISOString(),    user_id:'HC-25-00005', action:'Account Suspended',      entity:'MediCare Clinic',        ip:'102.89.33.44',   status:'suspended'  },
+  { id:'a3',  time:new Date(Date.now()-1000*60*60).toISOString(),    user_id:'U002',        action:'Added New Record',       entity:'Patient #P-1023',        ip:'105.112.88.21',  status:'completed'  },
+  { id:'a4',  time:new Date(Date.now()-1000*60*90).toISOString(),    user_id:'U004',        action:'Failed Login Attempt',   entity:'MediCare Clinic',        ip:'192.168.1.10',   status:'failed'     },
+  { id:'a5',  time:new Date(Date.now()-1000*60*120).toISOString(),   user_id:'HC-25-00002', action:'New Organisation Added', entity:'Brightview Clinic',      ip:'41.58.104.22',   status:'successful' },
+  { id:'a6',  time:new Date(Date.now()-1000*60*180).toISOString(),   user_id:'U006',        action:'Updated Patient Record', entity:'Patient #P-0887',        ip:'197.210.64.55',  status:'completed'  },
+  { id:'a7',  time:new Date(Date.now()-1000*60*60*6).toISOString(),  user_id:'HC-25-00003', action:'Activated Account',      entity:'Metro Medical Centre',   ip:'105.113.22.90',  status:'successful' },
+  { id:'a8',  time:new Date(Date.now()-1000*60*60*8).toISOString(),  user_id:'U003',        action:'User Role Changed',      entity:'Nurse Amaka Obi',        ip:'102.90.45.67',   status:'successful' },
+  { id:'a9',  time:new Date(Date.now()-1000*60*60*12).toISOString(), user_id:'HC-25-00006', action:'Billing Payment Made',   entity:'NovaCare Diagnostics',   ip:'41.211.78.33',   status:'successful' },
+  { id:'a10', time:new Date(Date.now()-1000*60*60*24).toISOString(), user_id:'U001',        action:'Password Changed',       entity:'Dr. Aliyu Musa',         ip:'197.210.52.11',  status:'successful' },
+  { id:'a11', time:new Date(Date.now()-1000*60*60*26).toISOString(), user_id:'HC-25-00010', action:'Account Suspended',      entity:'LagosLab Diagnostics',   ip:'102.89.33.55',   status:'suspended'  },
+  { id:'a12', time:new Date(Date.now()-1000*60*60*30).toISOString(), user_id:'U007',        action:'Deleted Record',         entity:'Patient #P-0541',        ip:'197.211.44.12',  status:'failed'     },
+  { id:'a13', time:new Date(Date.now()-1000*60*60*36).toISOString(), user_id:'HC-25-00008', action:'Plan Upgraded',          entity:'St. Mary\'s Hospital',   ip:'41.58.104.80',   status:'successful' },
+  { id:'a14', time:new Date(Date.now()-1000*60*60*48).toISOString(), user_id:'U005',        action:'Login Success',          entity:'Grace Adewale',          ip:'105.112.88.99',  status:'successful' },
+  { id:'a15', time:new Date(Date.now()-1000*60*60*50).toISOString(), user_id:'U004',        action:'Failed Login Attempt',   entity:'MediCare Clinic',        ip:'192.168.1.10',   status:'failed'     },
+];
+
+let _auditCache    = [];
+let _auditFiltered = [];
+let _auditPage     = 1;
+let _auditSortF    = 'time';
+let _auditSortD    = 'desc';
+const AUDIT_PER_PAGE = 10;
+
+async function loadAuditLogs() {
+  showSkeletonRows('auditTbody', 6, 8);
+  try {
+    const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_AUDIT);
+    _auditCache = Array.isArray(d) ? d : (d.results || []);
+  } catch {
+    _auditCache = DEMO_AUDIT;
+  }
+  _auditFiltered = [..._auditCache];
+  _auditPage = 1;
+  renderAuditPage();
+}
+function auditFilterChange() {
+  const q      = (document.getElementById('auditSearch')?.value || '').toLowerCase().trim();
+  const status =  document.getElementById('filterAuditStatus')?.value || '';
+  _auditFiltered = _auditCache.filter(a =>
+    (!q      || a.user_id?.toLowerCase().includes(q) || a.action?.toLowerCase().includes(q) || a.entity?.toLowerCase().includes(q) || a.ip?.toLowerCase().includes(q)) &&
+    (!status || a.status === status)
+  );
+  _auditPage = 1;
+  renderAuditPage();
+}
+function clearAuditFilters() {
+  ['auditSearch','filterAuditStatus'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _auditFiltered = [..._auditCache];
+  _auditPage = 1;
+  renderAuditPage();
+}
+function sortAudit(field) {
+  _auditSortD = _auditSortF === field ? (_auditSortD === 'asc' ? 'desc' : 'asc') : 'desc';
+  _auditSortF = field;
+  const el = document.getElementById('asort-time');
+  if (el) el.textContent = _auditSortD === 'asc' ? '↑' : '↓';
+  _auditFiltered.sort((a, b) => {
+    const va = new Date(a.time || 0), vb = new Date(b.time || 0);
+    return _auditSortD === 'asc' ? va - vb : vb - va;
+  });
+  _auditPage = 1;
+  renderAuditPage();
+}
+function renderAuditPage() {
+  const total = _auditFiltered.length;
+  const pages = Math.ceil(total / AUDIT_PER_PAGE) || 1;
+  _auditPage  = Math.min(_auditPage, pages);
+  const from  = (_auditPage - 1) * AUDIT_PER_PAGE;
+  const slice = _auditFiltered.slice(from, from + AUDIT_PER_PAGE);
+  const countEl = document.getElementById('auditCount');
+  if (countEl) countEl.textContent = total === 0
+    ? 'No logs found'
+    : `Showing ${from + 1}–${Math.min(from + AUDIT_PER_PAGE, total)} of ${total} log${total !== 1 ? 's' : ''}`;
+  renderAuditTable(slice);
+  renderAuditPagination(pages);
+}
+function renderAuditTable(data) {
+  const tbody = document.getElementById('auditTbody');
+  if (!tbody) return;
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-soft);font-size:0.82rem">No audit logs found</td></tr>`;
+    return;
+  }
+  const actionCls = s => { const v = (s || '').toLowerCase(); return (v === 'failed' || v === 'suspended') ? 'danger' : ''; };
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td style="font-size:0.78rem;color:var(--text-soft);white-space:nowrap">${formatRelativeTime(r.time)}</td>
+      <td class="td-mono">${r.user_id || '—'}</td>
+      <td class="td-action ${actionCls(r.status)}">${r.action || '—'}</td>
+      <td style="font-size:0.82rem">${r.entity || '—'}</td>
+      <td class="td-mono">${r.ip || '—'}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>`).join('');
+}
+function renderAuditPagination(totalPages) {
+  const el = document.getElementById('auditPagination');
+  if (!el) return;
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  let html = `<button class="page-btn" onclick="goAuditPage(${_auditPage - 1})" ${_auditPage === 1 ? 'disabled' : ''}>‹</button>`;
+  for (let p = 1; p <= totalPages; p++) {
+    if (totalPages > 7 && p > 2 && p < totalPages - 1 && Math.abs(p - _auditPage) > 1) {
+      if (p === 3 || p === totalPages - 2) html += `<span class="page-ellipsis">…</span>`;
+      continue;
+    }
+    html += `<button class="page-btn ${p === _auditPage ? 'active' : ''}" onclick="goAuditPage(${p})">${p}</button>`;
+  }
+  html += `<button class="page-btn" onclick="goAuditPage(${_auditPage + 1})" ${_auditPage === totalPages ? 'disabled' : ''}>›</button>`;
+  el.innerHTML = html;
+}
+function goAuditPage(p) {
+  _auditPage = Math.max(1, Math.min(p, Math.ceil(_auditFiltered.length / AUDIT_PER_PAGE) || 1));
+  renderAuditPage();
+}
+function exportAuditCSV() {
+  if (!_auditFiltered.length) { showToast('No data to export', ''); return; }
+  const headers = ['Timestamp', 'User ID', 'Action', 'Entity', 'IP Address', 'Status'];
+  const rows    = _auditFiltered.map(a => [
+    a.time ? new Date(a.time).toLocaleString() : '',
+    a.user_id, a.action, a.entity, a.ip, a.status,
+  ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: `audit-logs-${new Date().toISOString().slice(0, 10)}.csv` });
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Audit log CSV downloaded', 'success');
+}
+
+/* Wire billing, messages, audit into loadPage */
+
+</script>
