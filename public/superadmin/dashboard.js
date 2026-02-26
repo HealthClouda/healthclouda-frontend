@@ -52,7 +52,18 @@ document.querySelectorAll('.nav-item').forEach(item => {
     // Swap visible page
     document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
     const target = document.getElementById('page-' + page);
-    if (target) target.classList.add('active');
+    if (target) {
+      target.classList.add('active');
+      target.style.opacity = '0';
+      target.style.transform = 'translateY(8px)';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          target.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+          target.style.opacity = '1';
+          target.style.transform = 'translateY(0)';
+        });
+      });
+    }
 
     // Lazy-load data (only on first visit)
     loadPage(page);
@@ -216,7 +227,7 @@ async function loadStats() {
   // Show loading shimmer
   ['statTotalUsers','statTotalOrgs','statRevenue','statRecords'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = `<span style="opacity:0.25;font-size:1.2rem">—</span>`;
+    if (el) el.innerHTML = '<div style="height:28px;width:80px;border-radius:6px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite;margin:4px 0"></div>';
   });
   ['trendUsers','trendOrgs','trendRevenue','trendRecords'].forEach(id => {
     const el = document.getElementById(id);
@@ -255,6 +266,11 @@ function setTrend(id, value, isUp) {
 }
 
 async function loadSystemHealth() {
+  // Show shimmer in health items
+  ['healthApi','healthDb','healthBackup'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div style="height:14px;width:140px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div>';
+  });
   try {
     const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_SYSTEM_HEALTH);
     const setH = (id, ok, label) => {
@@ -275,6 +291,11 @@ async function loadSystemHealth() {
 }
 
 async function loadSecurityAlerts() {
+  ['secFailedLogins','secLockedAccounts','secSuspiciousActivity'].forEach(id => {
+    const el = document.getElementById(id);
+    const cnt = el?.querySelector('.sec-count');
+    if (cnt) cnt.innerHTML = '<div style="height:20px;width:30px;border-radius:4px;display:inline-block;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div>';
+  });
   try {
     const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_SECURITY);
     document.getElementById('secFailedLogins').querySelector('.sec-count').textContent  = d.failed_logins   ?? '—';
@@ -1494,7 +1515,7 @@ let _activeMsgId = null;
 
 async function loadMessages() {
   const list = document.getElementById('msgList');
-  if (list) list.innerHTML = '<div class="notif-loading">Loading messages…</div>';
+  if (list) list.innerHTML = Array(5).fill('<div class="msg-item" style="pointer-events:none"><div class="msg-item-avatar" style="background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div><div class="msg-item-body"><div class="msg-item-header"><div style="height:11px;width:120px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div><div style="height:9px;width:40px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div></div><div style="height:10px;width:160px;border-radius:4px;margin:5px 0 4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div><div style="height:9px;width:100px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div></div></div>').join('');
   try {
     const d = await safeApiGet('/superadmin/messages/');
     _msgs = Array.isArray(d) ? d : (d.results || []);

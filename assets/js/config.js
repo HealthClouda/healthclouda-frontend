@@ -24,23 +24,14 @@ const HC_CONFIG = {
 
   // ── Auth endpoints ─────────────────────────────────────────
   ENDPOINTS: {
-    LOGIN:        '/auth/login/',           // POST — general login
-    LOGIN_ORG:    '/auth/login/',           // POST — org login: /auth/login/{slug}/
-    LOGOUT:       '/auth/logout/',          // POST { refresh }
-    REFRESH:      '/auth/token/refresh/',   // POST { refresh }
-    ME:           '/auth/me/',              // GET  — current user profile
+    LOGIN:        '/auth/login/',
+    LOGOUT:       '/auth/logout/',
+    REFRESH:      '/auth/token/refresh/',
     FORGOT_PW:    '/auth/forgot-password/',
     VERIFY_OTP:   '/auth/verify-otp/',
     RESEND_OTP:   '/auth/resend-otp/',
     RESET_PW:     '/auth/reset-password/',
     CONTACT_FORM: '/contact-form/',
-
-    // ── Organizations ────────────────────────────────────
-    ORG_BY_SLUG:  '/org/by-slug/',  // GET /{slug}/ → branding
-
-    // ── Patients & Episodes ──────────────────────────────
-    PATIENTS:     '/patients/',               // GET, POST
-    EPISODES:     '/episodes/',               // GET, POST
 
     // ── Super Admin ───────────────────────────────────────
     // Dashboard overview
@@ -60,6 +51,8 @@ const HC_CONFIG = {
     // Users
     SA_USERS:         '/superadmin/users/',            // GET  → paginated list
     SA_USER_DETAIL:   '/superadmin/users/',            // GET /:id, PATCH /:id
+    SA_USER_SUSPEND:  '/superadmin/users/',            // PATCH /:id/suspend/
+    SA_USER_ACTIVATE: '/superadmin/users/',            // PATCH /:id/activate/
 
     // Billing
     SA_BILLING:       '/superadmin/billing/',          // GET  → revenue, plans breakdown
@@ -84,17 +77,14 @@ const HC_CONFIG = {
     PATIENT:      '/public/patient/index.html',
   },
 
-  // ── Role names ────────────────────────────────────────────
-  // All comparisons use .toUpperCase() so these work regardless
-  // of what case the backend actually returns.
+  // ── Role names (must match what the backend returns) ──────
   ROLES: {
-    SUPERADMIN:   'SUPERADMIN',
-    SUPER_ADMIN:  'SUPER_ADMIN',
-    ORG_ADMIN:    'ORG_ADMIN',
-    DOCTOR:       'DOCTOR',
-    NURSE:        'NURSE',
-    RECEPTIONIST: 'RECEPTIONIST',
-    PATIENT:      'PATIENT',
+    SUPERADMIN:   'superadmin',
+    ORG_ADMIN:    'org_admin',
+    DOCTOR:       'doctor',
+    NURSE:        'nurse',
+    RECEPTIONIST: 'receptionist',
+    PATIENT:      'patient',
   },
 
   // ── UI constants ───────────────────────────────────────────

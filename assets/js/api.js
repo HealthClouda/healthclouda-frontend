@@ -1,16 +1,17 @@
 /**
- * HealthClouda — API Helpers
+ * HealthClouda — API Communication Layer
  * ─────────────────────────────────────────────────────────────
- * Centralised HTTP helpers + JWT token management.
+ * RULES:
+ *  1. ALL fetch() calls in this project go through apiRequest().
+ *  2. Never call fetch() directly in HTML files or other scripts.
+ *  3. This file handles: auth headers, token refresh, errors.
  *
  * REQUIRES: config.js loaded before this file.
  * ─────────────────────────────────────────────────────────────
  */
 
 
-// ══════════════════════════════════════════════════════════════
-//  Token helpers
-// ══════════════════════════════════════════════════════════════
+// ── Token helpers ────────────────────────────────────────────
 
 function hc_getAccessToken() {
   return localStorage.getItem(HC_CONFIG.TOKEN_KEYS.ACCESS);
@@ -23,159 +24,195 @@ function hc_getRefreshToken() {
 function hc_getUser() {
   try {
     return JSON.parse(localStorage.getItem(HC_CONFIG.TOKEN_KEYS.USER));
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function hc_saveTokens({ access, refresh, user }) {
   if (access)  localStorage.setItem(HC_CONFIG.TOKEN_KEYS.ACCESS,  access);
   if (refresh) localStorage.setItem(HC_CONFIG.TOKEN_KEYS.REFRESH, refresh);
-  if (user)    localStorage.setItem(HC_CONFIG.TOKEN_KEYS.USER,    JSON.stringify(user));
+  if (user)    localStorage.setItem(HC_CONFIG.TOKEN_KEYS.USER, JSON.stringify(user));
 }
 
 function hc_clearTokens() {
-  localStorage.removeItem(HC_CONFIG.TOKEN_KEYS.ACCESS);
-  localStorage.removeItem(HC_CONFIG.TOKEN_KEYS.REFRESH);
-  localStorage.removeItem(HC_CONFIG.TOKEN_KEYS.USER);
+  Object.values(HC_CONFIG.TOKEN_KEYS).forEach(key => localStorage.removeItem(key));
 }
 
 
-// ══════════════════════════════════════════════════════════════
-//  Role redirect helper
-// ══════════════════════════════════════════════════════════════
+// ── Token refresh ────────────────────────────────────────────
 
-/**
- * Redirect user to their role-specific dashboard.
- * @param {string} role      – raw role from backend (e.g. 'doctor', 'super_admin')
- * @param {string} fallback  – URL if role has no mapped dashboard
- */
-function hc_redirectByRole(role, fallback) {
-  if (!role) { window.location.href = fallback || '/public/signin.html'; return; }
-  const key = role.toUpperCase().replace(/_/g, '');
-  const dest = HC_CONFIG.ROLE_REDIRECTS[key];
-  window.location.href = dest || fallback || '/public/signin.html';
-}
+let _refreshPromise = null; // Prevents multiple simultaneous refresh calls
 
+async function hc_refreshAccessToken() {
+  // If a refresh is already in flight, wait for that one
+  if (_refreshPromise) return _refreshPromise;
 
-// ══════════════════════════════════════════════════════════════
-//  HTTP helpers
-// ══════════════════════════════════════════════════════════════
+  _refreshPromise = (async () => {
+    const refresh = hc_getRefreshToken();
+    if (!refresh) throw new Error('No refresh token available');
 
-/**
- * Make an authenticated API request.
- * Automatically attaches the JWT access token.
- * On 401, attempts a single token refresh then retries.
- */
-async function apiFetch(endpoint, options = {}) {
-  const url = HC_CONFIG.API_BASE_URL + endpoint;
-  const token = hc_getAccessToken();
-
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
-    ...(options.headers || {}),
-  };
-
-  let res = await fetch(url, { ...options, headers });
-
-  // Auto-refresh on 401
-  if (res.status === 401 && token) {
-    const refreshed = await _tryRefreshToken();
-    if (refreshed) {
-      headers['Authorization'] = 'Bearer ' + hc_getAccessToken();
-      res = await fetch(url, { ...options, headers });
-    } else {
-      hc_clearTokens();
-      window.location.href = '/public/signin.html';
-      throw new Error('Session expired. Please log in again.');
-    }
-  }
-
-  return _handleResponse(res);
-}
-
-/**
- * Make a public (unauthenticated) API request.
- */
-async function publicApiRequest(endpoint, options = {}) {
-  const url = HC_CONFIG.API_BASE_URL + endpoint;
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
-
-  const res = await fetch(url, { ...options, headers });
-  return _handleResponse(res);
-}
-
-
-// ── Convenience wrappers ─────────────────────────────────────
-
-async function apiGet(endpoint) {
-  return apiFetch(endpoint, { method: 'GET' });
-}
-
-async function apiPost(endpoint, body) {
-  return apiFetch(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
-
-async function apiPatch(endpoint, body) {
-  return apiFetch(endpoint, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
-
-async function apiDelete(endpoint) {
-  return apiFetch(endpoint, { method: 'DELETE' });
-}
-
-
-// ══════════════════════════════════════════════════════════════
-//  Internal helpers
-// ══════════════════════════════════════════════════════════════
-
-async function _handleResponse(res) {
-  if (res.status === 204) return null; // No Content
-
-  let data;
-  try { data = await res.json(); } catch { data = null; }
-
-  if (!res.ok) {
-    // Try to extract a useful error message from the response
-    const msg = data?.detail
-      || data?.message
-      || data?.error
-      || (data?.non_field_errors && data.non_field_errors[0])
-      || `Request failed (${res.status})`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-
-  return data;
-}
-
-async function _tryRefreshToken() {
-  const refresh = hc_getRefreshToken();
-  if (!refresh) return false;
-
-  try {
-    const res = await fetch(HC_CONFIG.API_BASE_URL + HC_CONFIG.ENDPOINTS.REFRESH, {
+    const res = await fetch(`${HC_CONFIG.API_BASE_URL}${HC_CONFIG.ENDPOINTS.REFRESH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh }),
     });
 
-    if (!res.ok) return false;
+    if (!res.ok) {
+      // Refresh token is also expired → force logout
+      hc_clearTokens();
+      window.location.href = '/public/signin.html';
+      throw new Error('Session expired. Please log in again.');
+    }
 
     const data = await res.json();
-    hc_saveTokens({ access: data.access, refresh: data.refresh || refresh });
-    return true;
-  } catch {
-    return false;
+    hc_saveTokens({ access: data.access });
+    return data.access;
+  })();
+
+  try {
+    return await _refreshPromise;
+  } finally {
+    _refreshPromise = null;
   }
+}
+
+
+// ── Core request function ────────────────────────────────────
+
+/**
+ * apiRequest(endpoint, options)
+ *
+ * @param {string} endpoint   - e.g. '/patients/' (no base URL needed)
+ * @param {object} options    - standard fetch options (method, body, headers…)
+ * @returns {Promise<any>}    - parsed JSON response
+ *
+ * @example
+ *   const patients = await apiRequest('/patients/');
+ *   const result   = await apiRequest('/episodes/', {
+ *     method: 'POST',
+ *     body: JSON.stringify({ patient: id, notes: '...' })
+ *   });
+ */
+async function apiRequest(endpoint, options = {}) {
+  const token = hc_getAccessToken();
+
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers, // allow caller to override headers
+    },
+  };
+
+  let response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+
+  // ── 401: Try to refresh token once, then retry ──
+  if (response.status === 401) {
+    try {
+      const newToken = await hc_refreshAccessToken();
+      config.headers['Authorization'] = `Bearer ${newToken}`;
+      response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+    } catch {
+      // Refresh failed — redirect to login (already handled in hc_refreshAccessToken)
+      return;
+    }
+  }
+
+  // ── 204 No Content ──
+  if (response.status === 204) return null;
+
+  // ── Parse response ──
+  const data = await response.json().catch(() => ({}));
+
+  // ── Non-OK responses → throw structured error ──
+  if (!response.ok) {
+    const message =
+      data.detail ||
+      data.message ||
+      data.non_field_errors?.[0] ||
+      `Request failed with status ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.data   = data; // full response body for form validation errors
+    throw error;
+  }
+
+  return data;
+}
+
+
+// ── Convenience wrappers ────────────────────────────────────
+
+/**
+ * apiGet('/patients/')
+ * apiPost('/episodes/', { patient: id, notes: '...' })
+ * apiPut('/episodes/123/', { diagnosis: '...' })
+ * apiDelete('/patients/123/')
+ */
+function apiGet(endpoint, options = {}) {
+  return apiRequest(endpoint, { ...options, method: 'GET' });
+}
+
+function apiPost(endpoint, body = {}, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+function apiPut(endpoint, body = {}, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+function apiPatch(endpoint, body = {}, options = {}) {
+  return apiRequest(endpoint, {
+    ...options,
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+function apiDelete(endpoint, options = {}) {
+  return apiRequest(endpoint, { ...options, method: 'DELETE' });
+}
+
+
+// ── Public API (no auth needed) ────────────────────────────
+
+/**
+ * publicApiRequest(endpoint, options)
+ * For endpoints that don't require authentication
+ * e.g. contact form, public org info
+ */
+async function publicApiRequest(endpoint, options = {}) {
+  const config = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  };
+
+  const response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+
+  if (response.status === 204) return null;
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = data.detail || data.message || `Request failed (${response.status})`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.data   = data;
+    throw error;
+  }
+
+  return data;
 }

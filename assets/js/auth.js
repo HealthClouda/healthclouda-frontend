@@ -68,12 +68,12 @@ function hc_initSigninForm() {
 
       const role = res.user?.role;
 
-      // ── DEBUG: log role comparison (remove after confirming login works) ──
+      // ── DEBUG: log role comparison ──
       const backendRole  = (role || '').toUpperCase();
       const configRole   = HC_CONFIG.ROLES.PATIENT.toUpperCase();
       const isPatient    = backendRole === configRole;
       console.log('[HC Auth Debug]', {
-        'Backend role (raw)':  role,
+        'Backend role (raw)':   role,
         'Backend role (upper)': backendRole,
         'Config PATIENT':       configRole,
         'Match?':               isPatient,
@@ -129,7 +129,6 @@ function hc_initOrgSigninForm(orgSlug) {
     error.textContent = '';
 
     try {
-      // Use org-specific login endpoint
       const loginEndpoint = '/auth/login/' + orgSlug + '/';
 
       const res = await publicApiRequest(loginEndpoint, {
@@ -146,7 +145,6 @@ function hc_initOrgSigninForm(orgSlug) {
         user:    res.user,
       });
 
-      // Redirect based on role
       hc_redirectByRole(res.user?.role, '/public/patient/index.html');
 
     } catch (err) {
@@ -162,11 +160,6 @@ function hc_initOrgSigninForm(orgSlug) {
 //  Organization branding loader
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Fetch org branding from the API and update the page.
- * @param {string} slug – organization slug from the URL
- * @returns {Promise<object|null>} the org data, or null on failure
- */
 async function hc_loadOrgBranding(slug) {
   const errorEl = document.getElementById('signinError');
 
@@ -175,14 +168,11 @@ async function hc_loadOrgBranding(slug) {
       method: 'GET',
     });
 
-    // Update page title
     document.title = org.name + ' | HealthClouda';
 
-    // Update nav org name
     const navOrgName = document.getElementById('nav-org-name');
     if (navOrgName) navOrgName.textContent = 'HealthClouda';
 
-    // Update nav logo
     const navLogo = document.getElementById('nav-logo');
     if (navLogo && org.logo_url) {
       navLogo.src = org.logo_url;
@@ -192,11 +182,9 @@ async function hc_loadOrgBranding(slug) {
       navLogo.style.display = 'none';
     }
 
-    // Update header org name
     const headerOrgName = document.getElementById('header-org-name');
     if (headerOrgName) headerOrgName.textContent = org.name;
 
-    // Update email placeholder
     const emailInput = document.getElementById('email');
     if (emailInput && org.email_domain) {
       emailInput.placeholder = 'e.g. user@' + org.email_domain;
@@ -217,7 +205,7 @@ async function hc_loadOrgBranding(slug) {
 
 
 // ══════════════════════════════════════════════════════════════
-//  Password reset flows (unchanged)
+//  Password reset flows
 // ══════════════════════════════════════════════════════════════
 
 function hc_initForgotForm() {
@@ -264,7 +252,7 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
 
   if (!form || !otpInput) return;
 
-  const resetEmail = sessionStorage.getItem('hc_reset_email');
+  const resetEmail   = sessionStorage.getItem('hc_reset_email');
   const emailDisplay = document.getElementById('sentEmailDisplay');
   if (resetEmail && emailDisplay) emailDisplay.textContent = resetEmail;
 
@@ -320,8 +308,8 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
   });
 
   let seconds = 30;
-  const timerDisplay = document.getElementById('timerDisplay');
-  const resendLink   = document.getElementById('resendLink');
+  const timerDisplay    = document.getElementById('timerDisplay');
+  const resendLink      = document.getElementById('resendLink');
   let countdownInterval = null;
 
   function startCountdown() {
@@ -385,7 +373,7 @@ function hc_initResetForm(redirectOnSuccess = './password-success.html') {
     const widths = ['25%','50%','75%','100%'];
 
     if (pw.length === 0) {
-      if (strengthBar)  strengthBar.style.width = '0';
+      if (strengthBar)   strengthBar.style.width = '0';
       if (strengthLabel) strengthLabel.textContent = '';
     } else {
       if (strengthBar) {
@@ -457,8 +445,8 @@ function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
   sessionStorage.removeItem('hc_reset_email');
 
   let seconds = 5;
-  const countdownEl  = document.getElementById('countdown');
-  const continueBtn  = document.getElementById('continueBtn');
+  const countdownEl = document.getElementById('countdown');
+  const continueBtn = document.getElementById('continueBtn');
 
   function tick() {
     if (countdownEl) countdownEl.textContent = seconds;
