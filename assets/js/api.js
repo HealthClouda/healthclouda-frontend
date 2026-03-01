@@ -192,6 +192,10 @@ function apiDelete(endpoint, options = {}) {
  * e.g. contact form, public org info
  */
 async function publicApiRequest(endpoint, options = {}) {
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${HC_CONFIG.API_BASE_URL}${endpoint}`;
+
   const config = {
     ...options,
     headers: {
@@ -200,17 +204,24 @@ async function publicApiRequest(endpoint, options = {}) {
     },
   };
 
-  const response = await fetch(`${HC_CONFIG.API_BASE_URL}${endpoint}`, config);
+  console.log('[API] Calling:', url);
+  console.log('[API] Method:', config.method || 'GET');
+
+  const response = await fetch(url, config);
+
+  console.log('[API] Response status:', response.status);
 
   if (response.status === 204) return null;
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = data.detail || data.message || `Request failed (${response.status})`;
+    console.error('[API] Error response:', data);
+    const message = data.error || data.detail || data.message || `Request failed (${response.status})`;
     const error = new Error(message);
-    error.status = response.status;
-    error.data   = data;
+    error.status   = response.status;
+    error.data     = data;
+    error.response = data;  // Attach full response for redirect_url, org_slug, etc.
     throw error;
   }
 

@@ -145,4 +145,103 @@ if (track) {
 const yr = document.getElementById('landingpage-footer-year');
 if (yr) yr.textContent = new Date().getFullYear();
 
+
+// ═══════════════════════════════════════════════════
+//  CONTACT FORM
+// ═══════════════════════════════════════════════════
+const orgContactForm = document.getElementById('orgContactForm');
+if (orgContactForm) {
+  orgContactForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn       = document.getElementById('orgContactBtn');
+    const statusDiv = document.getElementById('contactFormMsg');
+    const originalText = btn.textContent;
+
+    // Clear previous status
+    statusDiv.textContent = '';
+    statusDiv.style.color = '';
+
+    // Gather values
+    const name    = document.getElementById('contact-name').value.trim();
+    const email   = document.getElementById('contact-email').value.trim();
+    const phone   = document.getElementById('contact-phone').value.trim();
+    const message = document.getElementById('contact-message').value.trim();
+
+    // Client-side validation
+    if (!name || !email || !phone || !message) {
+      statusDiv.textContent = 'Please fill in all required fields.';
+      statusDiv.style.color = '#dc2626';
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      statusDiv.textContent = 'Please enter a valid email address.';
+      statusDiv.style.color = '#dc2626';
+      return;
+    }
+
+    // Slug check
+    const slug = typeof ORG_CONFIG !== 'undefined' && ORG_CONFIG.slug;
+    if (!slug) {
+      statusDiv.textContent = 'Organization configuration error. Please contact support.';
+      statusDiv.style.color = '#dc2626';
+      console.error('[HC] ORG_CONFIG.slug is missing');
+      return;
+    }
+
+    // Loading state
+    btn.textContent = 'Sending...';
+    btn.disabled    = true;
+
+    try {
+      const endpoint = HC_CONFIG.ENDPOINTS.ORG_CONTACT + slug + '/contact/';
+
+      await publicApiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({
+          name:    name,
+          email:   email,
+          phone:   phone,
+          message: message,
+        }),
+      });
+
+      // Success
+      statusDiv.textContent = 'Your message has been sent successfully.';
+      statusDiv.style.color = '#16a34a';
+      orgContactForm.reset();
+
+    } catch (err) {
+      if (err.status === 404) {
+        statusDiv.textContent = 'Organization not found. Please contact support.';
+      } else if (err.status === 400 && err.data) {
+        const messages = [];
+        for (const [field, errors] of Object.entries(err.data)) {
+          if (Array.isArray(errors)) {
+            messages.push(field + ': ' + errors.join(', '));
+          } else if (typeof errors === 'string') {
+            messages.push(field + ': ' + errors);
+          }
+        }
+        statusDiv.textContent = messages.length > 0
+          ? messages.join(' | ')
+          : 'Please check your input and try again.';
+      } else if (err.status >= 500) {
+        statusDiv.textContent = 'Our server is temporarily unavailable. Please try again later.';
+      } else {
+        statusDiv.textContent = err.message || 'Something went wrong. Please try again.';
+      }
+      statusDiv.style.color = '#dc2626';
+
+    } finally {
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled    = false;
+      }, 3000);
+    }
+  });
+}
+
 }); // end DOMContentLoaded

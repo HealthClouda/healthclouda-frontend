@@ -118,43 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-  // ── Contact form submission ──────────────────────
-  const contactForm = document.getElementById('contactForm');
-  if (contactForm) {
-    contactForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const btn = contactForm.querySelector('.contact-submit-btn');
-      const originalText = btn.textContent;
-      btn.textContent = 'Sending...';
-      btn.disabled = true;
-
-      const data = {
-        first_name:   document.getElementById('first_name')?.value.trim(),
-        last_name:    document.getElementById('last_name')?.value.trim(),
-        email:        document.getElementById('email')?.value.trim(),
-        phone_number: document.getElementById('phone_number')?.value.trim(),
-        message:      document.getElementById('message')?.value.trim(),
-      };
-
-      try {
-        const res = await fetch('http://localhost:8000/api/contact-form/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        alert('Message sent successfully!');
-        contactForm.reset();
-      } catch (err) {
-        console.error('Contact form error:', err);
-        alert('There was an error sending your message. Please try again.');
-      } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }
-    });
-  }
+  // Contact form handler — now handled inline in public/index.html
 
 }); 

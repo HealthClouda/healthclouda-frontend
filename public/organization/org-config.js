@@ -11,6 +11,7 @@ const ORG_CONFIG = {
   // Organisation identity
   name:      "University of Ilorin",
   shortName: "Unilorin",
+  slug:      "unilorin",
 
   // Asset paths — relative to public/org/
   logo:      "../../assets/images/unilogo.png",
