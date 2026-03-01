@@ -941,6 +941,59 @@
 .billing-info-label { color: var(--text-soft); }
 .billing-info-value { font-weight: 600; color: var(--text-dark); }
 
+/* Billing plan distribution bars */
+.bill-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.bill-plan-row:last-child { margin-bottom: 0; }
+.bill-plan-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 80px;
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  font-weight: 500;
+}
+.bill-plan-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.bill-plan-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bill-plan-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.bill-plan-count {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* Billing status badges */
+.badge-paid    { background: var(--success-bg); color: var(--success); }
+.badge-pending { background: var(--warning-bg); color: var(--warning); }
+.badge-overdue { background: var(--danger-bg);  color: var(--danger); }
+
+/* Message priority badges */
+.badge-urgent  { background: var(--danger-bg);  color: var(--danger); }
+.badge-high    { background: var(--warning-bg); color: var(--warning); }
+.badge-normal  { background: var(--bg);         color: var(--text-soft); }
+
 /* ══════════════════════════════════════════════
    DELETE CONFIRMATION MODAL
 ══════════════════════════════════════════════ */
@@ -1686,13 +1739,46 @@ tr.row-suspended:hover {
   .page-header-actions { width: 100%; justify-content: flex-start; }
 
   .stats-grid    { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-  .info-row      { flex-direction: column; }
+  .info-row      { grid-template-columns: 1fr; }
   .messages-layout { grid-template-columns: 1fr; }
   .msg-viewer    { display: none; }
 
   .table-toolbar { flex-direction: column; gap: 0.75rem; }
-  .filter-group  { flex-wrap: wrap; }
+  .filter-group  { flex-wrap: wrap; width: 100%; margin-left: 0; }
   .filter-select { flex: 1; min-width: 120px; }
+  .page-search   { width: 100%; }
 
   .slide-panel   { width: 100% !important; }
+
+  /* Touch-friendly tap targets */
+  button, .btn, .row-btn, .nav-item {
+    min-height: 44px;
+  }
+  .row-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+  }
+  .form-input, select.form-input {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Responsive images */
+  img { max-width: 100%; height: auto; }
+}
+
+/* ── Extra small screens (≤ 380px) ── */
+@media (max-width: 380px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .page-title { font-size: 1.1rem; }
+  .page-subtitle { font-size: 0.75rem; }
+  .stat-value { font-size: 1.4rem; }
+  .stat-card { padding: 1rem; }
+  .header-brand { font-size: 0.8rem; }
+  .page-header-actions { flex-direction: column; }
+  .page-header-actions .btn { width: 100%; justify-content: center; }
+  .filter-group { width: 100%; }
+  .filter-select { width: 100%; min-width: unset; }
+  .row-actions { flex-direction: column; gap: 0.3rem; }
+  .row-btn { width: 100%; text-align: center; }
 }

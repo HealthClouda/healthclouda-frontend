@@ -18,6 +18,14 @@ function hc_requireAuth() {
 }
 
 
+// ── Redirect user by role to the correct dashboard ──────────
+function hc_redirectByRole(role, fallback) {
+  const normalized = (role || '').toUpperCase().replace(/_/g, '');
+  const path = HC_CONFIG.ROLE_REDIRECTS[normalized];
+  window.location.href = path || fallback || '/public/signin.html';
+}
+
+
 // ── Logout ───────────────────────────────────────────────────
 async function hc_logout() {
   const refresh = hc_getRefreshToken();
@@ -58,13 +66,19 @@ function hc_initSigninForm() {
     error.textContent = '';
 
     try {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const loginEndpoint = `${HC_CONFIG.API_BASE_URL}${HC_CONFIG.ENDPOINTS.LOGIN}`;
+
+      console.log('[DEBUG] Login endpoint:', loginEndpoint);
+      console.log('[DEBUG] Request body:', { email, password: '***' });
+
       const res = await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGIN, {
         method: 'POST',
-        body: JSON.stringify({
-          email:    document.getElementById('email').value.trim(),
-          password: document.getElementById('password').value,
-        }),
+        body: JSON.stringify({ email, password }),
       });
+
+      console.log('[DEBUG] Login response:', res);
 
       const role = res.user?.role;
 
@@ -102,9 +116,60 @@ function hc_initSigninForm() {
       hc_redirectByRole(role, '/public/patient/index.html');
 
     } catch (err) {
-      error.textContent = err.message || 'Invalid email or password.';
-      btn.textContent   = 'Sign In';
-      btn.disabled      = false;
+      console.error('[LOGIN ERROR]', err);
+
+      // Parse error response for redirect info
+      let errorMessage = 'Login failed. Please try again.';
+      let redirectUrl = null;
+
+      if (err.response) {
+        errorMessage = err.response.error || err.response.detail || errorMessage;
+        redirectUrl = err.response.redirect_url;
+      } else if (err.message) {
+        if (err.message.includes('fetch')) {
+          errorMessage = 'Cannot connect to server. Please check if backend is running at ' + HC_CONFIG.API_BASE_URL;
+        } else if (err.message.includes('CORS')) {
+          errorMessage = 'Server configuration error (CORS). Please contact support.';
+        } else if (err.message.includes('NetworkError')) {
+          errorMessage = 'Network error. Please check your connection and that the backend is running.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      // Display error message
+      error.textContent = errorMessage;
+      error.style.display = 'block';
+
+      // Remove any previous redirect link
+      const oldLink = error.parentElement.querySelector('.error-link');
+      if (oldLink) oldLink.remove();
+
+      // If redirect URL provided, show link with countdown
+      if (redirectUrl) {
+        let countdown = 5;
+        const linkDiv = document.createElement('div');
+        linkDiv.className = 'error-link';
+        linkDiv.innerHTML =
+          '<a href="' + redirectUrl + '">Click here to go to the correct login page</a>' +
+          '<p style="margin-top:8px;font-size:13px;color:#6b7280;">' +
+          'Redirecting in <span class="redirect-countdown">' + countdown + '</span> seconds...</p>';
+
+        error.parentElement.insertBefore(linkDiv, error.nextSibling);
+
+        const countdownEl = linkDiv.querySelector('.redirect-countdown');
+        const interval = setInterval(function () {
+          countdown--;
+          if (countdownEl) countdownEl.textContent = countdown;
+          if (countdown <= 0) {
+            clearInterval(interval);
+            window.location.href = redirectUrl;
+          }
+        }, 1000);
+      }
+
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
     }
   });
 }
@@ -148,9 +213,52 @@ function hc_initOrgSigninForm(orgSlug) {
       hc_redirectByRole(res.user?.role, '/public/patient/index.html');
 
     } catch (err) {
-      error.textContent = err.message || 'Invalid email or password.';
-      btn.textContent   = 'Sign In';
-      btn.disabled      = false;
+      console.error('[ORG LOGIN ERROR]', err);
+
+      // Parse error response for redirect info
+      let errorMessage = 'Login failed. Please try again.';
+      let redirectUrl = null;
+
+      if (err.response) {
+        errorMessage = err.response.error || err.response.detail || errorMessage;
+        redirectUrl = err.response.redirect_url;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      // Display error message
+      error.textContent = errorMessage;
+      error.style.display = 'block';
+
+      // Remove any previous redirect link
+      const oldLink = error.parentElement.querySelector('.error-link');
+      if (oldLink) oldLink.remove();
+
+      // If redirect URL provided, show link with countdown
+      if (redirectUrl) {
+        let countdown = 5;
+        const linkDiv = document.createElement('div');
+        linkDiv.className = 'error-link';
+        linkDiv.innerHTML =
+          '<a href="' + redirectUrl + '">Click here to go to the correct login page</a>' +
+          '<p style="margin-top:8px;font-size:13px;color:#6b7280;">' +
+          'Redirecting in <span class="redirect-countdown">' + countdown + '</span> seconds...</p>';
+
+        error.parentElement.insertBefore(linkDiv, error.nextSibling);
+
+        const countdownEl = linkDiv.querySelector('.redirect-countdown');
+        const interval = setInterval(function () {
+          countdown--;
+          if (countdownEl) countdownEl.textContent = countdown;
+          if (countdown <= 0) {
+            clearInterval(interval);
+            window.location.href = redirectUrl;
+          }
+        }, 1000);
+      }
+
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
     }
   });
 }

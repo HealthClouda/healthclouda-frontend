@@ -135,9 +135,10 @@
         <!-- ✅ FIX: has id + submit handler wired in script.js -->
         <form id="orgContactForm" class="d-flex flex-column gap-3">
           <h4 class="text text-center">Need Quick Help?</h4>
-          <input type="text" placeholder="Full Name" id="contact-name">
-          <input type="email" required id="contact-email" placeholder="Your Email">
-          <textarea id="contact-message" placeholder="Message"></textarea>
+          <input type="text" placeholder="Full Name*" id="contact-name" required>
+          <input type="email" required id="contact-email" placeholder="Your Email*">
+          <input type="tel" placeholder="Phone Number*" id="contact-phone" required>
+          <textarea id="contact-message" placeholder="Message*" required></textarea>
           <div id="contactFormMsg" style="font-size:0.85rem; min-height:1rem; text-align:center;"></div>
           <button class="btn contact-us-btn" type="submit" id="orgContactBtn">Submit</button>
         </form>

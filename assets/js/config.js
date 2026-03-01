@@ -27,11 +27,15 @@ const HC_CONFIG = {
     LOGIN:        '/auth/login/',
     LOGOUT:       '/auth/logout/',
     REFRESH:      '/auth/token/refresh/',
+    ME:           '/auth/me/',               // GET → { user_id, email, role, first_name, last_name, organization_name }
     FORGOT_PW:    '/auth/forgot-password/',
     VERIFY_OTP:   '/auth/verify-otp/',
     RESEND_OTP:   '/auth/resend-otp/',
     RESET_PW:     '/auth/reset-password/',
-    CONTACT_FORM: '/contact-form/',
+    CONTACT_FORM: '/contact/contact-form/',
+    ORG_CONTACT:  '/organizations/',          // POST /:slug/contact/
+    ORG_BY_SLUG:  '/org/by-slug/',           // GET /:slug/ → org branding info
+    EPISODES:     '/episodes/',              // GET → paginated list of episodes
 
     // ── Super Admin ───────────────────────────────────────
     // Dashboard overview
