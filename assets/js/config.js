@@ -25,6 +25,7 @@ const HC_CONFIG = {
   // ── Auth endpoints ─────────────────────────────────────────
   ENDPOINTS: {
     LOGIN:        '/auth/login/',
+    LOGIN_ADMIN:  '/auth/login/admin/',
     LOGOUT:       '/auth/logout/',
     REFRESH:      '/auth/token/refresh/',
     ME:           '/auth/me/',               // GET → { user_id, email, role, first_name, last_name, organization_name }
@@ -32,6 +33,7 @@ const HC_CONFIG = {
     VERIFY_OTP:   '/auth/verify-otp/',
     RESEND_OTP:   '/auth/resend-otp/',
     RESET_PW:     '/auth/reset-password/',
+    CHANGE_PW:    '/auth/change-password/',
     CONTACT_FORM: '/contact/contact-form/',
     ORG_CONTACT:  '/organizations/',          // POST /:slug/contact/
     ORG_BY_SLUG:  '/org/by-slug/',           // GET /:slug/ → org branding info
