@@ -31,10 +31,7 @@ async function hc_logout() {
   const refresh = hc_getRefreshToken();
   try {
     if (refresh) {
-      await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGOUT, {
-        method: 'POST',
-        body: JSON.stringify({ refresh }),
-      });
+      await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh });
     }
   } catch {
     // Logout even if the API call fails
@@ -49,15 +46,11 @@ async function hc_logout() {
 // ══════════════════════════════════════════════════════════════
 
 function hc_initSigninForm() {
-  console.log('[HC] hc_initSigninForm CALLED');
   const form = document.getElementById('signinForm');
-  if (!form) { console.log('[HC] ERROR: signinForm not found'); return; }
-  console.log('[HC] Form found, attaching submit listener');
+  if (!form) return;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log('[HC] FORM SUBMITTED - calling API...');
-
     const btn   = document.getElementById('signinBtn');
     const error = document.getElementById('signinError');
 
@@ -68,33 +61,18 @@ function hc_initSigninForm() {
     try {
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
-      const loginEndpoint = `${HC_CONFIG.API_BASE_URL}${HC_CONFIG.ENDPOINTS.LOGIN}`;
-
-      console.log('[DEBUG] Login endpoint:', loginEndpoint);
-      console.log('[DEBUG] Request body:', { email, password: '***' });
 
       const res = await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGIN, {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
 
-      console.log('[DEBUG] Login response:', res);
-
       const role = res.user?.role;
 
-      // ── DEBUG: log role comparison ──
-      const backendRole  = (role || '').toUpperCase();
-      const configRole   = HC_CONFIG.ROLES.PATIENT.toUpperCase();
-      const isPatient    = backendRole === configRole;
-      console.log('[HC Auth Debug]', {
-        'Backend role (raw)':   role,
-        'Backend role (upper)': backendRole,
-        'Config PATIENT':       configRole,
-        'Match?':               isPatient,
-        'Full user object':     res.user,
-      });
+      const backendRole = (role || '').toUpperCase();
+      const isPatient   = backendRole === HC_CONFIG.ROLES.PATIENT.toUpperCase();
 
-      // Block staff from the general portal
+      // Block non-patients from the general portal
       if (role && !isPatient) {
         const orgSlug = res.user?.organization_slug || '';
         let hint = '';
@@ -116,22 +94,22 @@ function hc_initSigninForm() {
       hc_redirectByRole(role, '/public/patient/index.html');
 
     } catch (err) {
-      console.error('[LOGIN ERROR]', err);
-
       // Parse error response for redirect info
       let errorMessage = 'Login failed. Please try again.';
       let redirectUrl = null;
 
-      if (err.response) {
+      if (err.status >= 500) {
+        errorMessage = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
         errorMessage = err.response.error || err.response.detail || errorMessage;
         redirectUrl = err.response.redirect_url;
       } else if (err.message) {
         if (err.message.includes('fetch')) {
-          errorMessage = 'Cannot connect to server. Please check if backend is running at ' + HC_CONFIG.API_BASE_URL;
+          errorMessage = 'Cannot connect to server. Please check your connection.';
         } else if (err.message.includes('CORS')) {
           errorMessage = 'Server configuration error (CORS). Please contact support.';
         } else if (err.message.includes('NetworkError')) {
-          errorMessage = 'Network error. Please check your connection and that the backend is running.';
+          errorMessage = 'Network error. Please check your connection.';
         } else {
           errorMessage = err.message;
         }
@@ -204,6 +182,16 @@ function hc_initOrgSigninForm(orgSlug) {
         }),
       });
 
+      // Block superadmins from org portal
+      const orgRole = (res.user?.role || '').toUpperCase().replace(/_/g, '');
+      if (orgRole === 'SUPERADMIN') {
+        error.textContent = 'Superadmins cannot log in here. Please use the admin portal.';
+        error.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
+
       hc_saveTokens({
         access:  res.access,
         refresh: res.refresh,
@@ -213,13 +201,13 @@ function hc_initOrgSigninForm(orgSlug) {
       hc_redirectByRole(res.user?.role, '/public/patient/index.html');
 
     } catch (err) {
-      console.error('[ORG LOGIN ERROR]', err);
-
       // Parse error response for redirect info
       let errorMessage = 'Login failed. Please try again.';
       let redirectUrl = null;
 
-      if (err.response) {
+      if (err.status >= 500) {
+        errorMessage = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
         errorMessage = err.response.error || err.response.detail || errorMessage;
         redirectUrl = err.response.redirect_url;
       } else if (err.message) {
@@ -257,6 +245,65 @@ function hc_initOrgSigninForm(orgSlug) {
         }, 1000);
       }
 
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+    }
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  Superadmin portal sign-in (dedicated route)
+// ══════════════════════════════════════════════════════════════
+
+function hc_initAdminSigninForm() {
+  const form = document.getElementById('signinForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn   = document.getElementById('signinBtn');
+    const error = document.getElementById('signinError');
+
+    btn.textContent   = 'Signing in...';
+    btn.disabled      = true;
+    error.textContent = '';
+
+    try {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      const res = await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGIN_ADMIN, {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+
+      hc_saveTokens({
+        access:  res.access,
+        refresh: res.refresh,
+        user:    res.user,
+      });
+
+      window.location.href = res.redirect_to || '/public/superadmin/index.html';
+
+    } catch (err) {
+      let errorMessage = 'Login failed. Please try again.';
+
+      if (err.status >= 500) {
+        errorMessage = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
+        errorMessage = err.response.error || err.response.detail || errorMessage;
+      } else if (err.message) {
+        if (err.message.includes('fetch')) {
+          errorMessage = 'Cannot connect to server. Please check your connection.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      error.textContent = errorMessage;
+      error.style.display = 'block';
       btn.textContent = 'Sign In';
       btn.disabled = false;
     }
@@ -572,6 +619,75 @@ function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
   continueBtn?.addEventListener('click', () => {
     clearInterval(timer);
     window.location.href = redirectTo;
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  Change password (for authenticated users)
+// ══════════════════════════════════════════════════════════════
+
+function hc_initChangePasswordForm() {
+  const form = document.getElementById('changePasswordForm');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn        = document.getElementById('changePwBtn');
+    const errorEl    = document.getElementById('changePwError');
+    const successEl  = document.getElementById('changePwSuccess');
+    const oldPw      = document.getElementById('oldPassword').value;
+    const newPw      = document.getElementById('newPassword').value;
+
+    const originalText = btn.textContent;
+    if (errorEl)   errorEl.textContent   = '';
+    if (successEl) successEl.textContent = '';
+
+    // Client-side validation
+    if (!oldPw || !newPw) {
+      if (errorEl) errorEl.textContent = 'Please fill in both fields.';
+      return;
+    }
+    if (newPw.length < 8) {
+      if (errorEl) errorEl.textContent = 'New password must be at least 8 characters.';
+      return;
+    }
+
+    btn.textContent = 'Updating...';
+    btn.disabled    = true;
+
+    try {
+      await apiPost(HC_CONFIG.ENDPOINTS.CHANGE_PW, {
+        old_password: oldPw,
+        new_password: newPw,
+      });
+
+      if (successEl) successEl.textContent = 'Password changed successfully.';
+      form.reset();
+
+    } catch (err) {
+      if (err.status === 400 && err.data) {
+        // Field-level errors (e.g. { old_password: ["Old password is incorrect"] })
+        const messages = [];
+        for (const [field, errors] of Object.entries(err.data)) {
+          const fieldName = field.replace(/_/g, ' ');
+          if (Array.isArray(errors)) {
+            messages.push(fieldName + ': ' + errors.join(', '));
+          } else if (typeof errors === 'string') {
+            messages.push(fieldName + ': ' + errors);
+          }
+        }
+        if (errorEl) errorEl.textContent = messages.join(' | ') || 'Please check your input.';
+      } else if (err.status >= 500) {
+        if (errorEl) errorEl.textContent = 'Our server is temporarily unavailable. Please try again later.';
+      } else {
+        if (errorEl) errorEl.textContent = err.message || 'Failed to change password. Please try again.';
+      }
+    } finally {
+      btn.textContent = originalText;
+      btn.disabled    = false;
+    }
   });
 }
 

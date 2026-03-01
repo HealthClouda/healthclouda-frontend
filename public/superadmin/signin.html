@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HealthClouda | Sign In</title>
+  <title>HealthClouda | Admin Sign In</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
   <!-- Styles from assets/ -->
-  <link rel="stylesheet" href="../assets/css/style.css">
-  <link rel="stylesheet" href="../assets/css/signin.css">
+  <link rel="stylesheet" href="../../assets/css/style.css">
+  <link rel="stylesheet" href="../../assets/css/signin.css">
 </head>
 <body class="signin-page">
 
@@ -18,21 +18,21 @@
     <div class="signin-nav-logo">
       <span>HealthClouda</span>
     </div>
-    <a href="./index.html" class="signin-back-btn">← Back to Home</a>
+    <a href="../signin.html" class="signin-back-btn">&larr; Back to Sign In</a>
   </nav>
 
   <div class="signin-page-body">
 
     <div class="signin-card-header">
-      <h1>Login to HealthClouda</h1>
-      <p>Access your healthcare dashboard</p>
+      <h1>Admin Login</h1>
+      <p>Superadmin access only</p>
     </div>
 
     <div class="signin-card">
       <form class="signin-form" id="signinForm">
 
         <div class="form-group">
-          <label for="email">Email / HealthClouda ID</label>
+          <label for="email">Email</label>
           <div class="input-wrap">
             <span class="input-icon">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -40,7 +40,7 @@
                 <polyline points="22,6 12,12 2,6"/>
               </svg>
             </span>
-            <input type="text" id="email" name="email" placeholder="e.g. 242060045@unilorin.edu.ng" required autocomplete="email">
+            <input type="text" id="email" name="email" placeholder="admin@healthclouda.com" required autocomplete="email">
           </div>
         </div>
 
@@ -65,34 +65,20 @@
 
         <div id="signinError" class="error-message" role="alert"></div>
 
-        <div class="form-row">
-          <label class="checkbox-label">
-            <input type="checkbox" name="remember" id="remember">
-            <span>Remember me</span>
-          </label>
-          <a href="./forgot-password.html" class="forgot-link">Forgot password?</a>
-        </div>
-
         <button type="submit" class="signin-btn" id="signinBtn">Sign In</button>
-
-        <p class="no-account-text">Don't have an account?</p>
-
-        <div class="signin-notice">
-          <p><strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the reception desk at any registered clinic — admin staff will create your login.</p>
-        </div>
 
       </form>
     </div>
 
   </div>
 
-  <!-- JS load order: config → api → auth  (cache-bust with ?v=3) -->
-  <script src="../assets/js/config.js?v=3"></script>
-  <script src="../assets/js/api.js?v=3"></script>
-  <script src="../assets/js/auth.js?v=3"></script>
+  <!-- JS load order: config → api → auth -->
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/api.js"></script>
+  <script src="../../assets/js/auth.js"></script>
   <script>
     hc_makePasswordToggle('togglePw', 'eyeIcon', 'password');
-    hc_initSigninForm();
+    hc_initAdminSigninForm();
     hc_fadeInCard();
   </script>
 
