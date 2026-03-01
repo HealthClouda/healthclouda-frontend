@@ -1,7 +1,8 @@
-.signin-page {
+body.signin-page {
     font-family: 'Lato', sans-serif;
     background: linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);
-    min-height: 100vh;
+    background-image: url(../images/Backgroud_flare.png);
+    background-size: cover;
 }
 
 /* Nav */
@@ -17,6 +18,15 @@
     backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(0,117,255,0.08);
     z-index: 100;
+}
+
+.signin-nav-logo {
+    display: flex;
+    align-items: center;
+}
+
+.signin-nav-logo img {
+    width: 60px; height: 60px;
 }
 
 .signin-nav-logo span {
@@ -36,10 +46,6 @@
     border: 1px solid #0075FF;
     border-radius: 8px;
     transition: all 0.2s ease;
-}
-.signin-back-btn:hover {
-    background: #0075FF;
-    color: #fff;
 }
 
 .signin-page-body {
@@ -285,17 +291,17 @@
 }
 
 /* ════════════════════════════════════
-   TABLET (≤ 640px)
+TABLET (≤ 640px)
 ════════════════════════════════════ */
 @media (max-width: 640px) {
     .signin-nav { padding: 0 1.25rem; }
-
+    
     .signin-page-body { padding: 80px 1rem 2.5rem; gap: 1.25rem; }
-
+    
     .signin-card-header h1 { font-size: 1.4rem; }
-
+    
     .signin-card { padding: 1.75rem 1.25rem; border-radius: 16px; }
-
+    
     .form-row {
         flex-direction: column;
         align-items: flex-start;
@@ -304,7 +310,7 @@
 }
 
 /* ════════════════════════════════════
-   MOBILE (≤ 400px)
+MOBILE (≤ 400px)
 ════════════════════════════════════ */
 @media (max-width: 400px) {
     .signin-nav-logo span { font-size: 1.05rem; }
@@ -314,3 +320,14 @@
     .input-wrap input { height: 44px; font-size: 0.85rem; }
     .signin-btn { height: 44px; }
 }
+
+
+.admin-signin{
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+}
+
