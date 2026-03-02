@@ -37,7 +37,15 @@ const HC_CONFIG = {
     CONTACT_FORM: '/contact/contact-form/',
     ORG_CONTACT:  '/organizations/',          // POST /:slug/contact/
     ORG_BY_SLUG:  '/org/by-slug/',           // GET /:slug/ → org branding info
-    EPISODES:     '/episodes/',              // GET → paginated list of episodes
+    EPISODES:     '/episodes/',              // GET → paginated list, GET /:id/ → detail
+
+    // ── Patient ──────────────────────────────────────────
+    PATIENT_ME:        '/patients/me/',                           // GET → full profile, PATCH → update contact fields
+    PATIENT_DASHBOARD: '/patients/me/dashboard/',                 // GET → stats, prescriptions, instructions, orgs visited
+    PATIENT_NOTIFS:    '/patients/me/notifications/',             // GET → notification list
+    PATIENT_UNREAD:    '/patients/me/notifications/unread-count/',// GET → { count }
+    PATIENT_READ_ALL:  '/patients/me/notifications/read-all/',   // POST → mark all read
+    // Mark single read: PATIENT_NOTIFS + ':id/read/'  (PATCH)
 
     // ── Super Admin ───────────────────────────────────────
     // Dashboard overview
