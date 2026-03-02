@@ -363,7 +363,7 @@ async function hc_loadOrgBranding(slug) {
 //  Password reset flows
 // ══════════════════════════════════════════════════════════════
 
-function hc_initForgotForm() {
+function hc_initForgotForm(redirectOnSuccess = './check-email.html') {
   const form = document.getElementById('forgotForm');
   if (!form) return;
 
@@ -386,10 +386,20 @@ function hc_initForgotForm() {
       });
 
       sessionStorage.setItem('hc_reset_email', email);
-      window.location.href = './check-email.html';
+      window.location.href = redirectOnSuccess;
 
     } catch (err) {
-      error.textContent   = err.message || 'Failed to send reset email. Please try again.';
+      let msg = 'Failed to send reset email. Please try again.';
+      if (err.status >= 500) {
+        msg = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
+        msg = err.response.error || err.response.detail || msg;
+      } else if (err.message && err.message.includes('fetch')) {
+        msg = 'Cannot connect to server. Please check your connection.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      error.textContent   = msg;
       btn.textContent     = 'Reset Password';
       btn.disabled        = false;
       btn.style.opacity   = '1';
@@ -456,7 +466,17 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
       });
       window.location.href = redirectOnSuccess;
     } catch (err) {
-      otpError.textContent  = err.message || 'Invalid code. Please try again.';
+      let msg = 'Invalid code. Please try again.';
+      if (err.status >= 500) {
+        msg = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
+        msg = err.response.error || err.response.detail || msg;
+      } else if (err.message && err.message.includes('fetch')) {
+        msg = 'Cannot connect to server. Please check your connection.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      otpError.textContent  = msg;
       verifyBtn.textContent = 'Verify';
       verifyBtn.disabled    = false;
     }
@@ -493,7 +513,13 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
         body: JSON.stringify({ email: resetEmail }),
       });
     } catch (err) {
-      if (otpError) otpError.textContent = 'Failed to resend. Please try again.';
+      let msg = 'Failed to resend. Please try again.';
+      if (err.status >= 500) {
+        msg = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.message && err.message.includes('fetch')) {
+        msg = 'Cannot connect to server. Please check your connection.';
+      }
+      if (otpError) otpError.textContent = msg;
     }
   });
 }
@@ -587,7 +613,17 @@ function hc_initResetForm(redirectOnSuccess = './password-success.html') {
       sessionStorage.removeItem('hc_reset_email');
       window.location.href = redirectOnSuccess;
     } catch (err) {
-      if (error) error.textContent = err.message || 'Failed to update password. Please try again.';
+      let msg = 'Failed to update password. Please try again.';
+      if (err.status >= 500) {
+        msg = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
+        msg = err.response.error || err.response.detail || msg;
+      } else if (err.message && err.message.includes('fetch')) {
+        msg = 'Cannot connect to server. Please check your connection.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      if (error) error.textContent = msg;
       updateBtn.textContent   = 'Update Password';
       updateBtn.disabled      = false;
       updateBtn.style.opacity = '1';
