@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Request | HealthClouda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #f8faff; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      background: #fff; border-radius: 16px; padding: 2.5rem;
+      max-width: 480px; width: 100%;
+      box-shadow: 0 4px 24px rgba(0,117,255,0.08);
+      text-align: center;
+    }
+    .card-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.25rem; font-size: 1.5rem;
+    }
+    .card-icon.pending  { background: #dbeafe; }
+    .card-icon.success  { background: #dcfce7; }
+    .card-icon.denied   { background: #fee2e2; }
+    .card-icon.error    { background: #fef3c7; }
+
+    h1 { font-size: 1.25rem; font-weight: 700; color: #0a0f1e; margin-bottom: 0.5rem; }
+    .subtitle { font-size: 0.9rem; color: #6b7280; margin-bottom: 1.5rem; line-height: 1.6; }
+    .info-block { background: #f9fafb; border: 1px solid #e8edf5; border-radius: 10px; padding: 1rem 1.25rem; text-align: left; margin-bottom: 1.5rem; }
+    .info-row { display: flex; justify-content: space-between; padding: 0.35rem 0; font-size: 0.85rem; }
+    .info-label { color: #6b7280; font-weight: 600; }
+    .info-value { color: #0a0f1e; font-weight: 500; text-align: right; }
+
+    .actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 0.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0.7rem 1.75rem; font-size: 0.88rem; font-weight: 700;
+      border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-approve { background: #16a34a; color: #fff; }
+    .btn-approve:hover { background: #15803d; }
+    .btn-deny { background: #fee2e2; color: #dc2626; }
+    .btn-deny:hover { background: #dc2626; color: #fff; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .result-msg { font-size: 0.92rem; color: #374151; line-height: 1.6; }
+    .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e8edf5; border-top-color: #0075FF; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .branding { margin-top: 2rem; font-size: 0.72rem; color: #9ca3af; }
+    .branding a { color: #0075FF; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="card" id="card">
+    <div class="card-icon pending" id="cardIcon">🔒</div>
+    <h1 id="cardTitle">Loading…</h1>
+    <p class="subtitle" id="cardSubtitle">Please wait while we load the access request details.</p>
+    <div id="cardBody"><div class="loading-spinner"></div></div>
+    <div class="branding">Powered by <a href="/">HealthClouda</a></div>
+  </div>
+
+  <script src="../../assets/js/config.js"></script>
+  <script>
+    (async function() {
+      const cardIcon     = document.getElementById('cardIcon');
+      const cardTitle    = document.getElementById('cardTitle');
+      const cardSubtitle = document.getElementById('cardSubtitle');
+      const cardBody     = document.getElementById('cardBody');
+
+      // Parse URL params
+      const params = new URLSearchParams(window.location.search);
+      const token  = params.get('token');
+      const action = params.get('action'); // "approve" or "deny" (pre-selected) or null (show both)
+
+      if (!token) {
+        showError('Invalid Link', 'This access request link is missing required information. Please check the link from your email or SMS.');
+        return;
+      }
+
+      // Step 1: Fetch request details using token
+      let requestData = null;
+      try {
+        const base = typeof HC_CONFIG !== 'undefined' ? HC_CONFIG.API_BASE : '';
+        const endpoint = (typeof HC_CONFIG !== 'undefined' && HC_CONFIG.ENDPOINTS?.REC_ACCESS_RESPOND)
+          ? HC_CONFIG.ENDPOINTS.REC_ACCESS_RESPOND
+          : '/receptionist/access-requests/respond/';
+
+        const res = await fetch(base + endpoint + '?token=' + encodeURIComponent(token));
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          if (res.status === 404) {
+            showError('Request Not Found', 'This access request may have already been responded to or the link has expired.');
+          } else if (res.status === 410) {
+            showError('Link Expired', errData?.detail || 'This access request link has expired. Please contact the organization for a new request.');
+          } else {
+            showError('Error', errData?.detail || errData?.error || 'Something went wrong. Please try again.');
+          }
+          return;
+        }
+        requestData = await res.json();
+      } catch {
+        showError('Connection Error', 'Cannot connect to the server. Please check your internet connection and try again.');
+        return;
+      }
+
+      // Step 2: Show request info
+      if (requestData.already_responded) {
+        const status = (requestData.status || '').toUpperCase();
+        if (status === 'APPROVED') {
+          showResult('success', '✅', 'Already Approved', 'You have already approved this access request.');
+        } else {
+          showResult('denied', '❌', 'Already Denied', 'You have already denied this access request.');
+        }
+        return;
+      }
+
+      cardIcon.className = 'card-icon pending';
+      cardIcon.textContent = '🔒';
+      cardTitle.textContent = 'Access Request';
+      cardSubtitle.textContent = 'An organization is requesting access to your medical records.';
+
+      let infoHtml = '<div class="info-block">';
+      if (requestData.organization_name) {
+        infoHtml += '<div class="info-row"><span class="info-label">Organization</span><span class="info-value">' + esc(requestData.organization_name) + '</span></div>';
+      }
+      if (requestData.reason) {
+        infoHtml += '<div class="info-row" style="flex-direction:column;gap:0.25rem"><span class="info-label">Reason</span><span class="info-value" style="text-align:left">' + esc(requestData.reason) + '</span></div>';
+      }
+      if (requestData.requested_at) {
+        infoHtml += '<div class="info-row"><span class="info-label">Requested</span><span class="info-value">' + formatDate(requestData.requested_at) + '</span></div>';
+      }
+      infoHtml += '</div>';
+
+      // If action is pre-selected from URL, auto-submit
+      if (action === 'approve' || action === 'deny') {
+        cardBody.innerHTML = infoHtml + '<p class="result-msg">Processing your response…</p>';
+        await submitResponse(token, action, requestData);
+        return;
+      }
+
+      // Show both buttons
+      infoHtml += '<div class="actions">' +
+        '<button class="btn btn-approve" id="approveBtn" onclick="handleResponse(\'approve\')">Approve Access</button>' +
+        '<button class="btn btn-deny" id="denyBtn" onclick="handleResponse(\'deny\')">Deny Access</button>' +
+      '</div>';
+      cardBody.innerHTML = infoHtml;
+
+      // Expose handler
+      window._token = token;
+      window._requestData = requestData;
+
+      window.handleResponse = async function(responseAction) {
+        const approveBtn = document.getElementById('approveBtn');
+        const denyBtn    = document.getElementById('denyBtn');
+        if (approveBtn) { approveBtn.disabled = true; approveBtn.textContent = 'Processing…'; }
+        if (denyBtn) { denyBtn.disabled = true; }
+        await submitResponse(window._token, responseAction, window._requestData);
+      };
+
+      async function submitResponse(tkn, act, data) {
+        try {
+          const base = typeof HC_CONFIG !== 'undefined' ? HC_CONFIG.API_BASE : '';
+          const endpoint = (typeof HC_CONFIG !== 'undefined' && HC_CONFIG.ENDPOINTS?.REC_ACCESS_RESPOND)
+            ? HC_CONFIG.ENDPOINTS.REC_ACCESS_RESPOND
+            : '/receptionist/access-requests/respond/';
+
+          const res = await fetch(base + endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tkn, action: act })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => null);
+            showError('Error', errData?.detail || errData?.error || 'Failed to process your response. Please try again.');
+            return;
+          }
+
+          if (act === 'approve') {
+            showResult('success', '✅', 'Access Approved', 'You have granted <strong>' + esc(data?.organization_name || 'the organization') + '</strong> access to your medical records.');
+          } else {
+            showResult('denied', '❌', 'Access Denied', 'You have denied the access request from <strong>' + esc(data?.organization_name || 'the organization') + '</strong>. Your records remain private.');
+          }
+        } catch {
+          showError('Connection Error', 'Cannot connect to the server. Please try again later.');
+        }
+      }
+
+      function showError(title, message) {
+        cardIcon.className = 'card-icon error';
+        cardIcon.textContent = '⚠️';
+        cardTitle.textContent = title;
+        cardSubtitle.textContent = '';
+        cardBody.innerHTML = '<p class="result-msg">' + message + '</p>';
+      }
+
+      function showResult(type, icon, title, message) {
+        cardIcon.className = 'card-icon ' + type;
+        cardIcon.textContent = icon;
+        cardTitle.textContent = title;
+        cardSubtitle.textContent = '';
+        cardBody.innerHTML = '<p class="result-msg">' + message + '</p>';
+      }
+
+      function esc(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+      }
+
+      function formatDate(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+    })();
+  </script>
+
+</body>
+</html>
