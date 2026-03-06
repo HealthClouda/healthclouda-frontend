@@ -69,6 +69,19 @@ const HC_CONFIG = {
     STAFF_UNREAD:        '/auth/me/notifications/unread-count/',  // GET → { count }
     // Mark single read: STAFF_NOTIFS + ':id/read/'  (PATCH)
 
+    // ── Nurse ───────────────────────────────────────────
+    NURSE_STATS:          '/nurse/dashboard/stats/',               // GET → dashboard overview
+    NURSE_WARDS_OVERVIEW: '/nurse/wards/overview/',                // GET → ward summary cards
+    NURSE_MY_PATIENTS:    '/nurse/my-patients/',                   // GET ?ward_id=<uuid>
+    NURSE_VITALS:         '/nurse/patients/',                      // GET/PATCH /:id/vitals/
+    TOGGLE_DUTY:          '/auth/me/toggle-duty/',                 // POST → toggle on/off duty
+
+    // ── Ward / Bed / Admission (shared) ────────────────
+    WARDS:                '/ward/',                                // GET (list), POST (create), GET/PUT/DELETE /:id/
+    WARD_BEDS:            '/ward/beds/',                           // GET ?ward_id=, POST, PATCH /:id/
+    WARD_ROOMS:           '/ward/rooms/',                          // GET, POST, PUT/DELETE /:id/
+    ADMISSIONS:           '/ward/admissions/',                     // GET ?status=, POST, GET /:id/
+
     // ── Super Admin ───────────────────────────────────────
     // Dashboard overview
     SA_STATS:         '/superadmin/stats/',            // GET  → { total_users, total_orgs, monthly_revenue, active_records }
