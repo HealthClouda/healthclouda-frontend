@@ -807,7 +807,7 @@ ul { list-style: none; }
   color: var(--text-mid);
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  /* -webkit-line-clamp: var(--border); */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
