@@ -94,6 +94,7 @@ function loadPage(page) {
   switch (page) {
     case 'dashboard':     loadDashboard();     break;
     case 'visits':        loadVisits();        break;
+    case 'referrals':     loadReferrals();     break;
     case 'profile':       loadProfile();       break;
     case 'notifications': loadNotifications(); break;
   }
@@ -215,6 +216,59 @@ const DEMO_EPISODE_DETAIL = {
   vitals: { blood_pressure: '120/80', heart_rate: '72 bpm', temperature: '36.8°C', weight: '68 kg' },
   status: 'ACTIVE', episode_start: '2026-02-24T10:00:00Z', episode_end: null,
   organization: { name: 'LUTH Hospital' }, episode_type: 'OUTPATIENT'
+};
+
+const DEMO_REFERRALS_LIST = [
+  {
+    id: 'ref-uuid-1', letter_number: 'REF-NG-LUTH-20260303-0001',
+    from_organization: { name: 'LUTH Hospital' },
+    to_organization: { name: 'Reddington Hospital' },
+    referring_doctor: { full_name: 'Dr. John Smith' },
+    reason: 'Specialist consultation for persistent cardiac arrhythmia requiring advanced diagnostic evaluation.',
+    urgency: 'URGENT', urgency_display: 'Urgent',
+    status: 'PENDING', status_display: 'Pending',
+    has_letter: true,
+    created_at: '2026-03-03T12:00:00Z'
+  },
+  {
+    id: 'ref-uuid-2', letter_number: 'REF-NG-LUTH-20260220-0042',
+    from_organization: { name: 'LUTH Hospital' },
+    to_organization: { name: 'ABC School Clinic' },
+    referring_doctor: { full_name: 'Dr. Amadi Chinedu' },
+    reason: 'Routine follow-up for post-operative care after appendectomy.',
+    urgency: 'ROUTINE', urgency_display: 'Routine',
+    status: 'ACCEPTED', status_display: 'Accepted',
+    has_letter: true,
+    created_at: '2026-02-20T09:30:00Z'
+  },
+  {
+    id: 'ref-uuid-3', letter_number: 'REF-NG-REDD-20260105-0015',
+    from_organization: { name: 'Reddington Hospital' },
+    to_organization: { name: 'LUTH Hospital' },
+    referring_doctor: { full_name: 'Dr. Fatima Bello' },
+    reason: 'Orthopaedic evaluation for Grade 2 ankle sprain with possible ligament damage.',
+    urgency: 'EMERGENCY', urgency_display: 'Emergency',
+    status: 'COMPLETED', status_display: 'Completed',
+    has_letter: false,
+    created_at: '2026-01-05T14:00:00Z'
+  }
+];
+
+const DEMO_REFERRAL_DETAIL = {
+  id: 'ref-uuid-1', letter_number: 'REF-NG-LUTH-20260303-0001',
+  from_organization: { name: 'LUTH Hospital', org_type: 'HOSPITAL', address: 'Idi-Araba, Lagos', city: 'Lagos', state: 'Lagos' },
+  to_organization: { name: 'Reddington Hospital', org_type: 'HOSPITAL', address: 'Victoria Island, Lagos', city: 'Lagos', state: 'Lagos' },
+  referring_doctor: { full_name: 'Dr. John Smith', email: 'doctor@luth.edu', phone: '+2348012345678' },
+  reason: 'Specialist consultation for persistent cardiac arrhythmia requiring advanced diagnostic evaluation.',
+  clinical_findings: 'Irregular heartbeat detected during routine examination. ECG shows occasional PVCs. Patient reports intermittent palpitations for 3 weeks.',
+  provisional_diagnosis: 'Premature ventricular contractions (PVCs) — possible underlying structural heart disease.',
+  recommended_investigations: 'Holter monitor (24h), Echocardiogram, Cardiac MRI if indicated.',
+  recommended_treatment: 'Beta-blocker therapy pending specialist review. Avoid caffeine and strenuous exercise.',
+  response_notes: '',
+  urgency: 'URGENT', urgency_display: 'Urgent',
+  status: 'PENDING', status_display: 'Pending',
+  has_letter: true,
+  created_at: '2026-03-03T12:00:00Z'
 };
 
 const DEMO_NOTIFICATIONS = [
@@ -428,8 +482,193 @@ async function openEpisodeDetail(id) {
 }
 
 function closePanel() {
-  document.getElementById('episodePanel')?.classList.remove('open');
+  document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('open'));
   document.getElementById('overlay')?.classList.remove('open');
+}
+
+
+/* ══════════════════════════════════════════
+   6b. REFERRALS PAGE
+══════════════════════════════════════════ */
+let _referralsCache = [];
+
+async function loadReferrals() {
+  const container = document.getElementById('referralsContainer');
+  container.innerHTML = '<div class="referral-list">' +
+    Array(2).fill(
+      '<div class="referral-card" style="pointer-events:none">' + shimmerBlock() + '<br>' + shimmerBlock() + '</div>'
+    ).join('') + '</div>';
+
+  try {
+    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_REFERRALS);
+    _referralsCache = Array.isArray(data) ? data : (data.results || []);
+  } catch {
+    _referralsCache = DEMO_REFERRALS_LIST;
+  }
+
+  renderReferralList();
+}
+
+function urgencyBadge(urgency) {
+  if (!urgency) return '';
+  const u = urgency.toUpperCase();
+  const map = { ROUTINE: 'badge-success', URGENT: 'badge-warning', EMERGENCY: 'badge-danger' };
+  return '<span class="badge ' + (map[u] || 'badge-neutral') + '">' + escapeHtml(urgency) + '</span>';
+}
+
+function referralStatusBadge(status) {
+  if (!status) return '';
+  const s = status.toUpperCase();
+  const map = { PENDING: 'badge-warning', ACCEPTED: 'badge-success', DECLINED: 'badge-danger', COMPLETED: 'badge-info', CANCELLED: 'badge-neutral' };
+  return '<span class="badge ' + (map[s] || 'badge-info') + '">' + escapeHtml(status) + '</span>';
+}
+
+function renderReferralList() {
+  const container = document.getElementById('referralsContainer');
+
+  if (_referralsCache.length === 0) {
+    container.innerHTML = '<div class="empty-state">You have no referrals yet.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="referral-list">' +
+    _referralsCache.map(r => {
+      const fromOrg = r.from_organization?.name || '';
+      const toOrg   = r.to_organization?.name || '';
+      const doctor  = r.referring_doctor?.full_name || [r.referring_doctor?.first_name, r.referring_doctor?.last_name].filter(Boolean).join(' ') || '';
+
+      let downloadBtn = '';
+      if (r.has_letter) {
+        downloadBtn = '<button class="btn btn-sm btn-primary" onclick="downloadReferralLetter(\'' + r.id + '\',event)">Download Letter</button>';
+      }
+
+      return '<div class="referral-card">' +
+        '<div class="referral-top">' +
+          '<span class="referral-number">' + escapeHtml(r.letter_number || '') + '</span>' +
+          '<div class="referral-badges">' + urgencyBadge(r.urgency_display || r.urgency) + ' ' + referralStatusBadge(r.status_display || r.status) + '</div>' +
+        '</div>' +
+        '<div class="referral-orgs">' +
+          '<span class="referral-org-name">' + escapeHtml(fromOrg) + '</span>' +
+          '<span class="referral-arrow">→</span>' +
+          '<span class="referral-org-name">' + escapeHtml(toOrg) + '</span>' +
+        '</div>' +
+        (doctor ? '<div class="referral-meta">Referring Doctor: ' + escapeHtml(doctor) + '</div>' : '') +
+        '<div class="referral-detail-text">' + escapeHtml(r.reason || '') + '</div>' +
+        '<div class="referral-meta">' + formatDate(r.created_at) + '</div>' +
+        '<div class="referral-actions">' +
+          '<button class="btn btn-sm btn-ghost" onclick="openReferralDetail(\'' + r.id + '\')">View Details</button>' +
+          downloadBtn +
+        '</div>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+async function openReferralDetail(id) {
+  const panel = document.getElementById('referralPanel');
+  const body  = document.getElementById('referralPanelBody');
+  const overlay = document.getElementById('overlay');
+
+  panel.classList.add('open');
+  overlay.classList.add('open');
+  body.innerHTML = '<div class="empty-state">' + shimmerBlock() + '</div>';
+
+  let detail = null;
+  try {
+    detail = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_REFERRAL_DETAIL + id + '/');
+  } catch {
+    detail = DEMO_REFERRAL_DETAIL;
+  }
+
+  const fromOrg = detail.from_organization?.name || '';
+  const toOrg   = detail.to_organization?.name || '';
+  const doctor  = detail.referring_doctor?.full_name || [detail.referring_doctor?.first_name, detail.referring_doctor?.last_name].filter(Boolean).join(' ') || '';
+
+  let html = '';
+
+  // Referral number + badges
+  html += '<div style="margin-bottom:1.25rem">';
+  html += '<div style="font-family:var(--mono);font-size:0.82rem;font-weight:600;color:var(--primary);margin-bottom:0.5rem">' + escapeHtml(detail.letter_number || '') + '</div>';
+  html += '<div style="display:flex;gap:0.35rem">' + urgencyBadge(detail.urgency_display || detail.urgency) + ' ' + referralStatusBadge(detail.status_display || detail.status) + '</div>';
+  html += '</div>';
+
+  // Organizations
+  html += '<div class="detail-field"><div class="detail-label">From Organization</div><div class="detail-value">' + escapeHtml(fromOrg);
+  if (detail.from_organization?.org_type) html += ' <span class="badge badge-neutral">' + escapeHtml(detail.from_organization.org_type.replace(/_/g, ' ')) + '</span>';
+  html += '</div></div>';
+
+  html += '<div class="detail-field"><div class="detail-label">To Organization</div><div class="detail-value">' + escapeHtml(toOrg);
+  if (detail.to_organization?.org_type) html += ' <span class="badge badge-neutral">' + escapeHtml(detail.to_organization.org_type.replace(/_/g, ' ')) + '</span>';
+  html += '</div></div>';
+
+  // Referring doctor
+  if (doctor) {
+    html += '<div class="detail-field"><div class="detail-label">Referring Doctor</div><div class="detail-value">' + escapeHtml(doctor) + '</div></div>';
+  }
+
+  // Reason
+  html += '<div class="detail-field"><div class="detail-label">Reason for Referral</div><div class="detail-value">' + escapeHtml(detail.reason || '—') + '</div></div>';
+
+  // Clinical fields
+  if (detail.clinical_findings) {
+    html += '<div class="detail-field"><div class="detail-label">Clinical Findings</div><div class="detail-value" style="white-space:pre-line">' + escapeHtml(detail.clinical_findings) + '</div></div>';
+  }
+  if (detail.provisional_diagnosis) {
+    html += '<div class="detail-field"><div class="detail-label">Provisional Diagnosis</div><div class="detail-value" style="white-space:pre-line">' + escapeHtml(detail.provisional_diagnosis) + '</div></div>';
+  }
+  if (detail.recommended_investigations) {
+    html += '<div class="detail-field"><div class="detail-label">Recommended Investigations</div><div class="detail-value" style="white-space:pre-line">' + escapeHtml(detail.recommended_investigations) + '</div></div>';
+  }
+  if (detail.recommended_treatment) {
+    html += '<div class="detail-field"><div class="detail-label">Recommended Treatment</div><div class="detail-value" style="white-space:pre-line">' + escapeHtml(detail.recommended_treatment) + '</div></div>';
+  }
+  if (detail.response_notes) {
+    html += '<div class="detail-field"><div class="detail-label">Response Notes</div><div class="detail-value" style="white-space:pre-line">' + escapeHtml(detail.response_notes) + '</div></div>';
+  }
+
+  // Date
+  html += '<div class="detail-field"><div class="detail-label">Date Created</div><div class="detail-value">' + formatDate(detail.created_at) + '</div></div>';
+
+  // Download button
+  if (detail.has_letter) {
+    html += '<div style="margin-top:0.5rem"><button class="btn btn-primary" onclick="downloadReferralLetter(\'' + detail.id + '\',event)">Download Referral Letter (PDF)</button></div>';
+  }
+
+  body.innerHTML = html;
+}
+
+async function downloadReferralLetter(id, event) {
+  if (event) event.stopPropagation();
+
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+
+  try {
+    const token = hc_getAccessToken();
+    const url = HC_CONFIG.API_BASE_URL + HC_CONFIG.ENDPOINTS.PATIENT_REFERRAL_LETTER + id + '/download-letter/';
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!res.ok) throw new Error('Download failed');
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'referral-letter-' + id + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+
+    showToast('Referral letter downloaded!', 'success');
+  } catch (err) {
+    showToast('Failed to download referral letter.', 'error');
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = btn.textContent.includes('PDF') ? 'Download Referral Letter (PDF)' : 'Download Letter'; }
 }
 
 

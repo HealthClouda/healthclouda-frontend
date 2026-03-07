@@ -47,6 +47,41 @@ const HC_CONFIG = {
     PATIENT_READ_ALL:  '/patients/me/notifications/read-all/',   // POST → mark all read
     // Mark single read: PATIENT_NOTIFS + ':id/read/'  (PATCH)
 
+    // ── Patient Referrals ─────────────────────────────
+    PATIENT_REFERRALS:       '/referrals/my-referrals/',          // GET → list of referrals
+    PATIENT_REFERRAL_DETAIL: '/referrals/',                       // GET /:uuid/ → full detail
+    PATIENT_REFERRAL_LETTER: '/referrals/',                       // GET /:uuid/download-letter/ → PDF
+
+    // ── Receptionist ────────────────────────────────────
+    REC_STATS:           '/receptionist/dashboard/stats/',
+    REC_PATIENT_SEARCH:  '/receptionist/patients/search/',        // GET ?query=
+    REC_ACCESS_REQUESTS: '/receptionist/access-requests/',        // GET (list), POST (create)
+    REC_ACCESS_RESPOND:  '/receptionist/access-requests/respond/',// GET ?token=&action= (public, no auth)
+    REC_DOCTORS_ON_DUTY: '/receptionist/doctors/on-duty/',
+    REC_ASSIGN_DOCTOR:   '/receptionist/assign-doctor/',          // POST
+    REC_EMERGENCY_BEDS:  '/receptionist/emergency-beds/',
+    REC_CHECK_INS:       '/receptionist/check-ins/',              // GET, POST, PATCH /:id/
+    REC_APPOINTMENTS:    '/receptionist/appointments/',           // GET, POST, PATCH /:id/
+    REC_REFERRALS:       '/referrals/received/',                  // GET
+    REC_NOTIFY_DOCTORS:  '/receptionist/referrals/',              // POST /:id/notify-doctors/
+    CREATE_PATIENT:      '/patients/',                            // POST
+    STAFF_NOTIFS:        '/auth/me/notifications/',               // GET → notification list
+    STAFF_UNREAD:        '/auth/me/notifications/unread-count/',  // GET → { count }
+    // Mark single read: STAFF_NOTIFS + ':id/read/'  (PATCH)
+
+    // ── Nurse ───────────────────────────────────────────
+    NURSE_STATS:          '/nurse/dashboard/stats/',               // GET → dashboard overview
+    NURSE_WARDS_OVERVIEW: '/nurse/wards/overview/',                // GET → ward summary cards
+    NURSE_MY_PATIENTS:    '/nurse/my-patients/',                   // GET ?ward_id=<uuid>
+    NURSE_VITALS:         '/nurse/patients/',                      // GET/PATCH /:id/vitals/
+    TOGGLE_DUTY:          '/auth/me/toggle-duty/',                 // POST → toggle on/off duty
+
+    // ── Ward / Bed / Admission (shared) ────────────────
+    WARDS:                '/ward/',                                // GET (list), POST (create), GET/PUT/DELETE /:id/
+    WARD_BEDS:            '/ward/beds/',                           // GET ?ward_id=, POST, PATCH /:id/
+    WARD_ROOMS:           '/ward/rooms/',                          // GET, POST, PUT/DELETE /:id/
+    ADMISSIONS:           '/ward/admissions/',                     // GET ?status=, POST, GET /:id/
+
     // ── Super Admin ───────────────────────────────────────
     // Dashboard overview
     SA_STATS:         '/superadmin/stats/',            // GET  → { total_users, total_orgs, monthly_revenue, active_records }
