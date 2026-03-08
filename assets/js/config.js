@@ -11,8 +11,23 @@
 const HC_CONFIG = {
 
   // ── API ────────────────────────────────────────────────────
-  // Switch this one line to move between dev and production.
-  API_BASE_URL: 'http://localhost:8000/api/v1',
+  // Auto-detects environment based on hostname.
+  API_BASE_URL: (function () {
+    var host = window.location.hostname;
+
+    // Development
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:8000/api/v1';
+    }
+
+    // Staging (if you set one up)
+    if (host === 'staging.healthclouda.ng') {
+      return 'https://api-staging.healthclouda.ng/api/v1';
+    }
+
+    // Production
+    return 'https://api.healthclouda.ng/api/v1';
+  })(),
 
   // ── Token storage keys ─────────────────────────────────────
   // Centralised so a rename never breaks 10 files.

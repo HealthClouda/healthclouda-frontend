@@ -964,6 +964,26 @@ img {
   color: #fff;
 }
 
+.footer-socials {
+  display: flex;
+  gap: 1rem;
+}
+.social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  transition: background 0.2s, color 0.2s;
+}
+.social-link:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
 .footer-bottom {
   border-top: 1px solid #2d2d4e;
   padding-top: 1.5rem;

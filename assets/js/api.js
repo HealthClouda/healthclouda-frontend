@@ -204,19 +204,13 @@ async function publicApiRequest(endpoint, options = {}) {
     },
   };
 
-  console.log('[API] Calling:', url);
-  console.log('[API] Method:', config.method || 'GET');
-
   const response = await fetch(url, config);
-
-  console.log('[API] Response status:', response.status);
 
   if (response.status === 204) return null;
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    console.error('[API] Error response:', data);
     const message = data.error || data.detail || data.message || `Request failed (${response.status})`;
     const error = new Error(message);
     error.status   = response.status;

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# TODO: Add Sitemap URL once production domain is known
+# Sitemap: https://yourdomain.com/sitemap.xml
