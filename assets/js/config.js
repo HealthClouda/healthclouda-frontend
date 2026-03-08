@@ -76,6 +76,17 @@ const HC_CONFIG = {
     NURSE_VITALS:         '/nurse/patients/',                      // GET/PATCH /:id/vitals/
     TOGGLE_DUTY:          '/auth/me/toggle-duty/',                 // POST → toggle on/off duty
 
+    // ── Doctor ─────────────────────────────────────────
+    DOC_STATS:            '/doctor/dashboard/stats/',                // GET → dashboard overview
+    DOC_MY_PATIENTS:      '/doctor/my-patients/',                    // GET ?ward_id=&status=&search=&page=
+    DOC_EPISODES:         '/doctor/episodes/',                       // GET ?status=&page=, POST, GET/:id/, PATCH/:id/, POST/:id/complete/
+    DOC_PRESCRIPTIONS:    '/doctor/prescriptions/',                  // GET ?status=&episode_id=&page=, POST, PATCH/:id/cancel/
+    DOC_REFERRALS:        '/doctor/referrals/',                      // POST (create outgoing), GET/:id/
+    DOC_REFERRALS_IN:     '/doctor/referrals/incoming/',             // GET ?status=
+    DOC_REFERRALS_OUT:    '/doctor/referrals/outgoing/',             // GET
+    DOC_APPOINTMENTS:     '/doctor/appointments/',                   // GET ?status=&date=&page=, GET/:id/, PATCH/:id/
+    DOC_VITALS:           '/doctor/patients/',                       // GET /:id/vitals/, GET /:id/vitals/history/
+
     // ── Ward / Bed / Admission (shared) ────────────────
     WARDS:                '/ward/',                                // GET (list), POST (create), GET/PUT/DELETE /:id/
     WARD_BEDS:            '/ward/beds/',                           // GET ?ward_id=, POST, PATCH /:id/

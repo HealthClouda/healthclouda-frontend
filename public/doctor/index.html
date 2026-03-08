@@ -3,136 +3,618 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doctor Dashboard | HealthClouda</title>
+  <title>Doctor Portal | HealthClouda</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Lato', sans-serif; background: #f4f8ff; min-height: 100vh; }
-
-    /* ── Top bar ───────────────────────── */
-    .topbar {
-      position: fixed; top: 0; left: 0; right: 0; height: 64px;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 2rem;
-      background: #fff; border-bottom: 1px solid rgba(0,117,255,0.08);
-      z-index: 100;
-    }
-    .topbar-brand { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 1.15rem; color: #000825; }
-    .topbar-right { display: flex; align-items: center; gap: 1rem; }
-    .topbar-user { font-size: 0.85rem; color: #374151; }
-    .topbar-role { font-size: 0.72rem; color: #0075FF; background: #EBF3FF; padding: 2px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; }
-
-    .logout-btn {
-      padding: 0.4rem 1rem; font-size: 0.82rem; font-weight: 600;
-      color: #dc2626; background: #fef2f2; border: 1px solid #fecaca;
-      border-radius: 8px; cursor: pointer; transition: all 0.2s;
-    }
-    .logout-btn:hover { background: #dc2626; color: #fff; }
-
-    /* ── Main ──────────────────────────── */
-    .dashboard-body { max-width: 900px; margin: 0 auto; padding: 100px 1.5rem 3rem; }
-
-    .welcome-card {
-      background: linear-gradient(135deg, #0075FF 0%, #0055cc 100%);
-      color: #fff; border-radius: 16px; padding: 2rem 2.25rem; margin-bottom: 2rem;
-    }
-    .welcome-card h1 { font-family: 'Inter', sans-serif; font-size: 1.6rem; font-weight: 700; margin-bottom: 0.35rem; }
-    .welcome-card p { font-size: 0.9rem; opacity: 0.85; }
-
-    .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-
-    .action-card {
-      background: #fff; border-radius: 14px; padding: 1.5rem;
-      border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 2px 12px rgba(0,117,255,0.06);
-      text-decoration: none; color: inherit; transition: transform 0.2s, box-shadow 0.2s;
-      display: flex; flex-direction: column; gap: 0.5rem;
-    }
-    .action-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,117,255,0.12); }
-    .action-card h3 { font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 600; color: #000825; }
-    .action-card p { font-size: 0.82rem; color: #6B7280; }
-    .action-icon { font-size: 1.6rem; margin-bottom: 0.25rem; }
-
-    .loading-msg { text-align: center; color: #6B7280; padding: 2rem; }
-    .error-msg { text-align: center; color: #dc2626; padding: 2rem; }
-
-    @media (max-width: 640px) {
-      .topbar { padding: 0 1rem; }
-      .dashboard-body { padding: 80px 1rem 2rem; }
-      .welcome-card { padding: 1.5rem; }
-      .welcome-card h1 { font-size: 1.25rem; }
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./dashboard.css">
 </head>
 <body>
 
-  <header class="topbar">
-    <span class="topbar-brand">HealthClouda</span>
-    <div class="topbar-right">
-      <span class="topbar-role" id="userRole">Doctor</span>
-      <span class="topbar-user" id="userName">Loading...</span>
-      <button class="logout-btn" id="logoutBtn">Logout</button>
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="../../assets/images/HealthClouda-icon.png" alt="">
+    <span>HealthClouda</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <button class="nav-item active" data-page="dashboard">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      Dashboard
+    </button>
+
+    <button class="nav-item" data-page="patients">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      My Patients
+    </button>
+
+    <button class="nav-item" data-page="episodes">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      Episodes
+    </button>
+
+    <button class="nav-item" data-page="prescriptions">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="9" y1="8" x2="21" y2="8"/><line x1="9" y1="13" x2="21" y2="13"/><line x1="9" y1="18" x2="21" y2="18"/></svg></span>
+      Prescriptions
+    </button>
+
+    <button class="nav-item" data-page="referrals">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><line x1="21" y1="3" x2="14" y2="10"/><polyline points="9 21 3 21 3 15"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
+      Referrals
+    </button>
+
+    <button class="nav-item" data-page="appointments">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      Appointments
+    </button>
+
+    <span class="nav-section-label">Other</span>
+
+    <button class="nav-item" data-page="notifications">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+      Notifications
+      <span class="nav-badge hidden" id="sidebarNotifBadge">0</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-avatar" id="sidebarAvatar">DR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarUserName">Doctor</div>
+      <div class="sidebar-user-role" id="sidebarUserRole">Doctor</div>
+    </div>
+    <button class="duty-toggle-btn" id="dutyToggleBtn" title="Toggle duty status" onclick="toggleDutyStatus()">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span id="dutyToggleLabel">Off Duty</span>
+    </button>
+    <button class="sidebar-logout" title="Logout" onclick="doctorLogout()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</aside>
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
+
+<!-- MAIN -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" title="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-brand">Doctor Portal</div>
+    <div class="header-right">
+      <span class="duty-badge off" id="headerDutyStatus">Off Duty</span>
+      <button class="notif-btn" id="headerNotifBtn" title="Notifications" onclick="goToNotifications()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge hidden" id="headerNotifBadge">0</span>
+      </button>
+      <span class="header-user" id="headerUserName">Loading…</span>
     </div>
   </header>
 
-  <main class="dashboard-body">
-    <div class="welcome-card">
-      <h1 id="welcomeMsg">Welcome, Doctor</h1>
-      <p id="orgName">Loading organization...</p>
+  <!-- PAGE: DASHBOARD -->
+  <div class="page-content active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="dashWelcome">Dashboard</div>
+        <div class="page-subtitle">Overview of your clinical activity.</div>
+      </div>
     </div>
 
-    <section class="quick-actions">
-      <a class="action-card" href="#">
-        <span class="action-icon">👥</span>
-        <h3>View Patients</h3>
-        <p>See your assigned patients and their records.</p>
-      </a>
-      <a class="action-card" href="#">
-        <span class="action-icon">📋</span>
-        <h3>Create Episode</h3>
-        <p>Start a new clinical episode for a patient.</p>
-      </a>
-      <a class="action-card" href="#">
-        <span class="action-icon">📊</span>
-        <h3>Recent Episodes</h3>
-        <p>Review your recent clinical episodes.</p>
-      </a>
-    </section>
+    <div class="stats-grid" id="dashStatsGrid">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Today's Appointments</span>
+          <span class="stat-icon blue"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+        </div>
+        <div class="stat-value" id="statTodayAppts">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Active Episodes</span>
+          <span class="stat-icon green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+        </div>
+        <div class="stat-value" id="statActiveEpisodes">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Patients in Queue</span>
+          <span class="stat-icon orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        </div>
+        <div class="stat-value" id="statPatientsQueue">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Pending Referrals</span>
+          <span class="stat-icon red"><svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><line x1="21" y1="3" x2="14" y2="10"/><polyline points="9 21 3 21 3 15"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span>
+        </div>
+        <div class="stat-value" id="statPendingReferrals">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Admissions Under Care</span>
+          <span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg></span>
+        </div>
+        <div class="stat-value" id="statAdmissionsUnder">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Completed This Week</span>
+          <span class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        </div>
+        <div class="stat-value" id="statCompletedWeek">—</div>
+      </div>
+    </div>
 
-    <div id="statusMsg" class="loading-msg">Loading your profile...</div>
-  </main>
+    <div class="section-title">Today's Schedule</div>
+    <div id="todayScheduleContainer">
+      <div class="empty-state">Loading schedule…</div>
+    </div>
+  </div>
 
-  <script src="../../assets/js/config.js"></script>
-  <script src="../../assets/js/api.js"></script>
-  <script src="../../assets/js/auth.js"></script>
-  <script>
-    // Auth guard
-    hc_requireAuth();
+  <!-- PAGE: MY PATIENTS -->
+  <div class="page-content" id="page-patients">
+    <div class="page-header">
+      <div>
+        <div class="page-title">My Patients</div>
+        <div class="page-subtitle">Patients currently under your care.</div>
+      </div>
+    </div>
 
-    (async function () {
-      const statusMsg = document.getElementById('statusMsg');
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <input class="search-input" type="text" id="patientSearch" placeholder="Search patient name…" oninput="_patientSearchHandler()">
+          <select class="filter-select" id="patientStatusFilter" onchange="_loaded.delete('patients'); loadMyPatients()">
+            <option value="">All Statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+        </div>
+        <div class="table-count" id="patientCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Age/Sex</th>
+              <th>Blood Type</th>
+              <th>Chief Complaint</th>
+              <th>Type</th>
+              <th>Ward / Bed</th>
+              <th>Latest Vitals</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="patientTableBody">
+            <tr><td colspan="8" class="empty-state">Loading patients…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-      try {
-        const me = await apiGet(HC_CONFIG.ENDPOINTS.ME);
+  <!-- PAGE: EPISODES -->
+  <div class="page-content" id="page-episodes">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Episodes</div>
+        <div class="page-subtitle">Manage clinical episodes.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openCreateEpisodePanel()">+ New Episode</button>
+      </div>
+    </div>
 
-        // Update UI
-        const fullName = [me.first_name, me.last_name].filter(Boolean).join(' ') || me.email;
-        document.getElementById('userName').textContent = fullName;
-        document.getElementById('userRole').textContent = me.role || 'Doctor';
-        document.getElementById('welcomeMsg').textContent = 'Welcome, Dr. ' + fullName;
-        document.getElementById('orgName').textContent = me.organization_name || 'HealthClouda';
-        document.title = 'Doctor Dashboard - ' + (me.organization_name || 'HealthClouda');
+    <div id="episodeListView">
+      <div class="tab-group" id="episodeTabs">
+        <button class="tab-btn active" data-tab="ACTIVE" onclick="switchEpisodeTab('ACTIVE')">Active</button>
+        <button class="tab-btn" data-tab="COMPLETED" onclick="switchEpisodeTab('COMPLETED')">Completed</button>
+      </div>
 
-        statusMsg.textContent = '';
-      } catch (err) {
-        statusMsg.className = 'error-msg';
-        statusMsg.textContent = err.message || 'Failed to load profile.';
-      }
+      <div class="table-card">
+        <div class="table-toolbar">
+          <div class="table-toolbar-left"></div>
+          <div class="table-count" id="episodeCount">—</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Type</th>
+                <th>Chief Complaint</th>
+                <th>Started</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="episodeTableBody">
+              <tr><td colspan="7" class="empty-state">Loading episodes…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-      // Logout
-      document.getElementById('logoutBtn').addEventListener('click', hc_logout);
-    })();
-  </script>
+    <div id="episodeDetailView" style="display:none"></div>
+  </div>
+
+  <!-- PAGE: PRESCRIPTIONS -->
+  <div class="page-content" id="page-prescriptions">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Prescriptions</div>
+        <div class="page-subtitle">Medications you have prescribed.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openCreateRxPanel('','','')">+ New Prescription</button>
+      </div>
+    </div>
+
+    <div class="tab-group" id="rxTabs">
+      <button class="tab-btn active" data-tab="ACTIVE" onclick="switchRxTab('ACTIVE')">Active</button>
+      <button class="tab-btn" data-tab="COMPLETED" onclick="switchRxTab('COMPLETED')">Completed</button>
+      <button class="tab-btn" data-tab="CANCELLED" onclick="switchRxTab('CANCELLED')">Cancelled</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left"></div>
+        <div class="table-count" id="rxCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Medication</th>
+              <th>Dosage</th>
+              <th>Frequency</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rxTableBody">
+            <tr><td colspan="7" class="empty-state">Loading prescriptions…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: REFERRALS -->
+  <div class="page-content" id="page-referrals">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Referrals</div>
+        <div class="page-subtitle">Incoming and outgoing patient referrals.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openCreateRefPanel()">+ New Referral</button>
+      </div>
+    </div>
+
+    <div class="tab-group" id="refTabs">
+      <button class="tab-btn active" data-tab="incoming" onclick="switchRefTab('incoming')">Incoming</button>
+      <button class="tab-btn" data-tab="outgoing" onclick="switchRefTab('outgoing')">Outgoing</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left"></div>
+        <div class="table-count" id="refCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th id="refColFrom">From</th>
+              <th>Reason</th>
+              <th>Urgency</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="refTableBody">
+            <tr><td colspan="7" class="empty-state">Loading referrals…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: APPOINTMENTS -->
+  <div class="page-content" id="page-appointments">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Appointments</div>
+        <div class="page-subtitle">Your scheduled and past appointments.</div>
+      </div>
+    </div>
+
+    <div class="tab-group" id="apptTabs">
+      <button class="tab-btn active" data-tab="SCHEDULED" onclick="switchApptTab('SCHEDULED')">Scheduled</button>
+      <button class="tab-btn" data-tab="COMPLETED" onclick="switchApptTab('COMPLETED')">Completed</button>
+      <button class="tab-btn" data-tab="CANCELLED" onclick="switchApptTab('CANCELLED')">Cancelled</button>
+      <button class="tab-btn" data-tab="NO_SHOW" onclick="switchApptTab('NO_SHOW')">No Show</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left"></div>
+        <div class="table-count" id="apptCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>Patient</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="apptTableBody">
+            <tr><td colspan="6" class="empty-state">Loading appointments…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: NOTIFICATIONS -->
+  <div class="page-content" id="page-notifications">
+    <div class="notif-page-header">
+      <div>
+        <div class="page-title">Notifications</div>
+        <div class="page-subtitle">Stay updated on your tasks and alerts.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="markAllReadBtn" onclick="markAllNotificationsRead()">Mark all as read</button>
+    </div>
+    <div id="notificationsContainer">
+      <div class="empty-state">Loading notifications…</div>
+    </div>
+  </div>
+
+</div><!-- /main-wrap -->
+
+<!-- SLIDE PANELS -->
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<!-- Create Episode Panel -->
+<div class="slide-panel" id="createEpisodePanel">
+  <div class="panel-header">
+    <div><span class="panel-title">New Episode</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="createEpisodeForm" onsubmit="submitCreateEpisode(event)">
+      <div class="form-group">
+        <label class="form-label">Patient ID *</label>
+        <input class="form-input" name="patient_id" required placeholder="Patient UUID or HealthClouda ID">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Episode Type *</label>
+        <select class="form-input" name="episode_type" required>
+          <option value="">Select…</option>
+          <option value="OUTPATIENT">Outpatient</option>
+          <option value="INPATIENT">Inpatient</option>
+          <option value="EMERGENCY">Emergency</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Chief Complaint *</label>
+        <textarea class="form-input" name="chief_complaint" rows="3" required placeholder="Primary reason for visit…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Initial Notes</label>
+        <textarea class="form-input" name="notes" rows="3" placeholder="Additional observations (optional)…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="createEpisodeBtn">Create Episode</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Clinical Note Panel -->
+<div class="slide-panel" id="addNotePanel">
+  <div class="panel-header">
+    <div>
+      <span class="panel-title">Add Clinical Note</span>
+      <div class="panel-subtitle" id="notePatientName">Patient</div>
+    </div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="addNoteForm" onsubmit="submitAddNote(event)">
+      <input type="hidden" id="noteEpisodeId">
+      <div class="form-group">
+        <label class="form-label">Note Type *</label>
+        <select class="form-input" name="note_type" required>
+          <option value="GENERAL">General</option>
+          <option value="EXAMINATION">Examination</option>
+          <option value="FOLLOW_UP">Follow-up</option>
+          <option value="PROCEDURE">Procedure</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Content *</label>
+        <textarea class="form-input" name="content" rows="6" required placeholder="Clinical note content…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="addNoteBtn">Add Note</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Create Prescription Panel -->
+<div class="slide-panel" id="createRxPanel">
+  <div class="panel-header">
+    <div>
+      <span class="panel-title">New Prescription</span>
+      <div class="panel-subtitle" id="rxPatientLabel">Patient</div>
+    </div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="createRxForm" onsubmit="submitCreateRx(event)">
+      <input type="hidden" id="rxEpisodeId" name="episode_id">
+      <input type="hidden" id="rxPatientId" name="patient_id">
+      <div class="form-group">
+        <label class="form-label">Medication *</label>
+        <input class="form-input" name="medication" required placeholder="e.g. Amoxicillin">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Dosage *</label>
+          <input class="form-input" name="dosage" required placeholder="e.g. 500mg">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Frequency *</label>
+          <input class="form-input" name="frequency" required placeholder="e.g. Twice daily">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Duration *</label>
+        <input class="form-input" name="duration" required placeholder="e.g. 7 days">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Instructions</label>
+        <textarea class="form-input" name="instructions" rows="2" placeholder="Special instructions (optional)…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="createRxBtn">Create Prescription</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Create Referral Panel -->
+<div class="slide-panel" id="createRefPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">New Referral</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="createRefForm" onsubmit="submitCreateRef(event)">
+      <div class="form-group">
+        <label class="form-label">Patient ID *</label>
+        <input class="form-input" name="patient_id" required placeholder="Patient UUID">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Episode ID</label>
+        <input class="form-input" name="episode_id" placeholder="Episode UUID (optional)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Referred To *</label>
+        <input class="form-input" name="referred_to" required placeholder="Doctor UUID or facility">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Urgency *</label>
+          <select class="form-input" name="urgency" required>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM" selected>Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason *</label>
+        <textarea class="form-input" name="reason" rows="3" required placeholder="Reason for referral…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Clinical Notes</label>
+        <textarea class="form-input" name="clinical_notes" rows="3" placeholder="Additional clinical context (optional)…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="createRefBtn">Create Referral</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODALS -->
+
+<!-- Vitals Modal (Read-only) -->
+<div class="modal-overlay" id="vitalsModal">
+  <div class="modal modal-wide">
+    <div class="modal-header-row">
+      <div class="modal-title">Patient Vitals</div>
+      <button class="panel-close" onclick="closeModal('vitalsModal')">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-subtitle" id="vitalsPatientName">—</div>
+    <div id="vitalsDisplay">
+      <div class="empty-state">Loading vitals…</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('vitalsModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Complete Episode Modal -->
+<div class="modal-overlay" id="completeEpisodeModal">
+  <div class="modal">
+    <div class="modal-icon success">
+      <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <div class="modal-title">Complete Episode</div>
+    <div class="modal-body">
+      <p style="margin-bottom:1rem;">Completing episode for <strong id="completeEpisodePatient">—</strong>.</p>
+      <input type="hidden" id="completeEpisodeId">
+      <div class="form-group">
+        <label class="form-label">Final Diagnosis *</label>
+        <textarea class="form-input" id="completeDiagnosis" rows="3" required placeholder="Final diagnosis…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Summary</label>
+        <textarea class="form-input" id="completeSummary" rows="3" placeholder="Episode summary (optional)…"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('completeEpisodeModal')">Cancel</button>
+      <button class="btn btn-success" id="submitCompleteBtn" onclick="submitCompleteEpisode()">Complete Episode</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SCRIPTS -->
+<script src="../../assets/js/config.js"></script>
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/auth.js"></script>
+<script src="./dashboard.js"></script>
 
 </body>
 </html>
