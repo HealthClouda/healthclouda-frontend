@@ -119,6 +119,16 @@ const HC_CONFIG = {
 
     // Audit logs
     SA_AUDIT:         '/superadmin/audit-logs/',       // GET  → paginated log entries
+
+    // ── Org Admin ────────────────────────────────────────────────
+    ORG_ADMIN_STATS:           '/org-admin/dashboard/stats/',     // GET  → org-level dashboard stats
+    ORG_ADMIN_ACTIVITY:        '/org-admin/activity/',            // GET  → recent org activity feed
+    ORG_ADMIN_STAFF:           '/org-admin/staff/',               // GET  → list, POST → create, PATCH /:id/ → update
+    ORG_ADMIN_PATIENTS:        '/org-admin/patients/',            // GET  → patient directory (org-scoped)
+    ORG_ADMIN_WARDS_OVERVIEW:  '/org-admin/wards/overview/',      // GET  → ward cards and occupancy
+    ORG_ADMIN_BEDS:            '/org-admin/beds/',                // GET ?ward_id= → bed list
+    ORG_ADMIN_ACCESS_REQUESTS: '/org-admin/access-requests/',     // GET, PATCH /:id/review/
+    ORG_ADMIN_SETTINGS:        '/org-admin/settings/',            // GET, PATCH org profile/settings
   },
 
   // ── Role → dashboard redirect map ─────────────────────────
