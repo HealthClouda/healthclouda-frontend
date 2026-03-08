@@ -238,8 +238,8 @@ form > textarea {
 form > input    { height: 52px; }
 form > textarea { height: 160px; resize: vertical; }
 
-.contact-us-btn {
-    background-color: var(--primary-color);
+.contacts-us-btn {
+    background-color:var(--primary-color);
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -866,3 +866,4 @@ body.signin-page {
     .otp-box { width: 42px; height: 48px; font-size: 1.2rem; }
     .otp-display { gap: 0.5rem; }
 }
+
