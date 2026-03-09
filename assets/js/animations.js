@@ -231,4 +231,60 @@ document.addEventListener('DOMContentLoaded', () => {
     revealObserver.observe(el);
   });
 
+
+  // ── Wellbeing carousel (infinite conveyor belt) ────────
+  const track = document.getElementById('wellbeingTrack');
+  const wPrev = document.getElementById('wPrev');
+  const wNext = document.getElementById('wNext');
+
+  if (track) {
+    // Clone cards for seamless loop
+    Array.from(track.children).forEach(card => {
+      track.appendChild(card.cloneNode(true));
+    });
+
+    const totalOriginal = track.children.length / 2;
+    let offset = 0;
+    let paused = false;
+    const SPEED = 0.7; // px per frame
+
+    function cardStep() {
+      const card = track.children[0];
+      const gap = parseFloat(getComputedStyle(track).gap) || 24;
+      return card.offsetWidth + gap;
+    }
+
+    function loop() {
+      if (!paused) {
+        offset += SPEED;
+        const loopAt = cardStep() * totalOriginal;
+        if (offset >= loopAt) offset -= loopAt;
+        track.style.transform = `translateX(-${offset}px)`;
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Pause on hover
+    track.closest('.wellbeing-carousel-wrapper')?.addEventListener('mouseenter', () => paused = true);
+    track.closest('.wellbeing-carousel-wrapper')?.addEventListener('mouseleave', () => paused = false);
+
+    // Buttons
+    if (wPrev) wPrev.addEventListener('click', () => { offset = Math.max(0, offset - cardStep()); });
+    if (wNext) wNext.addEventListener('click', () => { offset += cardStep(); });
+
+    // Touch swipe
+    let tx = 0;
+    track.addEventListener('touchstart', e => { tx = e.touches[0].clientX; paused = true; }, { passive: true });
+    track.addEventListener('touchend', e => {
+      const d = tx - e.changedTouches[0].clientX;
+      if (Math.abs(d) > 30) offset = Math.max(0, offset + (d > 0 ? cardStep() : -cardStep()));
+      paused = false;
+    });
+
+    // Reset on resize
+    window.addEventListener('resize', () => { offset = 0; track.style.transform = 'translateX(0)'; });
+
+    requestAnimationFrame(loop);
+  }
+
 });
