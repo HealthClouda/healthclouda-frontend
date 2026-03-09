@@ -535,13 +535,45 @@ img {
   background: var(--bg);
 }
 
-.wellbeing-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.75rem;
-  max-width: 1000px;
-  margin: 0 auto 2.5rem;
+.wellbeing-carousel-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding: 0.5rem 0 1.5rem;
 }
+
+.wellbeing-carousel-track {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 3rem;
+  will-change: transform;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-60%);
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.2s, border-color 0.2s;
+}
+.carousel-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.carousel-btn:hover svg path { stroke: #fff; }
+.carousel-btn svg path { stroke: #333; transition: stroke 0.2s; }
+.carousel-btn-prev { left: 8px; }
+.carousel-btn-next { right: 8px; }
 
 .wellbeing-card {
   background: var(--white);
@@ -549,6 +581,8 @@ img {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   padding: 1.5rem;
+  flex: 0 0 calc((100% - 10.5rem) / 3);
+  min-width: 220px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1070,9 +1104,9 @@ img {
   .benefit-note-alt {
     flex-direction: column-reverse;
   }
-    .wellbeing-grid {
-    grid-template-columns: repeat(2, 1fr);
-    }
+  .wellbeing-card {
+    flex: 0 0 calc((100% - 7.5rem) / 2);
+  }
 
   .about {
     padding: 4rem 2rem;
@@ -1178,9 +1212,13 @@ img {
   .wellbeing {
     padding: 2rem 1.25rem;
   }
-  .wellbeing-grid {
-    grid-template-columns: repeat(1, 1fr);
-    }
+  .wellbeing-card {
+    flex: 0 0 80vw;
+  }
+  .wellbeing-carousel-track {
+    padding: 0.5rem 1.5rem;
+    gap: 1rem;
+  }
 
   .about {
     padding: 3rem 1.25rem;
