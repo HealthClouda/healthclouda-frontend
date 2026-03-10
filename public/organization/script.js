@@ -83,32 +83,8 @@ window._orgSlug = org?.slug || getOrgSlug();
 
 
 // ═══════════════════════════════════════════════════
-//  ANNOUNCEMENT ENGINE
+//  ANNOUNCEMENT ENGINE — fetched from backend API
 // ═══════════════════════════════════════════════════
-
-const ANNOUNCEMENTS = [
-  {
-    title:     "Free Medical Check-Up Week",
-    deadline:  "2026-10-29",
-    dateLabel: "October 25 – 29, 2026",
-    body:      "Routine health screenings at the Campus Medical Centre. Early registration required via the HealthClouda portal.",
-    link:      "#"
-  },
-  {
-    title:     "New Clinic Hours",
-    deadline:  null,
-    dateLabel: "Effective November 1, 2025",
-    body:      "The University Clinic now operates Monday–Saturday, 8:00 AM – 6:00 PM.",
-    link:      null
-  },
-  {
-    title:     "Mental Health Support Program",
-    deadline:  null,
-    dateLabel: "Ongoing",
-    body:      "Access free mental health counseling sessions this semester. Visit the Support tab after signing in.",
-    link:      null
-  }
-];
 
 function daysUntil(dateStr) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -116,11 +92,12 @@ function daysUntil(dateStr) {
   return Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
 }
 
-function renderAnnouncements() {
+function renderAnnouncementCards(announcements) {
   const container = document.getElementById('announcementCards');
   if (!container) return;
 
-  const active = ANNOUNCEMENTS.filter(a =>
+  // Filter out expired announcements
+  const active = announcements.filter(a =>
     !a.deadline || daysUntil(a.deadline) >= 0
   );
 
@@ -142,6 +119,7 @@ function renderAnnouncements() {
       ? `<div class="urgency-badge">⚠️ ${days === 0 ? 'Ends today' : `${days} day${days !== 1 ? 's' : ''} left`}</div>`
       : '';
 
+    const dateLabel = a.date_label || a.dateLabel || '';
     const more = a.link
       ? ` <a href="${a.link}" style="color:var(--primary);font-weight:600;">See more</a>` : '';
 
@@ -149,13 +127,32 @@ function renderAnnouncements() {
       <div class="announcement-card ${urgent ? 'announcement-urgent' : ''}">
         ${badge}
         <h3>${a.title}</h3>
-        <div class="date-label">Date: ${a.dateLabel}</div>
+        <div class="date-label">Date: ${dateLabel}</div>
         <p>${a.body}${more}</p>
       </div>`;
   }).join('');
 }
 
-renderAnnouncements();
+async function loadAndRenderAnnouncements(slug) {
+  const container = document.getElementById('announcementCards');
+  if (!container || !slug) {
+    renderAnnouncementCards([]);
+    return;
+  }
+
+  try {
+    const endpoint = HC_CONFIG.ENDPOINTS.ORG_ANNOUNCEMENTS + slug + '/announcements/';
+    const data = await publicApiRequest(endpoint);
+
+    // Handle both array and paginated { results: [...] } responses
+    const announcements = Array.isArray(data) ? data : (data?.results || []);
+    renderAnnouncementCards(announcements);
+  } catch {
+    renderAnnouncementCards([]);
+  }
+}
+
+loadAndRenderAnnouncements(window._orgSlug);
 
 
 // ═══════════════════════════════════════════════════

@@ -52,6 +52,7 @@ const HC_CONFIG = {
     CONTACT_FORM: '/contact/contact-form/',
     ORG_CONTACT:  '/organizations/',          // POST /:slug/contact/
     ORG_BY_SLUG:  '/org/by-slug/',           // GET /:slug/ → org branding info
+    ORG_ANNOUNCEMENTS: '/org/',               // GET /:slug/announcements/ → org announcements list
     EPISODES:     '/episodes/',              // GET → paginated list, GET /:id/ → detail
 
     // ── Patient ──────────────────────────────────────────
