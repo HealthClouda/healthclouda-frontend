@@ -13,7 +13,14 @@
   try { token = hc_getAccessToken(); } catch(e) {}
   try { user  = hc_getUser();        } catch(e) {}
 
-  if (token && user && typeof hc_redirectByRole === 'function') {
+  // Redirect if no token — do NOT fall through to demo data
+  if (!token || !user) {
+    window.location.href = '/public/organization/signin.html';
+    return;
+  }
+
+  // Redirect wrong roles
+  if (typeof hc_redirectByRole === 'function') {
     const role = (user.role || '').toLowerCase().replace(/_/g, '');
     if (role && role !== 'patient') {
       hc_redirectByRole(user.role);
@@ -21,12 +28,34 @@
     }
   }
 
-  const name = (user && (user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email)) || 'Patient';
+  const name = (user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email) || 'Patient';
   const el = (id) => document.getElementById(id);
   if (el('sidebarUserName'))  el('sidebarUserName').textContent  = name;
   if (el('sidebarUserRole'))  el('sidebarUserRole').textContent  = 'Patient';
   if (el('sidebarAvatar'))    el('sidebarAvatar').textContent    = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   if (el('headerUserName'))   el('headerUserName').textContent   = name;
+})();
+
+
+/* ══════════════════════════════════════════
+   1b. SESSION TIMEOUT
+══════════════════════════════════════════ */
+(function initSessionTimeout() {
+  let timer = null;
+  const TIMEOUT = HC_CONFIG.SESSION_TIMEOUT_MS || 30 * 60 * 1000;
+
+  function resetTimer() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      showToast('Session expired. Redirecting to login…', 'error');
+      setTimeout(() => patientLogout(), 2000);
+    }, TIMEOUT);
+  }
+
+  ['click', 'keydown', 'scroll', 'mousemove', 'touchstart'].forEach(evt =>
+    document.addEventListener(evt, resetTimer, { passive: true })
+  );
+  resetTimer();
 })();
 
 
@@ -87,14 +116,20 @@ function closeSidebar() {
   document.body.style.overflow = '';
 }
 
+const USE_DEMO = new URLSearchParams(window.location.search).has('demo');
+
 const _loaded = new Set();
+const _failed = new Set();
+
 function loadPage(page) {
-  if (_loaded.has(page)) return;
+  if (_loaded.has(page) && !_failed.has(page)) return;
+  _failed.delete(page);
   _loaded.add(page);
   switch (page) {
     case 'dashboard':     loadDashboard();     break;
     case 'visits':        loadVisits();        break;
     case 'referrals':     loadReferrals();     break;
+    case 'access':        loadAccessRequests(); break;
     case 'profile':       loadProfile();       break;
     case 'notifications': loadNotifications(); break;
   }
@@ -300,8 +335,14 @@ async function loadDashboard() {
       safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_DASHBOARD),
     ]);
   } catch {
-    profile   = DEMO_PROFILE;
-    dashboard = DEMO_DASHBOARD;
+    if (USE_DEMO) {
+      profile   = DEMO_PROFILE;
+      dashboard = DEMO_DASHBOARD;
+    } else {
+      _failed.add('dashboard');
+      showToast('Unable to load dashboard data. Please try again.', 'error');
+      return;
+    }
   }
 
   _patientProfile = profile;
@@ -323,6 +364,30 @@ async function loadDashboard() {
   el('statActiveEpisodes').textContent = dashboard.active_episodes ?? '—';
   el('statCompleted').textContent      = dashboard.completed_episodes ?? '—';
   el('statLastVisit').textContent      = formatRelativeDate(dashboard.last_visit_date);
+
+  // Last visit org name
+  const lastOrgEl = el('statLastOrg');
+  if (lastOrgEl && dashboard.last_visit_organization) {
+    lastOrgEl.textContent = dashboard.last_visit_organization;
+  }
+
+  // Admission status
+  const admission = dashboard.current_admission || null;
+  const banner = document.getElementById('admissionBanner');
+  if (admission && banner) {
+    banner.classList.remove('hidden');
+    const setText = (id, val) => { const e = document.getElementById(id); if (e && val) e.textContent = val; };
+    setText('admissionOrg', admission.organization_name || '');
+    setText('admissionWard', admission.ward_name ? 'Ward: ' + admission.ward_name : '');
+    setText('admissionBed', admission.bed_label ? 'Bed: ' + admission.bed_label : '');
+    setText('admissionDoctor', admission.doctor_name ? 'Doctor: ' + admission.doctor_name : '');
+    if (admission.admitted_at) {
+      const days = Math.floor((Date.now() - new Date(admission.admitted_at)) / (1000 * 60 * 60 * 24));
+      setText('admissionDuration', days === 0 ? 'Admitted today' : 'Day ' + (days + 1));
+    }
+  } else if (banner) {
+    banner.classList.add('hidden');
+  }
 
   // Active prescriptions
   const rxContainer = document.getElementById('prescriptionsContainer');
@@ -384,7 +449,8 @@ async function loadVisits() {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.EPISODES);
     _episodesCache = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    _episodesCache = DEMO_EPISODES;
+    if (USE_DEMO) { _episodesCache = DEMO_EPISODES; }
+    else { _failed.add('visits'); showToast('Unable to load visit history.', 'error'); _episodesCache = []; }
   }
 
   renderEpisodeList();
@@ -402,7 +468,7 @@ function renderEpisodeList() {
     _episodesCache.map(ep => {
       const orgName = ep.organization?.name || ep.organization_name || '';
       const date = formatDate(ep.episode_start || ep.created_at);
-      return '<div class="episode-card" onclick="openEpisodeDetail(' + ep.id + ')">' +
+      return '<div class="episode-card" data-episode-id="' + escapeHtml(String(ep.id)) + '">' +
         '<div class="episode-top">' +
           '<span class="episode-date">' + escapeHtml(date) + '</span>' +
           '<div class="episode-meta">' +
@@ -416,6 +482,10 @@ function renderEpisodeList() {
       '</div>';
     }).join('') +
   '</div>';
+
+  container.querySelectorAll('.episode-card[data-episode-id]').forEach(card => {
+    card.addEventListener('click', () => openEpisodeDetail(card.dataset.episodeId));
+  });
 }
 
 async function openEpisodeDetail(id) {
@@ -431,7 +501,8 @@ async function openEpisodeDetail(id) {
   try {
     detail = await safeApiGet(HC_CONFIG.ENDPOINTS.EPISODES + id + '/');
   } catch {
-    detail = DEMO_EPISODE_DETAIL;
+    if (USE_DEMO) { detail = DEMO_EPISODE_DETAIL; }
+    else { body.innerHTML = '<div class="empty-state">Unable to load episode details.</div>'; return; }
   }
 
   const orgName = detail.organization?.name || detail.organization_name || '';
@@ -503,7 +574,8 @@ async function loadReferrals() {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_REFERRALS);
     _referralsCache = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    _referralsCache = DEMO_REFERRALS_LIST;
+    if (USE_DEMO) { _referralsCache = DEMO_REFERRALS_LIST; }
+    else { _failed.add('referrals'); showToast('Unable to load referrals.', 'error'); _referralsCache = []; }
   }
 
   renderReferralList();
@@ -577,7 +649,8 @@ async function openReferralDetail(id) {
   try {
     detail = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_REFERRAL_DETAIL + id + '/');
   } catch {
-    detail = DEMO_REFERRAL_DETAIL;
+    if (USE_DEMO) { detail = DEMO_REFERRAL_DETAIL; }
+    else { body.innerHTML = '<div class="empty-state">Unable to load referral details.</div>'; return; }
   }
 
   const fromOrg = detail.from_organization?.name || '';
@@ -685,7 +758,8 @@ async function loadProfile() {
   try {
     _profileData = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_ME);
   } catch {
-    _profileData = _patientProfile || DEMO_PROFILE;
+    if (USE_DEMO) { _profileData = _patientProfile || DEMO_PROFILE; }
+    else { _failed.add('profile'); showToast('Unable to load profile.', 'error'); _profileData = _patientProfile || {}; }
   }
 
   _editMode = false;
@@ -868,7 +942,8 @@ async function loadNotifications() {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_NOTIFS);
     _notifsCache = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    _notifsCache = DEMO_NOTIFICATIONS;
+    if (USE_DEMO) { _notifsCache = DEMO_NOTIFICATIONS; }
+    else { _failed.add('notifications'); showToast('Unable to load notifications.', 'error'); _notifsCache = []; }
   }
 
   renderNotifications();
@@ -887,7 +962,7 @@ function renderNotifications() {
       const typeClass = (n.notification_type || '').toLowerCase().replace(/_/g, '-');
       const icon = notifIcon(n.notification_type);
       const unread = !n.is_read ? ' unread' : '';
-      return '<div class="notif-item' + unread + '" onclick="markNotificationRead(' + n.id + ')">' +
+      return '<div class="notif-item' + unread + '" data-notif-id="' + escapeHtml(String(n.id)) + '">' +
         '<div class="notif-icon ' + typeClass + '">' + icon + '</div>' +
         '<div class="notif-body">' +
           '<div class="notif-title">' + escapeHtml(n.title) + '</div>' +
@@ -901,6 +976,10 @@ function renderNotifications() {
       '</div>';
     }).join('') +
   '</div>';
+
+  container.querySelectorAll('.notif-item[data-notif-id]').forEach(item => {
+    item.addEventListener('click', () => markNotificationRead(item.dataset.notifId));
+  });
 }
 
 function notifIcon(type) {
@@ -914,16 +993,35 @@ function notifIcon(type) {
 
 async function markNotificationRead(id) {
   const notif = _notifsCache.find(n => n.id === id);
-  if (!notif || notif.is_read) return;
+  if (!notif) return;
 
-  notif.is_read = true;
-  renderNotifications();
+  // Mark as read (optimistic)
+  if (!notif.is_read) {
+    notif.is_read = true;
+    renderNotifications();
+    try {
+      await safeApiPatch(HC_CONFIG.ENDPOINTS.PATIENT_NOTIFS + id + '/read/');
+    } catch { /* silent */ }
+    refreshUnreadCount();
+  }
 
-  try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.PATIENT_NOTIFS + id + '/read/');
-  } catch { /* silent — already updated UI optimistically */ }
-
-  refreshUnreadCount();
+  // Navigate based on notification type
+  switch (notif.notification_type) {
+    case 'EPISODE_CREATED':
+    case 'EPISODE_CLOSED':
+      document.querySelector('[data-page="visits"]')?.click();
+      break;
+    case 'REFERRAL_SENT':
+    case 'REFERRAL_ACCEPTED':
+    case 'REFERRAL_DECLINED':
+      document.querySelector('[data-page="referrals"]')?.click();
+      break;
+    case 'ACCESS_REQUEST':
+      document.querySelector('[data-page="access"]')?.click();
+      break;
+    default:
+      break;
+  }
 }
 
 async function markAllNotificationsRead() {
@@ -940,6 +1038,97 @@ async function markAllNotificationsRead() {
   updateNotifBadge(0);
   if (btn) { btn.disabled = false; btn.textContent = 'Mark all as read'; }
   showToast('All notifications marked as read', 'success');
+}
+
+
+/* ══════════════════════════════════════════
+   8b. ACCESS REQUESTS PAGE
+══════════════════════════════════════════ */
+let _accessCache = [];
+
+async function loadAccessRequests() {
+  const container = document.getElementById('accessRequestsContainer');
+  container.innerHTML = '<div class="access-list">' +
+    Array(2).fill('<div class="access-card" style="pointer-events:none">' + shimmerBlock() + '<br>' + shimmerBlock() + '</div>').join('') + '</div>';
+
+  try {
+    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.PATIENT_ACCESS_REQUESTS);
+    _accessCache = Array.isArray(data) ? data : (data.results || []);
+  } catch {
+    if (USE_DEMO) {
+      _accessCache = [
+        { id: 'demo-1', organization_name: 'Reddington Hospital', reason: 'Requesting access for follow-up care after referral.', status: 'PENDING', created_at: '2026-03-09T14:00:00Z' },
+        { id: 'demo-2', organization_name: 'LUTH Hospital', reason: 'Routine records access for ongoing care.', status: 'GRANTED', created_at: '2026-02-15T10:00:00Z' }
+      ];
+    } else {
+      _failed.add('access');
+      showToast('Unable to load access requests.', 'error');
+      _accessCache = [];
+    }
+  }
+
+  renderAccessRequests();
+}
+
+function renderAccessRequests() {
+  const container = document.getElementById('accessRequestsContainer');
+
+  if (_accessCache.length === 0) {
+    container.innerHTML = '<div class="empty-state">No access requests. When an organization requests access to your records, it will appear here.</div>';
+    return;
+  }
+
+  const pending = _accessCache.filter(r => r.status === 'PENDING');
+  const resolved = _accessCache.filter(r => r.status !== 'PENDING');
+
+  let html = '';
+
+  if (pending.length > 0) {
+    html += '<div class="access-section-label">Pending Requests</div>';
+    html += '<div class="access-list">' + pending.map(renderAccessCard).join('') + '</div>';
+  }
+
+  if (resolved.length > 0) {
+    html += '<div class="access-section-label" style="margin-top:2rem">Past Requests</div>';
+    html += '<div class="access-list">' + resolved.map(renderAccessCard).join('') + '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function renderAccessCard(r) {
+  const isPending = r.status === 'PENDING';
+  const statusMap = { PENDING: 'badge-warning', GRANTED: 'badge-success', DENIED: 'badge-danger' };
+  const statusBadgeHtml = '<span class="badge ' + (statusMap[r.status] || 'badge-info') + '">' + escapeHtml(r.status) + '</span>';
+
+  const actions = isPending
+    ? '<div class="access-actions">' +
+        '<button class="btn btn-sm btn-primary" onclick="respondAccess(\'' + escapeHtml(r.id) + '\',\'grant\')">Grant Access</button>' +
+        '<button class="btn btn-sm btn-ghost" onclick="respondAccess(\'' + escapeHtml(r.id) + '\',\'deny\')">Deny</button>' +
+      '</div>'
+    : '';
+
+  return '<div class="access-card ' + (isPending ? 'access-pending' : '') + '">' +
+    '<div class="access-card-top">' +
+      '<span class="access-org">' + escapeHtml(r.organization_name || '') + '</span>' +
+      statusBadgeHtml +
+    '</div>' +
+    '<div class="access-reason">' + escapeHtml(r.reason || 'Requesting access to your medical records.') + '</div>' +
+    '<div class="access-meta">' + formatDate(r.created_at) + '</div>' +
+    actions +
+  '</div>';
+}
+
+async function respondAccess(id, action) {
+  try {
+    await safeApiPatch(HC_CONFIG.ENDPOINTS.PATIENT_ACCESS_REQUESTS + id + '/', { action: action });
+    const item = _accessCache.find(r => r.id === id);
+    if (item) item.status = action === 'grant' ? 'GRANTED' : 'DENIED';
+    renderAccessRequests();
+    showToast('Access ' + (action === 'grant' ? 'granted' : 'denied') + ' successfully.', 'success');
+  } catch {
+    showToast('Failed to respond. Please try again.', 'error');
+  }
 }
 
 
@@ -981,6 +1170,15 @@ async function patientLogout() {
       await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() });
     }
   } catch {}
+
+  let slug = '';
+  try { slug = hc_getUser()?.organization_slug || ''; } catch {}
+
   try { if (typeof hc_clearTokens === 'function') hc_clearTokens(); } catch {}
-  window.location.href = '/public/signin.html';
+
+  if (slug) {
+    window.location.href = '/public/organization/signin.html?org=' + slug;
+  } else {
+    window.location.href = '/public/signin.html';
+  }
 }

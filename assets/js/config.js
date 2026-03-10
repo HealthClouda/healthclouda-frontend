@@ -61,6 +61,7 @@ const HC_CONFIG = {
     PATIENT_NOTIFS:    '/patients/me/notifications/',             // GET → notification list
     PATIENT_UNREAD:    '/patients/me/notifications/unread-count/',// GET → { count }
     PATIENT_READ_ALL:  '/patients/me/notifications/read-all/',   // POST → mark all read
+    PATIENT_ACCESS_REQUESTS: '/patients/me/access-requests/',    // GET → list, PATCH /:id/ → { action: 'grant'|'deny' }
     // Mark single read: PATIENT_NOTIFS + ':id/read/'  (PATCH)
 
     // ── Patient Referrals ─────────────────────────────

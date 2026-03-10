@@ -4,9 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Patient Portal | HealthClouda</title>
+  <link rel="icon" type="image/png" href="../../assets/images/healthclouda-icon.png">
+  <link rel="apple-touch-icon" href="../../assets/images/healthclouda-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./dashboard.css">
+  <script>
+    // Cache-bust version — auto-generates from date (caches per hour, auto-busts on deploy)
+    var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+    document.write('<link rel="stylesheet" href="./dashboard.css?v=' + HC_V + '">');
+  </script>
 </head>
 <body>
 
@@ -33,6 +39,12 @@
     <button class="nav-item" data-page="referrals">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
       My Referrals
+    </button>
+
+    <button class="nav-item" data-page="access">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      Access Requests
+      <span class="nav-badge hidden" id="sidebarAccessBadge">0</span>
     </button>
 
     <button class="nav-item" data-page="profile">
@@ -117,6 +129,21 @@
           <span class="stat-icon orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
         </div>
         <div class="stat-value" id="statLastVisit" style="font-size:1rem">—</div>
+        <div class="stat-sub" id="statLastOrg"></div>
+      </div>
+    </div>
+
+    <div class="admission-banner hidden" id="admissionBanner">
+      <div class="admission-banner-icon">🏥</div>
+      <div class="admission-banner-info">
+        <div class="admission-banner-title">Currently Admitted</div>
+        <div class="admission-banner-details">
+          <span id="admissionOrg"></span>
+          <span id="admissionWard"></span>
+          <span id="admissionBed"></span>
+          <span id="admissionDoctor"></span>
+          <span id="admissionDuration"></span>
+        </div>
       </div>
     </div>
 
@@ -176,6 +203,19 @@
     </div>
     <div id="referralsContainer">
       <div class="empty-state">Loading referrals…</div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: ACCESS REQUESTS ════ -->
+  <div class="page-content" id="page-access">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Access Requests</div>
+        <div class="page-subtitle">Organizations requesting access to your medical records.</div>
+      </div>
+    </div>
+    <div id="accessRequestsContainer">
+      <div class="empty-state">Loading access requests…</div>
     </div>
   </div>
 
@@ -241,10 +281,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- ══════════ SCRIPTS ══════════ -->
-<script src="../../assets/js/config.js"></script>
-<script src="../../assets/js/api.js"></script>
-<script src="../../assets/js/auth.js"></script>
-<script src="./dashboard.js"></script>
+<script>
+  // HC_V defined in <head> — reuse here for all scripts
+  ['../../assets/js/config.js','../../assets/js/api.js','../../assets/js/auth.js','./dashboard.js'].forEach(function(src){
+    document.write('<script defer src="'+src+'?v='+HC_V+'"><\/script>');
+  });
+</script>
 
 </body>
 </html>
