@@ -9,6 +9,57 @@
  */
 
 
+// ── Helpers ───────────────────────────────────────────────────
+
+function hc_isSafeRedirectUrl(url) {
+  try {
+    var parsed = new URL(url, window.location.origin);
+    return parsed.origin === window.location.origin;
+  } catch (_) {
+    return false;
+  }
+}
+
+function hc_isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+var _hcLoginAttempts = { count: 0, lockedUntil: 0 };
+
+function hc_checkRateLimit(errorEl) {
+  var now = Date.now();
+  if (_hcLoginAttempts.lockedUntil > now) {
+    var secs = Math.ceil((_hcLoginAttempts.lockedUntil - now) / 1000);
+    if (errorEl) {
+      errorEl.textContent = 'Too many attempts. Try again in ' + secs + ' seconds.';
+      errorEl.style.display = 'block';
+    }
+    return false;
+  }
+  return true;
+}
+
+function hc_recordFailedAttempt() {
+  _hcLoginAttempts.count++;
+  if (_hcLoginAttempts.count >= 5) {
+    var lockSeconds = _hcLoginAttempts.count >= 10 ? 60 : 30;
+    _hcLoginAttempts.lockedUntil = Date.now() + (lockSeconds * 1000);
+  }
+}
+
+function hc_resetAttempts() {
+  _hcLoginAttempts.count = 0;
+  _hcLoginAttempts.lockedUntil = 0;
+}
+
+function hc_getSigninRedirect(user) {
+  var role = ((user && user.role) || '').toUpperCase().replace(/_/g, '');
+  if (role === 'SUPERADMIN') return '/public/superadmin/signin.html';
+  if (user && user.organization_slug) return '/public/organization/signin.html?org=' + user.organization_slug;
+  return '/public/signin.html';
+}
+
+
 // ── Protect a page (redirect to login if not authed) ────────
 function hc_requireAuth() {
   const token = hc_getAccessToken();
@@ -28,6 +79,7 @@ function hc_redirectByRole(role, fallback) {
 
 // ── Logout ───────────────────────────────────────────────────
 async function hc_logout() {
+  const user = hc_getUser();
   const refresh = hc_getRefreshToken();
   try {
     if (refresh) {
@@ -37,7 +89,7 @@ async function hc_logout() {
     // Logout even if the API call fails
   }
   hc_clearTokens();
-  window.location.href = '/public/signin.html';
+  window.location.href = hc_getSigninRedirect(user);
 }
 
 
@@ -54,6 +106,8 @@ function hc_initSigninForm() {
     const btn   = document.getElementById('signinBtn');
     const error = document.getElementById('signinError');
 
+    if (!hc_checkRateLimit(error)) { btn.disabled = false; return; }
+
     btn.textContent   = 'Signing in...';
     btn.disabled      = true;
     error.textContent = '';
@@ -61,6 +115,14 @@ function hc_initSigninForm() {
     try {
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
+
+      if (!hc_isValidEmail(email)) {
+        error.textContent = 'Please enter a valid email address.';
+        error.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
 
       const res = await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGIN, {
         method: 'POST',
@@ -85,6 +147,7 @@ function hc_initSigninForm() {
         return;
       }
 
+      hc_resetAttempts();
       hc_saveTokens({
         access:  res.access,
         refresh: res.refresh,
@@ -94,6 +157,8 @@ function hc_initSigninForm() {
       hc_redirectByRole(role, '/public/patient/index.html');
 
     } catch (err) {
+      hc_recordFailedAttempt();
+
       // Parse error response for redirect info
       let errorMessage = 'Login failed. Please try again.';
       let redirectUrl = null;
@@ -123,22 +188,32 @@ function hc_initSigninForm() {
       const oldLink = error.parentElement.querySelector('.error-link');
       if (oldLink) oldLink.remove();
 
-      // If redirect URL provided, show link with countdown
-      if (redirectUrl) {
+      // If redirect URL provided, show safe link with countdown
+      if (redirectUrl && hc_isSafeRedirectUrl(redirectUrl)) {
         let countdown = 5;
         const linkDiv = document.createElement('div');
         linkDiv.className = 'error-link';
-        linkDiv.innerHTML =
-          '<a href="' + redirectUrl + '">Click here to go to the correct login page</a>' +
-          '<p style="margin-top:8px;font-size:13px;color:#6b7280;">' +
-          'Redirecting in <span class="redirect-countdown">' + countdown + '</span> seconds...</p>';
+
+        const anchor = document.createElement('a');
+        anchor.href = redirectUrl;
+        anchor.textContent = 'Click here to go to the correct login page';
+        linkDiv.appendChild(anchor);
+
+        const p = document.createElement('p');
+        p.style.cssText = 'margin-top:8px;font-size:13px;color:#6b7280;';
+        p.textContent = 'Redirecting in ';
+        const countdownSpan = document.createElement('span');
+        countdownSpan.className = 'redirect-countdown';
+        countdownSpan.textContent = countdown;
+        p.appendChild(countdownSpan);
+        p.appendChild(document.createTextNode(' seconds...'));
+        linkDiv.appendChild(p);
 
         error.parentElement.insertBefore(linkDiv, error.nextSibling);
 
-        const countdownEl = linkDiv.querySelector('.redirect-countdown');
         const interval = setInterval(function () {
           countdown--;
-          if (countdownEl) countdownEl.textContent = countdown;
+          countdownSpan.textContent = countdown;
           if (countdown <= 0) {
             clearInterval(interval);
             window.location.href = redirectUrl;
@@ -167,18 +242,31 @@ function hc_initOrgSigninForm(orgSlug) {
     const btn   = document.getElementById('signinBtn');
     const error = document.getElementById('signinError');
 
+    if (!hc_checkRateLimit(error)) { btn.disabled = false; return; }
+
     btn.textContent   = 'Signing in...';
     btn.disabled      = true;
     error.textContent = '';
 
     try {
+      const emailVal = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (emailVal.includes('@') && !hc_isValidEmail(emailVal)) {
+        error.textContent = 'Please enter a valid email address.';
+        error.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
+
       const loginEndpoint = '/auth/login/' + orgSlug + '/';
 
       const res = await publicApiRequest(loginEndpoint, {
         method: 'POST',
         body: JSON.stringify({
-          email:    document.getElementById('email').value.trim(),
-          password: document.getElementById('password').value,
+          email:    emailVal,
+          password: password,
         }),
       });
 
@@ -192,6 +280,7 @@ function hc_initOrgSigninForm(orgSlug) {
         return;
       }
 
+      hc_resetAttempts();
       hc_saveTokens({
         access:  res.access,
         refresh: res.refresh,
@@ -201,6 +290,8 @@ function hc_initOrgSigninForm(orgSlug) {
       hc_redirectByRole(res.user?.role, '/public/patient/index.html');
 
     } catch (err) {
+      hc_recordFailedAttempt();
+
       // Parse error response for redirect info
       let errorMessage = 'Login failed. Please try again.';
       let redirectUrl = null;
@@ -222,22 +313,32 @@ function hc_initOrgSigninForm(orgSlug) {
       const oldLink = error.parentElement.querySelector('.error-link');
       if (oldLink) oldLink.remove();
 
-      // If redirect URL provided, show link with countdown
-      if (redirectUrl) {
+      // If redirect URL provided, show safe link with countdown
+      if (redirectUrl && hc_isSafeRedirectUrl(redirectUrl)) {
         let countdown = 5;
         const linkDiv = document.createElement('div');
         linkDiv.className = 'error-link';
-        linkDiv.innerHTML =
-          '<a href="' + redirectUrl + '">Click here to go to the correct login page</a>' +
-          '<p style="margin-top:8px;font-size:13px;color:#6b7280;">' +
-          'Redirecting in <span class="redirect-countdown">' + countdown + '</span> seconds...</p>';
+
+        const anchor = document.createElement('a');
+        anchor.href = redirectUrl;
+        anchor.textContent = 'Click here to go to the correct login page';
+        linkDiv.appendChild(anchor);
+
+        const p = document.createElement('p');
+        p.style.cssText = 'margin-top:8px;font-size:13px;color:#6b7280;';
+        p.textContent = 'Redirecting in ';
+        const countdownSpan = document.createElement('span');
+        countdownSpan.className = 'redirect-countdown';
+        countdownSpan.textContent = countdown;
+        p.appendChild(countdownSpan);
+        p.appendChild(document.createTextNode(' seconds...'));
+        linkDiv.appendChild(p);
 
         error.parentElement.insertBefore(linkDiv, error.nextSibling);
 
-        const countdownEl = linkDiv.querySelector('.redirect-countdown');
         const interval = setInterval(function () {
           countdown--;
-          if (countdownEl) countdownEl.textContent = countdown;
+          countdownSpan.textContent = countdown;
           if (countdown <= 0) {
             clearInterval(interval);
             window.location.href = redirectUrl;
@@ -266,6 +367,8 @@ function hc_initAdminSigninForm() {
     const btn   = document.getElementById('signinBtn');
     const error = document.getElementById('signinError');
 
+    if (!hc_checkRateLimit(error)) { btn.disabled = false; return; }
+
     btn.textContent   = 'Signing in...';
     btn.disabled      = true;
     error.textContent = '';
@@ -274,20 +377,34 @@ function hc_initAdminSigninForm() {
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
+      if (!hc_isValidEmail(email)) {
+        error.textContent = 'Please enter a valid email address.';
+        error.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
+
       const res = await publicApiRequest(HC_CONFIG.ENDPOINTS.LOGIN_ADMIN, {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
 
+      hc_resetAttempts();
       hc_saveTokens({
         access:  res.access,
         refresh: res.refresh,
         user:    res.user,
       });
 
-      window.location.href = res.redirect_to || '/public/superadmin/index.html';
+      const dest = res.redirect_to;
+      window.location.href = (dest && hc_isSafeRedirectUrl(dest))
+        ? dest
+        : '/public/superadmin/index.html';
 
     } catch (err) {
+      hc_recordFailedAttempt();
+
       let errorMessage = 'Login failed. Please try again.';
 
       if (err.status >= 500) {
@@ -378,6 +495,14 @@ function hc_initForgotForm(redirectOnSuccess = './check-email.html') {
     btn.disabled      = true;
     btn.style.opacity = '0.75';
     error.textContent = '';
+
+    if (!hc_isValidEmail(email)) {
+      error.textContent   = 'Please enter a valid email address.';
+      btn.textContent     = 'Reset Password';
+      btn.disabled        = false;
+      btn.style.opacity   = '1';
+      return;
+    }
 
     try {
       await publicApiRequest(HC_CONFIG.ENDPOINTS.FORGOT_PW, {
@@ -685,8 +810,9 @@ function hc_initChangePasswordForm() {
       if (errorEl) errorEl.textContent = 'Please fill in both fields.';
       return;
     }
-    if (newPw.length < 8) {
-      if (errorEl) errorEl.textContent = 'New password must be at least 8 characters.';
+    var pwOk = newPw.length >= 8 && /[A-Z]/.test(newPw) && /[0-9]/.test(newPw) && /[^A-Za-z0-9]/.test(newPw);
+    if (!pwOk) {
+      if (errorEl) errorEl.textContent = 'Password must be at least 8 characters with an uppercase letter, a number, and a special character.';
       return;
     }
 

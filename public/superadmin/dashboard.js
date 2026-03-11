@@ -1112,7 +1112,7 @@ async function hc_logoutAdmin() {
     }
   } catch {}
   try { if (typeof hc_clearTokens==='function') hc_clearTokens(); } catch {}
-  window.location.href='/public/signin.html';
+  window.location.href='/public/superadmin/signin.html';
 }
 
 

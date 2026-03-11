@@ -3,14 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="description" content="Sign in to HealthClouda - Secure healthcare management portal">
   <title>HealthClouda | Sign In</title>
+  <link rel="icon" type="image/png" href="../assets/images/HealthClouda-icon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
   <!-- Styles from assets/ -->
   <link rel="stylesheet" href="../assets/css/style.css">
-  <link rel="stylesheet" href="../assets/css/signin.css">
+  <script>var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+  document.write('<link rel="stylesheet" href="../assets/css/signin.css?v=' + HC_V + '">');</script>
 </head>
 <body class="signin-page">
 
@@ -40,7 +45,7 @@
                 <polyline points="22,6 12,12 2,6"/>
               </svg>
             </span>
-            <input type="text" id="email" name="email" placeholder="Enter your email" required autocomplete="email">
+            <input type="email" id="email" name="email" placeholder="Enter your email" required autocomplete="email">
           </div>
         </div>
 
@@ -86,10 +91,12 @@
 
   </div>
 
-  <!-- JS load order: config → api → auth  (cache-bust with ?v=3) -->
-  <script src="../assets/js/config.js?v=3"></script>
-  <script src="../assets/js/api.js?v=3"></script>
-  <script src="../assets/js/auth.js?v=3"></script>
+  <!-- JS load order: config → api → auth -->
+  <script>
+    ['../assets/js/config.js','../assets/js/api.js','../assets/js/auth.js'].forEach(function(src){
+      document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
+    });
+  </script>
   <script>
     hc_makePasswordToggle('togglePw', 'eyeIcon', 'password');
     hc_initSigninForm();
