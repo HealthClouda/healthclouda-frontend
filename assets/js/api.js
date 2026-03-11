@@ -60,8 +60,16 @@ async function hc_refreshAccessToken() {
 
     if (!res.ok) {
       // Refresh token is also expired → force logout
+      var user = hc_getUser();
       hc_clearTokens();
-      window.location.href = '/public/signin.html';
+      var role = ((user && user.role) || '').toUpperCase().replace(/_/g, '');
+      if (role === 'SUPERADMIN') {
+        window.location.href = '/public/superadmin/signin.html';
+      } else if (user && user.organization_slug) {
+        window.location.href = '/public/organization/signin.html?org=' + user.organization_slug;
+      } else {
+        window.location.href = '/public/signin.html';
+      }
       throw new Error('Session expired. Please log in again.');
     }
 
@@ -221,3 +229,33 @@ async function publicApiRequest(endpoint, options = {}) {
 
   return data;
 }
+
+
+// ── Session inactivity timeout ──────────────────────────────
+
+(function () {
+  // Only run on authenticated pages
+  if (!hc_getAccessToken()) return;
+
+  var _lastActivity = Date.now();
+  var EVENTS = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+
+  function resetTimer() { _lastActivity = Date.now(); }
+  EVENTS.forEach(function (evt) { document.addEventListener(evt, resetTimer, { passive: true }); });
+
+  setInterval(function () {
+    if (Date.now() - _lastActivity > HC_CONFIG.SESSION_TIMEOUT_MS) {
+      EVENTS.forEach(function (evt) { document.removeEventListener(evt, resetTimer); });
+      var user = hc_getUser();
+      hc_clearTokens();
+      var role = ((user && user.role) || '').toUpperCase().replace(/_/g, '');
+      if (role === 'SUPERADMIN') {
+        window.location.href = '/public/superadmin/signin.html';
+      } else if (user && user.organization_slug) {
+        window.location.href = '/public/organization/signin.html?org=' + user.organization_slug;
+      } else {
+        window.location.href = '/public/signin.html';
+      }
+    }
+  }, 60000);
+})();
