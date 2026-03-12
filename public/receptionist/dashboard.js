@@ -13,7 +13,17 @@
   try { token = hc_getAccessToken(); } catch(e) {}
   try { user  = hc_getUser();        } catch(e) {}
 
-  if (token && user && typeof hc_redirectByRole === 'function') {
+  // Redirect to signin if not authenticated
+  if (!token) {
+    var slug = '';
+    try { slug = user && user.organization_slug; } catch(e) {}
+    window.location.href = slug
+      ? '/public/organization/signin.html?org=' + slug
+      : '/public/signin.html';
+    return;
+  }
+
+  if (user && typeof hc_redirectByRole === 'function') {
     const role = (user.role || '').toLowerCase().replace(/_/g, '');
     if (role && role !== 'receptionist' && role !== 'superadmin') {
       hc_redirectByRole(user.role);
@@ -99,6 +109,7 @@ function loadPage(page) {
     case 'referrals':      loadReferrals();       break;
     case 'beds':           loadEmergencyBeds();   break;
     case 'access':         loadAccessRequests();  break;
+    case 'messages':       loadMessages();        break;
     case 'notifications':  loadNotifications();   break;
   }
 }
@@ -236,84 +247,29 @@ function closeModal(id) {
 
 
 /* ══════════════════════════════════════════
-   4. DEMO DATA (offline dev)
+   4. ERROR STATE HELPER
 ══════════════════════════════════════════ */
-const DEMO_STATS = {
-  today_patients: 24, waiting_queue: 6, pending_referrals: 3,
-  on_duty_doctors: 5, bed_occupancy: '18/30', active_episodes: 12, awaiting_assignment: 4
-};
-
-const DEMO_PATIENTS = [
-  { id: 1, healthclouda_id: 'HC-100234', first_name: 'Adaeze', last_name: 'Okafor', email: 'adaeze@gmail.com', phone: '+2348012345678', gender: 'Female', has_visited_org: true, has_pending_access_request: false, has_approved_access: true },
-  { id: 2, healthclouda_id: 'HC-100235', first_name: 'Emeka', last_name: 'Udo', email: 'emeka@gmail.com', phone: '+2348098765432', gender: 'Male', has_visited_org: false, has_pending_access_request: true, has_approved_access: false },
-  { id: 3, healthclouda_id: 'HC-100236', first_name: 'Fatima', last_name: 'Ibrahim', email: 'fatima@yahoo.com', phone: '+2348055512345', gender: 'Female', has_visited_org: false, has_pending_access_request: false, has_approved_access: false },
-];
-
-const DEMO_QUEUE = [
-  { id: 1, patient_name: 'Adaeze Okafor', patient_hc_id: 'HC-100234', doctor_name: 'Dr. Amadi', status: 'WAITING', checked_in_at: '2026-03-03T08:30:00Z' },
-  { id: 2, patient_name: 'Emeka Udo', patient_hc_id: 'HC-100235', doctor_name: 'Dr. Bello', status: 'IN_PROGRESS', checked_in_at: '2026-03-03T08:15:00Z' },
-  { id: 3, patient_name: 'Ngozi Eze', patient_hc_id: 'HC-100237', doctor_name: 'Dr. Amadi', status: 'COMPLETED', checked_in_at: '2026-03-03T07:45:00Z' },
-];
-
-const DEMO_APPOINTMENTS = [
-  { id: 1, patient_name: 'Adaeze Okafor', patient_hc_id: 'HC-100234', doctor_name: 'Dr. Amadi', date: '2026-03-04', time: '09:00', duration: 30, reason: 'Follow-up checkup', status: 'SCHEDULED' },
-  { id: 2, patient_name: 'Chidi Nwosu', patient_hc_id: 'HC-100240', doctor_name: 'Dr. Bello', date: '2026-03-04', time: '10:30', duration: 45, reason: 'New consultation', status: 'SCHEDULED' },
-];
-
-const DEMO_REFERRALS = [
-  { id: 1, patient_name: 'Kemi Adebayo', from_organization: 'Lagos General Hospital', urgency: 'HIGH', reason: 'Requires specialist cardiology consultation.', status: 'PENDING', created_at: '2026-03-02T14:00:00Z' },
-  { id: 2, patient_name: 'Yusuf Musa', from_organization: 'Reddington Hospital', urgency: 'MEDIUM', reason: 'Orthopaedic follow-up after fracture.', status: 'ACCEPTED', created_at: '2026-02-28T10:00:00Z' },
-];
-
-const DEMO_BEDS = [
-  {
-    ward_name: 'Emergency Ward A', total_beds: 12, occupied_beds: 8,
-    beds: [
-      { number: 'A-01', status: 'occupied', patient_name: 'Ade Bola' },
-      { number: 'A-02', status: 'available' },
-      { number: 'A-03', status: 'occupied', patient_name: 'Kemi A.' },
-      { number: 'A-04', status: 'occupied', patient_name: 'Emeka U.' },
-      { number: 'A-05', status: 'available' },
-      { number: 'A-06', status: 'occupied', patient_name: 'Ngozi E.' },
-      { number: 'A-07', status: 'occupied', patient_name: 'Fatima I.' },
-      { number: 'A-08', status: 'available' },
-      { number: 'A-09', status: 'occupied', patient_name: 'Yusuf M.' },
-      { number: 'A-10', status: 'occupied', patient_name: 'Chidi N.' },
-      { number: 'A-11', status: 'available' },
-      { number: 'A-12', status: 'occupied', patient_name: 'Bola T.' },
-    ]
-  },
-  {
-    ward_name: 'Emergency Ward B', total_beds: 8, occupied_beds: 3,
-    beds: [
-      { number: 'B-01', status: 'occupied', patient_name: 'Aisha K.' },
-      { number: 'B-02', status: 'available' },
-      { number: 'B-03', status: 'available' },
-      { number: 'B-04', status: 'occupied', patient_name: 'David O.' },
-      { number: 'B-05', status: 'available' },
-      { number: 'B-06', status: 'available' },
-      { number: 'B-07', status: 'available' },
-      { number: 'B-08', status: 'occupied', patient_name: 'Mary A.' },
-    ]
+function renderError(containerId, message, retryFn) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const isTable = el.tagName === 'TBODY';
+  if (isTable) {
+    const cols = el.closest('table')?.querySelectorAll('thead th').length || 6;
+    el.innerHTML = '<tr><td colspan="' + cols + '" class="empty-state">' +
+      '<h3>Something went wrong</h3>' +
+      '<p>' + escapeHtml(message) + '</p>' +
+      (retryFn ? '<button class="btn btn-sm btn-primary" style="margin-top:0.5rem">Retry</button>' : '') +
+    '</td></tr>';
+    if (retryFn) el.querySelector('button').addEventListener('click', retryFn);
+  } else {
+    el.innerHTML = '<div class="empty-state">' +
+      '<h3>Something went wrong</h3>' +
+      '<p>' + escapeHtml(message) + '</p>' +
+      (retryFn ? '<button class="btn btn-sm btn-primary" style="margin-top:0.5rem">Retry</button>' : '') +
+    '</div>';
+    if (retryFn) el.querySelector('button').addEventListener('click', retryFn);
   }
-];
-
-const DEMO_ACCESS_REQUESTS = [
-  { id: 1, patient_name: 'Emeka Udo', patient_hc_id: 'HC-100235', requested_by: 'Nurse Aisha', reason: 'Patient scheduled for lab tests', status: 'PENDING', created_at: '2026-03-03T09:00:00Z', responded_at: null },
-  { id: 2, patient_name: 'Fatima Ibrahim', patient_hc_id: 'HC-100236', requested_by: 'Dr. Amadi', reason: 'Consultation referral', status: 'APPROVED', created_at: '2026-03-02T11:00:00Z', responded_at: '2026-03-02T14:00:00Z' },
-];
-
-const DEMO_DOCTORS = [
-  { id: 1, name: 'Dr. Chinedu Amadi', specialty: 'General Practice' },
-  { id: 2, name: 'Dr. Aisha Bello', specialty: 'Cardiology' },
-  { id: 3, name: 'Dr. Femi Ogundimu', specialty: 'Orthopaedics' },
-];
-
-const DEMO_NOTIFICATIONS = [
-  { id: 1, notification_type: 'REFERRAL_ALERT', title: 'New Referral Received', message: 'A high-urgency referral for Kemi Adebayo from Lagos General Hospital.', is_read: false, created_at: '2026-03-03T08:00:00Z' },
-  { id: 2, notification_type: 'PATIENT_CHECKED_IN', title: 'Patient Checked In', message: 'Adaeze Okafor has checked in and is waiting in the queue.', is_read: false, created_at: '2026-03-03T08:30:00Z' },
-  { id: 3, notification_type: 'APPOINTMENT_BOOKED', title: 'Appointment Booked', message: 'New appointment for Chidi Nwosu with Dr. Bello on 4 Mar 2026.', is_read: true, created_at: '2026-03-02T16:00:00Z' },
-];
+}
 
 
 /* ══════════════════════════════════════════
@@ -327,7 +283,9 @@ async function loadDashboard() {
   try {
     stats = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_STATS);
   } catch {
-    stats = DEMO_STATS;
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—'; });
+    showToast('Could not load dashboard stats. Please try again.', 'error');
+    return;
   }
 
   document.getElementById('statTodayPatients').textContent     = stats.today_patients ?? '—';
@@ -376,9 +334,8 @@ async function searchPatients(query) {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_PATIENT_SEARCH + '?query=' + encodeURIComponent(query));
     results = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    results = DEMO_PATIENTS.filter(p =>
-      (p.first_name + ' ' + p.last_name + ' ' + p.email + ' ' + p.healthclouda_id).toLowerCase().includes(query.toLowerCase())
-    );
+    container.innerHTML = '<div class="empty-state"><h3>Search failed</h3><p>Could not reach the server. Please try again.</p></div>';
+    return;
   }
 
   if (results.length === 0) {
@@ -386,32 +343,26 @@ async function searchPatients(query) {
     return;
   }
 
+  // Store results for info panel access
+  _lastSearchResults = results;
+
   container.innerHTML = '<div class="patient-results">' +
-    results.map(p => {
+    results.map((p, idx) => {
       const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email;
       const hcId = p.healthclouda_id || '—';
 
-      // Determine status + available actions
       let statusHtml = '';
-      let actionsHtml = '';
-
-      const safeName = escapeHtml(name).replace(/'/g, '&#39;');
-
       if (p.has_visited_org) {
         statusHtml = '<span class="badge badge-success">Existing Patient</span>';
-        actionsHtml = '<button class="btn btn-sm btn-primary" onclick="openAssignDoctorPanel(' + p.id + ',\'' + safeName + '\')">Assign Doctor</button>';
       } else if (p.has_pending_access_request) {
         statusHtml = '<span class="badge badge-warning">Pending Consent</span>';
-        actionsHtml = '<button class="btn btn-sm btn-ghost" disabled>Awaiting Consent</button>';
       } else if (p.has_approved_access) {
         statusHtml = '<span class="badge badge-info">Approved</span>';
-        actionsHtml = '<button class="btn btn-sm btn-primary" onclick="openAssignDoctorPanel(' + p.id + ',\'' + safeName + '\')">Assign Doctor</button>';
       } else {
         statusHtml = '<span class="badge badge-neutral">New to Org</span>';
-        actionsHtml = '<button class="btn btn-sm btn-warning" onclick="openAccessRequestModal(' + p.id + ',\'' + safeName + '\')">Request Access</button>';
       }
 
-      return '<div class="patient-card">' +
+      return '<div class="patient-card" data-patient-idx="' + idx + '" style="cursor:pointer">' +
         '<div class="patient-card-info">' +
           '<div class="patient-card-name">' + escapeHtml(name) + ' ' + statusHtml + '</div>' +
           '<div class="patient-card-meta">' +
@@ -419,10 +370,115 @@ async function searchPatients(query) {
             (p.gender ? ' &bull; ' + escapeHtml(p.gender) : '') +
           '</div>' +
         '</div>' +
-        '<div class="patient-card-actions">' + actionsHtml + '</div>' +
+        '<div class="patient-card-actions">' +
+          '<span style="color:var(--text-soft);font-size:0.78rem">View details &rsaquo;</span>' +
+        '</div>' +
       '</div>';
     }).join('') +
   '</div>';
+
+  // Attach click listeners via delegation
+  container.querySelector('.patient-results').addEventListener('click', function(e) {
+    const card = e.target.closest('[data-patient-idx]');
+    if (!card) return;
+    const idx = parseInt(card.dataset.patientIdx, 10);
+    if (_lastSearchResults[idx]) openPatientInfoPanel(_lastSearchResults[idx]);
+  });
+}
+
+let _lastSearchResults = [];
+
+/* ── Patient Info Panel ── */
+function openPatientInfoPanel(patient) {
+  const name = [patient.first_name, patient.last_name].filter(Boolean).join(' ') || patient.email;
+  document.getElementById('patientInfoName').textContent = name;
+
+  const body = document.getElementById('patientInfoBody');
+  const hcId = patient.healthclouda_id || '—';
+
+  // Status badge
+  let statusHtml = '';
+  if (patient.has_visited_org) {
+    statusHtml = '<span class="badge badge-success">Existing Patient</span>';
+  } else if (patient.has_pending_access_request) {
+    statusHtml = '<span class="badge badge-warning">Pending Consent</span>';
+  } else if (patient.has_approved_access) {
+    statusHtml = '<span class="badge badge-info">Approved</span>';
+  } else {
+    statusHtml = '<span class="badge badge-neutral">New to Org</span>';
+  }
+
+  // Info rows
+  let html = '<div style="margin-bottom:1.5rem">' +
+    '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">' + statusHtml + '</div>' +
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.4rem 1rem;font-size:0.88rem">' +
+      '<span style="color:var(--text-soft)">HC ID</span><span class="td-mono">' + escapeHtml(hcId) + '</span>' +
+      '<span style="color:var(--text-soft)">Email</span><span>' + escapeHtml(patient.email || '—') + '</span>' +
+      '<span style="color:var(--text-soft)">Phone</span><span>' + escapeHtml(patient.phone || '—') + '</span>' +
+      '<span style="color:var(--text-soft)">Gender</span><span>' + escapeHtml(patient.gender || '—') + '</span>' +
+    '</div>' +
+  '</div>';
+
+  // Action buttons based on access status
+  html += '<div style="display:flex;flex-direction:column;gap:0.5rem">';
+
+  if (patient.has_visited_org || patient.has_approved_access) {
+    // Known patient — offer Book Appointment and Send to Nurse
+    html += '<button class="btn btn-primary" id="patientInfoBookAppt">Book Appointment</button>';
+    html += '<button class="btn btn-outline" id="patientInfoSendNurse">Send to Nurse (Vitals)</button>';
+  } else if (patient.has_pending_access_request) {
+    // Waiting on consent
+    html += '<button class="btn btn-ghost" disabled>Awaiting Patient Consent</button>';
+  } else {
+    // New patient to org — request access
+    html += '<button class="btn btn-warning" id="patientInfoRequestAccess">Request Access</button>';
+  }
+
+  html += '</div>';
+  body.innerHTML = html;
+
+  // Wire up action buttons
+  const bookBtn = document.getElementById('patientInfoBookAppt');
+  const nurseBtn = document.getElementById('patientInfoSendNurse');
+  const accessBtn = document.getElementById('patientInfoRequestAccess');
+
+  if (bookBtn) {
+    bookBtn.addEventListener('click', function() {
+      closeAllPanels();
+      openBookAppointmentPanel(patient.id, name);
+    });
+  }
+  if (nurseBtn) {
+    nurseBtn.addEventListener('click', function() {
+      closeAllPanels();
+      sendToNurse(patient.id, name);
+    });
+  }
+  if (accessBtn) {
+    accessBtn.addEventListener('click', function() {
+      closeAllPanels();
+      openAccessRequestModal(patient.id, name);
+    });
+  }
+
+  openPanel('patientInfoPanel');
+}
+
+/* ── Send to Nurse (vitals) ── */
+async function sendToNurse(patientId, patientName) {
+  // TODO: Backend endpoint needed — POST /receptionist/send-to-nurse/
+  if (!HC_CONFIG.ENDPOINTS.REC_SEND_TO_NURSE) {
+    showToast('Send to Nurse is not yet available. Backend endpoint required.', 'error');
+    return;
+  }
+  try {
+    await safeApiPost(HC_CONFIG.ENDPOINTS.REC_SEND_TO_NURSE, { patient_id: patientId });
+    showToast(escapeHtml(patientName) + ' sent to nurse for vitals.', 'success');
+  } catch (err) {
+    let msg = 'Failed to send patient to nurse.';
+    if (err.response) msg = err.response.error || err.response.detail || msg;
+    showToast(msg, 'error');
+  }
 }
 
 /* ── Register Patient ── */
@@ -439,6 +495,17 @@ async function submitRegisterPatient(e) {
 
   const body = {};
   new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+
+  // Validate email format
+  if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
+    showToast('Please enter a valid email address.', 'error');
+    return;
+  }
+  // Validate phone format (international, at least 10 digits)
+  if (body.phone && !/^\+?[\d\s\-()]{10,}$/.test(body.phone)) {
+    showToast('Please enter a valid phone number.', 'error');
+    return;
+  }
 
   setButtonLoading(btn, true);
   try {
@@ -505,7 +572,8 @@ async function fetchDoctors() {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_DOCTORS_ON_DUTY);
     _doctorsCache = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    _doctorsCache = DEMO_DOCTORS;
+    _doctorsCache = [];
+    showToast('Could not load doctors list.', 'error');
   }
   return _doctorsCache;
 }
@@ -573,50 +641,46 @@ async function loadQueue() {
     const data = await safeApiGet(url);
     items = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    items = DEMO_QUEUE;
-    if (status) items = items.filter(q => q.status === status);
+    renderError('queueTableBody', 'Could not load queue. Please try again.', loadQueue);
+    return;
   }
 
   document.getElementById('queueCount').textContent = items.length + ' patient' + (items.length !== 1 ? 's' : '');
 
+  // Doctor load summary
+  const doctorLoad = {};
+  items.forEach(function(q) {
+    const doc = q.doctor_name || 'Unassigned';
+    if (!doctorLoad[doc]) doctorLoad[doc] = 0;
+    if (q.status === 'WAITING' || q.status === 'IN_PROGRESS') doctorLoad[doc]++;
+  });
+  const loadEl = document.getElementById('doctorLoadSummary');
+  if (loadEl) {
+    const entries = Object.entries(doctorLoad);
+    if (entries.length > 0) {
+      loadEl.innerHTML = entries.map(function(e) {
+        return '<span class="badge badge-neutral" style="margin-right:0.4rem">' + escapeHtml(e[0]) + ': ' + e[1] + '</span>';
+      }).join('');
+    } else {
+      loadEl.innerHTML = '';
+    }
+  }
+
   if (items.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No patients in queue.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No patients in queue.</td></tr>';
     return;
   }
 
   tbody.innerHTML = items.map((q, i) => {
-    let actions = '';
-    if (q.status === 'WAITING') {
-      actions = '<button class="row-btn success" onclick="updateCheckIn(' + q.id + ',\'IN_PROGRESS\')">Call In</button>' +
-                '<button class="row-btn danger" onclick="updateCheckIn(' + q.id + ',\'NO_SHOW\')">No-Show</button>';
-    } else if (q.status === 'IN_PROGRESS') {
-      actions = '<button class="row-btn success" onclick="updateCheckIn(' + q.id + ',\'COMPLETED\')">Complete</button>';
-    }
-
     return '<tr>' +
       '<td class="td-mono">' + (i + 1) + '</td>' +
       '<td>' + escapeHtml(q.patient_name) + '<br><span class="td-mono">' + escapeHtml(q.patient_hc_id || '') + '</span></td>' +
       '<td>' + escapeHtml(q.doctor_name || '—') + '</td>' +
       '<td>' + statusBadge(q.status) + '</td>' +
       '<td class="td-date">' + formatRelativeTime(q.checked_in_at) + '</td>' +
-      '<td><div class="row-actions">' + actions + '</div></td>' +
     '</tr>';
   }).join('');
 }
-
-async function updateCheckIn(id, newStatus) {
-  try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.REC_CHECK_INS + id + '/', { status: newStatus });
-    showToast('Queue updated!', 'success');
-    _loaded.delete('queue');
-    loadQueue();
-  } catch (err) {
-    let msg = 'Failed to update queue.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
-    showToast(msg, 'error');
-  }
-}
-
 
 /* ══════════════════════════════════════════
    8. APPOINTMENTS PAGE
@@ -640,7 +704,8 @@ async function loadAppointments() {
     const data = await safeApiGet(url);
     items = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    items = DEMO_APPOINTMENTS;
+    renderError('apptTableBody', 'Could not load appointments. Please try again.', loadAppointments);
+    return;
   }
 
   document.getElementById('apptCount').textContent = items.length + ' appointment' + (items.length !== 1 ? 's' : '');
@@ -653,9 +718,9 @@ async function loadAppointments() {
   tbody.innerHTML = items.map(a => {
     let actions = '';
     if (a.status === 'SCHEDULED') {
-      actions = '<button class="row-btn success" onclick="updateAppointment(' + a.id + ',\'COMPLETED\')">Complete</button>' +
-                '<button class="row-btn danger" onclick="updateAppointment(' + a.id + ',\'CANCELLED\')">Cancel</button>' +
-                '<button class="row-btn warn" onclick="updateAppointment(' + a.id + ',\'NO_SHOW\')">No-Show</button>';
+      actions = '<button class="row-btn success" data-appt-id="' + a.id + '" data-appt-action="COMPLETED">Complete</button>' +
+                '<button class="row-btn danger" data-appt-id="' + a.id + '" data-appt-action="CANCELLED">Cancel</button>' +
+                '<button class="row-btn warn" data-appt-id="' + a.id + '" data-appt-action="NO_SHOW">No-Show</button>';
     }
 
     const dateTime = a.date ? escapeHtml(a.date) + (a.time ? ' ' + escapeHtml(a.time) : '') : formatDateTime(a.scheduled_at);
@@ -669,6 +734,17 @@ async function loadAppointments() {
       '<td><div class="row-actions">' + actions + '</div></td>' +
     '</tr>';
   }).join('');
+
+  // Delegated click handler for appointment actions
+  tbody.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-appt-action]');
+    if (!btn) return;
+    const id = btn.dataset.apptId;
+    const action = btn.dataset.apptAction;
+    if (action === 'CANCELLED' && !confirm('Are you sure you want to cancel this appointment?')) return;
+    if (action === 'NO_SHOW' && !confirm('Mark this appointment as no-show?')) return;
+    updateAppointment(id, action);
+  });
 }
 
 async function updateAppointment(id, newStatus) {
@@ -685,8 +761,18 @@ async function updateAppointment(id, newStatus) {
 }
 
 /* ── Book Appointment ── */
-async function openBookAppointmentPanel() {
+async function openBookAppointmentPanel(patientId, patientName) {
   document.getElementById('bookApptForm')?.reset();
+  // Pre-fill patient if passed from info panel
+  const pidInput = document.getElementById('apptPatientId');
+  const pnameEl = document.getElementById('apptPatientLabel');
+  if (patientId && pidInput) pidInput.value = patientId;
+  if (patientName && pnameEl) {
+    pnameEl.textContent = patientName;
+    pnameEl.style.display = 'block';
+  } else if (pnameEl) {
+    pnameEl.style.display = 'none';
+  }
   openPanel('bookApptPanel');
 
   const select = document.getElementById('apptDoctorSelect');
@@ -709,6 +795,15 @@ async function submitBookAppointment(e) {
 
   const body = {};
   new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+
+  // Validate date is not in the past
+  if (body.date) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (body.date < today) {
+      showToast('Appointment date cannot be in the past.', 'error');
+      return;
+    }
+  }
 
   setButtonLoading(btn, true);
   try {
@@ -752,8 +847,8 @@ async function loadReferrals() {
     const data = await safeApiGet(url);
     items = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    items = DEMO_REFERRALS;
-    if (status) items = items.filter(r => r.status === status);
+    renderError('referralsContainer', 'Could not load referrals. Please try again.', loadReferrals);
+    return;
   }
 
   if (items.length === 0) {
@@ -768,7 +863,7 @@ async function loadReferrals() {
       let actions = '';
       if (r.status === 'PENDING') {
         actions = '<div class="referral-actions">' +
-          '<button class="btn btn-sm btn-primary" onclick="openNotifyDoctorsModal(' + r.id + ')">Notify Doctors</button>' +
+          '<button class="btn btn-sm btn-primary" data-referral-notify="' + r.id + '">Notify Staff</button>' +
         '</div>';
       }
 
@@ -784,29 +879,40 @@ async function loadReferrals() {
       '</div>';
     }).join('') +
   '</div>';
+
+  // Delegated click handler for referral notify buttons
+  container.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-referral-notify]');
+    if (!btn) return;
+    openNotifyDoctorsModal(btn.dataset.referralNotify);
+  });
 }
 
-/* ── Notify Doctors Modal ── */
+/* ── Notify Staff Modal ── */
 async function openNotifyDoctorsModal(referralId) {
   document.getElementById('notifyReferralId').value = referralId;
   document.getElementById('notifyDoctorsMessage').value = '';
 
-  const listEl = document.getElementById('notifyDoctorsList');
-  listEl.innerHTML = 'Loading doctors…';
+  const doctorListEl = document.getElementById('notifyDoctorsList');
+  const nurseListEl = document.getElementById('notifyNursesList');
+  doctorListEl.innerHTML = 'Loading doctors…';
+  nurseListEl.innerHTML = 'Loading nurses…';
   openModal('notifyDoctorsModal');
 
   const doctors = await fetchDoctors();
   if (doctors.length === 0) {
-    listEl.innerHTML = '<div class="empty-state">No doctors on duty.</div>';
-    return;
+    doctorListEl.innerHTML = '<div style="font-size:0.85rem;color:var(--text-soft)">No doctors on duty.</div>';
+  } else {
+    doctorListEl.innerHTML = doctors.map(d =>
+      '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;font-size:0.88rem;cursor:pointer">' +
+        '<input type="checkbox" name="doctor_ids" value="' + d.id + '">' +
+        escapeHtml(d.name) + (d.specialty ? ' <span style="color:var(--text-soft);font-size:0.78rem">(' + escapeHtml(d.specialty) + ')</span>' : '') +
+      '</label>'
+    ).join('');
   }
 
-  listEl.innerHTML = doctors.map(d =>
-    '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0;font-size:0.88rem;cursor:pointer">' +
-      '<input type="checkbox" name="doctor_ids" value="' + d.id + '">' +
-      escapeHtml(d.name) + (d.specialty ? ' <span style="color:var(--text-soft);font-size:0.78rem">(' + escapeHtml(d.specialty) + ')</span>' : '') +
-    '</label>'
-  ).join('');
+  // TODO: Backend — need a nurses-on-duty endpoint; for now show placeholder
+  nurseListEl.innerHTML = '<div style="font-size:0.85rem;color:var(--text-soft)">Nurse notifications coming soon (backend needed).</div>';
 }
 
 async function submitNotifyDoctors() {
@@ -851,7 +957,8 @@ async function loadEmergencyBeds() {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_EMERGENCY_BEDS);
     wards = Array.isArray(data) ? data : (data.wards || data.results || []);
   } catch {
-    wards = DEMO_BEDS;
+    renderError('bedsContainer', 'Could not load bed data. Please try again.', loadEmergencyBeds);
+    return;
   }
 
   if (wards.length === 0) {
@@ -910,8 +1017,8 @@ async function loadAccessRequests() {
     const data = await safeApiGet(url);
     items = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    items = DEMO_ACCESS_REQUESTS;
-    if (status) items = items.filter(a => a.status === status);
+    renderError('accessTableBody', 'Could not load access requests. Please try again.', loadAccessRequests);
+    return;
   }
 
   document.getElementById('accessCount').textContent = items.length + ' request' + (items.length !== 1 ? 's' : '');
@@ -949,7 +1056,8 @@ async function loadNotifications() {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS);
     _notifsCache = Array.isArray(data) ? data : (data.results || []);
   } catch {
-    _notifsCache = DEMO_NOTIFICATIONS;
+    renderError('notificationsContainer', 'Could not load notifications. Please try again.', loadNotifications);
+    return;
   }
 
   renderNotifications();
@@ -968,7 +1076,7 @@ function renderNotifications() {
       const typeClass = (n.notification_type || '').toLowerCase().replace(/_/g, '-');
       const icon = notifIcon(n.notification_type);
       const unread = !n.is_read ? ' unread' : '';
-      return '<div class="notif-item' + unread + '" onclick="markNotificationRead(' + n.id + ')">' +
+      return '<div class="notif-item' + unread + '" data-notif-id="' + n.id + '" style="cursor:pointer">' +
         '<div class="notif-icon ' + typeClass + '">' + icon + '</div>' +
         '<div class="notif-body">' +
           '<div class="notif-title">' + escapeHtml(n.title) + '</div>' +
@@ -979,6 +1087,13 @@ function renderNotifications() {
       '</div>';
     }).join('') +
   '</div>';
+
+  // Delegated click for notification items
+  container.querySelector('.notif-list-page')?.addEventListener('click', function(e) {
+    const item = e.target.closest('[data-notif-id]');
+    if (!item) return;
+    markNotificationRead(parseInt(item.dataset.notifId, 10));
+  });
 }
 
 function notifIcon(type) {
@@ -1053,11 +1168,173 @@ refreshUnreadCount();
 
 
 /* ══════════════════════════════════════════
-   14. LOGOUT
+   14. MESSAGES PAGE
+══════════════════════════════════════════ */
+async function loadMessages() {
+  const container = document.getElementById('messagesContainer');
+  if (!container) return;
+  container.innerHTML = '<div class="notif-list-page">' +
+    Array(3).fill('<div class="notif-item" style="pointer-events:none"><div style="flex:1">' + shimmerBlock() + '</div></div>').join('') +
+  '</div>';
+
+  const filter = document.getElementById('msgFilter')?.value || 'inbox';
+  const url = HC_CONFIG.ENDPOINTS.REC_MESSAGES + '?folder=' + filter;
+
+  let items;
+  try {
+    const data = await safeApiGet(url);
+    items = Array.isArray(data) ? data : (data.results || []);
+  } catch {
+    renderError('messagesContainer', 'Could not load messages. Please try again.', loadMessages);
+    return;
+  }
+
+  document.getElementById('msgCount').textContent = items.length + ' message' + (items.length !== 1 ? 's' : '');
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><h3>No messages</h3><p>' +
+      (filter === 'inbox' ? 'Your inbox is empty.' : 'You haven\'t sent any messages yet.') +
+    '</p></div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="notif-list-page">' +
+    items.map(function(m) {
+      const unread = !m.is_read ? ' unread' : '';
+      const org = filter === 'inbox'
+        ? escapeHtml(m.from_organization || m.from_org_name || 'Unknown')
+        : escapeHtml(m.to_organization || m.to_org_name || 'Unknown');
+      const typeIcon = m.message_type === 'EMERGENCY' ? '<span class="badge badge-danger" style="font-size:0.7rem;margin-left:0.4rem">URGENT</span>' : '';
+
+      return '<div class="notif-item' + unread + '" data-msg-id="' + m.id + '" style="cursor:pointer">' +
+        '<div class="notif-body">' +
+          '<div class="notif-title">' + escapeHtml(m.subject || '(No subject)') + typeIcon + '</div>' +
+          '<div class="notif-message">' + (filter === 'inbox' ? 'From: ' : 'To: ') + org + '</div>' +
+          '<div class="notif-meta"><span>' + formatRelativeTime(m.created_at) + '</span></div>' +
+        '</div>' +
+        (!m.is_read ? '<div class="notif-dot"></div>' : '') +
+      '</div>';
+    }).join('') +
+  '</div>';
+
+  // Click handler via delegation
+  container.querySelector('.notif-list-page').addEventListener('click', function(e) {
+    const item = e.target.closest('[data-msg-id]');
+    if (!item) return;
+    openMessageDetail(item.dataset.msgId);
+  });
+}
+
+async function openMessageDetail(messageId) {
+  document.getElementById('msgDetailSubject').textContent = 'Loading…';
+  document.getElementById('msgDetailBody').innerHTML = shimmerBlock();
+  openPanel('messageDetailPanel');
+
+  try {
+    const msg = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_MESSAGE_DETAIL + messageId + '/');
+    document.getElementById('msgDetailSubject').textContent = msg.subject || '(No subject)';
+
+    const typeTag = msg.message_type === 'EMERGENCY'
+      ? '<span class="badge badge-danger" style="margin-left:0.5rem">URGENT</span>' : '';
+
+    document.getElementById('msgDetailBody').innerHTML =
+      '<div style="margin-bottom:1rem">' +
+        '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.3rem 1rem;font-size:0.85rem">' +
+          '<span style="color:var(--text-soft)">From</span><span>' + escapeHtml(msg.from_organization || msg.from_org_name || '') + '</span>' +
+          '<span style="color:var(--text-soft)">To</span><span>' + escapeHtml(msg.to_organization || msg.to_org_name || '') + '</span>' +
+          '<span style="color:var(--text-soft)">Type</span><span>' + escapeHtml(msg.message_type || 'GENERAL') + typeTag + '</span>' +
+          '<span style="color:var(--text-soft)">Date</span><span>' + formatDateTime(msg.created_at) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="white-space:pre-wrap;font-size:0.9rem;line-height:1.6;border-top:1px solid var(--border);padding-top:1rem">' +
+        escapeHtml(msg.body || '') +
+      '</div>' +
+      '<div style="margin-top:1.5rem">' +
+        '<button class="btn btn-primary btn-sm" id="msgReplyBtn">Reply</button>' +
+      '</div>';
+
+    document.getElementById('msgReplyBtn')?.addEventListener('click', function() {
+      closeAllPanels();
+      openComposeMessage(msg.from_organization || msg.from_org_name || '', 'Re: ' + (msg.subject || ''));
+    });
+
+    // Mark as read
+    try {
+      await safeApiPatch(HC_CONFIG.ENDPOINTS.REC_MESSAGE_DETAIL + messageId + '/', { is_read: true });
+    } catch { /* silent */ }
+    refreshMessageBadge();
+  } catch {
+    document.getElementById('msgDetailBody').innerHTML =
+      '<div class="empty-state"><h3>Could not load message</h3><p>Please try again.</p></div>';
+  }
+}
+
+function openComposeMessage(toOrg, subject) {
+  document.getElementById('composeMessageForm')?.reset();
+  if (toOrg) document.getElementById('msgToOrg').value = toOrg;
+  if (subject) document.getElementById('msgSubject').value = subject;
+  openPanel('composeMessagePanel');
+}
+
+async function submitMessage(e) {
+  e.preventDefault();
+  const form = document.getElementById('composeMessageForm');
+  const btn  = document.getElementById('sendMessageBtn');
+  if (!form) return;
+
+  const body = {};
+  new FormData(form).forEach(function(v, k) { if (v) body[k] = v; });
+
+  if (!body.to_organization || !body.subject || !body.body) {
+    showToast('Please fill in all required fields.', 'error');
+    return;
+  }
+
+  setButtonLoading(btn, true);
+  try {
+    await safeApiPost(HC_CONFIG.ENDPOINTS.REC_MESSAGES, body);
+    showToast('Message sent!', 'success');
+    closeAllPanels();
+    form.reset();
+    _loaded.delete('messages');
+    if (document.getElementById('page-messages')?.classList.contains('active')) loadMessages();
+  } catch (err) {
+    let msg = 'Failed to send message.';
+    if (err.response) msg = err.response.error || err.response.detail || msg;
+    showToast(msg, 'error');
+  }
+  setButtonLoading(btn, false, 'Send Message');
+}
+
+/* ── Message Badge Polling ── */
+async function refreshMessageBadge() {
+  try {
+    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_MESSAGES_UNREAD);
+    const count = data.count || 0;
+    const badge = document.getElementById('sidebarMsgBadge');
+    if (badge) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.toggle('hidden', count === 0);
+    }
+  } catch { /* silent */ }
+}
+// Poll message badge alongside notifications
+let _msgPollInterval = setInterval(refreshMessageBadge, 30000);
+refreshMessageBadge();
+
+
+/* ══════════════════════════════════════════
+   15. LOGOUT
 ══════════════════════════════════════════ */
 async function recLogout() {
   clearInterval(_notifPollInterval);
+  clearInterval(_msgPollInterval);
   clearInterval(_dashRefreshInterval);
+
+  // Read user before clearing tokens (for role-aware redirect)
+  var user = null;
+  try { user = hc_getUser(); } catch(e) {}
+
   try {
     if (typeof apiPost === 'function' && typeof hc_getRefreshToken === 'function') {
       await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() });
@@ -1065,15 +1342,9 @@ async function recLogout() {
   } catch {}
   try { if (typeof hc_clearTokens === 'function') hc_clearTokens(); } catch {}
 
-  // Redirect to org signin — try to get slug from user data
-  let slug = '';
-  try {
-    const user = hc_getUser();
-    slug = user?.organization_slug || '';
-  } catch {}
-
-  if (slug) {
-    window.location.href = '/public/organization/signin.html?org=' + slug;
+  // Use shared role-aware redirect helper
+  if (typeof hc_getSigninRedirect === 'function') {
+    window.location.href = hc_getSigninRedirect(user);
   } else {
     window.location.href = '/public/signin.html';
   }

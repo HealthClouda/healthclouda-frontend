@@ -81,6 +81,11 @@ const HC_CONFIG = {
     REC_APPOINTMENTS:    '/receptionist/appointments/',           // GET, POST, PATCH /:id/
     REC_REFERRALS:       '/referrals/received/',                  // GET
     REC_NOTIFY_DOCTORS:  '/receptionist/referrals/',              // POST /:id/notify-doctors/
+    REC_SEND_TO_NURSE:   '/receptionist/send-to-nurse/',          // TODO: Backend — POST { patient_id, notes? }
+    REC_MESSAGES:        '/receptionist/messages/',               // TODO: Backend — GET (inbox), POST (send)
+    REC_MESSAGE_DETAIL:  '/receptionist/messages/',               // TODO: Backend — GET /:id/
+    REC_MESSAGE_REPLY:   '/receptionist/messages/',               // TODO: Backend — POST /:id/reply/
+    REC_MESSAGES_UNREAD: '/receptionist/messages/unread-count/',  // TODO: Backend — GET → { count }
     CREATE_PATIENT:      '/patients/',                            // POST
     STAFF_NOTIFS:        '/auth/me/notifications/',               // GET → notification list
     STAFF_UNREAD:        '/auth/me/notifications/unread-count/',  // GET → { count }
