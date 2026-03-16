@@ -15,7 +15,7 @@
 
   // Redirect if no token — do NOT fall through to demo data
   if (!token || !user) {
-    window.location.href = '/public/organization/signin.html';
+    window.location.href = HC_ROUTER.signinPath();
     return;
   }
 
@@ -611,7 +611,7 @@ function renderReferralList() {
 
       let downloadBtn = '';
       if (r.has_letter) {
-        downloadBtn = '<button class="btn btn-sm btn-primary" onclick="downloadReferralLetter(\'' + r.id + '\',event)">Download Letter</button>';
+        downloadBtn = '<button class="btn btn-sm btn-primary" onclick="downloadReferralLetter(\'' + escapeHtml(r.id) + '\',event)">Download Letter</button>';
       }
 
       return '<div class="referral-card">' +
@@ -628,7 +628,7 @@ function renderReferralList() {
         '<div class="referral-detail-text">' + escapeHtml(r.reason || '') + '</div>' +
         '<div class="referral-meta">' + formatDate(r.created_at) + '</div>' +
         '<div class="referral-actions">' +
-          '<button class="btn btn-sm btn-ghost" onclick="openReferralDetail(\'' + r.id + '\')">View Details</button>' +
+          '<button class="btn btn-sm btn-ghost" onclick="openReferralDetail(\'' + escapeHtml(r.id) + '\')">View Details</button>' +
           downloadBtn +
         '</div>' +
       '</div>';
@@ -704,7 +704,7 @@ async function openReferralDetail(id) {
 
   // Download button
   if (detail.has_letter) {
-    html += '<div style="margin-top:0.5rem"><button class="btn btn-primary" onclick="downloadReferralLetter(\'' + detail.id + '\',event)">Download Referral Letter (PDF)</button></div>';
+    html += '<div style="margin-top:0.5rem"><button class="btn btn-primary" onclick="downloadReferralLetter(\'' + escapeHtml(detail.id) + '\',event)">Download Referral Letter (PDF)</button></div>';
   }
 
   body.innerHTML = html;
@@ -717,12 +717,18 @@ async function downloadReferralLetter(id, event) {
   if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
 
   try {
-    const token = hc_getAccessToken();
     const url = HC_CONFIG.API_BASE_URL + HC_CONFIG.ENDPOINTS.PATIENT_REFERRAL_LETTER + id + '/download-letter/';
+    let token = hc_getAccessToken();
 
-    const res = await fetch(url, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
+    let res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+
+    // Retry once with refreshed token on 401
+    if (res.status === 401) {
+      try {
+        token = await hc_refreshAccessToken();
+        res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      } catch { /* refresh failed — handled by hc_refreshAccessToken */ }
+    }
 
     if (!res.ok) throw new Error('Download failed');
 
@@ -1176,9 +1182,5 @@ async function patientLogout() {
 
   try { if (typeof hc_clearTokens === 'function') hc_clearTokens(); } catch {}
 
-  if (slug) {
-    window.location.href = '/public/organization/signin.html?org=' + slug;
-  } else {
-    window.location.href = '/public/signin.html';
-  }
+  window.location.href = HC_ROUTER.signinPath({ organization_slug: slug });
 }

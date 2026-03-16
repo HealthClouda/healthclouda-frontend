@@ -3,11 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="description" content="Nurse Portal - HealthClouda healthcare management">
   <title>Nurse Portal | HealthClouda</title>
   <link rel="icon" type="image/png" href="../../assets/images/HealthClouda-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./dashboard.css">
+  <script>
+    var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+    document.write('<link rel="stylesheet" href="./dashboard.css?v=' + HC_V + '">');
+  </script>
 </head>
 <body>
 
@@ -546,10 +552,11 @@
 <div class="toast" id="toast"></div>
 
 <!-- ══════════ SCRIPTS ══════════ -->
-<script src="../../assets/js/config.js"></script>
-<script src="../../assets/js/api.js"></script>
-<script src="../../assets/js/auth.js"></script>
-<script src="./dashboard.js"></script>
+<script>
+  ['../../assets/js/config.js','../../assets/js/router.js','../../assets/js/api.js','../../assets/js/auth.js','./dashboard.js'].forEach(function(src){
+    document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
+  });
+</script>
 
 </body>
 </html>

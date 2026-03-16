@@ -62,14 +62,7 @@ async function hc_refreshAccessToken() {
       // Refresh token is also expired → force logout
       var user = hc_getUser();
       hc_clearTokens();
-      var role = ((user && user.role) || '').toUpperCase().replace(/_/g, '');
-      if (role === 'SUPERADMIN') {
-        window.location.href = '/public/superadmin/signin.html';
-      } else if (user && user.organization_slug) {
-        window.location.href = '/public/organization/signin.html?org=' + user.organization_slug;
-      } else {
-        window.location.href = '/public/signin.html';
-      }
+      window.location.href = HC_ROUTER.signinPath(user);
       throw new Error('Session expired. Please log in again.');
     }
 
@@ -248,14 +241,7 @@ async function publicApiRequest(endpoint, options = {}) {
       EVENTS.forEach(function (evt) { document.removeEventListener(evt, resetTimer); });
       var user = hc_getUser();
       hc_clearTokens();
-      var role = ((user && user.role) || '').toUpperCase().replace(/_/g, '');
-      if (role === 'SUPERADMIN') {
-        window.location.href = '/public/superadmin/signin.html';
-      } else if (user && user.organization_slug) {
-        window.location.href = '/public/organization/signin.html?org=' + user.organization_slug;
-      } else {
-        window.location.href = '/public/signin.html';
-      }
+      window.location.href = HC_ROUTER.signinPath(user);
     }
   }, 60000);
 })();

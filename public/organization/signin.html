@@ -73,7 +73,7 @@
             <input type="checkbox" name="remember" id="remember">
             <span>Remember me</span>
           </label>
-          <a href="./org-forgot-password.html" class="forgot-link">Forgot password?</a>
+          <a href="./org-forgot-password.html" class="forgot-link" id="forgotLink">Forgot password?</a>
         </div>
 
         <button type="submit" class="signin-btn" id="signinBtn">Sign In</button>
@@ -90,7 +90,7 @@
 
   <!-- JS load order: config → api → auth -->
   <script>
-    ['../../assets/js/config.js','../../assets/js/api.js','../../assets/js/auth.js'].forEach(function(src){
+    ['../../assets/js/config.js','../../assets/js/router.js','../../assets/js/api.js','../../assets/js/auth.js'].forEach(function(src){
       document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
     });
   </script>
@@ -99,25 +99,18 @@
       // 1. Detect org slug from URL path
       //    Supports: /luth-hospital/signin.html  OR  ?org=luth-hospital
       const params = new URLSearchParams(window.location.search);
-      let orgSlug = params.get('org');
-
-      if (!orgSlug) {
-        // Try to extract from path: /luth-hospital/signin.html → luth-hospital
-        const parts = window.location.pathname.split('/').filter(Boolean);
-        // The slug is the segment before "signin.html" that isn't "public" or "organization"
-        const ignore = new Set(['public', 'organization', 'signin.html']);
-        for (const part of parts) {
-          if (!ignore.has(part) && !part.endsWith('.html')) {
-            orgSlug = part;
-            break;
-          }
-        }
-      }
+      let orgSlug = params.get('org') || HC_ROUTER.getOrgSlugFromPath();
 
       // 2. Load org branding from API (if slug found)
       if (orgSlug) {
         await hc_loadOrgBranding(orgSlug);
         hc_initOrgSigninForm(orgSlug);
+
+        // Update navigation links to use clean URLs
+        var forgotLink = document.getElementById('forgotLink');
+        if (forgotLink) forgotLink.href = HC_ROUTER.passwordFlowPath('forgot-password', orgSlug);
+        var backLink = document.querySelector('.signin-back-btn');
+        if (backLink) backLink.href = HC_ROUTER.orgLandingPath(orgSlug);
       } else {
         // No slug — fall back to general login behaviour
         document.getElementById('header-org-name').textContent = '';

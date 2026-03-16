@@ -3,16 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="description" content="HealthClouda Organisation Admin — manage staff, patients, wards, and organisation settings.">
   <title>Org Admin | HealthClouda</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./dashboard.css">
+  <link rel="icon" type="image/png" href="../../assets/images/HealthClouda-icon.png">
+  <script>
+    var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+    (function(){
+      var css = document.createElement('link');
+      css.rel = 'stylesheet'; css.href = './dashboard.css?v=' + HC_V;
+      document.head.appendChild(css);
+    })();
+  </script>
 </head>
 <body>
 
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <img src="../../assets/images/HealthClouda-icon.png" alt="">
+    <img src="../../assets/images/HealthClouda-icon.png" alt="HealthClouda">
     <span>HealthClouda</span>
   </div>
 
@@ -64,7 +75,7 @@
       <div class="sidebar-user-name" id="sidebarUserName">Org Admin</div>
       <div class="sidebar-user-role" id="sidebarUserRole">Org Admin</div>
     </div>
-    <button class="sidebar-logout" title="Logout" onclick="orgAdminLogout()">
+    <button class="sidebar-logout" title="Logout" data-action="logout">
       <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     </button>
   </div>
@@ -86,6 +97,7 @@
     </div>
   </header>
 
+  <!-- ═══ DASHBOARD PAGE ═══ -->
   <div class="page-content active" id="page-dashboard">
     <div class="page-header">
       <div>
@@ -116,6 +128,7 @@
     </div>
   </div>
 
+  <!-- ═══ STAFF PAGE ═══ -->
   <div class="page-content" id="page-staff">
     <div class="page-header">
       <div>
@@ -130,8 +143,8 @@
     <div class="table-card">
       <div class="table-toolbar">
         <div class="table-toolbar-left">
-          <input class="search-input" id="staffSearch" placeholder="Search name or email..." oninput="loadStaff()">
-          <select class="filter-select" id="staffRoleFilter" onchange="loadStaff()">
+          <input class="search-input" id="staffSearch" placeholder="Search name or email..." oninput="_staffSearchHandler()">
+          <select class="filter-select" id="staffRoleFilter" onchange="_loaded.delete('staff'); loadStaff();">
             <option value="">All Roles</option>
             <option value="doctor">Doctor</option>
             <option value="nurse">Nurse</option>
@@ -147,9 +160,11 @@
           <tbody id="staffTbody"></tbody>
         </table>
       </div>
+      <div class="pagination-container" id="staffPagination"></div>
     </div>
   </div>
 
+  <!-- ═══ PATIENTS PAGE ═══ -->
   <div class="page-content" id="page-patients">
     <div class="page-header">
       <div>
@@ -161,7 +176,7 @@
     <div class="table-card">
       <div class="table-toolbar">
         <div class="table-toolbar-left">
-          <input class="search-input" id="patientSearch" placeholder="Search patient..." oninput="loadPatients()">
+          <input class="search-input" id="patientSearch" placeholder="Search patient..." oninput="_patientSearchHandler()">
         </div>
         <div class="table-count" id="patientCount">-</div>
       </div>
@@ -171,9 +186,11 @@
           <tbody id="patientTbody"></tbody>
         </table>
       </div>
+      <div class="pagination-container" id="patientPagination"></div>
     </div>
   </div>
 
+  <!-- ═══ WARDS PAGE ═══ -->
   <div class="page-content" id="page-wards">
     <div class="page-header">
       <div>
@@ -184,6 +201,7 @@
     <div id="wardsContainer"></div>
   </div>
 
+  <!-- ═══ ACCESS REQUESTS PAGE ═══ -->
   <div class="page-content" id="page-access">
     <div class="page-header">
       <div>
@@ -195,7 +213,7 @@
     <div class="table-card">
       <div class="table-toolbar">
         <div class="table-toolbar-left">
-          <select class="filter-select" id="accessStatusFilter" onchange="loadAccessRequests()">
+          <select class="filter-select" id="accessStatusFilter" onchange="_loaded.delete('access'); loadAccessRequests();">
             <option value="">All Statuses</option>
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>
@@ -210,9 +228,11 @@
           <tbody id="accessTbody"></tbody>
         </table>
       </div>
+      <div class="pagination-container" id="accessPagination"></div>
     </div>
   </div>
 
+  <!-- ═══ NOTIFICATIONS PAGE ═══ -->
   <div class="page-content" id="page-notifications">
     <div class="notif-page-header">
       <div>
@@ -224,6 +244,7 @@
     <div id="notificationsContainer"></div>
   </div>
 
+  <!-- ═══ SETTINGS PAGE ═══ -->
   <div class="page-content" id="page-settings">
     <div class="page-header">
       <div>
@@ -262,11 +283,13 @@
   </div>
 </div>
 
+<!-- ═══ OVERLAY & SLIDE PANELS ═══ -->
 <div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
 
+<!-- Add / Edit Staff Panel -->
 <div class="slide-panel" id="addStaffPanel">
   <div class="panel-header">
-    <div><span class="panel-title">Add Staff Member</span></div>
+    <div><span class="panel-title" id="addStaffPanelTitle">Add Staff Member</span></div>
     <button class="panel-close" onclick="closeAllPanels()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="panel-body">
@@ -282,7 +305,7 @@
           <option value="receptionist">Receptionist</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">Temporary Password *</label><input class="form-input" name="password" type="password" required></div>
+      <div class="form-group" id="addStaffPasswordGroup"><label class="form-label">Temporary Password *</label><input class="form-input" name="password" type="password" id="addStaffPassword" required></div>
       <div class="form-actions">
         <button class="btn btn-primary" id="addStaffBtn" type="submit">Create Staff</button>
         <button class="btn btn-ghost" type="button" onclick="closeAllPanels()">Cancel</button>
@@ -291,11 +314,48 @@
   </div>
 </div>
 
+<!-- Staff Detail Panel -->
+<div class="slide-panel" id="staffDetailPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Staff Details</span></div>
+    <button class="panel-close" onclick="closeAllPanels()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="panel-body" id="staffDetailBody"></div>
+</div>
+
+<!-- ═══ CONFIRM MODAL ═══ -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="modal-icon danger">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    </div>
+    <div class="modal-title" id="confirmModalTitle">Confirm Action</div>
+    <div class="modal-body">
+      <p id="confirmModalMessage">Are you sure?</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-action="closeConfirmModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirmModalBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
 <div class="toast" id="toast"></div>
 
-<script src="../../assets/js/config.js"></script>
-<script src="../../assets/js/api.js"></script>
-<script src="../../assets/js/auth.js"></script>
-<script src="./dashboard.js"></script>
+<!-- ═══ SCRIPTS (cache-busted, sequential load) ═══ -->
+<script>
+(function(){
+  var scripts = ['../../assets/js/config.js','../../assets/js/router.js','../../assets/js/api.js','../../assets/js/auth.js','./dashboard.js'];
+  function loadNext(i) {
+    if (i >= scripts.length) return;
+    var s = document.createElement('script');
+    s.src = scripts[i] + '?v=' + HC_V;
+    s.onload = function() { loadNext(i + 1); };
+    document.body.appendChild(s);
+  }
+  loadNext(0);
+})();
+</script>
 </body>
 </html>

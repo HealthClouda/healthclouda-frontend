@@ -15,11 +15,7 @@
 
   // Redirect to signin if not authenticated
   if (!token) {
-    var slug = '';
-    try { slug = user && user.organization_slug; } catch(e) {}
-    window.location.href = slug
-      ? '/public/organization/signin.html?org=' + slug
-      : '/public/signin.html';
+    window.location.href = HC_ROUTER.signinPath(user);
     return;
   }
 
@@ -1168,159 +1164,17 @@ refreshUnreadCount();
 
 
 /* ══════════════════════════════════════════
-   14. MESSAGES PAGE
+   14. MESSAGES PAGE (Coming Soon)
 ══════════════════════════════════════════ */
 async function loadMessages() {
   const container = document.getElementById('messagesContainer');
   if (!container) return;
-  container.innerHTML = '<div class="notif-list-page">' +
-    Array(3).fill('<div class="notif-item" style="pointer-events:none"><div style="flex:1">' + shimmerBlock() + '</div></div>').join('') +
-  '</div>';
-
-  const filter = document.getElementById('msgFilter')?.value || 'inbox';
-  const url = HC_CONFIG.ENDPOINTS.REC_MESSAGES + '?folder=' + filter;
-
-  let items;
-  try {
-    const data = await safeApiGet(url);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    renderError('messagesContainer', 'Could not load messages. Please try again.', loadMessages);
-    return;
-  }
-
-  document.getElementById('msgCount').textContent = items.length + ' message' + (items.length !== 1 ? 's' : '');
-
-  if (items.length === 0) {
-    container.innerHTML = '<div class="empty-state"><h3>No messages</h3><p>' +
-      (filter === 'inbox' ? 'Your inbox is empty.' : 'You haven\'t sent any messages yet.') +
-    '</p></div>';
-    return;
-  }
-
-  container.innerHTML = '<div class="notif-list-page">' +
-    items.map(function(m) {
-      const unread = !m.is_read ? ' unread' : '';
-      const org = filter === 'inbox'
-        ? escapeHtml(m.from_organization || m.from_org_name || 'Unknown')
-        : escapeHtml(m.to_organization || m.to_org_name || 'Unknown');
-      const typeIcon = m.message_type === 'EMERGENCY' ? '<span class="badge badge-danger" style="font-size:0.7rem;margin-left:0.4rem">URGENT</span>' : '';
-
-      return '<div class="notif-item' + unread + '" data-msg-id="' + m.id + '" style="cursor:pointer">' +
-        '<div class="notif-body">' +
-          '<div class="notif-title">' + escapeHtml(m.subject || '(No subject)') + typeIcon + '</div>' +
-          '<div class="notif-message">' + (filter === 'inbox' ? 'From: ' : 'To: ') + org + '</div>' +
-          '<div class="notif-meta"><span>' + formatRelativeTime(m.created_at) + '</span></div>' +
-        '</div>' +
-        (!m.is_read ? '<div class="notif-dot"></div>' : '') +
-      '</div>';
-    }).join('') +
-  '</div>';
-
-  // Click handler via delegation
-  container.querySelector('.notif-list-page').addEventListener('click', function(e) {
-    const item = e.target.closest('[data-msg-id]');
-    if (!item) return;
-    openMessageDetail(item.dataset.msgId);
-  });
+  container.innerHTML = '<div class="empty-state" style="padding:3rem;text-align:center">' +
+    '<svg viewBox="0 0 24 24" style="width:48px;height:48px;margin:0 auto 1rem;stroke:var(--text-soft);fill:none;stroke-width:1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
+    '<h3>Coming Soon</h3><p style="color:var(--text-soft)">Messaging will be available in a future update.</p></div>';
 }
-
-async function openMessageDetail(messageId) {
-  document.getElementById('msgDetailSubject').textContent = 'Loading…';
-  document.getElementById('msgDetailBody').innerHTML = shimmerBlock();
-  openPanel('messageDetailPanel');
-
-  try {
-    const msg = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_MESSAGE_DETAIL + messageId + '/');
-    document.getElementById('msgDetailSubject').textContent = msg.subject || '(No subject)';
-
-    const typeTag = msg.message_type === 'EMERGENCY'
-      ? '<span class="badge badge-danger" style="margin-left:0.5rem">URGENT</span>' : '';
-
-    document.getElementById('msgDetailBody').innerHTML =
-      '<div style="margin-bottom:1rem">' +
-        '<div style="display:grid;grid-template-columns:auto 1fr;gap:0.3rem 1rem;font-size:0.85rem">' +
-          '<span style="color:var(--text-soft)">From</span><span>' + escapeHtml(msg.from_organization || msg.from_org_name || '') + '</span>' +
-          '<span style="color:var(--text-soft)">To</span><span>' + escapeHtml(msg.to_organization || msg.to_org_name || '') + '</span>' +
-          '<span style="color:var(--text-soft)">Type</span><span>' + escapeHtml(msg.message_type || 'GENERAL') + typeTag + '</span>' +
-          '<span style="color:var(--text-soft)">Date</span><span>' + formatDateTime(msg.created_at) + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div style="white-space:pre-wrap;font-size:0.9rem;line-height:1.6;border-top:1px solid var(--border);padding-top:1rem">' +
-        escapeHtml(msg.body || '') +
-      '</div>' +
-      '<div style="margin-top:1.5rem">' +
-        '<button class="btn btn-primary btn-sm" id="msgReplyBtn">Reply</button>' +
-      '</div>';
-
-    document.getElementById('msgReplyBtn')?.addEventListener('click', function() {
-      closeAllPanels();
-      openComposeMessage(msg.from_organization || msg.from_org_name || '', 'Re: ' + (msg.subject || ''));
-    });
-
-    // Mark as read
-    try {
-      await safeApiPatch(HC_CONFIG.ENDPOINTS.REC_MESSAGE_DETAIL + messageId + '/', { is_read: true });
-    } catch { /* silent */ }
-    refreshMessageBadge();
-  } catch {
-    document.getElementById('msgDetailBody').innerHTML =
-      '<div class="empty-state"><h3>Could not load message</h3><p>Please try again.</p></div>';
-  }
-}
-
-function openComposeMessage(toOrg, subject) {
-  document.getElementById('composeMessageForm')?.reset();
-  if (toOrg) document.getElementById('msgToOrg').value = toOrg;
-  if (subject) document.getElementById('msgSubject').value = subject;
-  openPanel('composeMessagePanel');
-}
-
-async function submitMessage(e) {
-  e.preventDefault();
-  const form = document.getElementById('composeMessageForm');
-  const btn  = document.getElementById('sendMessageBtn');
-  if (!form) return;
-
-  const body = {};
-  new FormData(form).forEach(function(v, k) { if (v) body[k] = v; });
-
-  if (!body.to_organization || !body.subject || !body.body) {
-    showToast('Please fill in all required fields.', 'error');
-    return;
-  }
-
-  setButtonLoading(btn, true);
-  try {
-    await safeApiPost(HC_CONFIG.ENDPOINTS.REC_MESSAGES, body);
-    showToast('Message sent!', 'success');
-    closeAllPanels();
-    form.reset();
-    _loaded.delete('messages');
-    if (document.getElementById('page-messages')?.classList.contains('active')) loadMessages();
-  } catch (err) {
-    let msg = 'Failed to send message.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
-    showToast(msg, 'error');
-  }
-  setButtonLoading(btn, false, 'Send Message');
-}
-
-/* ── Message Badge Polling ── */
-async function refreshMessageBadge() {
-  try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.REC_MESSAGES_UNREAD);
-    const count = data.count || 0;
-    const badge = document.getElementById('sidebarMsgBadge');
-    if (badge) {
-      badge.textContent = count > 99 ? '99+' : count;
-      badge.classList.toggle('hidden', count === 0);
-    }
-  } catch { /* silent */ }
-}
-// Poll message badge alongside notifications
-let _msgPollInterval = setInterval(refreshMessageBadge, 30000);
-refreshMessageBadge();
+function refreshMessageBadge() { /* no backend endpoint */ }
+let _msgPollInterval = null;
 
 
 /* ══════════════════════════════════════════
@@ -1342,10 +1196,5 @@ async function recLogout() {
   } catch {}
   try { if (typeof hc_clearTokens === 'function') hc_clearTokens(); } catch {}
 
-  // Use shared role-aware redirect helper
-  if (typeof hc_getSigninRedirect === 'function') {
-    window.location.href = hc_getSigninRedirect(user);
-  } else {
-    window.location.href = '/public/signin.html';
-  }
+  window.location.href = HC_ROUTER.signinPath(user);
 }

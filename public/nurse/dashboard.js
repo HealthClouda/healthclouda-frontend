@@ -13,6 +13,12 @@
   try { token = hc_getAccessToken(); } catch(e) {}
   try { user  = hc_getUser();        } catch(e) {}
 
+  // Redirect to signin if not authenticated
+  if (!token) {
+    window.location.href = HC_ROUTER.signinPath(user);
+    return;
+  }
+
   if (token && user && typeof hc_redirectByRole === 'function') {
     const role = (user.role || '').toLowerCase().replace(/_/g, '');
     if (role && role !== 'nurse' && role !== 'superadmin') {
@@ -565,7 +571,7 @@ async function loadWardManagement() {
   container.innerHTML = '<div class="ward-cards">' + wards.map(w => {
     const pct = w.occupancy_rate ?? (w.total_beds > 0 ? Math.round(((w.occupied_beds || 0) / w.total_beds) * 100) : 0);
     return '<div class="ward-card" id="ward-' + w.id + '">' +
-      '<div class="ward-header" style="cursor:pointer" onclick="toggleWardBeds(\'' + w.id + '\')">' +
+      '<div class="ward-header" style="cursor:pointer" onclick="toggleWardBeds(\'' + escapeHtml(w.id) + '\')">' +
         '<div>' +
           '<span class="ward-name">' + escapeHtml(w.name) + '</span> ' +
           '<span class="badge badge-info">' + escapeHtml(w.category || '') + '</span> ' +
@@ -928,7 +934,7 @@ function renderNotifications() {
       const typeClass = (n.notification_type || '').toLowerCase().replace(/_/g, '-');
       const icon = notifIcon(n.notification_type);
       const unread = !n.is_read ? ' unread' : '';
-      return '<div class="notif-item' + unread + '" onclick="markNotificationRead(\'' + n.id + '\')">' +
+      return '<div class="notif-item' + unread + '" onclick="markNotificationRead(\'' + escapeHtml(n.id) + '\')">' +
         '<div class="notif-icon ' + typeClass + '">' + icon + '</div>' +
         '<div class="notif-body">' +
           '<div class="notif-title">' + escapeHtml(n.title) + '</div>' +
@@ -1051,7 +1057,5 @@ async function nurseLogout() {
   try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch {}
   try { hc_clearTokens(); } catch {}
 
-  window.location.href = slug
-    ? '/public/organization/signin.html?org=' + slug
-    : '/public/signin.html';
+  window.location.href = HC_ROUTER.signinPath({ organization_slug: slug });
 }

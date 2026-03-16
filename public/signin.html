@@ -23,7 +23,7 @@
     <div class="signin-nav-logo">
       <span>HealthClouda</span>
     </div>
-    <a href="./index.html" class="signin-back-btn">← Back to Home</a>
+    <a href="/" class="signin-back-btn">← Back to Home</a>
   </nav>
 
   <div class="signin-page-body">
@@ -75,7 +75,7 @@
             <input type="checkbox" name="remember" id="remember">
             <span>Remember me</span>
           </label>
-          <a href="./forgot-password.html" class="forgot-link">Forgot password?</a>
+          <a href="/forgot-password/" class="forgot-link">Forgot password?</a>
         </div>
 
         <button type="submit" class="signin-btn" id="signinBtn">Sign In</button>
@@ -93,7 +93,7 @@
 
   <!-- JS load order: config → api → auth -->
   <script>
-    ['../assets/js/config.js','../assets/js/api.js','../assets/js/auth.js'].forEach(function(src){
+    ['../assets/js/config.js','../assets/js/router.js','../assets/js/api.js','../assets/js/auth.js'].forEach(function(src){
       document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
     });
   </script>

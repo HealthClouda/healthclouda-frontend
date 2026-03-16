@@ -1,12 +1,21 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 // ═══════════════════════════════════════════════════
 //  ORG DATA — API fetch with fallback to org-config.js
 // ═══════════════════════════════════════════════════
 
 function getOrgSlug() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('org') || (typeof ORG_CONFIG !== 'undefined' && ORG_CONFIG.slug) || null;
+  return (typeof HC_ROUTER !== 'undefined' && HC_ROUTER.getOrgSlugFromPath())
+    || new URLSearchParams(window.location.search).get('org')
+    || (typeof ORG_CONFIG !== 'undefined' && ORG_CONFIG.slug)
+    || null;
 }
 
 async function loadOrgData() {
@@ -61,13 +70,14 @@ function applyOrgBranding(org) {
   // Hero org name
   setText('heroOrgName', org.name);
 
-  // Contact info
-  setText('contactClinicName', org.clinic?.name || org.clinic_name);
-  setText('contactClinicAddress', org.clinic?.address || org.clinic_address);
-  setText('contactClinicHours', org.clinic?.hours ? 'Open: ' + org.clinic.hours : '');
-  setText('contactClinicPhone', org.clinic?.phone ? 'Phone: ' + org.clinic.phone : '');
-  setEmailLink('contactClinicEmail', 'Email', org.clinic?.email || org.clinic_email);
-  setText('contactEmergencyPhone', org.emergency?.phone || org.emergency_phone);
+  // Contact info — flat fields from /api/v1/org/by-slug/{slug}/
+  setText('contactClinicName', org.name);
+  const fullAddress = [org.address, org.city, org.state, org.country_name].filter(Boolean).join(', ');
+  setText('contactClinicAddress', fullAddress);
+  setEmailLink('contactClinicEmail', 'Email', org.email);
+
+  // Emergency line — org phone number
+  setText('contactEmergencyPhone', org.phone || '');
 }
 
 
@@ -80,6 +90,16 @@ applyOrgBranding(org);
 
 // Store slug for contact form
 window._orgSlug = org?.slug || getOrgSlug();
+
+// Forward org slug to signin links
+if (window._orgSlug) {
+  var signinHref = (typeof HC_ROUTER !== 'undefined')
+    ? HC_ROUTER.signinPath({ organization_slug: window._orgSlug })
+    : './signin.html?org=' + encodeURIComponent(window._orgSlug);
+  document.querySelectorAll('a[href="./signin.html"]').forEach(a => {
+    a.href = signinHref;
+  });
+}
 
 
 // ═══════════════════════════════════════════════════
@@ -120,15 +140,20 @@ function renderAnnouncementCards(announcements) {
       : '';
 
     const dateLabel = a.date_label || a.dateLabel || '';
-    const more = a.link
-      ? ` <a href="${a.link}" style="color:var(--primary);font-weight:600;">See more</a>` : '';
+    let more = '';
+    if (a.link) {
+      const linkUrl = String(a.link).trim();
+      if (/^https?:\/\//i.test(linkUrl)) {
+        more = ` <a href="${escapeHtml(linkUrl)}" style="color:var(--primary);font-weight:600;" rel="noopener noreferrer" target="_blank">See more</a>`;
+      }
+    }
 
     return `
       <div class="announcement-card ${urgent ? 'announcement-urgent' : ''}">
         ${badge}
-        <h3>${a.title}</h3>
-        <div class="date-label">Date: ${dateLabel}</div>
-        <p>${a.body}${more}</p>
+        <h3>${escapeHtml(a.title)}</h3>
+        <div class="date-label">Date: ${escapeHtml(dateLabel)}</div>
+        <p>${escapeHtml(a.body)}${more}</p>
       </div>`;
   }).join('');
 }

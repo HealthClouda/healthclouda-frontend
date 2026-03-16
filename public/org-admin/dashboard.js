@@ -1,12 +1,28 @@
-(function authGuard() {
-  let user = null;
-  let token = null;
-  try { token = hc_getAccessToken(); } catch {}
-  try { user = hc_getUser(); } catch {}
+/* ═══════════════════════════════════════════════════════════
+   HealthClouda — Org Admin Dashboard (Production)
+   Load order: config.js → api.js → auth.js → this file
+═══════════════════════════════════════════════════════════ */
 
-  if (token && user && typeof hc_redirectByRole === 'function') {
+
+/* ══════════════════════════════════════════
+   1. AUTH GUARD
+══════════════════════════════════════════ */
+(function authGuard() {
+  let user  = null;
+  let token = null;
+  try { token = hc_getAccessToken(); } catch(e) {}
+  try { user  = hc_getUser();        } catch(e) {}
+
+  /* ── Redirect to signin if not authenticated ── */
+  if (!token) {
+    window.location.href = HC_ROUTER.signinPath(user);
+    return;
+  }
+
+  /* ── Redirect if wrong role ── */
+  if (user && typeof hc_redirectByRole === 'function') {
     const role = (user.role || '').toLowerCase().replace(/_/g, '');
-    if (role && role !== 'orgadmin' && role !== 'superadmin') {
+    if (role && role !== 'organizationadmin' && role !== 'superadmin') {
       hc_redirectByRole(user.role);
       return;
     }
@@ -14,27 +30,42 @@
 
   const orgName = user?.organization_name || user?.organization?.name || 'Organisation';
   const fullName = user?.full_name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || 'Org Admin';
-  const initials = fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  const initials = fullName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-  setText('sidebarUserName', fullName);
-  setText('sidebarUserRole', 'Org Admin');
-  setText('sidebarAvatar', initials);
-  setText('headerUserName', fullName);
-  setText('headerOrgName', orgName + ' Admin');
-  setText('dashWelcome', 'Welcome, ' + fullName.split(' ')[0]);
+  const el = (id) => document.getElementById(id);
+  if (el('sidebarUserName')) el('sidebarUserName').textContent = fullName;
+  if (el('sidebarUserRole')) el('sidebarUserRole').textContent = 'Org Admin';
+  if (el('sidebarAvatar'))   el('sidebarAvatar').textContent   = initials;
+  if (el('headerUserName'))  el('headerUserName').textContent  = fullName;
+  if (el('dashWelcome'))     el('dashWelcome').textContent     = 'Welcome, ' + fullName.split(' ')[0];
 })();
 
-document.querySelectorAll('.nav-item').forEach((item) => {
+
+/* ══════════════════════════════════════════
+   2. NAVIGATION
+══════════════════════════════════════════ */
+document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', () => {
     const page = item.dataset.page;
     if (!page) return;
 
-    document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     item.classList.add('active');
 
-    document.querySelectorAll('.page-content').forEach((p) => p.classList.remove('active'));
+    document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
     const target = document.getElementById('page-' + page);
-    if (target) target.classList.add('active');
+    if (target) {
+      target.classList.add('active');
+      target.style.opacity = '0';
+      target.style.transform = 'translateY(8px)';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          target.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+          target.style.opacity = '1';
+          target.style.transform = 'translateY(0)';
+        });
+      });
+    }
 
     loadPage(page);
     if (window.innerWidth <= 1024) closeSidebar();
@@ -51,62 +82,43 @@ function loadPage(page) {
   if (_loaded.has(page)) return;
   _loaded.add(page);
   switch (page) {
-    case 'dashboard':
-      loadDashboard();
-      break;
-    case 'staff':
-      loadStaff();
-      break;
-    case 'patients':
-      loadPatients();
-      break;
-    case 'wards':
-      loadWards();
-      break;
-    case 'access':
-      loadAccessRequests();
-      break;
-    case 'notifications':
-      loadNotifications();
-      break;
-    case 'settings':
-      loadSettings();
-      initChangePasswordOnce();
-      break;
+    case 'dashboard':     loadDashboard(); break;
+    case 'staff':         loadStaff(); break;
+    case 'patients':      loadPatients(); break;
+    case 'wards':         loadWards(); break;
+    case 'access':        loadAccessRequests(); break;
+    case 'notifications': loadNotifications(); break;
+    case 'settings':      loadSettings(); initChangePasswordOnce(); break;
   }
 }
 loadPage('dashboard');
 
+
+/* ══════════════════════════════════════════
+   3. HELPERS
+══════════════════════════════════════════ */
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value ?? '-';
 }
-function escapeHtml(value) {
-  if (value == null) return '';
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function statusBadge(status) {
   const key = String(status || '').toUpperCase().replace(/_/g, ' ');
   const map = {
-    ACTIVE: 'badge-success',
-    AVAILABLE: 'badge-success',
-    OCCUPIED: 'badge-danger',
-    INACTIVE: 'badge-neutral',
-    PENDING: 'badge-warning',
-    APPROVED: 'badge-success',
-    DENIED: 'badge-danger',
-    COMPLETED: 'badge-info',
+    ACTIVE: 'badge-success', AVAILABLE: 'badge-success', OCCUPIED: 'badge-danger',
+    INACTIVE: 'badge-neutral', PENDING: 'badge-warning', APPROVED: 'badge-success',
+    DENIED: 'badge-danger', COMPLETED: 'badge-info',
+    DOCTOR: 'badge-info', NURSE: 'badge-success', RECEPTIONIST: 'badge-warning',
+    'ORG ADMIN': 'badge-neutral',
   };
   return '<span class="badge ' + (map[key] || 'badge-neutral') + '">' + escapeHtml(key || 'UNKNOWN') + '</span>';
 }
-function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+function formatDate(iso) {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function formatTimeAgo(value) {
   if (!value) return '-';
@@ -117,101 +129,115 @@ function formatTimeAgo(value) {
   return formatDate(value);
 }
 
-async function safeApiGet(url) {
-  if (typeof apiGet !== 'function') throw new Error('API unavailable');
-  return apiGet(url);
-}
-async function safeApiPost(url, body) {
-  if (typeof apiPost !== 'function') throw new Error('API unavailable');
-  return apiPost(url, body);
-}
-async function safeApiPatch(url, body) {
-  if (typeof apiPatch !== 'function') throw new Error('API unavailable');
-  return apiPatch(url, body);
-}
-
-function showToast(message, type) {
+function showToast(msg, type) {
   const t = document.getElementById('toast');
   if (!t) return;
-  t.textContent = message;
-  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' ' + type : '');
   requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(() => t.classList.remove('show'), 2800);
+  setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-const DEMO = {
-  stats: {
-    total_staff: 39,
-    active_patients: 412,
-    todays_appointments: 67,
-    bed_occupancy: '72/110',
-    pending_access_requests: 6,
-    critical_alerts: 2,
-  },
-  activity: [
-    { created_at: new Date().toISOString(), actor_name: 'Dr. Rose Allan', action: 'Updated episode diagnosis', entity: 'Episode EP-392', status: 'completed' },
-    { created_at: new Date(Date.now() - 1000 * 60 * 50).toISOString(), actor_name: 'Nurse David Musa', action: 'Recorded abnormal vitals', entity: 'Patient HC-22710', status: 'warning' },
-    { created_at: new Date(Date.now() - 1000 * 60 * 130).toISOString(), actor_name: 'Reception Desk', action: 'Requested cross-org access', entity: 'Patient HC-77212', status: 'pending' },
-  ],
-  staff: [
-    { id: 's1', full_name: 'Dr. Rose Allan', role: 'doctor', email: 'rose@hospital.com', phone: '+2348011111111', is_active: true },
-    { id: 's2', full_name: 'Nurse David Musa', role: 'nurse', email: 'david@hospital.com', phone: '+2348022222222', is_active: true },
-    { id: 's3', full_name: 'Faith Ojo', role: 'receptionist', email: 'faith@hospital.com', phone: '+2348033333333', is_active: false },
-  ],
-  patients: [
-    { id: 'p1', full_name: 'Amina Yusuf', healthclouda_id: 'HC-22710', gender: 'Female', phone: '+2348061001000', last_visit: '2026-03-05', status: 'ACTIVE' },
-    { id: 'p2', full_name: 'John Ude', healthclouda_id: 'HC-77212', gender: 'Male', phone: '+2348072002000', last_visit: '2026-03-07', status: 'ACTIVE' },
-    { id: 'p3', full_name: 'Bola Ahmed', healthclouda_id: 'HC-32044', gender: 'Female', phone: '+2348083003000', last_visit: '2026-02-25', status: 'INACTIVE' },
-  ],
-  wards: [
-    {
-      id: 'w1',
-      name: 'Medical Ward',
-      total_beds: 12,
-      occupied_beds: 9,
-      beds: [
-        { bed_number: 'M-01', status: 'OCCUPIED' }, { bed_number: 'M-02', status: 'OCCUPIED' },
-        { bed_number: 'M-03', status: 'AVAILABLE' }, { bed_number: 'M-04', status: 'OCCUPIED' },
-        { bed_number: 'M-05', status: 'OCCUPIED' }, { bed_number: 'M-06', status: 'AVAILABLE' },
-      ],
-    },
-    {
-      id: 'w2',
-      name: 'Surgical Ward',
-      total_beds: 10,
-      occupied_beds: 7,
-      beds: [
-        { bed_number: 'S-01', status: 'OCCUPIED' }, { bed_number: 'S-02', status: 'AVAILABLE' },
-        { bed_number: 'S-03', status: 'OCCUPIED' }, { bed_number: 'S-04', status: 'OCCUPIED' },
-        { bed_number: 'S-05', status: 'AVAILABLE' }, { bed_number: 'S-06', status: 'OCCUPIED' },
-      ],
-    },
-  ],
-  access: [
-    { id: 'a1', patient_name: 'John Ude', requested_by_name: 'St. Luke Clinic', reason: 'Transfer referral in progress', status: 'PENDING', created_at: '2026-03-08T08:30:00Z' },
-    { id: 'a2', patient_name: 'Amina Yusuf', requested_by_name: 'City Hospital', reason: 'Emergency trauma history', status: 'APPROVED', created_at: '2026-03-07T11:20:00Z' },
-  ],
-  notifications: [
-    { id: 'n1', title: 'New access request', message: 'St. Luke Clinic requested patient access.', created_at: new Date().toISOString(), is_read: false },
-    { id: 'n2', title: 'Low bed availability', message: 'Surgical Ward is above 80% occupancy.', created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(), is_read: true },
-  ],
-  settings: {
-    org_name: 'Lakeside Medical Centre',
-    support_email: 'support@lakeside.com',
-    support_phone: '+2348012345678',
-    address: '12 Admiralty Way, Lekki, Lagos',
-  },
-};
+function shimmerBlock() {
+  return '<div class="shimmer-line" style="width:60%;margin-bottom:8px"></div><div class="shimmer-line" style="width:40%"></div>';
+}
+function shimmerRows(n, cols) {
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    html += '<tr><td colspan="' + (cols || 6) + '" style="padding:1rem">' + shimmerBlock() + '</td></tr>';
+  }
+  return html;
+}
 
+function debounce(fn, ms) {
+  let timer;
+  return function() { var args = arguments; var ctx = this; clearTimeout(timer); timer = setTimeout(function() { fn.apply(ctx, args); }, ms); };
+}
+
+function setButtonLoading(btn, loading, label) {
+  if (!btn) return;
+  if (loading) { btn.disabled = true; btn.dataset.origText = btn.textContent; btn.textContent = 'Loading\u2026'; }
+  else { btn.disabled = false; btn.textContent = label || btn.dataset.origText || 'Submit'; }
+}
+
+function parseApiError(err, fallback) {
+  let msg = fallback || 'An error occurred.';
+  if (err && err.data) {
+    const msgs = [];
+    for (const [f, errs] of Object.entries(err.data)) {
+      msgs.push(f.replace(/_/g, ' ') + ': ' + (Array.isArray(errs) ? errs[0] : errs));
+    }
+    if (msgs.length) msg = msgs.join(' | ');
+  } else if (err && err.message) { msg = err.message; }
+  return msg;
+}
+
+function openPanel(id) {
+  document.getElementById('overlay')?.classList.add('open');
+  document.getElementById(id)?.classList.add('open');
+}
+function closeAllPanels() {
+  document.getElementById('overlay')?.classList.remove('open');
+  document.querySelectorAll('.slide-panel').forEach(p => p.classList.remove('open'));
+}
+function openModal(id) {
+  document.getElementById(id)?.classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+/* ── Confirm modal utility ── */
+function showConfirmModal(options) {
+  document.getElementById('confirmModalTitle').textContent = options.title || 'Confirm Action';
+  document.getElementById('confirmModalMessage').textContent = options.message || 'Are you sure?';
+
+  const btn = document.getElementById('confirmModalBtn');
+  btn.textContent = options.confirmText || 'Confirm';
+  btn.className = 'btn ' + (options.confirmClass || 'btn-danger');
+  btn.onclick = function() {
+    closeModal('confirmModal');
+    if (typeof options.onConfirm === 'function') options.onConfirm();
+  };
+
+  openModal('confirmModal');
+}
+
+/* ── Pagination helper ── */
+function renderPagination(containerId, data, loadFnName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const totalPages = data.total_pages || (data.count ? Math.ceil(data.count / 20) : 1);
+  const currentPage = data.page || 1;
+
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+  container.innerHTML = '<div class="pagination">' +
+    '<button class="row-btn"' + (currentPage <= 1 ? ' disabled' : '') + ' data-action="paginate" data-fn="' + loadFnName + '" data-page="' + (currentPage - 1) + '">Prev</button>' +
+    '<span class="pagination-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
+    '<button class="row-btn"' + (currentPage >= totalPages ? ' disabled' : '') + ' data-action="paginate" data-fn="' + loadFnName + '" data-page="' + (currentPage + 1) + '">Next</button>' +
+  '</div>';
+}
+
+
+/* ══════════════════════════════════════════
+   4. DASHBOARD PAGE
+══════════════════════════════════════════ */
 async function loadDashboard() {
-  let stats = null;
-  let activity = null;
+  const tbody = document.getElementById('activityTbody');
+  if (tbody) tbody.innerHTML = shimmerRows(3, 5);
+
+  let stats, activity;
   try {
-    stats = await safeApiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STATS);
-    activity = await safeApiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACTIVITY);
-  } catch {
-    stats = DEMO.stats;
-    activity = DEMO.activity;
+    [stats, activity] = await Promise.all([
+      apiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STATS),
+      apiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACTIVITY),
+    ]);
+  } catch(err) {
+    showToast('Failed to load dashboard.', 'error');
+    stats = {};
+    activity = [];
   }
 
   setText('statStaff', stats.total_staff ?? '-');
@@ -221,13 +247,12 @@ async function loadDashboard() {
   setText('statAccess', stats.pending_access_requests ?? '-');
   setText('statAlerts', stats.critical_alerts ?? '-');
 
-  const tbody = document.getElementById('activityTbody');
   const rows = (Array.isArray(activity) ? activity : (activity.results || [])).slice(0, 8);
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No recent activity.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No recent activity.</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map((a) => (
+  if (tbody) tbody.innerHTML = rows.map(a =>
     '<tr>' +
       '<td>' + escapeHtml(formatTimeAgo(a.created_at || a.time)) + '</td>' +
       '<td>' + escapeHtml(a.actor_name || a.user_name || '-') + '</td>' +
@@ -235,55 +260,98 @@ async function loadDashboard() {
       '<td>' + escapeHtml(a.entity || '-') + '</td>' +
       '<td>' + statusBadge(a.status || 'info') + '</td>' +
     '</tr>'
-  )).join('');
+  ).join('');
 }
 
-async function loadStaff() {
-  const q = (document.getElementById('staffSearch')?.value || '').trim().toLowerCase();
-  const role = document.getElementById('staffRoleFilter')?.value || '';
-  let items = [];
+let _dashRefreshInterval = setInterval(function() {
+  if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+    _loaded.delete('dashboard');
+    loadDashboard();
+  }
+}, 30000);
 
+
+/* ══════════════════════════════════════════
+   5. STAFF PAGE
+══════════════════════════════════════════ */
+const _staffSearchHandler = debounce(function() { _loaded.delete('staff'); loadStaff(); }, 400);
+
+async function loadStaff(page) {
+  const tbody = document.getElementById('staffTbody');
+  if (tbody) tbody.innerHTML = shimmerRows(3, 6);
+
+  const q = (document.getElementById('staffSearch')?.value || '').trim();
+  const role = document.getElementById('staffRoleFilter')?.value || '';
+
+  const params = new URLSearchParams();
+  if (q) params.set('search', q);
+  if (role) params.set('role', role);
+  if (page && page > 1) params.set('page', page);
+  const path = HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF + (params.toString() ? '?' + params.toString() : '');
+
+  let items, responseData;
   try {
-    const params = new URLSearchParams();
-    if (q) params.set('search', q);
-    if (role) params.set('role', role);
-    const path = HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF + (params.toString() ? '?' + params.toString() : '');
-    const data = await safeApiGet(path);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    items = [...DEMO.staff].filter((s) => {
-      const okQ = !q || s.full_name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q);
-      const okR = !role || s.role === role;
-      return okQ && okR;
-    });
+    responseData = await apiGet(path);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load staff.', 'error');
+    items = [];
+    responseData = {};
   }
 
   _staffCache = items;
   setText('staffCount', items.length + ' staff');
 
-  const tbody = document.getElementById('staffTbody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No staff found.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No staff found.</td></tr>';
+    renderPagination('staffPagination', {}, 'loadStaff');
     return;
   }
 
-  tbody.innerHTML = items.map((s) => {
-    const next = !s.is_active;
-    return (
-      '<tr>' +
-        '<td>' + escapeHtml(s.full_name || '-') + '</td>' +
-        '<td>' + statusBadge(s.role || 'staff') + '</td>' +
-        '<td>' + escapeHtml(s.email || '-') + '</td>' +
-        '<td>' + escapeHtml(s.phone || '-') + '</td>' +
-        '<td>' + statusBadge(s.is_active ? 'active' : 'inactive') + '</td>' +
-        '<td><div class="row-actions"><button class="row-btn ' + (next ? 'success' : 'danger') + '" onclick="toggleStaffStatus(\'' + escapeHtml(s.id) + '\',' + next + ')">' + (next ? 'Activate' : 'Suspend') + '</button></div></td>' +
-      '</tr>'
-    );
-  }).join('');
+  if (tbody) tbody.innerHTML = items.map(s =>
+    '<tr data-action="viewStaff" data-id="' + escapeHtml(s.id) + '" style="cursor:pointer">' +
+      '<td>' + escapeHtml(s.full_name || '-') + '</td>' +
+      '<td>' + statusBadge(s.role || 'staff') + '</td>' +
+      '<td>' + escapeHtml(s.email || '-') + '</td>' +
+      '<td>' + escapeHtml(s.phone || '-') + '</td>' +
+      '<td>' + statusBadge(s.is_active ? 'active' : 'inactive') + '</td>' +
+      '<td><div class="row-actions">' +
+        '<button class="row-btn" data-action="editStaff" data-id="' + escapeHtml(s.id) + '">Edit</button>' +
+        '<button class="row-btn ' + (!s.is_active ? 'success' : 'danger') + '" data-action="toggleStaff" data-id="' + escapeHtml(s.id) + '" data-active="' + (!s.is_active) + '">' + (!s.is_active ? 'Activate' : 'Suspend') + '</button>' +
+      '</div></td>' +
+    '</tr>'
+  ).join('');
+
+  renderPagination('staffPagination', responseData, 'loadStaff');
 }
 
 function openAddStaffPanel() {
   document.getElementById('addStaffForm')?.reset();
+  setText('addStaffPanelTitle', 'Add Staff Member');
+  document.getElementById('addStaffPassword')?.parentElement?.classList.remove('hidden');
+  document.getElementById('addStaffForm')?.removeAttribute('data-edit-id');
+  openPanel('addStaffPanel');
+}
+
+function openEditStaffPanel(id) {
+  const staff = _staffCache.find(s => String(s.id) === String(id));
+  if (!staff) { showToast('Staff member not found.', 'error'); return; }
+
+  const form = document.getElementById('addStaffForm');
+  if (!form) return;
+
+  form.reset();
+  form.setAttribute('data-edit-id', id);
+  setText('addStaffPanelTitle', 'Edit Staff Member');
+
+  form.querySelector('[name="full_name"]').value = staff.full_name || '';
+  form.querySelector('[name="email"]').value = staff.email || '';
+  form.querySelector('[name="phone"]').value = staff.phone || '';
+  form.querySelector('[name="role"]').value = staff.role || '';
+
+  /* Hide password field for edit mode */
+  document.getElementById('addStaffPassword')?.parentElement?.classList.add('hidden');
+
   openPanel('addStaffPanel');
 }
 
@@ -293,66 +361,114 @@ async function submitAddStaff(e) {
   const btn = document.getElementById('addStaffBtn');
   if (!form) return;
 
+  const editId = form.getAttribute('data-edit-id');
   const payload = {};
-  new FormData(form).forEach((value, key) => { payload[key] = value; });
+  new FormData(form).forEach((value, key) => { if (value) payload[key] = value; });
 
-  setButtonLoading(btn, true, 'Creating...');
+  setButtonLoading(btn, true, editId ? 'Saving...' : 'Creating...');
   try {
-    await safeApiPost(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF, payload);
-    showToast('Staff account created.', 'success');
+    if (editId) {
+      delete payload.password;
+      await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF + editId + '/', payload);
+      showToast('Staff member updated.', 'success');
+    } else {
+      await apiPost(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF, payload);
+      showToast('Staff account created.', 'success');
+    }
     closeAllPanels();
     _loaded.delete('staff');
     loadStaff();
-  } catch {
-    DEMO.staff.unshift({
-      id: 'demo-' + Date.now(),
-      full_name: payload.full_name,
-      role: payload.role,
-      email: payload.email,
-      phone: payload.phone,
-      is_active: true,
-    });
-    showToast('Created in demo mode (backend unavailable).', 'success');
-    closeAllPanels();
-    _loaded.delete('staff');
-    loadStaff();
+  } catch(err) {
+    showToast(parseApiError(err, editId ? 'Failed to update staff.' : 'Failed to create staff.'), 'error');
   } finally {
-    setButtonLoading(btn, false, 'Create Staff');
+    setButtonLoading(btn, false, editId ? 'Save Changes' : 'Create Staff');
   }
+}
+
+function confirmToggleStaff(id, makeActive) {
+  const staff = _staffCache.find(s => String(s.id) === String(id));
+  const name = staff ? staff.full_name : 'this staff member';
+  const action = makeActive === 'true' || makeActive === true ? 'activate' : 'suspend';
+
+  showConfirmModal({
+    title: action === 'activate' ? 'Activate Staff' : 'Suspend Staff',
+    message: 'Are you sure you want to ' + action + ' ' + name + '?',
+    confirmText: action === 'activate' ? 'Activate' : 'Suspend',
+    confirmClass: action === 'activate' ? 'btn-primary' : 'btn-danger',
+    onConfirm: function() { toggleStaffStatus(id, action === 'activate'); },
+  });
 }
 
 async function toggleStaffStatus(id, isActive) {
   try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF + id + '/status/', { is_active: isActive });
-  } catch {
-    const row = DEMO.staff.find((s) => String(s.id) === String(id));
-    if (row) row.is_active = isActive;
+    await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF + id + '/status/', { is_active: isActive });
+    showToast('Staff status updated.', 'success');
+  } catch(err) {
+    showToast(parseApiError(err, 'Failed to update staff status.'), 'error');
   }
-  showToast('Staff status updated.', 'success');
   _loaded.delete('staff');
   loadStaff();
 }
 
-async function loadPatients() {
-  const q = (document.getElementById('patientSearch')?.value || '').trim().toLowerCase();
-  let items = [];
+function viewStaffDetail(id) {
+  const staff = _staffCache.find(s => String(s.id) === String(id));
+  if (!staff) return;
+
+  const container = document.getElementById('staffDetailBody');
+  if (!container) return;
+
+  container.innerHTML =
+    '<div class="detail-row"><span class="detail-label">Full Name</span><span class="detail-value">' + escapeHtml(staff.full_name || '-') + '</span></div>' +
+    '<div class="detail-row"><span class="detail-label">Role</span><span class="detail-value">' + statusBadge(staff.role) + '</span></div>' +
+    '<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">' + escapeHtml(staff.email || '-') + '</span></div>' +
+    '<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">' + escapeHtml(staff.phone || '-') + '</span></div>' +
+    '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">' + statusBadge(staff.is_active ? 'active' : 'inactive') + '</span></div>' +
+    (staff.created_at ? '<div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">' + escapeHtml(formatDate(staff.created_at)) + '</span></div>' : '') +
+    '<div class="detail-actions">' +
+      '<button class="btn btn-primary" data-action="editStaff" data-id="' + escapeHtml(staff.id) + '">Edit</button>' +
+      '<button class="btn ' + (staff.is_active ? 'btn-danger' : 'btn-ghost') + '" data-action="toggleStaff" data-id="' + escapeHtml(staff.id) + '" data-active="' + (!staff.is_active) + '">' + (staff.is_active ? 'Suspend' : 'Activate') + '</button>' +
+    '</div>';
+
+  openPanel('staffDetailPanel');
+}
+
+
+/* ══════════════════════════════════════════
+   6. PATIENTS PAGE
+══════════════════════════════════════════ */
+const _patientSearchHandler = debounce(function() { _loaded.delete('patients'); loadPatients(); }, 400);
+
+async function loadPatients(page) {
+  const tbody = document.getElementById('patientTbody');
+  if (tbody) tbody.innerHTML = shimmerRows(3, 6);
+
+  const q = (document.getElementById('patientSearch')?.value || '').trim();
+
+  const params = new URLSearchParams();
+  if (q) params.set('search', q);
+  if (page && page > 1) params.set('page', page);
+  const path = HC_CONFIG.ENDPOINTS.ORG_ADMIN_PATIENTS + (params.toString() ? '?' + params.toString() : '');
+
+  let items, responseData;
   try {
-    const path = HC_CONFIG.ENDPOINTS.ORG_ADMIN_PATIENTS + (q ? '?search=' + encodeURIComponent(q) : '');
-    const data = await safeApiGet(path);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    items = DEMO.patients.filter((p) => !q || p.full_name.toLowerCase().includes(q) || p.healthclouda_id.toLowerCase().includes(q));
+    responseData = await apiGet(path);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load patients.', 'error');
+    items = [];
+    responseData = {};
   }
 
   _patientsCache = items;
-  setText('patientCount', items.length + ' patients');
+  setText('patientCount', items.length + ' patient' + (items.length !== 1 ? 's' : ''));
 
-  const tbody = document.getElementById('patientTbody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No patients found.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No patients found.</td></tr>';
+    renderPagination('patientPagination', {}, 'loadPatients');
     return;
   }
-  tbody.innerHTML = items.map((p) => (
+
+  if (tbody) tbody.innerHTML = items.map(p =>
     '<tr>' +
       '<td>' + escapeHtml(p.full_name || '-') + '</td>' +
       '<td class="td-mono">' + escapeHtml(p.healthclouda_id || '-') + '</td>' +
@@ -361,67 +477,94 @@ async function loadPatients() {
       '<td>' + escapeHtml(formatDate(p.last_visit)) + '</td>' +
       '<td>' + statusBadge(p.status || 'ACTIVE') + '</td>' +
     '</tr>'
-  )).join('');
+  ).join('');
+
+  renderPagination('patientPagination', responseData, 'loadPatients');
 }
 
+
+/* ══════════════════════════════════════════
+   7. WARDS & BEDS PAGE
+══════════════════════════════════════════ */
 async function loadWards() {
-  let wards = [];
+  const container = document.getElementById('wardsContainer');
+  if (!container) return;
+  container.innerHTML = '<div style="padding:1rem">' + shimmerBlock() + '</div>';
+
+  let wards;
   try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_WARDS_OVERVIEW);
+    const data = await apiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_WARDS_OVERVIEW);
     wards = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    wards = DEMO.wards;
+  } catch(err) {
+    showToast('Failed to load wards.', 'error');
+    wards = [];
   }
 
-  const container = document.getElementById('wardsContainer');
   if (!wards.length) {
     container.innerHTML = '<div class="empty-state">No ward data found.</div>';
     return;
   }
 
-  container.innerHTML = '<div class="ward-cards">' + wards.map((w) => {
+  container.innerHTML = '<div class="ward-cards">' + wards.map(w => {
     const beds = w.beds || [];
+    const occ = w.occupied_beds || beds.filter(b => (b.status || '').toUpperCase() === 'OCCUPIED').length;
+    const total = w.total_beds || beds.length || 0;
     return (
       '<div class="ward-card">' +
         '<div class="ward-card-head">' +
-          '<div><div class="ward-name">' + escapeHtml(w.name || '-') + '</div><div class="ward-meta">' + escapeHtml((w.occupied_beds || 0) + '/' + (w.total_beds || beds.length || 0) + ' occupied') + '</div></div>' +
+          '<div><div class="ward-name">' + escapeHtml(w.name || '-') + '</div>' +
+          '<div class="ward-meta">' + escapeHtml(occ + '/' + total + ' occupied') + '</div></div>' +
           statusBadge(w.status || 'active') +
         '</div>' +
-        '<div class="bed-grid">' + beds.map((b) => (
+        '<div class="bed-grid">' + beds.map(b =>
           '<div class="bed-cell ' + ((b.status || '').toLowerCase() === 'occupied' ? 'occupied' : 'available') + '">' +
             '<div class="bed-no">' + escapeHtml(b.bed_number || '-') + '</div>' +
           '</div>'
-        )).join('') + '</div>' +
+        ).join('') + '</div>' +
       '</div>'
     );
   }).join('') + '</div>';
 }
 
-async function loadAccessRequests() {
+
+/* ══════════════════════════════════════════
+   8. ACCESS REQUESTS PAGE
+══════════════════════════════════════════ */
+async function loadAccessRequests(page) {
+  const tbody = document.getElementById('accessTbody');
+  if (tbody) tbody.innerHTML = shimmerRows(3, 6);
+
   const status = document.getElementById('accessStatusFilter')?.value || '';
-  let items = [];
+
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (page && page > 1) params.set('page', page);
+  const path = HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + (params.toString() ? '?' + params.toString() : '');
+
+  let items, responseData;
   try {
-    const path = HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + (status ? '?status=' + status : '');
-    const data = await safeApiGet(path);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    items = DEMO.access.filter((a) => !status || a.status === status);
+    responseData = await apiGet(path);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load access requests.', 'error');
+    items = [];
+    responseData = {};
   }
 
   _accessCache = items;
-  setText('accessCount', items.length + ' requests');
+  setText('accessCount', items.length + ' request' + (items.length !== 1 ? 's' : ''));
 
-  const tbody = document.getElementById('accessTbody');
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No access requests.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No access requests.</td></tr>';
+    renderPagination('accessPagination', {}, 'loadAccessRequests');
     return;
   }
 
-  tbody.innerHTML = items.map((a) => {
+  if (tbody) tbody.innerHTML = items.map(a => {
     const canReview = String(a.status).toUpperCase() === 'PENDING';
     const actions = canReview
-      ? '<button class="row-btn success" onclick="reviewAccessRequest(\'' + escapeHtml(a.id) + '\',\'APPROVED\')">Approve</button>' +
-        '<button class="row-btn danger" onclick="reviewAccessRequest(\'' + escapeHtml(a.id) + '\',\'DENIED\')">Deny</button>'
+      ? '<button class="row-btn success" data-action="reviewAccess" data-id="' + escapeHtml(a.id) + '" data-decision="APPROVED">Approve</button>' +
+        '<button class="row-btn danger" data-action="reviewAccess" data-id="' + escapeHtml(a.id) + '" data-decision="DENIED">Deny</button>'
       : '-';
 
     return (
@@ -435,29 +578,52 @@ async function loadAccessRequests() {
       '</tr>'
     );
   }).join('');
+
+  renderPagination('accessPagination', responseData, 'loadAccessRequests');
+}
+
+function confirmReviewAccess(id, decision) {
+  const req = _accessCache.find(a => String(a.id) === String(id));
+  const patient = req ? req.patient_name : 'this request';
+  const action = decision === 'APPROVED' ? 'approve' : 'deny';
+
+  showConfirmModal({
+    title: action === 'approve' ? 'Approve Access' : 'Deny Access',
+    message: 'Are you sure you want to ' + action + ' the access request for ' + patient + '?',
+    confirmText: action === 'approve' ? 'Approve' : 'Deny',
+    confirmClass: action === 'approve' ? 'btn-primary' : 'btn-danger',
+    onConfirm: function() { reviewAccessRequest(id, decision); },
+  });
 }
 
 async function reviewAccessRequest(id, decision) {
   try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + id + '/review/', { decision });
-  } catch {
-    const req = DEMO.access.find((a) => String(a.id) === String(id));
-    if (req) req.status = decision;
+    await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + id + '/review/', { decision: decision });
+    showToast('Request ' + decision.toLowerCase() + '.', 'success');
+  } catch(err) {
+    showToast(parseApiError(err, 'Failed to review request.'), 'error');
   }
-  showToast('Request ' + decision.toLowerCase() + '.', 'success');
   _loaded.delete('access');
   loadAccessRequests();
   _loaded.delete('dashboard');
   loadDashboard();
 }
 
+
+/* ══════════════════════════════════════════
+   9. NOTIFICATIONS PAGE
+══════════════════════════════════════════ */
 async function loadNotifications() {
-  let items = [];
+  const container = document.getElementById('notificationsContainer');
+  if (container) container.innerHTML = '<div style="padding:1rem">' + shimmerBlock() + '</div>';
+
+  let items;
   try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS);
+    const data = await apiGet(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS);
     items = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    items = DEMO.notifications;
+  } catch(err) {
+    showToast('Failed to load notifications.', 'error');
+    items = [];
   }
   _notifCache = items;
   renderNotifications();
@@ -468,46 +634,47 @@ function renderNotifications() {
   if (!container) return;
   if (!_notifCache.length) {
     container.innerHTML = '<div class="empty-state">No notifications.</div>';
+    updateNotifBadge(0);
     return;
   }
 
-  container.innerHTML = '<div class="notif-list-page">' + _notifCache.map((n) => (
-    '<div class="notif-item ' + (!n.is_read ? 'unread' : '') + '" onclick="markNotificationRead(\'' + escapeHtml(n.id) + '\')">' +
+  container.innerHTML = '<div class="notif-list-page">' + _notifCache.map(n =>
+    '<div class="notif-item ' + (!n.is_read ? 'unread' : '') + '" data-action="markNotifRead" data-id="' + escapeHtml(n.id) + '">' +
       '<div>' +
         '<div class="notif-title">' + escapeHtml(n.title || '-') + '</div>' +
         '<div class="notif-message">' + escapeHtml(n.message || '-') + '</div>' +
         '<div class="notif-meta">' + escapeHtml(formatTimeAgo(n.created_at)) + '</div>' +
       '</div>' +
     '</div>'
-  )).join('') + '</div>';
+  ).join('') + '</div>';
 
-  updateNotifBadge(_notifCache.filter((n) => !n.is_read).length);
+  updateNotifBadge(_notifCache.filter(n => !n.is_read).length);
 }
 
 async function markNotificationRead(id) {
-  const row = _notifCache.find((n) => String(n.id) === String(id));
+  const row = _notifCache.find(n => String(n.id) === String(id));
   if (!row || row.is_read) return;
   row.is_read = true;
   renderNotifications();
   try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS + id + '/read/');
-  } catch {}
+    await apiPatch(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS + id + '/read/');
+  } catch(e) {}
 }
 
 async function markAllNotificationsRead() {
-  _notifCache.forEach((n) => { n.is_read = true; });
+  _notifCache.forEach(n => { n.is_read = true; });
   renderNotifications();
   try {
     for (const n of _notifCache) {
-      await safeApiPatch(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS + n.id + '/read/').catch(() => {});
+      await apiPatch(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS + n.id + '/read/').catch(function() {});
     }
-  } catch {}
+  } catch(e) {}
   showToast('All notifications marked as read.', 'success');
 }
 
 function updateNotifBadge(count) {
   const value = count > 99 ? '99+' : String(count || 0);
-  ['headerNotifBadge', 'sidebarNotifBadge'].forEach((id) => {
+  ['headerNotifBadge', 'sidebarNotifBadge'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = value;
@@ -517,21 +684,26 @@ function updateNotifBadge(count) {
 
 async function refreshUnreadCount() {
   try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.STAFF_UNREAD);
+    const data = await apiGet(HC_CONFIG.ENDPOINTS.STAFF_UNREAD);
     updateNotifBadge(data.count || data.unread_count || 0);
-  } catch {
-    updateNotifBadge(DEMO.notifications.filter((n) => !n.is_read).length);
+  } catch(e) {
+    /* silent — badge stays as-is */
   }
 }
-setInterval(refreshUnreadCount, 30000);
+let _notifPollInterval = setInterval(refreshUnreadCount, 30000);
 refreshUnreadCount();
 
+
+/* ══════════════════════════════════════════
+   10. SETTINGS PAGE
+══════════════════════════════════════════ */
 async function loadSettings() {
   let settings;
   try {
-    settings = await safeApiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_SETTINGS);
-  } catch {
-    settings = DEMO.settings;
+    settings = await apiGet(HC_CONFIG.ENDPOINTS.ORG_ADMIN_SETTINGS);
+  } catch(err) {
+    showToast('Failed to load settings.', 'error');
+    settings = {};
   }
 
   document.getElementById('setOrgName').value = settings.org_name || settings.name || '';
@@ -552,11 +724,10 @@ async function saveSettings(e) {
 
   setButtonLoading(btn, true, 'Saving...');
   try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_SETTINGS, payload);
+    await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_SETTINGS, payload);
     showToast('Settings saved.', 'success');
-  } catch {
-    Object.assign(DEMO.settings, payload);
-    showToast('Saved in demo mode (backend unavailable).', 'success');
+  } catch(err) {
+    showToast(parseApiError(err, 'Failed to save settings.'), 'error');
   } finally {
     setButtonLoading(btn, false, 'Save Settings');
   }
@@ -571,6 +742,10 @@ function initChangePasswordOnce() {
   }
 }
 
+
+/* ══════════════════════════════════════════
+   11. UI CONTROLS
+══════════════════════════════════════════ */
 function toggleSidebar() {
   document.getElementById('sidebar')?.classList.toggle('open');
   document.getElementById('mobileOverlay')?.classList.toggle('open');
@@ -584,28 +759,103 @@ function closeSidebar() {
 function goToNotifications() {
   document.querySelector('.nav-item[data-page="notifications"]')?.click();
 }
-function openPanel(panelId) {
-  document.getElementById('overlay')?.classList.add('open');
-  document.getElementById(panelId)?.classList.add('open');
-}
-function closeAllPanels() {
-  document.getElementById('overlay')?.classList.remove('open');
-  document.querySelectorAll('.slide-panel').forEach((p) => p.classList.remove('open'));
-}
-function setButtonLoading(btn, loading, label) {
-  if (!btn) return;
-  btn.disabled = !!loading;
-  btn.textContent = loading ? 'Please wait...' : (label || btn.textContent);
-}
 
+
+/* ══════════════════════════════════════════
+   12. LOGOUT
+══════════════════════════════════════════ */
 async function orgAdminLogout() {
+  clearInterval(_dashRefreshInterval);
+  clearInterval(_notifPollInterval);
+
   let slug = '';
-  try { slug = hc_getUser()?.organization_slug || ''; } catch {}
+  try { slug = hc_getUser()?.organization_slug || ''; } catch(e) {}
 
-  try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch {}
-  try { hc_clearTokens(); } catch {}
+  try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch(e) {}
+  try { hc_clearTokens(); } catch(e) {}
 
-  window.location.href = slug
-    ? '/public/organization/signin.html?org=' + slug
-    : '/public/signin.html';
+  window.location.href = HC_ROUTER.signinPath({ organization_slug: slug });
 }
+
+
+/* ══════════════════════════════════════════
+   13. VISIBILITY API (pause polling when tab hidden)
+══════════════════════════════════════════ */
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    clearInterval(_dashRefreshInterval);
+    clearInterval(_notifPollInterval);
+  } else {
+    _dashRefreshInterval = setInterval(function() {
+      if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+        _loaded.delete('dashboard');
+        loadDashboard();
+      }
+    }, 30000);
+    _notifPollInterval = setInterval(refreshUnreadCount, 30000);
+    refreshUnreadCount();
+  }
+});
+
+window.addEventListener('beforeunload', function() {
+  clearInterval(_dashRefreshInterval);
+  clearInterval(_notifPollInterval);
+});
+
+
+/* ══════════════════════════════════════════
+   14. EVENT DELEGATION (CSP-safe)
+══════════════════════════════════════════ */
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+
+  switch (action) {
+    /* ── Staff actions ── */
+    case 'viewStaff':
+      viewStaffDetail(id);
+      break;
+    case 'editStaff':
+      e.stopPropagation();
+      closeAllPanels();
+      openEditStaffPanel(id);
+      break;
+    case 'toggleStaff':
+      e.stopPropagation();
+      confirmToggleStaff(id, btn.dataset.active);
+      break;
+
+    /* ── Access request actions ── */
+    case 'reviewAccess':
+      confirmReviewAccess(id, btn.dataset.decision);
+      break;
+
+    /* ── Notification actions ── */
+    case 'markNotifRead':
+      markNotificationRead(id);
+      break;
+
+    /* ── Modal actions ── */
+    case 'closeConfirmModal':
+      closeModal('confirmModal');
+      break;
+
+    /* ── Logout ── */
+    case 'logout':
+      orgAdminLogout();
+      break;
+
+    /* ── Pagination ── */
+    case 'paginate': {
+      const fn = btn.dataset.fn;
+      const pg = parseInt(btn.dataset.page, 10);
+      if (fn === 'loadStaff')          { _loaded.delete('staff');   loadStaff(pg); }
+      else if (fn === 'loadPatients')  { _loaded.delete('patients'); loadPatients(pg); }
+      else if (fn === 'loadAccessRequests') { _loaded.delete('access'); loadAccessRequests(pg); }
+      break;
+    }
+  }
+});
