@@ -1,25 +1,26 @@
 /* ═══════════════════════════════════════════════════════════
-   HealthClouda — Super Admin Dashboard
+   HealthClouda — Super Admin Dashboard (Production)
    Load order: config.js → api.js → auth.js → this file
-   
-   DEV NOTE: Auth guard is bypassed when no token exists so
-   the dashboard works standalone for UI testing. When the
-   backend is live, a real token from signin will be used.
 ═══════════════════════════════════════════════════════════ */
 
 
 /* ══════════════════════════════════════════
-   1. AUTH GUARD (dev-safe)
+   1. AUTH GUARD
 ══════════════════════════════════════════ */
 (function authGuard() {
-  // Try to get real auth — but don't redirect if missing (allows local dev)
   let user  = null;
   let token = null;
   try { token = hc_getAccessToken(); } catch(e) {}
   try { user  = hc_getUser();        } catch(e) {}
 
-  // If token exists but wrong role → redirect to correct dashboard
-  if (token && user && typeof hc_redirectByRole === 'function') {
+  /* ── Redirect to signin if not authenticated ── */
+  if (!token) {
+    window.location.href = HC_ROUTER.signinPath({ role: 'SUPERADMIN' });
+    return;
+  }
+
+  /* ── Redirect if wrong role ── */
+  if (user && typeof hc_redirectByRole === 'function') {
     const role = (user.role || '').toLowerCase().replace(/_/g, '');
     if (role && role !== 'superadmin') {
       hc_redirectByRole(user.role);
@@ -27,7 +28,6 @@
     }
   }
 
-  // Populate sidebar name
   const name = (user && (user.full_name || user.email)) || 'Super Admin';
   const el   = (id) => document.getElementById(id);
   if (el('sidebarUserName')) el('sidebarUserName').textContent = name;
@@ -103,9 +103,11 @@ function loadPage(page) {
     case 'dashboard':     loadDashboard(); break;
     case 'organisations': loadOrgs();      break;
     case 'users':         loadUsers();     break;
+    case 'records':       loadRecords();   break;
     case 'billing':       loadBilling();   break;
     case 'messages':      loadMessages();  break;
     case 'audit':         loadAuditLogs(); break;
+    case 'settings':      loadSettings();  break;
   }
 }
 // Load dashboard on first paint
@@ -150,13 +152,24 @@ function formatRelativeTime(iso) {
   const d   = new Date(iso);
   const now = new Date();
   const t   = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-  return (d.toDateString() === now.toDateString() ? 'Today, ' : 'Yesterday, ') + t;
+  if (d.toDateString() === now.toDateString()) return 'Today, ' + t;
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday, ' + t;
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) + ', ' + t;
 }
 function statusBadge(status) {
   if (!status) return '—';
   const map = { successful:'badge-success', success:'badge-success', completed:'badge-info',
                 suspended:'badge-danger', failed:'badge-danger', warning:'badge-warning' };
   return `<span class="badge ${map[status.toLowerCase()] || 'badge-info'}">${status}</span>`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
 }
 
 // Safe API wrapper — falls back to null if api.js not loaded
@@ -178,42 +191,7 @@ async function safeApiDelete(endpoint) {
 }
 
 
-/* ══════════════════════════════════════════
-   4. DEMO DATA (shown when backend offline)
-══════════════════════════════════════════ */
-const DEMO_ORGS = [
-  { id:'HC-25-00001', name:'City General Hospital',  type:'Hospital',    plan:'Premium', status:'Active',    email:'city@healthclouda.com',    phone:'09012345678', address:'13, Martins Street, Lagos Island, Lagos',  admin:'Dr. Aliyu Musa',     color:'#0075FF', created_at:'2025-01-10' },
-  { id:'HC-25-00002', name:'Brightview Clinic',       type:'Clinic',      plan:'Pro',     status:'Active',    email:'bright@healthclouda.com',  phone:'08023456789', address:'5, Allen Avenue, Ikeja, Lagos',            admin:'Dr. Chinwe Okafor',  color:'#16a34a', created_at:'2025-02-14' },
-  { id:'HC-25-00003', name:'Metro Medical Centre',    type:'Hospital',    plan:'Pro',     status:'Active',    email:'metro@healthclouda.com',   phone:'07034567890', address:'22, Broad Street, Lagos Island',           admin:'Dr. Emeka Bello',    color:'#7c3aed', created_at:'2025-03-05' },
-  { id:'HC-25-00004', name:'HealthPlus Centre',       type:'Clinic',      plan:'Premium', status:'Active',    email:'hp@healthclouda.com',      phone:'09045678901', address:'10, Victoria Island, Lagos',              admin:'Dr. Aisha Fadahunsi',color:'#ea580c', created_at:'2025-04-20' },
-  { id:'HC-25-00005', name:'MediCare Clinic',         type:'Clinic',      plan:'Basic',   status:'Suspended', email:'mc@healthclouda.com',      phone:'08056789012', address:'3, Oshodi Market Road, Lagos',            admin:'Dr. John Peters',    color:'#dc2626', created_at:'2025-05-01' },
-  { id:'HC-25-00006', name:'NovaCare Diagnostics',    type:'Laboratory',  plan:'Basic',   status:'Active',    email:'nova@healthclouda.com',    phone:'07067890123', address:'8, Ikotun Road, Lagos',                   admin:'Dr. Fatima Sani',    color:'#0891b2', created_at:'2025-05-15' },
-  { id:'HC-25-00007', name:'PharmaPlus',              type:'Pharmacy',    plan:'Basic',   status:'Active',    email:'pharma@healthclouda.com',  phone:'09078901234', address:'12, Surulere, Lagos',                     admin:'Mr. Tunde Adeyemi',  color:'#db2777', created_at:'2025-06-01' },
-  { id:'HC-25-00008', name:'St. Mary\'s Hospital',    type:'Hospital',    plan:'Premium', status:'Active',    email:'stmary@healthclouda.com',  phone:'08089012345', address:'7, Gbagada Estate, Lagos',                admin:'Dr. Grace Obi',      color:'#0d9488', created_at:'2025-06-10' },
-  { id:'HC-25-00009', name:'FirstCare Hospital',      type:'Hospital',    plan:'Pro',     status:'Active',    email:'firstcare@healthclouda.com',phone:'07090123456',address:'4, Ojota, Lagos',                         admin:'Dr. Kabiru Lawal',   color:'#b45309', created_at:'2025-07-03' },
-  { id:'HC-25-00010', name:'LagosLab Diagnostics',    type:'Laboratory',  plan:'Pro',     status:'Suspended', email:'lagoslab@healthclouda.com', phone:'09001234567', address:'1, FESTAC Town, Lagos',                  admin:'Mr. Seun Adebayo',   color:'#6d28d9', created_at:'2025-07-20' },
-  { id:'HC-25-00011', name:'CityPharm',               type:'Pharmacy',    plan:'Basic',   status:'Active',    email:'citypharm@healthclouda.com',phone:'08012345670', address:'9, Isolo, Lagos',                        admin:'Mrs. Ngozi Eze',     color:'#059669', created_at:'2025-08-01' },
-  { id:'HC-25-00012', name:'Medicare Plus',           type:'Clinic',      plan:'Pro',     status:'Active',    email:'medplus@healthclouda.com', phone:'07023456781', address:'2, Lekki Phase 1, Lagos',                 admin:'Dr. Umar Danfolio',  color:'#d97706', created_at:'2025-08-15' },
-];
-
-const DEMO_USERS = [
-  { id:'U001', full_name:'Dr. Aliyu Musa',      email:'aliyu@city.com',    role:'org_admin',    organisation_name:'City General Hospital', is_active:true,  date_joined:'2025-01-10', phone:'09012345678', last_login:'2026-02-20', record_count:120, login_count:45, action_count:230 },
-  { id:'U002', full_name:'Dr. Fatima Sani',     email:'fatima@nova.com',   role:'doctor',       organisation_name:'NovaCare Diagnostics',  is_active:true,  date_joined:'2025-05-15', phone:'07067890123', last_login:'2026-02-22', record_count:88,  login_count:30, action_count:170 },
-  { id:'U003', full_name:'Nurse Amaka Obi',     email:'amaka@metro.com',   role:'nurse',        organisation_name:'Metro Medical Centre',  is_active:true,  date_joined:'2025-03-05', phone:'08034561234', last_login:'2026-02-21', record_count:60,  login_count:55, action_count:145 },
-  { id:'U004', full_name:'John Peters',         email:'john@medicare.com', role:'receptionist', organisation_name:'MediCare Clinic',       is_active:false, date_joined:'2025-05-01', phone:'08056789012', last_login:'2026-01-10', record_count:0,   login_count:12, action_count:40  },
-  { id:'U005', full_name:'Grace Adewale',       email:'grace@hp.com',      role:'patient',      organisation_name:'HealthPlus Centre',     is_active:true,  date_joined:'2025-04-20', phone:'09011223344', last_login:'2026-02-19', record_count:5,   login_count:8,  action_count:12  },
-  { id:'U006', full_name:'Dr. Emeka Bello',     email:'emeka@metro.com',   role:'doctor',       organisation_name:'Metro Medical Centre',  is_active:true,  date_joined:'2025-03-06', phone:'07034567890', last_login:'2026-02-23', record_count:200, login_count:60, action_count:310 },
-  { id:'U007', full_name:'Dr. Chinwe Okafor',   email:'chinwe@bright.com', role:'org_admin',    organisation_name:'Brightview Clinic',     is_active:true,  date_joined:'2025-02-14', phone:'08023456789', last_login:'2026-02-22', record_count:95,  login_count:40, action_count:188 },
-  { id:'U008', full_name:'Tunde Adeyemi',       email:'tunde@pharma.com',  role:'receptionist', organisation_name:'PharmaPlus',            is_active:true,  date_joined:'2025-06-01', phone:'09078901234', last_login:'2026-02-20', record_count:0,   login_count:25, action_count:75  },
-];
-
-const DEMO_ACTIVITY = [
-  { time:new Date().toISOString(),                   user_id:'HC-25-00003', action:'Update Billing Plan',    entity:'City Hospital',    status:'successful' },
-  { time:new Date(Date.now()-3600000).toISOString(), user_id:'HC-28-00363', action:'Account Suspended',      entity:'MediCare Clinic',  status:'suspended'  },
-  { time:new Date(Date.now()-7200000).toISOString(), user_id:'HC-22-00453', action:'Added New Record',       entity:'Dr. Smith',        status:'completed'  },
-  { time:new Date(Date.now()-86400000).toISOString(),user_id:'HC-23-00345', action:'Failed login attempt',   entity:'IP:192.168.1.10',  status:'failed'     },
-  { time:new Date(Date.now()-90000000).toISOString(),user_id:'HC-26-00233', action:'Activated Account',      entity:'HealthPlus Centre',status:'successful' },
-];
+/* Demo data constants removed — empty-state rendering used when backend offline */
 
 
 /* ══════════════════════════════════════════
@@ -291,31 +269,13 @@ async function loadSystemHealth() {
 }
 
 async function loadSecurityAlerts() {
-  ['secFailedLogins','secLockedAccounts','secSuspiciousActivity'].forEach(id => {
-    const el = document.getElementById(id);
-    const cnt = el?.querySelector('.sec-count');
-    if (cnt) cnt.innerHTML = '<div style="height:20px;width:30px;border-radius:4px;display:inline-block;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div>';
-  });
-  try {
-    const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_SECURITY);
-    document.getElementById('secFailedLogins').querySelector('.sec-count').textContent  = d.failed_logins   ?? '—';
-    document.getElementById('secLockedAccounts').querySelector('.sec-count').textContent = d.locked_accounts ?? '—';
-    const saEl = document.getElementById('secSuspicious');
-    if (saEl) {
-      const clean = !d.suspicious_activity;
-      saEl.className = `alert-item ${clean ? 'safe' : 'danger'}`;
-      saEl.querySelector('.sec-label').textContent = clean
-        ? 'No suspicious activity detected'
-        : 'Suspicious activity flagged';
-    }
-  } catch {
-    document.getElementById('secFailedLogins').querySelector('.sec-count').textContent   = '—';
-    document.getElementById('secLockedAccounts').querySelector('.sec-count').textContent = '—';
-    const saEl = document.getElementById('secSuspicious');
-    if (saEl) {
-      saEl.className = 'alert-item';
-      saEl.querySelector('.sec-label').textContent = 'Awaiting backend connection';
-    }
+  // Security alerts endpoint not available in backend — show placeholder
+  document.getElementById('secFailedLogins')?.querySelector('.sec-count') && (document.getElementById('secFailedLogins').querySelector('.sec-count').textContent = '—');
+  document.getElementById('secLockedAccounts')?.querySelector('.sec-count') && (document.getElementById('secLockedAccounts').querySelector('.sec-count').textContent = '—');
+  const saEl = document.getElementById('secSuspicious');
+  if (saEl) {
+    saEl.className = 'alert-item';
+    saEl.querySelector('.sec-label').textContent = 'Coming soon';
   }
 }
 
@@ -364,7 +324,7 @@ async function loadOrgs() {
     const d    = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_ORGS);
     _orgsCache = Array.isArray(d) ? d : (d.results || []);
   } catch {
-    _orgsCache = DEMO_ORGS;   // ← demo data when offline
+    _orgsCache = [];
   }
   _orgsFiltered = [..._orgsCache];
   _orgsPage     = 1;
@@ -375,19 +335,19 @@ async function loadOrgs() {
 function orgFilterChange() {
   const q      = (document.getElementById('orgSearch')?.value    || '').toLowerCase().trim();
   const type   =  document.getElementById('filterType')?.value   || '';
-  const plan   =  document.getElementById('filterPlan')?.value   || '';
   const status =  document.getElementById('filterStatus')?.value || '';
-  _orgsFiltered = _orgsCache.filter(o =>
-    (!q      || o.name?.toLowerCase().includes(q) || o.id?.toLowerCase().includes(q)) &&
-    (!type   || o.type   === type)   &&
-    (!plan   || o.plan   === plan)   &&
-    (!status || o.status === status)
-  );
+  _orgsFiltered = _orgsCache.filter(o => {
+    if (q && !o.name?.toLowerCase().includes(q) && !o.id?.toLowerCase().includes(q) && !o.org_id?.toLowerCase().includes(q)) return false;
+    if (type && o.org_type !== type) return false;
+    if (status === 'active'    && o.is_active === false) return false;
+    if (status === 'suspended' && o.is_active !== false) return false;
+    return true;
+  });
   _orgsPage = 1;
   renderOrgsPage();
 }
 function clearOrgFilters() {
-  ['orgSearch','filterType','filterPlan','filterStatus'].forEach(id => {
+  ['orgSearch','filterType','filterStatus'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   _orgsFiltered = [..._orgsCache];
@@ -399,17 +359,15 @@ function clearOrgFilters() {
 function sortOrgs(field) {
   _sortDir   = _sortField === field ? (_sortDir==='asc'?'desc':'asc') : 'asc';
   _sortField = field;
-  ['name','plan','date'].forEach(f => {
+  ['name','date'].forEach(f => {
     const el = document.getElementById('sort-'+f);
     if (!el) return;
     el.textContent = f===field ? (_sortDir==='asc'?'↑':'↓') : '↕';
     el.className   = 'sort-icon'+(f===field?' '+_sortDir:'');
   });
-  const planOrder = { Basic:1, Pro:2, Premium:3 };
   _orgsFiltered.sort((a,b) => {
     let va, vb;
     if (field==='name') { va=a.name||''; vb=b.name||''; }
-    if (field==='plan') { va=planOrder[a.plan]||0; vb=planOrder[b.plan]||0; }
     if (field==='date') { va=new Date(a.created_at||0); vb=new Date(b.created_at||0); }
     if (va<vb) return _sortDir==='asc'?-1:1;
     if (va>vb) return _sortDir==='asc'?1:-1;
@@ -438,48 +396,50 @@ function renderOrgsTable(data) {
   const tbody = document.getElementById('orgTableBody');
   if (!tbody) return;
   if (!data?.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state" style="padding:2.5rem">
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:2.5rem">
       <svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"/></svg>
       <h3>No organisations found</h3><p>Try adjusting your search or filters.</p>
     </div></td></tr>`;
     return;
   }
   tbody.innerHTML = data.map((org,i) => {
-    const colour   = org.color || ORG_COLOURS[i%ORG_COLOURS.length];
+    const colour   = ORG_COLOURS[i%ORG_COLOURS.length];
     const initials = (org.name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const typeCls  = org.type==='Hospital'?'badge-blue':org.type==='Clinic'?'badge-green':'badge-info';
-    const planCls  = org.plan==='Premium'?'badge-warning':org.plan==='Pro'?'badge-purple':'badge-info';
-    const statCls  = org.status==='Active'?'badge-success':'badge-danger';
-    const isSusp   = (org.status||'').toLowerCase()==='suspended';
-    const safeName = (org.name||'').replace(/'/g,"\\'");
+    const orgType  = org.org_type || '';
+    const typeCls  = orgType==='HOSPITAL'?'badge-blue':orgType==='CLINIC'?'badge-green':'badge-info';
+    const typeLabel = orgType==='HOSPITAL'?'Hospital':orgType==='CLINIC'?'Clinic':orgType==='SCHOOL_CLINIC'?'School Clinic':orgType||'—';
+    const isActive = org.is_active !== false;
+    const statCls  = isActive?'badge-success':'badge-danger';
+    const statLabel = isActive?'Active':'Suspended';
+    const location = [org.city, org.state].filter(Boolean).join(', ');
     return `
-      <tr class="${isSusp?'row-suspended':''}">
+      <tr class="${!isActive?'row-suspended':''}">
         <td>
           <div class="org-name-cell">
             <div class="org-avatar" style="background:${colour}">${initials}</div>
             <div>
-              <div class="org-name">${org.name}</div>
-              ${org.admin?`<div class="org-sub">${org.admin}</div>`:''}
+              <div class="org-name">${escapeHtml(org.name)}</div>
+              ${location?`<div class="org-sub">${escapeHtml(location)}</div>`:''}
             </div>
           </div>
         </td>
-        <td><span class="badge ${typeCls}">${org.type||'—'}</span></td>
-        <td class="td-mono">${org.id}</td>
-        <td><span class="badge ${planCls}">${org.plan||'—'}</span></td>
+        <td><span class="badge ${typeCls}">${escapeHtml(typeLabel)}</span></td>
+        <td class="td-mono">${escapeHtml(org.org_id || org.id)}</td>
+        <td class="td-mono">${escapeHtml(org.slug || '—')}</td>
         <td>
           <span class="badge ${statCls}">
-            ${isSusp?'<span class="status-dot offline" style="width:6px;height:6px;display:inline-block;margin-right:4px;vertical-align:middle"></span>':''}
-            ${org.status||'—'}
+            ${!isActive?'<span class="status-dot offline" style="width:6px;height:6px;display:inline-block;margin-right:4px;vertical-align:middle"></span>':''}
+            ${statLabel}
           </span>
         </td>
         <td class="td-date">${formatDate(org.created_at)}</td>
         <td>
           <div class="row-actions">
-            <button class="row-btn" onclick="viewOrg('${org.id}')">View</button>
-            ${isSusp
-              ? `<button class="row-btn success" onclick="activateOrg('${org.id}','${safeName}')">Activate</button>`
-              : `<button class="row-btn warn"    onclick="suspendOrg('${org.id}','${safeName}')">Suspend</button>`}
-            <button class="row-btn danger" onclick="promptDeleteOrg('${org.id}','${safeName}')">Delete</button>
+            <button class="row-btn" onclick="viewOrg('${escapeHtml(org.id)}')">View</button>
+            ${!isActive
+              ? `<button class="row-btn success" onclick="activateOrg('${escapeHtml(org.id)}','${escapeHtml(org.name)}')">Activate</button>`
+              : `<button class="row-btn warn"    onclick="suspendOrg('${escapeHtml(org.id)}','${escapeHtml(org.name)}')">Suspend</button>`}
+            <button class="row-btn danger" onclick="promptDeleteOrg('${escapeHtml(org.id)}','${escapeHtml(org.name)}')">Delete</button>
           </div>
         </td>
       </tr>`;
@@ -511,17 +471,17 @@ function goOrgPage(p) {
 async function suspendOrg(id, name) {
   if (!confirm(`Suspend "${name}"? They will lose access immediately.`)) return;
   try {
-    await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_ORG_SUSPEND}${id}/suspend/`);
+    await safeApiPost(`${HC_CONFIG.ENDPOINTS.SA_ORG_SUSPEND}${id}/suspend/`);
   } catch {}
-  const o = _orgsCache.find(o=>o.id===id); if(o) o.status='Suspended';
+  const o = _orgsCache.find(o=>o.id===id); if(o) o.is_active=false;
   orgFilterChange();
   showToast(`${name} suspended`, 'error');
 }
 async function activateOrg(id, name) {
   try {
-    await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_ORG_ACTIVATE}${id}/activate/`);
+    await safeApiPost(`${HC_CONFIG.ENDPOINTS.SA_ORG_ACTIVATE}${id}/activate/`);
   } catch {}
-  const o = _orgsCache.find(o=>o.id===id); if(o) o.status='Active';
+  const o = _orgsCache.find(o=>o.id===id); if(o) o.is_active=true;
   orgFilterChange();
   showToast(`${name} reactivated`, 'success');
 }
@@ -556,9 +516,10 @@ async function confirmDeleteOrg() {
 // Export CSV
 function exportOrgsCSV() {
   if (!_orgsFiltered.length) { showToast('No data to export',''); return; }
-  const headers = ['Name','Type','ID','Plan','Status','Date Added','Email','Phone'];
+  const headers = ['Name','Type','ID','Status','City','State','Date Added','Email','Phone'];
   const rows    = _orgsFiltered.map(o =>
-    [o.name,o.type,o.id,o.plan,o.status,
+    [o.name,o.org_type,o.org_id||o.id,o.is_active!==false?'Active':'Suspended',
+     o.city,o.state,
      o.created_at?new Date(o.created_at).toLocaleDateString():'',
      o.email,o.phone
     ].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')
@@ -596,26 +557,49 @@ async function viewOrg(id) {
   }
   if (!org) { showToast('Organisation not found','error'); return; }
 
-  const colour   = org.color || '#0075FF';
   const initials = (org.name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const isSusp   = (org.status||'').toLowerCase()==='suspended';
+  const isActive = org.is_active !== false;
+  const statLabel = isActive ? 'Active' : 'Suspended';
+  const location = [org.city, org.state, org.country_name].filter(Boolean).join(', ');
 
   document.getElementById('viewOrgTitle').textContent       = org.name;
-  document.getElementById('viewOrgBadge').innerHTML         = `<span class="badge ${isSusp?'badge-danger':'badge-success'}" style="margin-top:4px">${org.status}</span>`;
+  document.getElementById('viewOrgBadge').innerHTML         = `<span class="badge ${!isActive?'badge-danger':'badge-success'}" style="margin-top:4px">${statLabel}</span>`;
   document.getElementById('viewOrgAvatar').textContent      = initials;
-  document.getElementById('viewOrgAvatar').style.background = colour;
+  document.getElementById('viewOrgAvatar').style.background = '#0075FF';
   document.getElementById('viewOrgName').textContent        = org.name;
-  document.getElementById('viewOrgAdmin').textContent       = 'Admin: '+(org.admin||'—');
+  document.getElementById('viewOrgAdmin').textContent       = org.org_id || '—';
   document.getElementById('viewOrgEmail').textContent       = org.email   || '—';
   document.getElementById('viewOrgPhone').textContent       = org.phone   || '—';
   document.getElementById('viewOrgAddress').textContent     = org.address || '—';
-  document.getElementById('viewOrgPlanVal').textContent     = org.plan    || '—';
+  document.getElementById('viewOrgLocationVal').textContent = location    || '—';
   document.getElementById('viewOrgDate').textContent        = formatDate(org.created_at);
+
+  // Slug, license, verified, landing URL
+  document.getElementById('viewOrgSlug').textContent        = org.slug || '—';
+  document.getElementById('viewOrgLicense').textContent     = org.license_number || '—';
+  const isVerified = org.is_verified === true;
+  const verifiedEl = document.getElementById('viewOrgVerified');
+  verifiedEl.innerHTML = isVerified
+    ? `<span class="badge badge-success">Verified</span>${org.verified_at ? ' — ' + formatDate(org.verified_at) : ''}`
+    : `<span class="badge badge-danger">Not Verified</span>`;
+
+  const landingEl = document.getElementById('viewOrgLandingUrl');
+  if (org.slug) {
+    const landingUrl = `${window.location.origin}${HC_ROUTER.orgLandingPath(org.slug)}`;
+    landingEl.innerHTML = `<a href="${landingUrl}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">${landingUrl}</a>`;
+  } else {
+    landingEl.textContent = '—';
+  }
+
+  // Statistics
+  document.getElementById('viewOrgStaff').textContent    = org.total_staff    ?? 0;
+  document.getElementById('viewOrgPatients').textContent  = org.total_patients ?? 0;
+  document.getElementById('viewOrgEpisodes').textContent  = org.total_episodes ?? 0;
 
   const suspBtn = document.getElementById('panelSuspendBtn');
   if (suspBtn) {
-    suspBtn.textContent = isSusp ? 'Activate' : 'Suspend';
-    suspBtn.className   = `btn ${isSusp?'btn-success':'btn-danger'}`;
+    suspBtn.textContent = !isActive ? 'Activate' : 'Suspend';
+    suspBtn.className   = `btn ${!isActive?'btn-success':'btn-danger'}`;
   }
 
   const heights = org.performance || [40,55,30,70,45,80,60];
@@ -626,7 +610,7 @@ async function viewOrg(id) {
 
   document.getElementById('viewOrgPanel').dataset.orgId    = org.id;
   document.getElementById('viewOrgPanel').dataset.orgName  = org.name;
-  document.getElementById('viewOrgPanel').dataset.suspended = isSusp ? '1' : '0';
+  document.getElementById('viewOrgPanel').dataset.suspended = !isActive ? '1' : '0';
 }
 
 function switchOrgTab(btn, contentId) {
@@ -641,69 +625,50 @@ function switchOrgTab(btn, contentId) {
 
 async function loadOrgUsers(orgId) {
   const el = document.getElementById('orgUsersContent');
-  el.innerHTML = `<div class="tab-loading">Loading users…</div>`;
-  let users = [];
-  try {
-    const d = await safeApiGet(`${HC_CONFIG.ENDPOINTS.SA_ORG_USERS}${orgId}/users/`);
-    users = Array.isArray(d) ? d : (d.results||[]);
-  } catch {
-    users = DEMO_USERS.filter(u => {
-      const org = _orgsCache.find(o=>o.id===orgId);
-      return org && u.organisation_name === org.name;
-    });
+  el.innerHTML = '<div class="tab-loading">Loading users…</div>';
+
+  // Ensure users cache is populated
+  if (!_usersCache.length) {
+    try {
+      const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_USERS);
+      _usersCache = (Array.isArray(d) ? d : (d.results||[])).map(normalizeUser);
+    } catch { _usersCache = []; }
   }
-  if (!users.length) {
+
+  // Filter users belonging to this org
+  const orgUsers = _usersCache.filter(u =>
+    u.organization?.id === orgId || u.organization_id === orgId
+  );
+
+  if (!orgUsers.length) {
     el.innerHTML = `<div class="empty-state" style="padding:1.5rem">
       <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-      <h3>No users yet</h3><p>No users registered in this organisation.</p></div>`;
+      <h3>No users</h3><p>No users found for this organisation.</p></div>`;
     return;
   }
-  el.innerHTML = `<div class="section-label">Users (${users.length})</div>` +
-    users.map(u => {
+
+  el.innerHTML = `<div class="org-users-count" style="font-size:0.8rem;color:var(--text-soft);margin-bottom:0.75rem">${orgUsers.length} user${orgUsers.length!==1?'s':''}</div>` +
+    orgUsers.map(u => {
+      const colour   = userColour(u.id);
       const initials = (u.full_name||u.email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      const statCls  = u.is_active!==false?'badge-success':'badge-danger';
-      return `<div class="org-user-item">
-        <div class="org-user-avatar">${initials}</div>
-        <div>
-          <div class="org-user-name">${u.full_name||'—'}</div>
-          <div class="org-user-role">${u.role||'—'} · ${u.email||'—'}</div>
+      const isActive = u.is_active !== false;
+      return `<div class="org-user-item${!isActive?' suspended':''}" onclick="closePanel('viewOrgPanel');setTimeout(()=>viewUser('${escapeHtml(u.id)}'),300)">
+        <div class="user-avatar" style="background:${colour};width:32px;height:32px;font-size:0.7rem;min-width:32px">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.full_name)||'—'}</div>
+          <div style="font-size:0.75rem;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(u.email)}</div>
         </div>
-        <div class="org-user-right"><span class="badge ${statCls}" style="font-size:0.68rem">${u.is_active!==false?'Active':'Inactive'}</span></div>
+        <span class="${roleBadgeClass(u.role)}" style="font-size:0.7rem;white-space:nowrap">${roleLabel(u.role)}</span>
+        ${!isActive?'<span class="badge badge-danger" style="font-size:0.65rem;margin-left:4px">Suspended</span>':''}
       </div>`;
     }).join('');
 }
 
 async function loadOrgBilling(orgId) {
   const el = document.getElementById('orgBillingContent');
-  el.innerHTML = `<div class="tab-loading">Loading billing…</div>`;
-  let d;
-  try {
-    d = await safeApiGet(`${HC_CONFIG.ENDPOINTS.SA_ORG_BILLING}${orgId}/billing/`);
-  } catch {
-    const org = _orgsCache.find(o=>o.id===orgId);
-    d = {
-      plan: org?.plan || 'Pro',
-      price: org?.plan==='Premium' ? 150000 : org?.plan==='Pro' ? 75000 : 25000,
-      currency:'₦', billing_cycle:'month', status:'active',
-      last_payment: '2026-01-01', next_payment: '2026-03-01',
-      user_count: DEMO_USERS.filter(u=>u.organisation_name===org?.name).length,
-      record_count: 120,
-    };
-  }
-  el.innerHTML = `
-    <div class="billing-plan-card">
-      <div class="billing-plan-name">${d.plan||'—'} Plan
-        <span class="badge ${d.status==='active'?'badge-success':'badge-danger'}" style="font-size:0.68rem">${d.status||'—'}</span>
-      </div>
-      <div class="billing-plan-price">${d.currency||'₦'}${Number(d.price||0).toLocaleString()}</div>
-      <div class="billing-plan-cycle">per ${d.billing_cycle||'month'}</div>
-    </div>
-    <div class="section-label">Billing Details</div>
-    ${[['Last Payment', d.last_payment?formatDate(d.last_payment):'—'],
-       ['Next Payment', d.next_payment?formatDate(d.next_payment):'—'],
-       ['Total Users',  d.user_count??'—'],
-       ['Total Records',d.record_count??'—'],
-    ].map(([l,v])=>`<div class="billing-info-row"><span class="billing-info-label">${l}</span><span class="billing-info-value">${v}</span></div>`).join('')}`;
+  el.innerHTML = `<div class="empty-state" style="padding:1.5rem">
+    <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    <h3>Coming Soon</h3><p>Billing management will be available in a future update.</p></div>`;
 }
 
 async function panelSuspendOrg() {
@@ -723,24 +688,32 @@ async function panelSuspendOrg() {
 // Add Org
 async function submitAddOrg(e) {
   if (e && e.preventDefault) e.preventDefault();
-  const name    = document.getElementById('newOrgName')?.value.trim();
-  const type    = document.getElementById('newOrgType')?.value;
-  const email   = document.getElementById('newOrgEmail')?.value.trim();
-  const phone   = document.getElementById('newOrgPhone')?.value.trim();
-  const address = document.getElementById('newOrgAddress')?.value.trim();
-  const plan    = document.getElementById('newOrgPlan')?.value;
-  if (!name||!type||!email||!phone||!address) { showToast('Please fill all required fields','error'); return; }
+  const name           = document.getElementById('newOrgName')?.value.trim();
+  const org_type       = document.getElementById('newOrgType')?.value;
+  const email          = document.getElementById('newOrgEmail')?.value.trim();
+  const phone          = document.getElementById('newOrgPhone')?.value.trim();
+  const address        = document.getElementById('newOrgAddress')?.value.trim();
+  const city           = document.getElementById('newOrgCity')?.value.trim();
+  const state          = document.getElementById('newOrgState')?.value.trim();
+  const country_code   = document.getElementById('newOrgCountryCode')?.value.trim();
+  const country_name   = document.getElementById('newOrgCountryName')?.value.trim();
+  const license_number = document.getElementById('newOrgLicense')?.value.trim();
+  if (!name||!org_type||!email||!address||!city||!state||!country_code||!country_name) {
+    showToast('Please fill all required fields','error'); return;
+  }
 
   const btn = document.querySelector('#addOrgPanel .panel-footer .btn-primary');
   setButtonLoading(btn, true, 'Add Organisation');
+  const payload = {name,org_type,email,address,city,state,country_code,country_name};
+  if (phone)          payload.phone = phone;
+  if (license_number) payload.license_number = license_number;
   let newOrg;
   try {
-    newOrg = await safeApiPost(HC_CONFIG.ENDPOINTS.SA_ORGS, {name,type,email,phone,address,plan});
+    newOrg = await safeApiPost(HC_CONFIG.ENDPOINTS.SA_ORGS, payload);
   } catch {
-    // Create locally in demo mode
-    newOrg = { id:'HC-26-'+String(Date.now()).slice(-5), name, type, email, phone, address, plan,
-               status:'Active', color:ORG_COLOURS[_orgsCache.length%ORG_COLOURS.length],
-               created_at: new Date().toISOString() };
+    showToast('Could not add organisation — backend offline', 'error');
+    setButtonLoading(btn, false, 'Add Organisation');
+    return;
   }
   _orgsCache.unshift(newOrg);
   _orgsFiltered = [..._orgsCache];
@@ -757,34 +730,46 @@ function openEditOrgPanel() {
   const id    = panel.dataset.orgId;
   const org   = _orgsCache.find(o=>o.id===id);
   if (!org) return;
-  document.getElementById('editOrgSubtitle').textContent = `Editing: ${org.name}`;
-  document.getElementById('editOrgName').value           = org.name    || '';
-  document.getElementById('editOrgAddress').value        = org.address || '';
-  document.getElementById('editOrgEmail').value          = org.email   || '';
-  document.getElementById('editOrgPhone').value          = org.phone   || '';
-  document.getElementById('editOrgType').value           = org.type    || '';
-  document.getElementById('editOrgPlan').value           = org.plan    || '';
-  document.getElementById('editOrgPanel').dataset.orgId  = id;
+  document.getElementById('editOrgSubtitle').textContent   = `Editing: ${org.name}`;
+  document.getElementById('editOrgName').value             = org.name         || '';
+  document.getElementById('editOrgAddress').value          = org.address      || '';
+  document.getElementById('editOrgCity').value             = org.city         || '';
+  document.getElementById('editOrgState').value            = org.state        || '';
+  document.getElementById('editOrgCountryCode').value      = org.country_code || '';
+  document.getElementById('editOrgCountryName').value      = org.country_name || '';
+  document.getElementById('editOrgEmail').value            = org.email        || '';
+  document.getElementById('editOrgPhone').value            = org.phone        || '';
+  document.getElementById('editOrgType').value             = org.org_type     || '';
+  document.getElementById('editOrgLicense').value          = org.license_number || '';
+  document.getElementById('editOrgPanel').dataset.orgId    = id;
   openPanel('editOrgPanel');
 }
 async function submitEditOrg(e) {
   if (e && e.preventDefault) e.preventDefault();
-  const id      = document.getElementById('editOrgPanel').dataset.orgId;
-  const name    = document.getElementById('editOrgName')?.value.trim();
-  const address = document.getElementById('editOrgAddress')?.value.trim();
-  const email   = document.getElementById('editOrgEmail')?.value.trim();
-  const phone   = document.getElementById('editOrgPhone')?.value.trim();
-  const type    = document.getElementById('editOrgType')?.value;
-  const plan    = document.getElementById('editOrgPlan')?.value;
-  if (!name||!address||!email||!phone||!type) { showToast('Please fill all required fields','error'); return; }
+  const id             = document.getElementById('editOrgPanel').dataset.orgId;
+  const name           = document.getElementById('editOrgName')?.value.trim();
+  const address        = document.getElementById('editOrgAddress')?.value.trim();
+  const city           = document.getElementById('editOrgCity')?.value.trim();
+  const state          = document.getElementById('editOrgState')?.value.trim();
+  const country_code   = document.getElementById('editOrgCountryCode')?.value.trim();
+  const country_name   = document.getElementById('editOrgCountryName')?.value.trim();
+  const email          = document.getElementById('editOrgEmail')?.value.trim();
+  const phone          = document.getElementById('editOrgPhone')?.value.trim();
+  const org_type       = document.getElementById('editOrgType')?.value;
+  const license_number = document.getElementById('editOrgLicense')?.value.trim();
+  if (!name||!address||!email||!org_type||!city||!state||!country_code||!country_name) {
+    showToast('Please fill all required fields','error'); return;
+  }
 
   const btn = document.getElementById('editOrgSaveBtn');
   setButtonLoading(btn, true, 'Save Changes');
+  const payload = {name,address,city,state,country_code,country_name,email,phone,org_type};
+  if (license_number) payload.license_number = license_number;
   try {
-    await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_ORG_DETAIL}${id}/`, {name,address,email,phone,type,plan});
+    await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_ORG_DETAIL}${id}/`, payload);
   } catch {}
   const idx = _orgsCache.findIndex(o=>o.id===id);
-  if (idx>-1) Object.assign(_orgsCache[idx], {name,address,email,phone,type,plan});
+  if (idx>-1) Object.assign(_orgsCache[idx], payload);
   orgFilterChange();
   closePanel('editOrgPanel');
   showToast(`${name} updated`, 'success');
@@ -808,7 +793,14 @@ function userColour(id) {
   for (let i=0; i<(id||'').length; i++) hash=(hash*31+id.charCodeAt(i))>>>0;
   return USER_COLOURS[hash%USER_COLOURS.length];
 }
-const ROLE_LABELS = { superadmin:'Super Admin', org_admin:'Org Admin', doctor:'Doctor', nurse:'Nurse', receptionist:'Receptionist', patient:'Patient' };
+const ROLE_LABELS = { SUPERADMIN:'Super Admin', ORGANIZATION_ADMIN:'Org Admin', DOCTOR:'Doctor', NURSE:'Nurse', RECEPTIONIST:'Receptionist', PATIENT:'Patient' };
+
+function normalizeUser(u) {
+  if (!u) return u;
+  if (!u.full_name) u.full_name = [u.first_name, u.last_name].filter(Boolean).join(' ') || '';
+  if (!u.organisation_name) u.organisation_name = u.organization?.name || '';
+  return u;
+}
 function roleLabel(r)      { return ROLE_LABELS[r] || r || '—'; }
 function roleBadgeClass(r) { return `badge badge-role-${r||'patient'}`; }
 
@@ -816,29 +808,32 @@ async function loadUsers() {
   showSkeletonRows('userTableBody', 7, 8);
   try {
     const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_USERS);
-    _usersCache = Array.isArray(d) ? d : (d.results||[]);
+    _usersCache = (Array.isArray(d) ? d : (d.results||[])).map(normalizeUser);
   } catch {
-    _usersCache = DEMO_USERS;
+    _usersCache = [];
   }
   _usersFiltered = [..._usersCache];
   _usersPage     = 1;
   renderUsersPage();
+  populateUserOrgFilter();
 }
 
 function userFilterChange() {
   const q      = (document.getElementById('userSearch')?.value       || '').toLowerCase().trim();
   const role   =  document.getElementById('filterUserRole')?.value   || '';
   const status =  document.getElementById('filterUserStatus')?.value || '';
+  const org    =  document.getElementById('filterUserOrg')?.value    || '';
   _usersFiltered = _usersCache.filter(u =>
     (!q      || u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)) &&
     (!role   || u.role === role) &&
-    (!status || (status==='active' && u.is_active) || (status==='suspended' && !u.is_active))
+    (!status || (status==='active' && u.is_active) || (status==='suspended' && !u.is_active)) &&
+    (!org    || u.organisation_name === org || u.organization?.name === org)
   );
   _usersPage = 1;
   renderUsersPage();
 }
 function clearUserFilters() {
-  ['userSearch','filterUserRole','filterUserStatus'].forEach(id => {
+  ['userSearch','filterUserRole','filterUserStatus','filterUserOrg'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value='';
   });
   _usersFiltered = [..._usersCache];
@@ -895,21 +890,20 @@ function renderUsersTable(data) {
     const colour   = userColour(u.id);
     const initials = (u.full_name||u.email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const isActive = u.is_active !== false;
-    const safeName = (u.full_name||'').replace(/'/g,"\\'");
     return `
       <tr class="${isActive?'':'row-suspended'}">
         <td>
           <div class="user-name-cell">
             <div class="user-avatar" style="background:${colour}">${initials}</div>
             <div>
-              <div class="user-name">${u.full_name||'—'}</div>
-              ${u.id?`<div class="user-sub">#${u.id}</div>`:''}
+              <div class="user-name">${escapeHtml(u.full_name)||'—'}</div>
+              ${u.id?`<div class="user-sub">#${escapeHtml(u.id)}</div>`:''}
             </div>
           </div>
         </td>
         <td><span class="${roleBadgeClass(u.role)}">${roleLabel(u.role)}</span></td>
-        <td style="font-size:0.82rem;color:var(--text-mid)">${u.organisation_name||'—'}</td>
-        <td style="font-size:0.82rem;color:var(--text-soft)">${u.email||'—'}</td>
+        <td style="font-size:0.82rem;color:var(--text-mid)">${escapeHtml(u.organisation_name)||'—'}</td>
+        <td style="font-size:0.82rem;color:var(--text-soft)">${escapeHtml(u.email)||'—'}</td>
         <td><span class="badge ${isActive?'badge-success':'badge-danger'}">
           ${!isActive?'<span class="status-dot offline" style="width:6px;height:6px;display:inline-block;margin-right:4px;vertical-align:middle"></span>':''}
           ${isActive?'Active':'Suspended'}
@@ -917,10 +911,10 @@ function renderUsersTable(data) {
         <td class="td-date">${formatDate(u.date_joined)}</td>
         <td>
           <div class="row-actions">
-            <button class="row-btn" onclick="viewUser('${u.id}')">View</button>
+            <button class="row-btn" onclick="viewUser('${escapeHtml(u.id)}')">View</button>
             ${isActive
-              ? `<button class="row-btn warn" onclick="suspendUser('${u.id}','${safeName}')">Suspend</button>`
-              : `<button class="row-btn success" onclick="activateUser('${u.id}','${safeName}')">Activate</button>`}
+              ? `<button class="row-btn warn" onclick="suspendUser('${escapeHtml(u.id)}','${escapeHtml(u.full_name)}')">Suspend</button>`
+              : `<button class="row-btn success" onclick="activateUser('${escapeHtml(u.id)}','${escapeHtml(u.full_name)}')">Activate</button>`}
           </div>
         </td>
       </tr>`;
@@ -949,13 +943,13 @@ function goUserPage(p) {
 
 async function suspendUser(id, name) {
   if (!confirm(`Suspend "${name}"?`)) return;
-  try { await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_USER_SUSPEND}${id}/suspend/`); } catch {}
+  try { await safeApiDelete(`${HC_CONFIG.ENDPOINTS.SA_USER_DETAIL}${id}/`); } catch {}
   const u=_usersCache.find(u=>u.id===id); if(u) u.is_active=false;
   userFilterChange();
   showToast(`${name} suspended`,'error');
 }
 async function activateUser(id, name) {
-  try { await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_USER_ACTIVATE}${id}/activate/`); } catch {}
+  try { await safeApiPost(`${HC_CONFIG.ENDPOINTS.SA_USER_ACTIVATE}${id}/activate/`); } catch {}
   const u=_usersCache.find(u=>u.id===id); if(u) u.is_active=true;
   userFilterChange();
   showToast(`${name} reactivated`,'success');
@@ -977,6 +971,115 @@ function exportUsersCSV() {
   showToast('CSV downloaded','success');
 }
 
+/* ── Org filter dropdown for Users page ── */
+function populateUserOrgFilter() {
+  const sel = document.getElementById('filterUserOrg');
+  if (!sel) return;
+  const orgNames = [...new Set(_usersCache.map(u => u.organisation_name || u.organization?.name).filter(Boolean))].sort();
+  const current  = sel.value;
+  sel.innerHTML  = '<option value="">All Organisations</option>' +
+    orgNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  if (current) sel.value = current;
+}
+
+/* ── Populate org dropdown for Create User panel ── */
+async function populateOrgDropdown(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Loading…</option>';
+  let orgs = _orgsCache;
+  if (!orgs.length) {
+    try {
+      const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_ORGS);
+      orgs = Array.isArray(d) ? d : (d.results||[]);
+    } catch { orgs = []; }
+  }
+  sel.innerHTML = '<option value="">Select organisation…</option>' +
+    orgs.filter(o => o.is_active !== false).map(o =>
+      `<option value="${escapeHtml(o.id)}">${escapeHtml(o.name)}</option>`
+    ).join('');
+}
+
+/* ── Open Create User panel ── */
+function openCreateUserPanel() {
+  openPanel('addUserPanel');
+  populateOrgDropdown('newUserOrg');
+}
+
+/* ── Toggle org field visibility based on role ── */
+function onCreateUserRoleChange() {
+  const role    = document.getElementById('newUserRole')?.value;
+  const orgGrp  = document.getElementById('newUserOrgGroup');
+  const orgSel  = document.getElementById('newUserOrg');
+  if (!orgGrp) return;
+  if (role === 'SUPERADMIN') {
+    orgGrp.style.display = 'none';
+    if (orgSel) orgSel.removeAttribute('required');
+  } else {
+    orgGrp.style.display = '';
+    if (orgSel) orgSel.setAttribute('required','');
+  }
+}
+
+/* ── Toggle password field visibility ── */
+function togglePasswordVisibility(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const isPassword = inp.type === 'password';
+  inp.type = isPassword ? 'text' : 'password';
+  btn.title = isPassword ? 'Hide password' : 'Show password';
+}
+
+/* ── Submit Create User ── */
+async function submitCreateUser(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const email      = document.getElementById('newUserEmail')?.value.trim();
+  const first_name = document.getElementById('newUserFirstName')?.value.trim();
+  const last_name  = document.getElementById('newUserLastName')?.value.trim();
+  const password   = document.getElementById('newUserPassword')?.value;
+  const role       = document.getElementById('newUserRole')?.value;
+  const organization = document.getElementById('newUserOrg')?.value;
+  const phone      = document.getElementById('newUserPhone')?.value.trim();
+
+  if (!email || !password || !role) {
+    showToast('Please fill all required fields', 'error'); return;
+  }
+  if (password.length < 8) {
+    showToast('Password must be at least 8 characters', 'error'); return;
+  }
+  if (role !== 'SUPERADMIN' && !organization) {
+    showToast('Please select an organisation', 'error'); return;
+  }
+
+  const btn = document.getElementById('createUserBtn');
+  setButtonLoading(btn, true, 'Create User');
+
+  const payload = { email, password, role };
+  if (first_name)    payload.first_name = first_name;
+  if (last_name)     payload.last_name  = last_name;
+  if (phone)         payload.phone      = phone;
+  if (organization)  payload.organization = organization;
+
+  let newUser;
+  try {
+    newUser = await safeApiPost(HC_CONFIG.ENDPOINTS.SA_USERS, payload);
+  } catch (err) {
+    const msg = err?.response?.data?.detail || err?.response?.data?.email?.[0] || 'Could not create user';
+    showToast(msg, 'error');
+    setButtonLoading(btn, false, 'Create User');
+    return;
+  }
+  _usersCache.unshift(normalizeUser(newUser));
+  _usersFiltered = [..._usersCache];
+  _usersPage = 1;
+  renderUsersPage();
+  populateUserOrgFilter();
+  document.getElementById('addUserForm').reset();
+  closePanel('addUserPanel');
+  showToast(`${first_name || email} created successfully`, 'success');
+  setButtonLoading(btn, false, 'Create User');
+}
+
 let _viewingUserId=null;
 async function viewUser(id) {
   _viewingUserId=id;
@@ -990,6 +1093,7 @@ async function viewUser(id) {
     u = _usersCache.find(u=>u.id===id);
   }
   if (!u) { showToast('User not found','error'); return; }
+  normalizeUser(u);
 
   const colour   = userColour(u.id);
   const initials = (u.full_name||u.email||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -1007,6 +1111,8 @@ async function viewUser(id) {
   document.getElementById('viewUserJoined').textContent      = formatDate(u.date_joined);
   document.getElementById('viewUserOrgDetail').textContent   = u.organisation_name||'—';
   document.getElementById('viewUserLastLogin').textContent   = u.last_login ? formatDate(u.last_login) : 'Never';
+  document.getElementById('viewUserOrgId').textContent       = u.organization?.org_id || '—';
+  document.getElementById('viewUserPwChanged').textContent   = u.password_changed_at ? formatDate(u.password_changed_at) : 'Never';
   document.getElementById('actRecords').textContent          = u.record_count??'—';
   document.getElementById('actLogins').textContent           = u.login_count??'—';
   document.getElementById('actActions').textContent          = u.action_count??'—';
@@ -1027,34 +1133,67 @@ async function panelToggleUserStatus() {
 }
 
 
-/* ══════════════════════════════════════════
-   8. AUDIT LOGS
-══════════════════════════════════════════ */
-async function loadAuditLogs() {
-  showSkeletonRows('auditTbody', 6, 8);
-  let rows=[];
-  try {
-    const d=await safeApiGet(HC_CONFIG.ENDPOINTS.SA_AUDIT);
-    rows=Array.isArray(d)?d:(d.results||[]);
-  } catch {
-    const tbody = document.getElementById('auditTbody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-soft);font-size:0.82rem">
-      No audit logs — connect backend to load real data
-    </td></tr>`;
-    return;
+/* ── Edit User ── */
+async function openEditUser(id) {
+  closePanel('viewUserPanel');
+  let u = _usersCache.find(u => u.id === id);
+  if (!u) {
+    try { u = await safeApiGet(`${HC_CONFIG.ENDPOINTS.SA_USER_DETAIL}${id}/`); normalizeUser(u); } catch {}
   }
-  const tbody=document.getElementById('auditTbody');
-  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-soft)">No audit logs found</td></tr>`; return; }
-  tbody.innerHTML=rows.map(r=>`
-    <tr>
-      <td style="font-size:0.78rem;color:var(--text-soft)">${formatRelativeTime(r.time)}</td>
-      <td class="td-mono">${r.user_id||'—'}</td>
-      <td>${r.action||'—'}</td>
-      <td>${r.entity||'—'}</td>
-      <td class="td-mono" style="font-size:0.75rem">${r.ip||'—'}</td>
-      <td>${statusBadge(r.status)}</td>
-    </tr>`).join('');
+  if (!u) { showToast('User not found', 'error'); return; }
+
+  document.getElementById('editUserId').value        = u.id;
+  document.getElementById('editUserEmail').value      = u.email || '';
+  document.getElementById('editUserFirstName').value  = u.first_name || '';
+  document.getElementById('editUserLastName').value   = u.last_name || '';
+  document.getElementById('editUserPhone').value      = u.phone || '';
+  document.getElementById('editUserRole').value       = u.role || '';
+  document.getElementById('editUserOrg').value        = u.organisation_name || 'No organisation';
+  document.getElementById('editUserSubtitle').textContent = u.full_name || u.email || '';
+
+  setTimeout(() => openPanel('editUserPanel'), 200);
 }
+
+async function submitEditUser(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const id         = document.getElementById('editUserId').value;
+  const first_name = document.getElementById('editUserFirstName').value.trim();
+  const last_name  = document.getElementById('editUserLastName').value.trim();
+  const phone      = document.getElementById('editUserPhone').value.trim();
+  const role       = document.getElementById('editUserRole').value;
+
+  if (!role) { showToast('Role is required', 'error'); return; }
+
+  const btn = document.getElementById('editUserBtn');
+  setButtonLoading(btn, true, 'Save Changes');
+
+  const payload = { role };
+  if (first_name) payload.first_name = first_name;
+  if (last_name)  payload.last_name  = last_name;
+  if (phone)      payload.phone      = phone;
+
+  try {
+    const updated = await safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_USER_DETAIL}${id}/`, payload);
+    normalizeUser(updated);
+
+    const idx = _usersCache.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      _usersCache[idx] = { ..._usersCache[idx], ...updated };
+      normalizeUser(_usersCache[idx]);
+    }
+    _usersFiltered = [..._usersCache];
+    renderUsersPage();
+    populateUserOrgFilter();
+    closePanel('editUserPanel');
+    showToast(`${updated.full_name || updated.email} updated`, 'success');
+  } catch (err) {
+    const msg = err?.response?.data?.detail || err?.response?.data?.role?.[0] || 'Could not update user';
+    showToast(msg, 'error');
+  }
+  setButtonLoading(btn, false, 'Save Changes');
+}
+
+/* First loadAuditLogs removed — see full version below */
 
 
 /* ══════════════════════════════════════════
@@ -1112,7 +1251,7 @@ async function hc_logoutAdmin() {
     }
   } catch {}
   try { if (typeof hc_clearTokens==='function') hc_clearTokens(); } catch {}
-  window.location.href='/public/superadmin/signin.html';
+  window.location.href = HC_ROUTER.signinPath({ role: 'SUPERADMIN' });
 }
 
 
@@ -1122,14 +1261,6 @@ async function hc_logoutAdmin() {
    NOTIFICATIONS
 ══════════════════════════════════════════ */
 
-const DEMO_NOTIFS = [
-  { id:'n1', type:'danger',  title:'Organisation suspended',     desc:'MediCare Clinic was suspended due to failed payment.',      time: new Date(Date.now()-1000*60*5).toISOString(),    read: false },
-  { id:'n2', type:'warning', title:'Failed login attempts',      desc:'5 failed login attempts detected from IP 192.168.1.10.',   time: new Date(Date.now()-1000*60*32).toISOString(),   read: false },
-  { id:'n3', type:'success', title:'New organisation registered', desc:'FirstCare Hospital successfully joined HealthClouda.',     time: new Date(Date.now()-1000*60*60*2).toISOString(), read: false },
-  { id:'n4', type:'info',    title:'Billing plan upgraded',       desc:'City General Hospital upgraded from Pro to Premium.',      time: new Date(Date.now()-1000*60*60*5).toISOString(), read: true  },
-  { id:'n5', type:'warning', title:'Storage nearing limit',       desc:'System storage is at 87% capacity. Consider expanding.',   time: new Date(Date.now()-1000*60*60*24).toISOString(),read: true  },
-  { id:'n6', type:'success', title:'Backup completed',            desc:'Daily system backup completed successfully at 07:19 AM.',  time: new Date(Date.now()-1000*60*60*25).toISOString(),read: true  },
-];
 
 let _notifs     = [];
 let _notifOpen  = false;
@@ -1152,10 +1283,10 @@ function notifTimeAgo(iso) {
 
 async function loadNotifications() {
   try {
-    const d  = await safeApiGet('/superadmin/notifications/');
+    const d  = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_NOTIFS);
     _notifs  = Array.isArray(d) ? d : (d.results || []);
   } catch {
-    _notifs = DEMO_NOTIFS;
+    _notifs = [];
   }
   renderNotifBadge();
 }
@@ -1224,22 +1355,28 @@ function markNotifRead(id) {
   if (!n || n.read) return;
   n.read = true;
   // Fire and forget to API
-  safeApiPatch(`/superadmin/notifications/${id}/read/`).catch(() => {});
+  safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_NOTIF_READ}${id}/read/`).catch(() => {});
   renderNotifList();
   renderNotifBadge();
 }
 
 function markAllRead() {
-  _notifs.forEach(n => n.read = true);
-  safeApiPatch('/superadmin/notifications/read-all/').catch(() => {});
+  _notifs.forEach(n => {
+    if (!n.read) {
+      n.read = true;
+      safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_NOTIF_READ}${n.id}/read/`).catch(() => {});
+    }
+  });
   renderNotifList();
   renderNotifBadge();
   showToast('All notifications marked as read', 'success');
 }
 
 function clearAllNotifs() {
+  _notifs.forEach(n => {
+    if (!n.read) safeApiPatch(`${HC_CONFIG.ENDPOINTS.SA_NOTIF_READ}${n.id}/read/`).catch(() => {});
+  });
   _notifs = [];
-  safeApiDelete('/superadmin/notifications/').catch(() => {});
   renderNotifList();
   renderNotifBadge();
   showToast('Notifications cleared', '');
@@ -1293,379 +1430,31 @@ document.getElementById('globalSearch')?.addEventListener('input', function() {
 /* ══════════════════════════════════════════════
    BILLING
 ══════════════════════════════════════════════ */
-const DEMO_BILLING = [
-  { id:'b1',  org:'City General Hospital',  plan:'Premium', amount:150000, status:'paid',    due:'2026-02-01' },
-  { id:'b2',  org:'Brightview Clinic',       plan:'Pro',     amount:75000,  status:'paid',    due:'2026-02-05' },
-  { id:'b3',  org:'Metro Medical Centre',    plan:'Pro',     amount:75000,  status:'paid',    due:'2026-02-05' },
-  { id:'b4',  org:'HealthPlus Centre',       plan:'Premium', amount:150000, status:'pending', due:'2026-03-01' },
-  { id:'b5',  org:'MediCare Clinic',         plan:'Basic',   amount:25000,  status:'overdue', due:'2026-01-15' },
-  { id:'b6',  org:'NovaCare Diagnostics',    plan:'Basic',   amount:25000,  status:'paid',    due:'2026-02-10' },
-  { id:'b7',  org:'PharmaPlus',              plan:'Basic',   amount:25000,  status:'pending', due:'2026-03-01' },
-  { id:'b8',  org:'St. Mary\'s Hospital',    plan:'Premium', amount:150000, status:'paid',    due:'2026-02-01' },
-  { id:'b9',  org:'FirstCare Hospital',      plan:'Pro',     amount:75000,  status:'paid',    due:'2026-02-08' },
-  { id:'b10', org:'LagosLab Diagnostics',    plan:'Pro',     amount:75000,  status:'overdue', due:'2026-01-20' },
-  { id:'b11', org:'CityPharm',               plan:'Basic',   amount:25000,  status:'paid',    due:'2026-02-12' },
-  { id:'b12', org:'Medicare Plus',           plan:'Pro',     amount:75000,  status:'pending', due:'2026-03-05' },
-];
-
-let _billCache    = [];
-let _billFiltered = [];
-let _billPage     = 1;
-let _billSortF    = '';
-let _billSortD    = 'asc';
-const BILL_PER_PAGE = 10;
 
 async function loadBilling() {
-  showSkeletonRows('billTableBody', 6, 6);
-  try {
-    const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_BILLING);
-    _billCache = Array.isArray(d) ? d : (d.results || []);
-  } catch {
-    _billCache = DEMO_BILLING;
-  }
-  _billFiltered = [..._billCache];
-  _billPage = 1;
-  renderBillingSummary();
-  renderBillingPage();
+  const container = document.getElementById('page-billing');
+  if (container) container.innerHTML = `<div class="empty-state" style="padding:3rem;text-align:center">
+    <svg viewBox="0 0 24 24" style="width:48px;height:48px;margin:0 auto 1rem;stroke:var(--text-soft);fill:none;stroke-width:1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    <h3>Coming Soon</h3><p style="color:var(--text-soft)">Billing management will be available in a future update.</p></div>`;
 }
 
-function renderBillingSummary() {
-  const total   = _billCache.reduce((s, b) => s + (b.amount || 0), 0);
-  const active  = _billCache.filter(b => b.status !== 'overdue').length;
-  const overdue = _billCache.filter(b => b.status === 'overdue').length;
-  const mrr     = _billCache.filter(b => b.status === 'paid').reduce((s, b) => s + (b.amount || 0), 0);
-
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
-  set('billStatRevenue', formatMoney(total));
-  set('billStatActive',  active);
-  set('billStatOverdue', overdue);
-  set('billStatMRR',     formatMoney(mrr));
-
-  if (overdue > 0) setTrend('billTrendOverdue', `${overdue} need attention`, false);
-  setTrend('billTrendRevenue', 'This billing cycle', true);
-  setTrend('billTrendActive',  `${active} of ${_billCache.length} orgs`, true);
-  setTrend('billTrendMRR',     'Monthly recurring', true);
-
-  // Plan breakdown
-  const plans   = { Premium: 0, Pro: 0, Basic: 0 };
-  _billCache.forEach(b => { if (plans[b.plan] !== undefined) plans[b.plan]++; });
-  const maxPlan = Math.max(...Object.values(plans)) || 1;
-  Object.entries(plans).forEach(([plan, count]) => {
-    const bar = document.getElementById('bar' + plan);
-    const cnt = document.getElementById('count' + plan);
-    if (bar) bar.style.width = Math.round((count / maxPlan) * 100) + '%';
-    if (cnt) cnt.textContent = count;
-  });
-
-  // Payment status
-  const paid    = _billCache.filter(b => b.status === 'paid').length;
-  const pending = _billCache.filter(b => b.status === 'pending').length;
-  set('billPaidCount',    paid);
-  set('billPendingCount', pending);
-  set('billOverdueCount', overdue);
-}
-
-function billFilterChange() {
-  const q      = (document.getElementById('billSearch')?.value || '').toLowerCase().trim();
-  const plan   =  document.getElementById('filterBillPlan')?.value || '';
-  const status =  document.getElementById('filterBillStatus')?.value || '';
-  _billFiltered = _billCache.filter(b =>
-    (!q      || b.org?.toLowerCase().includes(q)) &&
-    (!plan   || b.plan   === plan) &&
-    (!status || b.status === status)
-  );
-  _billPage = 1;
-  renderBillingPage();
-}
-function clearBillFilters() {
-  ['billSearch','filterBillPlan','filterBillStatus'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  _billFiltered = [..._billCache];
-  _billPage = 1;
-  renderBillingPage();
-}
-function sortBilling(field) {
-  _billSortD = _billSortF === field ? (_billSortD === 'asc' ? 'desc' : 'asc') : 'asc';
-  _billSortF = field;
-  ['plan','amount','date'].forEach(f => {
-    const el = document.getElementById('bsort-' + f); if (!el) return;
-    el.textContent = f === field ? (_billSortD === 'asc' ? '↑' : '↓') : '↕';
-  });
-  const planOrder = { Basic:1, Pro:2, Premium:3 };
-  _billFiltered.sort((a, b) => {
-    let va, vb;
-    if (field === 'plan')   { va = planOrder[a.plan] || 0; vb = planOrder[b.plan] || 0; }
-    if (field === 'amount') { va = a.amount || 0; vb = b.amount || 0; }
-    if (field === 'date')   { va = new Date(a.due || 0); vb = new Date(b.due || 0); }
-    if (va < vb) return _billSortD === 'asc' ? -1 : 1;
-    if (va > vb) return _billSortD === 'asc' ?  1 : -1;
-    return 0;
-  });
-  _billPage = 1;
-  renderBillingPage();
-}
-function renderBillingPage() {
-  const total = _billFiltered.length;
-  const pages = Math.ceil(total / BILL_PER_PAGE) || 1;
-  _billPage   = Math.min(_billPage, pages);
-  const from  = (_billPage - 1) * BILL_PER_PAGE;
-  const slice = _billFiltered.slice(from, from + BILL_PER_PAGE);
-  const countEl = document.getElementById('billCount');
-  if (countEl) countEl.textContent = total === 0
-    ? 'No transactions found'
-    : `Showing ${from + 1}–${Math.min(from + BILL_PER_PAGE, total)} of ${total} transaction${total !== 1 ? 's' : ''}`;
-  renderBillingTable(slice);
-  renderBillingPagination(pages);
-}
-function renderBillingTable(data) {
-  const tbody = document.getElementById('billTableBody');
-  if (!tbody) return;
-  if (!data?.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:2.5rem">
-      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      <h3>No transactions found</h3><p>Try adjusting your filters.</p>
-    </div></td></tr>`;
-    return;
-  }
-  const planCls = p => p === 'Premium' ? 'badge-warning' : p === 'Pro' ? 'badge-purple' : 'badge-info';
-  const stCls   = s => s === 'paid' ? 'badge-paid' : s === 'pending' ? 'badge-pending' : 'badge-overdue';
-  tbody.innerHTML = data.map(b => `
-    <tr class="${b.status === 'overdue' ? 'row-suspended' : ''}">
-      <td>
-        <div class="org-name-cell">
-          <div class="org-avatar" style="background:${ORG_COLOURS[Math.abs(b.id?.charCodeAt(1) || 0) % ORG_COLOURS.length]}">${(b.org || '??').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}</div>
-          <span class="org-name">${b.org || '—'}</span>
-        </div>
-      </td>
-      <td><span class="badge ${planCls(b.plan)}">${b.plan || '—'}</span></td>
-      <td style="font-weight:600;color:var(--text-dark)">₦${Number(b.amount || 0).toLocaleString()}</td>
-      <td><span class="badge ${stCls(b.status)}">${b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : '—'}</span></td>
-      <td class="td-date">${formatDate(b.due)}</td>
-      <td>
-        <div class="row-actions">
-          ${b.status === 'overdue' ? `<button class="row-btn warn" onclick="sendPaymentReminder('${b.id}','${(b.org||'').replace(/'/g,"\\'")}')">Remind</button>` : ''}
-          ${b.status !== 'paid' ? `<button class="row-btn success" onclick="markBillPaid('${b.id}')">Mark Paid</button>` : '<span style="font-size:0.75rem;color:var(--success);font-weight:600">✓ Paid</span>'}
-        </div>
-      </td>
-    </tr>`).join('');
-}
-function renderBillingPagination(totalPages) {
-  const el = document.getElementById('billPagination');
-  if (!el) return;
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
-  let html = `<button class="page-btn" onclick="goBillPage(${_billPage - 1})" ${_billPage === 1 ? 'disabled' : ''}>‹</button>`;
-  for (let p = 1; p <= totalPages; p++) {
-    if (totalPages > 7 && p > 2 && p < totalPages - 1 && Math.abs(p - _billPage) > 1) {
-      if (p === 3 || p === totalPages - 2) html += `<span class="page-ellipsis">…</span>`;
-      continue;
-    }
-    html += `<button class="page-btn ${p === _billPage ? 'active' : ''}" onclick="goBillPage(${p})">${p}</button>`;
-  }
-  html += `<button class="page-btn" onclick="goBillPage(${_billPage + 1})" ${_billPage === totalPages ? 'disabled' : ''}>›</button>`;
-  el.innerHTML = html;
-}
-function goBillPage(p) {
-  _billPage = Math.max(1, Math.min(p, Math.ceil(_billFiltered.length / BILL_PER_PAGE) || 1));
-  renderBillingPage();
-}
-function markBillPaid(id) {
-  const b = _billCache.find(b => b.id === id);
-  if (!b) return;
-  b.status = 'paid';
-  safeApiPatch(`/superadmin/billing/${id}/paid/`).catch(() => {});
-  billFilterChange();
-  renderBillingSummary();
-  showToast(`${b.org} marked as paid`, 'success');
-}
-function sendPaymentReminder(id, org) {
-  safeApiPost(`/superadmin/billing/${id}/remind/`).catch(() => {});
-  showToast(`Payment reminder sent to ${org}`, 'success');
-}
-function exportBillingCSV() {
-  if (!_billFiltered.length) { showToast('No data to export', ''); return; }
-  const headers = ['Organisation', 'Plan', 'Amount', 'Status', 'Due Date'];
-  const rows    = _billFiltered.map(b => [
-    b.org, b.plan, b.amount, b.status,
-    b.due ? new Date(b.due).toLocaleDateString() : '',
-  ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
-  const csv  = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: `billing-${new Date().toISOString().slice(0, 10)}.csv` });
-  a.click(); URL.revokeObjectURL(url);
-  showToast('CSV downloaded', 'success');
-}
 
 
 /* ══════════════════════════════════════════════
    MESSAGES
 ══════════════════════════════════════════════ */
-const DEMO_MSGS = [
-  { id:'m1', from:'City General Hospital',    subject:'Billing query for February',    body:'Dear Admin,\n\nWe noticed a discrepancy in our February billing statement. The amount charged was ₦150,000 but we expected ₦120,000 based on our agreement.\n\nKindly review and revert.\n\nThank you.',           time: new Date(Date.now()-1000*60*15).toISOString(),    unread:true,  priority:'high',   direction:'in',  color:'#0075FF' },
-  { id:'m2', from:'MediCare Clinic',           subject:'Request to reactivate account', body:'Hello,\n\nOur account was suspended last month due to a payment delay. We have since cleared all outstanding payments. Please reactivate our account at your earliest convenience.\n\nRegards,\nDr. John Peters', time: new Date(Date.now()-1000*60*60*2).toISOString(),  unread:true,  priority:'urgent', direction:'in',  color:'#dc2626' },
-  { id:'m3', from:'Brightview Clinic',         subject:'New staff onboarding support',  body:'Hi,\n\nWe are onboarding 5 new nurses and 2 doctors next week. Could you please guide us on how to bulk-add users to our organisation dashboard?\n\nThanks,\nDr. Chinwe',                                     time: new Date(Date.now()-1000*60*60*5).toISOString(),  unread:false, priority:'normal', direction:'in',  color:'#16a34a' },
-  { id:'m4', from:'Super Admin',               subject:'System Maintenance Notice',     body:'Dear Organisations,\n\nPlease be informed that HealthClouda will undergo scheduled maintenance on Saturday, March 1st 2026 from 12:00 AM to 4:00 AM WAT.\n\nDuring this window, the platform will be temporarily unavailable.\n\nWe apologise for any inconvenience.', time: new Date(Date.now()-1000*60*60*24).toISOString(), unread:false, priority:'high',   direction:'out', color:'#7c3aed' },
-  { id:'m5', from:'NovaCare Diagnostics',      subject:'Feature request: Lab integration', body:'Hello Admin,\n\nWe would love to see a direct lab results integration feature in our dashboard. This would help our doctors access results faster.\n\nIs this on the roadmap?\n\nBest,\nFatima Sani',          time: new Date(Date.now()-1000*60*60*48).toISOString(), unread:false, priority:'normal', direction:'in',  color:'#0891b2' },
-];
-
-let _msgs        = [];
-let _msgsFilter  = 'all';
-let _activeMsgId = null;
 
 async function loadMessages() {
-  const list = document.getElementById('msgList');
-  if (list) list.innerHTML = Array(5).fill('<div class="msg-item" style="pointer-events:none"><div class="msg-item-avatar" style="background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div><div class="msg-item-body"><div class="msg-item-header"><div style="height:11px;width:120px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div><div style="height:9px;width:40px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div></div><div style="height:10px;width:160px;border-radius:4px;margin:5px 0 4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div><div style="height:9px;width:100px;border-radius:4px;background:linear-gradient(90deg,#f0f4fa 25%,#e2e8f0 50%,#f0f4fa 75%);background-size:200%;animation:shimmer 1.4s infinite"></div></div></div>').join('');
-  try {
-    const d = await safeApiGet('/superadmin/messages/');
-    _msgs = Array.isArray(d) ? d : (d.results || []);
-  } catch {
-    _msgs = DEMO_MSGS;
-  }
-  populateMsgOrgDropdown();
-  renderMsgList();
-}
-
-function populateMsgOrgDropdown() {
-  const sel = document.getElementById('msgTo');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Select organisation…</option>' +
-    _orgsCache.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
-}
-
-function msgFilterChange() {
-  renderMsgList();
-}
-function setMsgFilter(filter, btn) {
-  _msgsFilter = filter;
-  document.querySelectorAll('.msg-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  renderMsgList();
-}
-function renderMsgList() {
-  const q    = (document.getElementById('msgSearch')?.value || '').toLowerCase().trim();
-  const list = document.getElementById('msgList');
-  if (!list) return;
-  let filtered = _msgs.filter(m => {
-    if (_msgsFilter === 'unread') return m.unread;
-    if (_msgsFilter === 'sent')   return m.direction === 'out';
-    return true;
-  }).filter(m => !q || m.from?.toLowerCase().includes(q) || m.subject?.toLowerCase().includes(q));
-
-  if (!filtered.length) {
-    list.innerHTML = `<div class="notif-empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><p>No messages found</p></div>`;
-    return;
-  }
-  list.innerHTML = filtered.map(m => {
-    const initials = m.from.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const priCls   = m.priority === 'urgent' ? 'msg-priority-urgent' : m.priority === 'high' ? 'msg-priority-high' : '';
-    return `<div class="msg-item ${m.unread ? 'unread' : ''} ${m.id === _activeMsgId ? 'active' : ''} ${priCls}" onclick="openMsg('${m.id}')">
-      <div class="msg-item-avatar" style="background:${m.color || '#0075FF'}">${initials}</div>
-      <div class="msg-item-body">
-        <div class="msg-item-header">
-          <span class="msg-item-from">${m.from}</span>
-          <span class="msg-item-time">${notifTimeAgo(m.time)}</span>
-        </div>
-        <div class="msg-item-subject">${m.subject}</div>
-        <div class="msg-item-preview">${m.body?.split('\n')[0] || ''}</div>
-      </div>
-      ${m.unread ? '<span class="msg-unread-dot"></span>' : ''}
-    </div>`;
-  }).join('');
-}
-function openMsg(id) {
-  const m = _msgs.find(m => m.id === id);
-  if (!m) return;
-  _activeMsgId = id;
-  m.unread = false;
-  renderMsgList();
-
-  // Show inline in viewer pane
-  const viewer = document.getElementById('msgViewer');
-  if (!viewer) return;
-  const initials = m.from.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const priCls   = { urgent: 'badge-urgent', high: 'badge-high', normal: 'badge-normal' };
-  viewer.innerHTML = `
-    <div class="msg-view-header">
-      <div>
-        <div class="msg-view-subject">${m.subject}</div>
-        <div class="msg-view-meta">${m.direction === 'out' ? 'Sent to all organisations' : 'From: ' + m.from} · ${notifTimeAgo(m.time)}</div>
-      </div>
-      <span class="badge ${priCls[m.priority] || 'badge-normal'}">${m.priority?.charAt(0).toUpperCase() + m.priority?.slice(1)}</span>
-    </div>
-    <div class="msg-view-body-wrap">
-      <div class="msg-view-body">${m.body || '—'}</div>
-    </div>
-    <div class="msg-view-reply">
-      <textarea id="inlineReply" placeholder="Type a reply…"></textarea>
-      <button class="btn btn-primary" style="align-self:flex-end" onclick="sendInlineReply('${m.id}')">Reply</button>
-    </div>`;
-
-  safeApiPatch(`/superadmin/messages/${id}/read/`).catch(() => {});
-  updateMsgBadge();
-}
-function updateMsgBadge() {
-  const unread = _msgs.filter(m => m.unread).length;
-  const badge  = document.querySelector('[data-page="messages"] .nav-badge');
-  if (badge) badge.textContent = unread > 0 ? unread : '';
-  if (badge && unread === 0) badge.style.display = 'none';
-}
-function sendInlineReply(id) {
-  const body = document.getElementById('inlineReply')?.value.trim();
-  if (!body) { showToast('Please type a reply first', ''); return; }
-  safeApiPost('/superadmin/messages/', { reply_to: id, body }).catch(() => {});
-  document.getElementById('inlineReply').value = '';
-  showToast('Reply sent', 'success');
-}
-function openComposePanel() {
-  if (!_loaded.has('organisations')) loadPage('organisations');
-  setTimeout(populateMsgOrgDropdown, 300);
-  openPanel('composeMsgPanel');
-}
-function sendMessage() {
-  const to       = document.getElementById('msgTo')?.value;
-  const subject  = document.getElementById('msgSubject')?.value.trim();
-  const priority = document.getElementById('msgPriority')?.value;
-  const body     = document.getElementById('msgBody')?.value.trim();
-  if (!subject || !body) { showToast('Subject and message are required', ''); return; }
-
-  const btn = document.getElementById('msgSendBtn');
-  setButtonLoading(btn, true, 'Send Message');
-  safeApiPost('/superadmin/messages/', { to, subject, priority, body })
-    .catch(() => {})
-    .finally(() => {
-      const orgName = document.getElementById('msgTo')?.selectedOptions[0]?.text || 'All Organisations';
-      _msgs.unshift({ id: 'm' + Date.now(), from: 'Super Admin', subject, body, priority, time: new Date().toISOString(), unread: false, direction: 'out', color: '#7c3aed' });
-      renderMsgList();
-      closePanel('composeMsgPanel');
-      document.getElementById('msgSubject').value = '';
-      document.getElementById('msgBody').value    = '';
-      showToast(`Message sent to ${orgName}`, 'success');
-      setButtonLoading(btn, false, 'Send Message');
-    });
+  const container = document.getElementById('page-messages');
+  if (container) container.innerHTML = `<div class="empty-state" style="padding:3rem;text-align:center">
+    <svg viewBox="0 0 24 24" style="width:48px;height:48px;margin:0 auto 1rem;stroke:var(--text-soft);fill:none;stroke-width:1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <h3>Coming Soon</h3><p style="color:var(--text-soft)">Messaging will be available in a future update.</p></div>`;
 }
 
 
 /* ══════════════════════════════════════════════
    AUDIT LOGS (full version)
 ══════════════════════════════════════════════ */
-const DEMO_AUDIT = [
-  { id:'a1',  time:new Date(Date.now()-1000*60*5).toISOString(),     user_id:'HC-25-00001', action:'Update Billing Plan',    entity:'City General Hospital', ip:'197.210.52.11',  status:'successful' },
-  { id:'a2',  time:new Date(Date.now()-1000*60*32).toISOString(),    user_id:'HC-25-00005', action:'Account Suspended',      entity:'MediCare Clinic',        ip:'102.89.33.44',   status:'suspended'  },
-  { id:'a3',  time:new Date(Date.now()-1000*60*60).toISOString(),    user_id:'U002',        action:'Added New Record',       entity:'Patient #P-1023',        ip:'105.112.88.21',  status:'completed'  },
-  { id:'a4',  time:new Date(Date.now()-1000*60*90).toISOString(),    user_id:'U004',        action:'Failed Login Attempt',   entity:'MediCare Clinic',        ip:'192.168.1.10',   status:'failed'     },
-  { id:'a5',  time:new Date(Date.now()-1000*60*120).toISOString(),   user_id:'HC-25-00002', action:'New Organisation Added', entity:'Brightview Clinic',      ip:'41.58.104.22',   status:'successful' },
-  { id:'a6',  time:new Date(Date.now()-1000*60*180).toISOString(),   user_id:'U006',        action:'Updated Patient Record', entity:'Patient #P-0887',        ip:'197.210.64.55',  status:'completed'  },
-  { id:'a7',  time:new Date(Date.now()-1000*60*60*6).toISOString(),  user_id:'HC-25-00003', action:'Activated Account',      entity:'Metro Medical Centre',   ip:'105.113.22.90',  status:'successful' },
-  { id:'a8',  time:new Date(Date.now()-1000*60*60*8).toISOString(),  user_id:'U003',        action:'User Role Changed',      entity:'Nurse Amaka Obi',        ip:'102.90.45.67',   status:'successful' },
-  { id:'a9',  time:new Date(Date.now()-1000*60*60*12).toISOString(), user_id:'HC-25-00006', action:'Billing Payment Made',   entity:'NovaCare Diagnostics',   ip:'41.211.78.33',   status:'successful' },
-  { id:'a10', time:new Date(Date.now()-1000*60*60*24).toISOString(), user_id:'U001',        action:'Password Changed',       entity:'Dr. Aliyu Musa',         ip:'197.210.52.11',  status:'successful' },
-  { id:'a11', time:new Date(Date.now()-1000*60*60*26).toISOString(), user_id:'HC-25-00010', action:'Account Suspended',      entity:'LagosLab Diagnostics',   ip:'102.89.33.55',   status:'suspended'  },
-  { id:'a12', time:new Date(Date.now()-1000*60*60*30).toISOString(), user_id:'U007',        action:'Deleted Record',         entity:'Patient #P-0541',        ip:'197.211.44.12',  status:'failed'     },
-  { id:'a13', time:new Date(Date.now()-1000*60*60*36).toISOString(), user_id:'HC-25-00008', action:'Plan Upgraded',          entity:'St. Mary\'s Hospital',   ip:'41.58.104.80',   status:'successful' },
-  { id:'a14', time:new Date(Date.now()-1000*60*60*48).toISOString(), user_id:'U005',        action:'Login Success',          entity:'Grace Adewale',          ip:'105.112.88.99',  status:'successful' },
-  { id:'a15', time:new Date(Date.now()-1000*60*60*50).toISOString(), user_id:'U004',        action:'Failed Login Attempt',   entity:'MediCare Clinic',        ip:'192.168.1.10',   status:'failed'     },
-];
 
 let _auditCache    = [];
 let _auditFiltered = [];
@@ -1680,7 +1469,7 @@ async function loadAuditLogs() {
     const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_AUDIT);
     _auditCache = Array.isArray(d) ? d : (d.results || []);
   } catch {
-    _auditCache = DEMO_AUDIT;
+    _auditCache = [];
   }
   _auditFiltered = [..._auditCache];
   _auditPage = 1;
@@ -1778,5 +1567,56 @@ function exportAuditCSV() {
   a.click(); URL.revokeObjectURL(url);
   showToast('Audit log CSV downloaded', 'success');
 }
+
+/* ══════════════════════════════════════════
+   11. RECORDS PAGE
+══════════════════════════════════════════ */
+
+async function loadRecords() {
+  const container = document.getElementById('page-records');
+  if (container) container.innerHTML = `<div class="empty-state" style="padding:3rem;text-align:center">
+    <svg viewBox="0 0 24 24" style="width:48px;height:48px;margin:0 auto 1rem;stroke:var(--text-soft);fill:none;stroke-width:1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+    <h3>Coming Soon</h3><p style="color:var(--text-soft)">Records management will be available in a future update.</p></div>`;
+}
+
+
+/* ══════════════════════════════════════════
+   12. SETTINGS PAGE
+══════════════════════════════════════════ */
+
+async function loadSettings() {
+  const container = document.getElementById('page-settings');
+  if (container) container.innerHTML = `<div class="empty-state" style="padding:3rem;text-align:center">
+    <svg viewBox="0 0 24 24" style="width:48px;height:48px;margin:0 auto 1rem;stroke:var(--text-soft);fill:none;stroke-width:1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <h3>Coming Soon</h3><p style="color:var(--text-soft)">Platform settings will be available in a future update.</p></div>`;
+}
+
+async function changeSAPassword(e) {
+  e.preventDefault();
+  const errEl  = document.getElementById('saPwError');
+  const succEl = document.getElementById('saPwSuccess');
+  errEl.textContent  = '';
+  succEl.textContent = '';
+
+  const oldPw    = document.getElementById('saOldPassword').value;
+  const newPw    = document.getElementById('saNewPassword').value;
+  const confirmPw = document.getElementById('saConfirmPassword').value;
+
+  if (!oldPw || !newPw || !confirmPw) { errEl.textContent = 'All fields are required.'; return; }
+  if (newPw.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+  if (newPw !== confirmPw) { errEl.textContent = 'Passwords do not match.'; return; }
+
+  const btn = document.getElementById('changeSAPwBtn');
+  setButtonLoading(btn, true);
+  try {
+    await safeApiPost(HC_CONFIG.ENDPOINTS.CHANGE_PW, { old_password: oldPw, new_password: newPw });
+    succEl.textContent = 'Password updated successfully.';
+    document.getElementById('saChangePasswordForm').reset();
+  } catch (err) {
+    errEl.textContent = (err?.data?.detail) || (err?.data?.message) || 'Could not update password.';
+  }
+  setButtonLoading(btn, false, 'Update Password');
+}
+
 
 /* Wire billing, messages, audit into loadPage */

@@ -53,10 +53,7 @@ function hc_resetAttempts() {
 }
 
 function hc_getSigninRedirect(user) {
-  var role = ((user && user.role) || '').toUpperCase().replace(/_/g, '');
-  if (role === 'SUPERADMIN') return '/public/superadmin/signin.html';
-  if (user && user.organization_slug) return '/public/organization/signin.html?org=' + user.organization_slug;
-  return '/public/signin.html';
+  return HC_ROUTER.signinPath(user);
 }
 
 
@@ -64,16 +61,15 @@ function hc_getSigninRedirect(user) {
 function hc_requireAuth() {
   const token = hc_getAccessToken();
   if (!token) {
-    window.location.href = '/public/signin.html';
+    window.location.href = HC_ROUTER.signinPath();
   }
 }
 
 
 // ── Redirect user by role to the correct dashboard ──────────
 function hc_redirectByRole(role, fallback) {
-  const normalized = (role || '').toUpperCase().replace(/_/g, '');
-  const path = HC_CONFIG.ROLE_REDIRECTS[normalized];
-  window.location.href = path || fallback || '/public/signin.html';
+  var path = HC_ROUTER.roleDashboardPath(role);
+  window.location.href = path || fallback || HC_ROUTER.signinPath();
 }
 
 
@@ -154,7 +150,7 @@ function hc_initSigninForm() {
         user:    res.user,
       });
 
-      hc_redirectByRole(role, '/public/patient/index.html');
+      hc_redirectByRole(role, HC_ROUTER.roleDashboardPath('PATIENT'));
 
     } catch (err) {
       hc_recordFailedAttempt();
@@ -287,7 +283,7 @@ function hc_initOrgSigninForm(orgSlug) {
         user:    res.user,
       });
 
-      hc_redirectByRole(res.user?.role, '/public/patient/index.html');
+      hc_redirectByRole(res.user?.role, HC_ROUTER.roleDashboardPath('PATIENT'));
 
     } catch (err) {
       hc_recordFailedAttempt();
@@ -400,7 +396,7 @@ function hc_initAdminSigninForm() {
       const dest = res.redirect_to;
       window.location.href = (dest && hc_isSafeRedirectUrl(dest))
         ? dest
-        : '/public/superadmin/index.html';
+        : HC_ROUTER.roleDashboardPath('SUPERADMIN');
 
     } catch (err) {
       hc_recordFailedAttempt();
@@ -467,7 +463,7 @@ async function hc_loadOrgBranding(slug) {
   } catch (err) {
     if (err.status === 404) {
       if (errorEl) errorEl.textContent = 'Organization not found. Redirecting to general login...';
-      setTimeout(() => { window.location.href = '/public/signin.html'; }, 3000);
+      setTimeout(() => { window.location.href = HC_ROUTER.signinPath(); }, 3000);
     } else {
       if (errorEl) errorEl.textContent = 'Cannot connect to server. Please try again.';
     }
@@ -480,7 +476,8 @@ async function hc_loadOrgBranding(slug) {
 //  Password reset flows
 // ══════════════════════════════════════════════════════════════
 
-function hc_initForgotForm(redirectOnSuccess = './check-email.html') {
+function hc_initForgotForm(redirectOnSuccess) {
+  if (!redirectOnSuccess) redirectOnSuccess = HC_ROUTER.passwordFlowPath('check-email');
   const form = document.getElementById('forgotForm');
   if (!form) return;
 
@@ -533,7 +530,8 @@ function hc_initForgotForm(redirectOnSuccess = './check-email.html') {
 }
 
 
-function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
+function hc_initOtpForm(redirectOnSuccess) {
+  if (!redirectOnSuccess) redirectOnSuccess = HC_ROUTER.passwordFlowPath('reset-password');
   const form      = document.getElementById('otpForm');
   const otpInput  = document.getElementById('otpInput');
   const verifyBtn = document.getElementById('verifyBtn');
@@ -650,7 +648,8 @@ function hc_initOtpForm(redirectOnSuccess = './reset-password.html') {
 }
 
 
-function hc_initResetForm(redirectOnSuccess = './password-success.html') {
+function hc_initResetForm(redirectOnSuccess) {
+  if (!redirectOnSuccess) redirectOnSuccess = HC_ROUTER.passwordFlowPath('password-success');
   const form = document.getElementById('resetForm');
   if (!form) return;
 
@@ -757,7 +756,8 @@ function hc_initResetForm(redirectOnSuccess = './password-success.html') {
 }
 
 
-function hc_initPasswordSuccess(redirectTo = '/public/signin.html') {
+function hc_initPasswordSuccess(redirectTo) {
+  if (!redirectTo) redirectTo = HC_ROUTER.signinPath();
   sessionStorage.removeItem('hc_reset_email');
 
   let seconds = 5;

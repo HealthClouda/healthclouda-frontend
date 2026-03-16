@@ -26,7 +26,7 @@
       <img src="../assets/images/HealthClouda-icon.png" alt="">
       <span>HealthClouda</span>
     </div>
-    <a href="./signin.html" class="signin-back-btn">← Back to Login</a>
+    <a href="/signin/" class="signin-back-btn">← Back to Login</a>
   </nav>
 
   <div class="signin-page-body">
@@ -82,17 +82,17 @@
       </form>
     </div>
 
-    <a href="./forgot-password.html" class="back-to-login">← Back</a>
+    <a href="/forgot-password/" class="back-to-login">← Back</a>
 
   </div>
 
   <script>
-    ['../assets/js/config.js','../assets/js/api.js','../assets/js/auth.js'].forEach(function(src){
+    ['../assets/js/config.js','../assets/js/router.js','../assets/js/api.js','../assets/js/auth.js'].forEach(function(src){
       document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
     });
   </script>
   <script>
-    hc_initOtpForm('./reset-password.html');
+    hc_initOtpForm();
     hc_fadeInCard();
   </script>
 

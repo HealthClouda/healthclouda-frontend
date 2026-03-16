@@ -69,6 +69,7 @@
   </div>
 
   <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/router.js"></script>
   <script>
     (async function() {
       const cardIcon     = document.getElementById('cardIcon');
@@ -89,7 +90,7 @@
       // Step 1: Fetch request details using token
       let requestData = null;
       try {
-        const base = typeof HC_CONFIG !== 'undefined' ? HC_CONFIG.API_BASE : '';
+        const base = typeof HC_CONFIG !== 'undefined' ? HC_CONFIG.API_BASE_URL : '';
         const endpoint = (typeof HC_CONFIG !== 'undefined' && HC_CONFIG.ENDPOINTS?.REC_ACCESS_RESPOND)
           ? HC_CONFIG.ENDPOINTS.REC_ACCESS_RESPOND
           : '/receptionist/access-requests/respond/';
@@ -141,7 +142,7 @@
       infoHtml += '</div>';
 
       // If action is pre-selected from URL, auto-submit
-      if (action === 'approve' || action === 'deny') {
+      if (action === 'accept' || action === 'deny') {
         cardBody.innerHTML = infoHtml + '<p class="result-msg">Processing your response…</p>';
         await submitResponse(token, action, requestData);
         return;
@@ -149,7 +150,7 @@
 
       // Show both buttons
       infoHtml += '<div class="actions">' +
-        '<button class="btn btn-approve" id="approveBtn" onclick="handleResponse(\'approve\')">Approve Access</button>' +
+        '<button class="btn btn-approve" id="approveBtn" onclick="handleResponse(\'accept\')">Approve Access</button>' +
         '<button class="btn btn-deny" id="denyBtn" onclick="handleResponse(\'deny\')">Deny Access</button>' +
       '</div>';
       cardBody.innerHTML = infoHtml;
@@ -168,7 +169,7 @@
 
       async function submitResponse(tkn, act, data) {
         try {
-          const base = typeof HC_CONFIG !== 'undefined' ? HC_CONFIG.API_BASE : '';
+          const base = typeof HC_CONFIG !== 'undefined' ? HC_CONFIG.API_BASE_URL : '';
           const endpoint = (typeof HC_CONFIG !== 'undefined' && HC_CONFIG.ENDPOINTS?.REC_ACCESS_RESPOND)
             ? HC_CONFIG.ENDPOINTS.REC_ACCESS_RESPOND
             : '/receptionist/access-requests/respond/';
@@ -185,7 +186,7 @@
             return;
           }
 
-          if (act === 'approve') {
+          if (act === 'accept') {
             showResult('success', '✅', 'Access Approved', 'You have granted <strong>' + esc(data?.organization_name || 'the organization') + '</strong> access to your medical records.');
           } else {
             showResult('denied', '❌', 'Access Denied', 'You have denied the access request from <strong>' + esc(data?.organization_name || 'the organization') + '</strong>. Your records remain private.');

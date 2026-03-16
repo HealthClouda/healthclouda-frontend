@@ -9,33 +9,33 @@
 const ORG_CONFIG = {
 
   // Organisation identity
-  name:      "University of Ilorin",
-  shortName: "Unilorin",
-  slug:      "unilorin",
+  name:      "Your Organisation",
+  shortName: "YourOrg",
+  slug:      "your-org",
 
   // Asset paths — relative to public/org/
   logo:      "../../assets/images/unilogo.png",
   heroImage: "../../assets/images/Frame 64.png",
 
   // Email placeholder shown in the sign-in input
-  emailPlaceholder: "e.g. 242060045@unilorin.edu.ng",
+  emailPlaceholder: "e.g. user@your-org.com",
 
   // Contact details
   clinic: {
-    name:    "University Clinic",
-    address: "Student Health Center, University of Ilorin",
+    name:    "Organisation Clinic",
+    address: "123 Main Street, Your City",
     hours:   "Mon–Sat, 8:00 AM – 6:00 PM",
-    phone:   "+234 (0) 803 123 456",
-    email:   "clinic@unilorin.edu.ng",
+    phone:   "+234 (0) 800 000 000",
+    email:   "clinic@your-org.com",
   },
   support: {
     email: "support@healthclouda.com",
     chat:  "Live support (available weekdays 9 AM – 5 PM)",
   },
   emergency: {
-    phone: "+234 (0) 802 555 0000",
+    phone: "+234 (0) 800 000 001",
   },
 
   // Browser tab title
-  pageTitle: "HealthClouda | University of Ilorin",
+  pageTitle: "HealthClouda | Your Organisation",
 };

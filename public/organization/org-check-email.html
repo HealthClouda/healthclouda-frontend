@@ -85,7 +85,7 @@
   </div>
 
   <script>
-    ['../../assets/js/config.js','../../assets/js/api.js','../../assets/js/auth.js','./org-config.js'].forEach(function(src){
+    ['../../assets/js/config.js','../../assets/js/router.js','../../assets/js/api.js','../../assets/js/auth.js','./org-config.js'].forEach(function(src){
       document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
     });
   </script>
@@ -95,8 +95,11 @@
     document.getElementById('nav-logo').alt             = ORG_CONFIG.name + ' logo';
     document.getElementById('nav-org-name').textContent = 'HealthClouda';
 
-    hc_initOtpForm('./org-reset-password.html');
+    hc_initOtpForm(HC_ROUTER.passwordFlowPath('reset-password'));
     hc_fadeInCard();
+
+    var _signinHref = HC_ROUTER.signinPath();
+    document.querySelectorAll('a[href="./signin.html"]').forEach(function(a){ a.href = _signinHref; });
   </script>
 
 </body>

@@ -1,0 +1,62 @@
+{
+  "redirects": [
+    { "source": "/public/signin.html", "destination": "/signin/", "statusCode": 301 },
+    { "source": "/public/forgot-password.html", "destination": "/forgot-password/", "statusCode": 301 },
+    { "source": "/public/check-email.html", "destination": "/check-email/", "statusCode": 301 },
+    { "source": "/public/reset-password.html", "destination": "/reset-password/", "statusCode": 301 },
+    { "source": "/public/password-success.html", "destination": "/password-success/", "statusCode": 301 },
+    { "source": "/public/superadmin/index.html", "destination": "/superadmin/", "statusCode": 301 },
+    { "source": "/public/superadmin/signin.html", "destination": "/superadmin/signin/", "statusCode": 301 },
+    { "source": "/public/doctor/index.html", "destination": "/signin/", "statusCode": 301 },
+    { "source": "/public/nurse/index.html", "destination": "/signin/", "statusCode": 301 },
+    { "source": "/public/receptionist/index.html", "destination": "/signin/", "statusCode": 301 },
+    { "source": "/public/patient/index.html", "destination": "/signin/", "statusCode": 301 },
+    { "source": "/public/org-admin/index.html", "destination": "/signin/", "statusCode": 301 },
+    { "source": "/public/organization/signin.html", "destination": "/signin/", "statusCode": 301 }
+  ],
+  "rewrites": [
+    { "source": "/signin", "destination": "/public/signin.html" },
+    { "source": "/signin/", "destination": "/public/signin.html" },
+    { "source": "/forgot-password", "destination": "/public/forgot-password.html" },
+    { "source": "/forgot-password/", "destination": "/public/forgot-password.html" },
+    { "source": "/check-email", "destination": "/public/check-email.html" },
+    { "source": "/check-email/", "destination": "/public/check-email.html" },
+    { "source": "/reset-password", "destination": "/public/reset-password.html" },
+    { "source": "/reset-password/", "destination": "/public/reset-password.html" },
+    { "source": "/password-success", "destination": "/public/password-success.html" },
+    { "source": "/password-success/", "destination": "/public/password-success.html" },
+
+    { "source": "/superadmin", "destination": "/public/superadmin/index.html" },
+    { "source": "/superadmin/", "destination": "/public/superadmin/index.html" },
+    { "source": "/superadmin/signin", "destination": "/public/superadmin/signin.html" },
+    { "source": "/superadmin/signin/", "destination": "/public/superadmin/signin.html" },
+
+    { "source": "/access-request/respond", "destination": "/public/access-request/respond.html" },
+    { "source": "/access-request/respond/", "destination": "/public/access-request/respond.html" },
+
+    { "source": "/:slug/signin", "destination": "/public/organization/signin.html" },
+    { "source": "/:slug/signin/", "destination": "/public/organization/signin.html" },
+    { "source": "/:slug/forgot-password", "destination": "/public/organization/org-forgot-password.html" },
+    { "source": "/:slug/forgot-password/", "destination": "/public/organization/org-forgot-password.html" },
+    { "source": "/:slug/check-email", "destination": "/public/organization/org-check-email.html" },
+    { "source": "/:slug/check-email/", "destination": "/public/organization/org-check-email.html" },
+    { "source": "/:slug/reset-password", "destination": "/public/organization/org-reset-password.html" },
+    { "source": "/:slug/reset-password/", "destination": "/public/organization/org-reset-password.html" },
+    { "source": "/:slug/password-success", "destination": "/public/organization/org-password-success.html" },
+    { "source": "/:slug/password-success/", "destination": "/public/organization/org-password-success.html" },
+
+    { "source": "/:slug/doctor", "destination": "/public/doctor/index.html" },
+    { "source": "/:slug/doctor/", "destination": "/public/doctor/index.html" },
+    { "source": "/:slug/nurse", "destination": "/public/nurse/index.html" },
+    { "source": "/:slug/nurse/", "destination": "/public/nurse/index.html" },
+    { "source": "/:slug/receptionist", "destination": "/public/receptionist/index.html" },
+    { "source": "/:slug/receptionist/", "destination": "/public/receptionist/index.html" },
+    { "source": "/:slug/patient", "destination": "/public/patient/index.html" },
+    { "source": "/:slug/patient/", "destination": "/public/patient/index.html" },
+    { "source": "/:slug/org-admin", "destination": "/public/org-admin/index.html" },
+    { "source": "/:slug/org-admin/", "destination": "/public/org-admin/index.html" },
+
+    { "source": "/:slug", "destination": "/public/organization/index.html" },
+    { "source": "/:slug/", "destination": "/public/organization/index.html" }
+  ]
+}

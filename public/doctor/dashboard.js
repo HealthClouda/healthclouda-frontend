@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   HealthClouda — Doctor Dashboard
+   HealthClouda — Doctor Dashboard (Production)
    Load order: config.js → api.js → auth.js → this file
 ═══════════════════════════════════════════════════════════ */
 
@@ -13,7 +13,14 @@
   try { token = hc_getAccessToken(); } catch(e) {}
   try { user  = hc_getUser();        } catch(e) {}
 
-  if (token && user && typeof hc_redirectByRole === 'function') {
+  /* ── Redirect to signin if not authenticated ── */
+  if (!token) {
+    window.location.href = HC_ROUTER.signinPath(user);
+    return;
+  }
+
+  /* ── Redirect if wrong role ── */
+  if (user && typeof hc_redirectByRole === 'function') {
     const role = (user.role || '').toLowerCase().replace(/_/g, '');
     if (role && role !== 'doctor' && role !== 'superadmin') {
       hc_redirectByRole(user.role);
@@ -136,6 +143,7 @@ function formatDateTime(iso) {
 function formatRelativeTime(iso) {
   if (!iso) return '';
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 0) return 'Just now';
   if (diff < 60)    return 'Just now';
   if (diff < 3600)  return Math.floor(diff / 60) + 'm ago';
   if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
@@ -234,101 +242,79 @@ function isAbnormalVital(field, value) {
 
 function parseApiError(err, fallback) {
   let msg = fallback || 'An error occurred.';
-  if (err.data) {
+  if (err && err.data) {
     const msgs = [];
     for (const [f, errs] of Object.entries(err.data)) {
       msgs.push(f.replace(/_/g, ' ') + ': ' + (Array.isArray(errs) ? errs[0] : errs));
     }
     if (msgs.length) msg = msgs.join(' | ');
-  } else if (err.message) { msg = err.message; }
+  } else if (err && err.message) { msg = err.message; }
   return msg;
+}
+
+/* ── Confirm modal utility ── */
+function showConfirmModal(options) {
+  document.getElementById('confirmModalTitle').textContent = options.title || 'Confirm Action';
+  document.getElementById('confirmModalMessage').textContent = options.message || 'Are you sure?';
+
+  const inputGroup = document.getElementById('confirmModalInputGroup');
+  const input = document.getElementById('confirmModalInput');
+  if (options.showInput) {
+    inputGroup.style.display = '';
+    document.getElementById('confirmModalInputLabel').textContent = options.inputLabel || 'Reason';
+    input.placeholder = options.inputPlaceholder || 'Optional...';
+    input.value = '';
+  } else {
+    inputGroup.style.display = 'none';
+  }
+
+  const btn = document.getElementById('confirmModalBtn');
+  btn.textContent = options.confirmText || 'Confirm';
+  btn.className = 'btn ' + (options.confirmClass || 'btn-danger');
+  btn.onclick = function() {
+    closeModal('confirmModal');
+    if (typeof options.onConfirm === 'function') {
+      options.onConfirm(options.showInput ? input.value : null);
+    }
+  };
+
+  openModal('confirmModal');
+}
+
+/* ── Pagination helper ── */
+function renderPagination(containerId, data, loadFnName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const totalPages = data.total_pages || (data.count ? Math.ceil(data.count / 20) : 1);
+  const currentPage = data.page || 1;
+
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+  container.innerHTML = '<div class="pagination">' +
+    '<button class="row-btn"' + (currentPage <= 1 ? ' disabled' : '') + ' data-action="paginate" data-fn="' + loadFnName + '" data-page="' + (currentPage - 1) + '">Prev</button>' +
+    '<span class="pagination-info">Page ' + currentPage + ' of ' + totalPages + '</span>' +
+    '<button class="row-btn"' + (currentPage >= totalPages ? ' disabled' : '') + ' data-action="paginate" data-fn="' + loadFnName + '" data-page="' + (currentPage + 1) + '">Next</button>' +
+  '</div>';
+}
+
+/* ── Safe ID validator (UUID format) ── */
+function isValidUUID(str) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
 
 /* ══════════════════════════════════════════
-   4. DEMO DATA
-══════════════════════════════════════════ */
-const DEMO_DOC_STATS = {
-  todays_appointments: 5, active_episodes: 12,
-  patients_in_queue: 3, pending_referrals: 2,
-  admissions_under_care: 8, completed_episodes_this_week: 15,
-};
-
-const DEMO_MY_PATIENTS = [
-  { id: 'mp1', patient: { id: 'p1', healthclouda_id: 'HCL-ABC123', first_name: 'Adaeze', last_name: 'Okonkwo', gender: 'F', blood_type: 'O+', age: 37, allergies: 'Penicillin' }, episode: { id: 'e1', episode_type: 'INPATIENT', status: 'ACTIVE', chief_complaint: 'Chest pain', started_at: '2026-03-01T08:00:00Z' }, admission: { id: 'a1', ward: { id: 'w1', name: 'Medical Ward' }, bed: { id: 'b1', bed_number: 'B-001' }, admitted_at: '2026-03-01T08:00:00Z' }, latest_vitals: { blood_pressure_systolic: 120, blood_pressure_diastolic: 80, temperature: 36.8, pulse_rate: 75, recorded_at: '2026-03-03T22:02:19Z' } },
-  { id: 'mp2', patient: { id: 'p2', healthclouda_id: 'HCL-DEF456', first_name: 'Emeka', last_name: 'Nwosu', gender: 'M', blood_type: 'A+', age: 55, allergies: 'None' }, episode: { id: 'e2', episode_type: 'OUTPATIENT', status: 'ACTIVE', chief_complaint: 'Hypertension follow-up', started_at: '2026-03-02T10:00:00Z' }, admission: null, latest_vitals: { blood_pressure_systolic: 155, blood_pressure_diastolic: 95, temperature: 37.1, pulse_rate: 88, recorded_at: '2026-03-03T14:30:00Z' } },
-  { id: 'mp3', patient: { id: 'p3', healthclouda_id: 'HCL-GHI789', first_name: 'Fatima', last_name: 'Bello', gender: 'F', blood_type: 'B+', age: 28, allergies: 'Sulfa drugs' }, episode: { id: 'e3', episode_type: 'EMERGENCY', status: 'ACTIVE', chief_complaint: 'Acute abdominal pain', started_at: '2026-03-03T16:00:00Z' }, admission: { id: 'a3', ward: { id: 'w3', name: 'Emergency Ward' }, bed: { id: 'b5', bed_number: 'E-002' }, admitted_at: '2026-03-03T16:30:00Z' }, latest_vitals: { blood_pressure_systolic: 110, blood_pressure_diastolic: 70, temperature: 38.6, pulse_rate: 105, recorded_at: '2026-03-03T20:15:00Z' } },
-];
-
-const DEMO_EPISODES = [
-  { id: 'e1', patient: { id: 'p1', first_name: 'Adaeze', last_name: 'Okonkwo', age: 37 }, episode_type: 'INPATIENT', status: 'ACTIVE', chief_complaint: 'Chest pain', diagnosis: '', started_at: '2026-03-01T08:00:00Z', completed_at: null },
-  { id: 'e2', patient: { id: 'p2', first_name: 'Emeka', last_name: 'Nwosu', age: 55 }, episode_type: 'OUTPATIENT', status: 'ACTIVE', chief_complaint: 'Hypertension follow-up', diagnosis: '', started_at: '2026-03-02T10:00:00Z', completed_at: null },
-  { id: 'e4', patient: { id: 'p4', first_name: 'Chioma', last_name: 'Eze', age: 42 }, episode_type: 'OUTPATIENT', status: 'COMPLETED', chief_complaint: 'Routine check-up', diagnosis: 'Healthy, no issues', started_at: '2026-02-20T09:00:00Z', completed_at: '2026-02-20T10:00:00Z' },
-];
-
-const DEMO_EPISODE_DETAIL = {
-  id: 'e1',
-  patient: { id: 'p1', first_name: 'Adaeze', last_name: 'Okonkwo', age: 37, gender: 'F', blood_type: 'O+', allergies: 'Penicillin' },
-  episode_type: 'INPATIENT', status: 'ACTIVE', chief_complaint: 'Chest pain',
-  diagnosis: '', started_at: '2026-03-01T08:00:00Z', completed_at: null,
-  admission: { ward: { name: 'Medical Ward' }, bed: { bed_number: 'B-001' } },
-  notes: [
-    { id: 'n1', content: 'Patient presents with acute chest pain radiating to the left arm. ECG ordered.', note_type: 'EXAMINATION', created_by: 'Dr. Adekunle', created_at: '2026-03-01T08:30:00Z' },
-    { id: 'n2', content: 'ECG results normal. Blood work shows slightly elevated troponin. Will monitor.', note_type: 'FOLLOW_UP', created_by: 'Dr. Adekunle', created_at: '2026-03-02T09:00:00Z' },
-  ],
-  prescriptions: [
-    { id: 'rx1', medication: 'Aspirin', dosage: '75mg', frequency: 'Once daily', duration: '30 days', status: 'ACTIVE', instructions: 'Take with food' },
-    { id: 'rx2', medication: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily at night', duration: '30 days', status: 'ACTIVE', instructions: '' },
-  ],
-  vitals_history: [
-    { blood_pressure_systolic: 140, blood_pressure_diastolic: 90, temperature: 37.2, pulse_rate: 92, respiratory_rate: 18, oxygen_saturation: 97, recorded_at: '2026-03-01T08:30:00Z' },
-    { blood_pressure_systolic: 130, blood_pressure_diastolic: 85, temperature: 36.9, pulse_rate: 80, respiratory_rate: 16, oxygen_saturation: 98, recorded_at: '2026-03-02T08:00:00Z' },
-    { blood_pressure_systolic: 120, blood_pressure_diastolic: 80, temperature: 36.8, pulse_rate: 75, respiratory_rate: 16, oxygen_saturation: 98, recorded_at: '2026-03-03T22:02:19Z' },
-  ],
-};
-
-const DEMO_PRESCRIPTIONS = [
-  { id: 'rx1', patient: { id: 'p1', first_name: 'Adaeze', last_name: 'Okonkwo' }, episode_id: 'e1', medication: 'Aspirin', dosage: '75mg', frequency: 'Once daily', duration: '30 days', status: 'ACTIVE', instructions: 'Take with food', created_at: '2026-03-01T09:00:00Z' },
-  { id: 'rx2', patient: { id: 'p1', first_name: 'Adaeze', last_name: 'Okonkwo' }, episode_id: 'e1', medication: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily at night', duration: '30 days', status: 'ACTIVE', instructions: '', created_at: '2026-03-01T09:00:00Z' },
-  { id: 'rx3', patient: { id: 'p2', first_name: 'Emeka', last_name: 'Nwosu' }, episode_id: 'e2', medication: 'Amlodipine', dosage: '5mg', frequency: 'Once daily', duration: '14 days', status: 'COMPLETED', instructions: 'Monitor BP', created_at: '2026-02-15T10:00:00Z' },
-];
-
-const DEMO_REFERRALS_IN = [
-  { id: 'ref1', patient: { id: 'p5', first_name: 'Bola', last_name: 'Ogundimu' }, referring_doctor: 'Dr. Ngozi Ibe', referring_facility: 'City Clinic', reason: 'Suspected cardiac arrhythmia', urgency: 'HIGH', status: 'PENDING', created_at: '2026-03-03T14:00:00Z' },
-];
-const DEMO_REFERRALS_OUT = [
-  { id: 'ref2', patient: { id: 'p1', first_name: 'Adaeze', last_name: 'Okonkwo' }, referred_to: 'Dr. Kemi Adebayo (Cardiology)', reason: 'Further cardiac evaluation', urgency: 'MEDIUM', status: 'ACCEPTED', created_at: '2026-03-02T11:00:00Z' },
-];
-
-const DEMO_APPOINTMENTS = [
-  { id: 'apt1', patient: { id: 'p2', first_name: 'Emeka', last_name: 'Nwosu' }, appointment_type: 'FOLLOW_UP', status: 'SCHEDULED', scheduled_at: '2026-03-06T09:00:00Z', notes: '' },
-  { id: 'apt2', patient: { id: 'p6', first_name: 'Grace', last_name: 'Abiola' }, appointment_type: 'NEW', status: 'SCHEDULED', scheduled_at: '2026-03-06T10:30:00Z', notes: '' },
-  { id: 'apt3', patient: { id: 'p7', first_name: 'Tunde', last_name: 'Bakare' }, appointment_type: 'FOLLOW_UP', status: 'COMPLETED', scheduled_at: '2026-03-05T14:00:00Z', notes: 'BP stable, continue medication' },
-  { id: 'apt4', patient: { id: 'p8', first_name: 'Amina', last_name: 'Yusuf' }, appointment_type: 'NEW', status: 'NO_SHOW', scheduled_at: '2026-03-05T11:00:00Z', notes: '' },
-];
-
-const DEMO_NOTIFICATIONS = [
-  { id: 'dn1', notification_type: 'NEW_APPOINTMENT', title: 'New Appointment', message: 'Emeka Nwosu has a follow-up appointment scheduled for tomorrow at 09:00.', is_read: false, created_at: '2026-03-05T16:00:00Z' },
-  { id: 'dn2', notification_type: 'REFERRAL_RECEIVED', title: 'Referral Received', message: 'Dr. Ngozi Ibe referred Bola Ogundimu to you for suspected cardiac arrhythmia.', is_read: false, created_at: '2026-03-03T14:05:00Z' },
-  { id: 'dn3', notification_type: 'VITALS_ALERT', title: 'Abnormal Vitals', message: 'Fatima Bello\'s temperature is 38.6\u00B0C (elevated). Please review.', is_read: true, created_at: '2026-03-03T20:20:00Z' },
-  { id: 'dn4', notification_type: 'PATIENT_ASSIGNED', title: 'Patient Assigned', message: 'Fatima Bello has been assigned to your care in the Emergency Ward.', is_read: true, created_at: '2026-03-03T16:35:00Z' },
-];
-
-const DEMO_VITALS = {
-  blood_pressure_systolic: 120, blood_pressure_diastolic: 80, temperature: 36.8,
-  pulse_rate: 75, respiratory_rate: 16, oxygen_saturation: 98,
-  weight: 70.5, height: 175, notes: 'Patient stable',
-  recorded_at: '2026-03-03T22:02:19Z',
-};
-
-
-/* ══════════════════════════════════════════
-   5. DASHBOARD PAGE
+   4. DASHBOARD PAGE
 ══════════════════════════════════════════ */
 async function loadDashboard() {
   let stats;
-  try { stats = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_STATS); }
-  catch { stats = DEMO_DOC_STATS; }
+  try {
+    stats = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_STATS);
+  } catch(err) {
+    showToast('Failed to load dashboard stats.', 'error');
+    stats = {};
+  }
 
   const el = (id) => document.getElementById(id);
   el('statTodayAppts').textContent         = stats.todays_appointments ?? '—';
@@ -349,10 +335,11 @@ async function loadTodaySchedule() {
   let items;
   try {
     const today = new Date().toISOString().split('T')[0];
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_APPOINTMENTS + '?status=SCHEDULED&date=' + today);
+    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_APPOINTMENTS + '?status=SCHEDULED&date=' + encodeURIComponent(today));
     items = Array.isArray(data) ? data : (data.results || []);
-  } catch {
-    items = DEMO_APPOINTMENTS.filter(a => a.status === 'SCHEDULED');
+  } catch(err) {
+    container.innerHTML = '<div class="empty-state">Failed to load schedule.</div>';
+    return;
   }
 
   if (items.length === 0) {
@@ -385,11 +372,11 @@ let _dashRefreshInterval = setInterval(() => {
 
 
 /* ══════════════════════════════════════════
-   6. MY PATIENTS PAGE
+   5. MY PATIENTS PAGE
 ══════════════════════════════════════════ */
 const _patientSearchHandler = debounce(() => { _loaded.delete('patients'); loadMyPatients(); }, 400);
 
-async function loadMyPatients() {
+async function loadMyPatients(page) {
   const tbody = document.getElementById('patientTableBody');
   if (!tbody) return;
   tbody.innerHTML = shimmerRows(3);
@@ -400,19 +387,25 @@ async function loadMyPatients() {
   let url = HC_CONFIG.ENDPOINTS.DOC_MY_PATIENTS;
   const params = [];
   if (search)  params.push('search=' + encodeURIComponent(search));
-  if (status)  params.push('status=' + status);
+  if (status)  params.push('status=' + encodeURIComponent(status));
+  if (page && page > 1) params.push('page=' + page);
   if (params.length) url += '?' + params.join('&');
 
-  let items;
+  let items, responseData;
   try {
-    const data = await safeApiGet(url);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch { items = DEMO_MY_PATIENTS; }
+    responseData = await safeApiGet(url);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load patients.', 'error');
+    items = [];
+    responseData = {};
+  }
 
   document.getElementById('patientCount').textContent = items.length + ' patient' + (items.length !== 1 ? 's' : '');
 
   if (items.length === 0) {
     tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No patients found.</td></tr>';
+    renderPagination('patientPagination', {}, 'loadMyPatients');
     return;
   }
 
@@ -422,7 +415,6 @@ async function loadMyPatients() {
     const adm = item.admission;
     const v = item.latest_vitals;
     const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
-    const safeName = escapeHtml(name).replace(/'/g, '&#39;');
     const wardBed = adm ? (escapeHtml(adm.ward?.name || '') + ' / ' + escapeHtml(adm.bed?.bed_number || '')) : '<span class="badge badge-neutral">Outpatient</span>';
 
     let vitalsHtml = '—';
@@ -445,17 +437,19 @@ async function loadMyPatients() {
       '<td>' + wardBed + '</td>' +
       '<td style="font-size:0.78rem">' + vitalsHtml + '</td>' +
       '<td><div class="row-actions">' +
-        '<button class="row-btn info" onclick="openVitalsModal(\'' + p.id + '\',\'' + safeName + '\')">Vitals</button>' +
-        '<button class="row-btn" onclick="viewEpisodeDetail(\'' + ep.id + '\')">Episode</button>' +
-        '<button class="row-btn success" onclick="openAddNotePanel(\'' + ep.id + '\',\'' + safeName + '\')">Note</button>' +
+        '<button class="row-btn info" data-action="openVitals" data-id="' + escapeHtml(p.id || '') + '" data-name="' + escapeHtml(name) + '">Vitals</button>' +
+        '<button class="row-btn" data-action="viewEpisode" data-id="' + escapeHtml(ep.id || '') + '">Episode</button>' +
+        '<button class="row-btn success" data-action="addNote" data-id="' + escapeHtml(ep.id || '') + '" data-name="' + escapeHtml(name) + '">Note</button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
+
+  renderPagination('patientPagination', responseData, 'loadMyPatients');
 }
 
 
 /* ══════════════════════════════════════════
-   7. VITALS (Read-only)
+   6. VITALS (Read-only)
 ══════════════════════════════════════════ */
 async function openVitalsModal(patientId, patientName) {
   document.getElementById('vitalsPatientName').textContent = patientName;
@@ -467,7 +461,10 @@ async function openVitalsModal(patientId, patientName) {
   let data;
   try {
     data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_VITALS + patientId + '/vitals/');
-  } catch { data = DEMO_VITALS; }
+  } catch(err) {
+    container.innerHTML = '<div class="empty-state">Failed to load vitals.</div>';
+    return;
+  }
 
   const vitals = data.vitals || data;
 
@@ -498,7 +495,7 @@ async function openVitalsModal(patientId, patientName) {
 
 
 /* ══════════════════════════════════════════
-   8. EPISODES PAGE
+   7. EPISODES PAGE
 ══════════════════════════════════════════ */
 let _currentEpisodeTab = 'ACTIVE';
 let _episodeDetailId = null;
@@ -510,7 +507,7 @@ function switchEpisodeTab(tab) {
   loadEpisodes();
 }
 
-async function loadEpisodes() {
+async function loadEpisodes(page) {
   const tbody = document.getElementById('episodeTableBody');
   if (!tbody) return;
   tbody.innerHTML = shimmerRows(3);
@@ -519,16 +516,23 @@ async function loadEpisodes() {
   document.getElementById('episodeListView').style.display = '';
   document.getElementById('episodeDetailView').style.display = 'none';
 
-  let items;
+  let items, responseData;
   try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_EPISODES + '?status=' + _currentEpisodeTab);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch { items = DEMO_EPISODES.filter(e => e.status === _currentEpisodeTab); }
+    let url = HC_CONFIG.ENDPOINTS.DOC_EPISODES + '?status=' + encodeURIComponent(_currentEpisodeTab);
+    if (page && page > 1) url += '&page=' + page;
+    responseData = await safeApiGet(url);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load episodes.', 'error');
+    items = [];
+    responseData = {};
+  }
 
   document.getElementById('episodeCount').textContent = items.length + ' episode' + (items.length !== 1 ? 's' : '');
 
   if (items.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No ' + _currentEpisodeTab.toLowerCase() + ' episodes.</td></tr>';
+    renderPagination('episodePagination', {}, 'loadEpisodes');
     return;
   }
 
@@ -544,11 +548,13 @@ async function loadEpisodes() {
       '<td>' + days + '</td>' +
       '<td>' + statusBadge(ep.status) + '</td>' +
       '<td><div class="row-actions">' +
-        '<button class="row-btn info" onclick="viewEpisodeDetail(\'' + ep.id + '\')">View</button>' +
-        (_currentEpisodeTab === 'ACTIVE' ? '<button class="row-btn warn" onclick="openCompleteEpisodeModal(\'' + ep.id + '\',\'' + escapeHtml(name).replace(/'/g,'&#39;') + '\')">Complete</button>' : '') +
+        '<button class="row-btn info" data-action="viewEpisode" data-id="' + escapeHtml(ep.id) + '">View</button>' +
+        (_currentEpisodeTab === 'ACTIVE' ? '<button class="row-btn warn" data-action="completeEpisode" data-id="' + escapeHtml(ep.id) + '" data-name="' + escapeHtml(name) + '">Complete</button>' : '') +
       '</div></td>' +
     '</tr>';
   }).join('');
+
+  renderPagination('episodePagination', responseData, 'loadEpisodes');
 }
 
 async function viewEpisodeDetail(episodeId) {
@@ -563,7 +569,10 @@ async function viewEpisodeDetail(episodeId) {
   let ep;
   try {
     ep = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_EPISODES + episodeId + '/');
-  } catch { ep = DEMO_EPISODE_DETAIL; }
+  } catch(err) {
+    detailView.innerHTML = '<div class="empty-state">Failed to load episode details.</div>';
+    return;
+  }
 
   const p = ep.patient || {};
   const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
@@ -574,14 +583,14 @@ async function viewEpisodeDetail(episodeId) {
   let html = '';
 
   // Header
-  html += '<div style="margin-bottom:1rem"><button class="btn btn-ghost btn-sm" onclick="backToEpisodeList()">&larr; Back to Episodes</button></div>';
+  html += '<div style="margin-bottom:1rem"><button class="btn btn-ghost btn-sm" data-action="backToEpisodes">&larr; Back to Episodes</button></div>';
   html += '<div class="episode-detail-header">' +
     '<div>' +
       '<div class="episode-patient-name">' + escapeHtml(name) + '</div>' +
       '<div class="episode-patient-meta">' +
         (p.age ? p.age + 'y' : '') + (p.gender ? ' / ' + p.gender : '') +
-        (p.blood_type ? ' &middot; ' + escapeHtml(p.blood_type) : '') +
-        (p.allergies ? ' &middot; Allergies: ' + escapeHtml(p.allergies) : '') +
+        (p.blood_type ? ' &#183; ' + escapeHtml(p.blood_type) : '') +
+        (p.allergies ? ' &#183; Allergies: ' + escapeHtml(p.allergies) : '') +
       '</div>' +
     '</div>' +
     '<div style="text-align:right">' +
@@ -627,7 +636,7 @@ async function viewEpisodeDetail(episodeId) {
   html += '<div class="episode-detail-section">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">' +
       '<div class="section-title" style="margin-bottom:0">Clinical Notes</div>' +
-      '<button class="btn btn-primary btn-sm" onclick="openAddNotePanel(\'' + episodeId + '\',\'' + escapeHtml(name).replace(/'/g,'&#39;') + '\')">+ Add Note</button>' +
+      '<button class="btn btn-primary btn-sm" data-action="addNote" data-id="' + escapeHtml(episodeId) + '" data-name="' + escapeHtml(name) + '">+ Add Note</button>' +
     '</div>';
   if (notes.length === 0) {
     html += '<div class="empty-state">No notes recorded yet.</div>';
@@ -649,7 +658,7 @@ async function viewEpisodeDetail(episodeId) {
   html += '<div class="episode-detail-section">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">' +
       '<div class="section-title" style="margin-bottom:0">Prescriptions</div>' +
-      '<button class="btn btn-primary btn-sm" onclick="openCreateRxPanel(\'' + episodeId + '\',\'' + (p.id || '') + '\',\'' + escapeHtml(name).replace(/'/g,'&#39;') + '\')">+ Add Prescription</button>' +
+      '<button class="btn btn-primary btn-sm" data-action="createRx" data-episode="' + escapeHtml(episodeId) + '" data-patient="' + escapeHtml(p.id || '') + '" data-name="' + escapeHtml(name) + '">+ Add Prescription</button>' +
     '</div>';
   if (prescriptions.length === 0) {
     html += '<div class="empty-state">No prescriptions issued yet.</div>';
@@ -658,8 +667,8 @@ async function viewEpisodeDetail(episodeId) {
       '<div class="rx-item">' +
         '<div>' +
           '<div class="rx-item-med">' + escapeHtml(rx.medication) + ' ' + escapeHtml(rx.dosage || '') + '</div>' +
-          '<div class="rx-item-details">' + escapeHtml(rx.frequency || '') + ' &middot; ' + escapeHtml(rx.duration || '') +
-            (rx.instructions ? ' &middot; ' + escapeHtml(rx.instructions) : '') + '</div>' +
+          '<div class="rx-item-details">' + escapeHtml(rx.frequency || '') + ' &#183; ' + escapeHtml(rx.duration || '') +
+            (rx.instructions ? ' &#183; ' + escapeHtml(rx.instructions) : '') + '</div>' +
         '</div>' +
         statusBadge(rx.status) +
       '</div>'
@@ -686,7 +695,12 @@ async function submitCreateEpisode(e) {
   const form = document.getElementById('createEpisodeForm');
   const btn  = document.getElementById('createEpisodeBtn');
   const body = {};
-  new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+  new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
+
+  if (!body.patient_id || !body.episode_type || !body.chief_complaint) {
+    showToast('Please fill in all required fields.', 'error');
+    return;
+  }
 
   setButtonLoading(btn, true);
   try {
@@ -743,7 +757,7 @@ async function submitCompleteEpisode() {
 
 
 /* ══════════════════════════════════════════
-   9. CLINICAL NOTES
+   8. CLINICAL NOTES
 ══════════════════════════════════════════ */
 function openAddNotePanel(episodeId, patientName) {
   document.getElementById('noteEpisodeId').value = episodeId;
@@ -758,7 +772,12 @@ async function submitAddNote(e) {
   const btn  = document.getElementById('addNoteBtn');
   const episodeId = document.getElementById('noteEpisodeId').value;
   const body = {};
-  new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+  new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
+
+  if (!body.content) {
+    showToast('Please enter note content.', 'error');
+    return;
+  }
 
   setButtonLoading(btn, true);
   try {
@@ -776,7 +795,7 @@ async function submitAddNote(e) {
 
 
 /* ══════════════════════════════════════════
-   10. PRESCRIPTIONS PAGE
+   9. PRESCRIPTIONS PAGE
 ══════════════════════════════════════════ */
 let _currentRxTab = 'ACTIVE';
 
@@ -787,21 +806,28 @@ function switchRxTab(tab) {
   loadPrescriptions();
 }
 
-async function loadPrescriptions() {
+async function loadPrescriptions(page) {
   const tbody = document.getElementById('rxTableBody');
   if (!tbody) return;
   tbody.innerHTML = shimmerRows(3);
 
-  let items;
+  let items, responseData;
   try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_PRESCRIPTIONS + '?status=' + _currentRxTab);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch { items = DEMO_PRESCRIPTIONS.filter(r => r.status === _currentRxTab); }
+    let url = HC_CONFIG.ENDPOINTS.DOC_PRESCRIPTIONS + '?status=' + encodeURIComponent(_currentRxTab);
+    if (page && page > 1) url += '&page=' + page;
+    responseData = await safeApiGet(url);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load prescriptions.', 'error');
+    items = [];
+    responseData = {};
+  }
 
   document.getElementById('rxCount').textContent = items.length + ' prescription' + (items.length !== 1 ? 's' : '');
 
   if (items.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No ' + _currentRxTab.toLowerCase() + ' prescriptions.</td></tr>';
+    renderPagination('rxPagination', {}, 'loadPrescriptions');
     return;
   }
 
@@ -810,7 +836,7 @@ async function loadPrescriptions() {
     const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
     let actions = '';
     if (_currentRxTab === 'ACTIVE') {
-      actions = '<button class="row-btn danger" onclick="cancelPrescription(\'' + rx.id + '\')">Cancel</button>';
+      actions = '<button class="row-btn danger" data-action="cancelRx" data-id="' + escapeHtml(rx.id) + '">Cancel</button>';
     }
     return '<tr>' +
       '<td>' + escapeHtml(name) + '</td>' +
@@ -822,6 +848,8 @@ async function loadPrescriptions() {
       '<td><div class="row-actions">' + actions + '</div></td>' +
     '</tr>';
   }).join('');
+
+  renderPagination('rxPagination', responseData, 'loadPrescriptions');
 }
 
 function openCreateRxPanel(episodeId, patientId, patientName) {
@@ -838,7 +866,12 @@ async function submitCreateRx(e) {
   const form = document.getElementById('createRxForm');
   const btn  = document.getElementById('createRxBtn');
   const body = {};
-  new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+  new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
+
+  if (!body.medication || !body.dosage || !body.frequency) {
+    showToast('Please fill in medication, dosage, and frequency.', 'error');
+    return;
+  }
 
   setButtonLoading(btn, true);
   try {
@@ -856,20 +889,27 @@ async function submitCreateRx(e) {
 }
 
 async function cancelPrescription(rxId) {
-  if (!confirm('Cancel this prescription?')) return;
-  try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.DOC_PRESCRIPTIONS + rxId + '/cancel/');
-    showToast('Prescription cancelled.', 'success');
-    _loaded.delete('prescriptions');
-    loadPrescriptions();
-  } catch (err) {
-    showToast(parseApiError(err, 'Failed to cancel prescription.'), 'error');
-  }
+  showConfirmModal({
+    title: 'Cancel Prescription',
+    message: 'Are you sure you want to cancel this prescription? This action cannot be undone.',
+    confirmText: 'Cancel Prescription',
+    confirmClass: 'btn-danger',
+    onConfirm: async function() {
+      try {
+        await safeApiPatch(HC_CONFIG.ENDPOINTS.DOC_PRESCRIPTIONS + rxId + '/cancel/');
+        showToast('Prescription cancelled.', 'success');
+        _loaded.delete('prescriptions');
+        loadPrescriptions();
+      } catch (err) {
+        showToast(parseApiError(err, 'Failed to cancel prescription.'), 'error');
+      }
+    }
+  });
 }
 
 
 /* ══════════════════════════════════════════
-   11. REFERRALS PAGE
+   10. REFERRALS PAGE
 ══════════════════════════════════════════ */
 let _currentRefTab = 'incoming';
 
@@ -880,19 +920,24 @@ function switchRefTab(tab) {
   loadReferrals();
 }
 
-async function loadReferrals() {
+async function loadReferrals(page) {
   const tbody = document.getElementById('refTableBody');
   if (!tbody) return;
   tbody.innerHTML = shimmerRows(3);
 
   const isIncoming = _currentRefTab === 'incoming';
-  const url = isIncoming ? HC_CONFIG.ENDPOINTS.DOC_REFERRALS_IN : HC_CONFIG.ENDPOINTS.DOC_REFERRALS_OUT;
+  let url = isIncoming ? HC_CONFIG.ENDPOINTS.DOC_REFERRALS_IN : HC_CONFIG.ENDPOINTS.DOC_REFERRALS_OUT;
+  if (page && page > 1) url += (url.includes('?') ? '&' : '?') + 'page=' + page;
 
-  let items;
+  let items, responseData;
   try {
-    const data = await safeApiGet(url);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch { items = isIncoming ? DEMO_REFERRALS_IN : DEMO_REFERRALS_OUT; }
+    responseData = await safeApiGet(url);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load referrals.', 'error');
+    items = [];
+    responseData = {};
+  }
 
   document.getElementById('refCount').textContent = items.length + ' referral' + (items.length !== 1 ? 's' : '');
 
@@ -901,6 +946,7 @@ async function loadReferrals() {
 
   if (items.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No ' + _currentRefTab + ' referrals.</td></tr>';
+    renderPagination('refPagination', {}, 'loadReferrals');
     return;
   }
 
@@ -914,8 +960,14 @@ async function loadReferrals() {
     let actions = '';
     if (isIncoming && ref.status === 'PENDING') {
       actions =
-        '<button class="row-btn success" onclick="acceptReferral(\'' + ref.id + '\')">Accept</button>' +
-        '<button class="row-btn danger" onclick="declineReferral(\'' + ref.id + '\')">Decline</button>';
+        '<button class="row-btn success" data-action="acceptRef" data-id="' + escapeHtml(ref.id) + '">Accept</button>' +
+        '<button class="row-btn danger" data-action="declineRef" data-id="' + escapeHtml(ref.id) + '">Decline</button>';
+    }
+    // View detail button for all referrals
+    actions += '<button class="row-btn info" data-action="viewRefDetail" data-id="' + escapeHtml(ref.id) + '">View</button>';
+    // PDF download for inter-org outgoing referrals with letters
+    if (!isIncoming && ref.referral_type === 'inter_org' && ref.has_letter) {
+      actions += '<button class="row-btn" data-action="downloadRefLetter" data-id="' + escapeHtml(ref.id) + '">PDF</button>';
     }
 
     return '<tr>' +
@@ -928,6 +980,8 @@ async function loadReferrals() {
       '<td><div class="row-actions">' + actions + '</div></td>' +
     '</tr>';
   }).join('');
+
+  renderPagination('refPagination', responseData, 'loadReferrals');
 }
 
 async function acceptReferral(refId) {
@@ -943,19 +997,119 @@ async function acceptReferral(refId) {
 }
 
 async function declineReferral(refId) {
-  const reason = prompt('Reason for declining (optional):');
+  showConfirmModal({
+    title: 'Decline Referral',
+    message: 'Are you sure you want to decline this referral?',
+    showInput: true,
+    inputLabel: 'Reason for declining',
+    inputPlaceholder: 'Optional reason...',
+    confirmText: 'Decline',
+    confirmClass: 'btn-danger',
+    onConfirm: async function(reason) {
+      try {
+        await safeApiPatch(HC_CONFIG.ENDPOINTS.DOC_REFERRALS + refId + '/decline/', { reason: reason || '' });
+        showToast('Referral declined.', 'success');
+        _loaded.delete('referrals');
+        loadReferrals();
+      } catch (err) {
+        showToast(parseApiError(err, 'Failed to decline referral.'), 'error');
+      }
+    }
+  });
+}
+
+/* ── Referral Detail View ── */
+async function viewReferralDetail(refId) {
+  const content = document.getElementById('referralDetailContent');
+  const downloadBtn = document.getElementById('referralDownloadBtn');
+  openModal('referralDetailModal');
+  content.innerHTML = '<div class="empty-state">Loading referral details...</div>';
+  downloadBtn.style.display = 'none';
+
   try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.DOC_REFERRALS + refId + '/decline/', { reason: reason || '' });
-    showToast('Referral declined.', 'success');
-    _loaded.delete('referrals');
-    loadReferrals();
-  } catch (err) {
-    showToast(parseApiError(err, 'Failed to decline referral.'), 'error');
+    const detail = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_REFERRALS + refId + '/');
+    const p = detail.patient || {};
+    const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
+
+    let html = '<div class="referral-detail-grid">';
+    html += '<div class="detail-field"><span class="detail-label">Patient</span><span class="detail-value">' + escapeHtml(name) + '</span></div>';
+    html += '<div class="detail-field"><span class="detail-label">Status</span><span class="detail-value">' + statusBadge(detail.status) + '</span></div>';
+    html += '<div class="detail-field"><span class="detail-label">Urgency</span><span class="detail-value">' + urgencyBadge(detail.urgency || 'LOW') + '</span></div>';
+    if (detail.referral_type) {
+      html += '<div class="detail-field"><span class="detail-label">Type</span><span class="detail-value">' + escapeHtml(detail.referral_type.replace(/_/g, ' ')) + '</span></div>';
+    }
+    if (detail.referring_doctor) {
+      html += '<div class="detail-field"><span class="detail-label">From Doctor</span><span class="detail-value">' + escapeHtml(detail.referring_doctor) + '</span></div>';
+    }
+    if (detail.referring_facility) {
+      html += '<div class="detail-field"><span class="detail-label">From Facility</span><span class="detail-value">' + escapeHtml(detail.referring_facility) + '</span></div>';
+    }
+    if (detail.referred_to) {
+      html += '<div class="detail-field"><span class="detail-label">Referred To</span><span class="detail-value">' + escapeHtml(detail.referred_to) + '</span></div>';
+    }
+    html += '<div class="detail-field"><span class="detail-label">Date</span><span class="detail-value">' + formatDateTime(detail.created_at) + '</span></div>';
+    html += '</div>';
+    if (detail.reason) {
+      html += '<div class="detail-field" style="margin-top:1rem"><span class="detail-label">Reason</span><p style="font-size:0.88rem;color:var(--text-mid);margin-top:0.25rem">' + escapeHtml(detail.reason) + '</p></div>';
+    }
+    if (detail.clinical_notes) {
+      html += '<div class="detail-field" style="margin-top:0.75rem"><span class="detail-label">Clinical Notes</span><p style="font-size:0.88rem;color:var(--text-mid);margin-top:0.25rem">' + escapeHtml(detail.clinical_notes) + '</p></div>';
+    }
+
+    content.innerHTML = html;
+
+    if (detail.has_letter) {
+      downloadBtn.style.display = '';
+      downloadBtn.setAttribute('data-id', detail.id);
+    }
+  } catch(err) {
+    content.innerHTML = '<div class="empty-state">Failed to load referral details.</div>';
   }
+}
+
+/* ── Referral Letter PDF Download ── */
+async function downloadReferralLetter(refId, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Downloading...'; }
+
+  try {
+    let token = hc_getAccessToken();
+    const url = HC_CONFIG.API_BASE_URL + HC_CONFIG.ENDPOINTS.DOC_REFERRALS + refId + '/download-letter/';
+    let res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.status === 401) {
+      try {
+        token = await hc_refreshAccessToken();
+        res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      } catch { /* refresh failed — handled by hc_refreshAccessToken */ }
+    }
+    if (!res.ok) throw new Error('Download failed');
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'referral-letter-' + refId + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    showToast('Referral letter downloaded!', 'success');
+  } catch(err) {
+    showToast(parseApiError(err, 'Failed to download referral letter.'), 'error');
+  }
+  if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'PDF'; }
+}
+
+/* ── Referral Type Toggle ── */
+function toggleRefTypeFields(type) {
+  const internalFields = document.getElementById('refInternalFields');
+  const interOrgFields = document.getElementById('refInterOrgFields');
+  if (internalFields) internalFields.style.display = (type === 'internal_department') ? '' : 'none';
+  if (interOrgFields) interOrgFields.style.display = (type === 'inter_org') ? '' : 'none';
 }
 
 function openCreateRefPanel() {
   document.getElementById('createRefForm')?.reset();
+  toggleRefTypeFields('');
   openPanel('createRefPanel');
 }
 
@@ -964,7 +1118,12 @@ async function submitCreateRef(e) {
   const form = document.getElementById('createRefForm');
   const btn  = document.getElementById('createRefBtn');
   const body = {};
-  new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+  new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
+
+  if (!body.patient_id || !body.referral_type || !body.reason) {
+    showToast('Please fill in all required fields.', 'error');
+    return;
+  }
 
   setButtonLoading(btn, true);
   try {
@@ -982,7 +1141,7 @@ async function submitCreateRef(e) {
 
 
 /* ══════════════════════════════════════════
-   12. APPOINTMENTS PAGE
+   11. APPOINTMENTS PAGE
 ══════════════════════════════════════════ */
 let _currentApptTab = 'SCHEDULED';
 
@@ -993,21 +1152,28 @@ function switchApptTab(tab) {
   loadAppointments();
 }
 
-async function loadAppointments() {
+async function loadAppointments(page) {
   const tbody = document.getElementById('apptTableBody');
   if (!tbody) return;
   tbody.innerHTML = shimmerRows(3);
 
-  let items;
+  let items, responseData;
   try {
-    const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_APPOINTMENTS + '?status=' + _currentApptTab);
-    items = Array.isArray(data) ? data : (data.results || []);
-  } catch { items = DEMO_APPOINTMENTS.filter(a => a.status === _currentApptTab); }
+    let url = HC_CONFIG.ENDPOINTS.DOC_APPOINTMENTS + '?status=' + encodeURIComponent(_currentApptTab);
+    if (page && page > 1) url += '&page=' + page;
+    responseData = await safeApiGet(url);
+    items = Array.isArray(responseData) ? responseData : (responseData.results || []);
+  } catch(err) {
+    showToast('Failed to load appointments.', 'error');
+    items = [];
+    responseData = {};
+  }
 
   document.getElementById('apptCount').textContent = items.length + ' appointment' + (items.length !== 1 ? 's' : '');
 
   if (items.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No ' + _currentApptTab.toLowerCase().replace(/_/g, ' ') + ' appointments.</td></tr>';
+    renderPagination('apptPagination', {}, 'loadAppointments');
     return;
   }
 
@@ -1017,9 +1183,9 @@ async function loadAppointments() {
     let actions = '';
     if (_currentApptTab === 'SCHEDULED') {
       actions =
-        '<button class="row-btn success" onclick="updateApptStatus(\'' + a.id + '\',\'COMPLETED\')">Complete</button>' +
-        '<button class="row-btn warn" onclick="updateApptStatus(\'' + a.id + '\',\'NO_SHOW\')">No Show</button>' +
-        '<button class="row-btn danger" onclick="updateApptStatus(\'' + a.id + '\',\'CANCELLED\')">Cancel</button>';
+        '<button class="row-btn success" data-action="updateAppt" data-id="' + escapeHtml(a.id) + '" data-status="COMPLETED">Complete</button>' +
+        '<button class="row-btn warn" data-action="updateAppt" data-id="' + escapeHtml(a.id) + '" data-status="NO_SHOW">No Show</button>' +
+        '<button class="row-btn danger" data-action="updateAppt" data-id="' + escapeHtml(a.id) + '" data-status="CANCELLED">Cancel</button>';
     }
     return '<tr>' +
       '<td class="td-date">' + formatDateTime(a.scheduled_at) + '</td>' +
@@ -1030,12 +1196,49 @@ async function loadAppointments() {
       '<td><div class="row-actions">' + actions + '</div></td>' +
     '</tr>';
   }).join('');
+
+  renderPagination('apptPagination', responseData, 'loadAppointments');
 }
 
 async function updateApptStatus(apptId, newStatus) {
-  const notes = (newStatus === 'COMPLETED') ? prompt('Appointment notes (optional):') : '';
+  if (newStatus === 'COMPLETED') {
+    showConfirmModal({
+      title: 'Complete Appointment',
+      message: 'Mark this appointment as completed?',
+      showInput: true,
+      inputLabel: 'Appointment notes',
+      inputPlaceholder: 'Optional notes...',
+      confirmText: 'Complete',
+      confirmClass: 'btn-success',
+      onConfirm: async function(notes) {
+        await _doUpdateApptStatus(apptId, newStatus, notes || '');
+      }
+    });
+  } else if (newStatus === 'CANCELLED') {
+    showConfirmModal({
+      title: 'Cancel Appointment',
+      message: 'Are you sure you want to cancel this appointment?',
+      confirmText: 'Cancel Appointment',
+      confirmClass: 'btn-danger',
+      onConfirm: async function() {
+        await _doUpdateApptStatus(apptId, newStatus, '');
+      }
+    });
+  } else {
+    showConfirmModal({
+      title: 'Update Appointment',
+      message: 'Change status to ' + newStatus.replace(/_/g, ' ') + '?',
+      confirmText: 'Confirm',
+      onConfirm: async function() {
+        await _doUpdateApptStatus(apptId, newStatus, '');
+      }
+    });
+  }
+}
+
+async function _doUpdateApptStatus(apptId, newStatus, notes) {
   try {
-    await safeApiPatch(HC_CONFIG.ENDPOINTS.DOC_APPOINTMENTS + apptId + '/', { status: newStatus, notes: notes || '' });
+    await safeApiPatch(HC_CONFIG.ENDPOINTS.DOC_APPOINTMENTS + apptId + '/', { status: newStatus, notes: notes });
     showToast('Appointment updated.', 'success');
     _loaded.delete('appointments');
     _loaded.delete('dashboard');
@@ -1047,7 +1250,7 @@ async function updateApptStatus(apptId, newStatus) {
 
 
 /* ══════════════════════════════════════════
-   13. NOTIFICATIONS
+   12. NOTIFICATIONS
 ══════════════════════════════════════════ */
 let _notifsCache = [];
 
@@ -1062,7 +1265,10 @@ async function loadNotifications() {
   try {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS);
     _notifsCache = Array.isArray(data) ? data : (data.results || []);
-  } catch { _notifsCache = DEMO_NOTIFICATIONS; }
+  } catch(err) {
+    showToast('Failed to load notifications.', 'error');
+    _notifsCache = [];
+  }
 
   renderNotifications();
 }
@@ -1081,7 +1287,7 @@ function renderNotifications() {
       const typeClass = (n.notification_type || '').toLowerCase().replace(/_/g, '-');
       const icon = notifIcon(n.notification_type);
       const unread = !n.is_read ? ' unread' : '';
-      return '<div class="notif-item' + unread + '" onclick="markNotificationRead(\'' + n.id + '\')">' +
+      return '<div class="notif-item' + unread + '" data-action="markNotifRead" data-id="' + escapeHtml(n.id) + '">' +
         '<div class="notif-icon ' + typeClass + '">' + icon + '</div>' +
         '<div class="notif-body">' +
           '<div class="notif-title">' + escapeHtml(n.title) + '</div>' +
@@ -1114,7 +1320,9 @@ async function markNotificationRead(id) {
 
   try {
     await safeApiPatch(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS + id + '/read/');
-  } catch { /* silent */ }
+  } catch(err) {
+    showToast('Failed to mark notification as read.', 'error');
+  }
 
   refreshUnreadCount();
 }
@@ -1127,7 +1335,9 @@ async function markAllNotificationsRead() {
     for (const n of _notifsCache) {
       await safeApiPatch(HC_CONFIG.ENDPOINTS.STAFF_NOTIFS + n.id + '/read/').catch(() => {});
     }
-  } catch { /* silent */ }
+  } catch(err) {
+    showToast('Failed to mark all as read.', 'error');
+  }
 
   refreshUnreadCount();
   showToast('All notifications marked as read.', 'success');
@@ -1148,7 +1358,9 @@ async function refreshUnreadCount() {
   try {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.STAFF_UNREAD);
     updateNotifBadge(data.unread_count || data.count || 0);
-  } catch { /* silent */ }
+  } catch(err) {
+    /* Non-critical — badge will show stale count */
+  }
 }
 
 let _notifPollInterval = setInterval(refreshUnreadCount, 30000);
@@ -1156,13 +1368,15 @@ refreshUnreadCount();
 
 
 /* ══════════════════════════════════════════
-   14. DUTY STATUS TOGGLE
+   13. DUTY STATUS TOGGLE
 ══════════════════════════════════════════ */
 async function loadDutyStatus() {
   try {
     const data = await safeApiGet(HC_CONFIG.ENDPOINTS.ME);
     if (data) updateDutyUI(data.is_on_duty);
-  } catch { /* silent */ }
+  } catch(err) {
+    /* Non-critical — duty badge defaults to off */
+  }
 }
 
 function updateDutyUI(onDuty) {
@@ -1190,19 +1404,128 @@ async function toggleDutyStatus() {
 
 
 /* ══════════════════════════════════════════
-   15. LOGOUT
+   14. LOGOUT
 ══════════════════════════════════════════ */
 async function doctorLogout() {
   clearInterval(_notifPollInterval);
   clearInterval(_dashRefreshInterval);
 
   let slug = '';
-  try { slug = hc_getUser()?.organization_slug || ''; } catch {}
+  try { slug = hc_getUser()?.organization_slug || ''; } catch(e) {}
 
-  try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch {}
-  try { hc_clearTokens(); } catch {}
+  try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch(e) {}
+  try { hc_clearTokens(); } catch(e) {}
 
-  window.location.href = slug
-    ? '/public/organization/signin.html?org=' + slug
-    : '/public/signin.html';
+  window.location.href = HC_ROUTER.signinPath({ organization_slug: slug });
 }
+
+
+/* ══════════════════════════════════════════
+   15. INTERVAL CLEANUP (Memory Leak Fix)
+══════════════════════════════════════════ */
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    clearInterval(_dashRefreshInterval);
+    clearInterval(_notifPollInterval);
+  } else {
+    _dashRefreshInterval = setInterval(function() {
+      if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+        _loaded.delete('dashboard');
+        loadDashboard();
+      }
+    }, 30000);
+    _notifPollInterval = setInterval(refreshUnreadCount, 30000);
+    refreshUnreadCount();
+  }
+});
+
+window.addEventListener('beforeunload', function() {
+  clearInterval(_dashRefreshInterval);
+  clearInterval(_notifPollInterval);
+});
+
+
+/* ══════════════════════════════════════════
+   16. EVENT DELEGATION (CSP-safe)
+══════════════════════════════════════════ */
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  const name = btn.dataset.name;
+
+  switch (action) {
+    /* ── Patient row actions ── */
+    case 'openVitals':
+      openVitalsModal(id, name);
+      break;
+    case 'viewEpisode':
+      viewEpisodeDetail(id);
+      break;
+    case 'addNote':
+      openAddNotePanel(id, name);
+      break;
+
+    /* ── Episode actions ── */
+    case 'completeEpisode':
+      openCompleteEpisodeModal(id, name);
+      break;
+    case 'backToEpisodes':
+      backToEpisodeList();
+      break;
+
+    /* ── Prescription actions ── */
+    case 'cancelRx':
+      cancelPrescription(id);
+      break;
+    case 'createRx':
+      openCreateRxPanel(btn.dataset.episode, btn.dataset.patient, name);
+      break;
+
+    /* ── Referral actions ── */
+    case 'acceptRef':
+      acceptReferral(id);
+      break;
+    case 'declineRef':
+      declineReferral(id);
+      break;
+    case 'viewRefDetail':
+      viewReferralDetail(id);
+      break;
+    case 'downloadRefLetter':
+      downloadReferralLetter(id, btn);
+      break;
+    case 'downloadRefLetterModal':
+      downloadReferralLetter(document.getElementById('referralDownloadBtn')?.getAttribute('data-id'), btn);
+      break;
+
+    /* ── Appointment actions ── */
+    case 'updateAppt':
+      updateApptStatus(id, btn.dataset.status);
+      break;
+
+    /* ── Notification actions ── */
+    case 'markNotifRead':
+      markNotificationRead(id);
+      break;
+
+    /* ── Pagination ── */
+    case 'paginate': {
+      const fn = btn.dataset.fn;
+      const pg = parseInt(btn.dataset.page, 10);
+      if (fn === 'loadMyPatients') { _loaded.delete('patients'); loadMyPatients(pg); }
+      else if (fn === 'loadEpisodes') { _loaded.delete('episodes'); loadEpisodes(pg); }
+      else if (fn === 'loadPrescriptions') { _loaded.delete('prescriptions'); loadPrescriptions(pg); }
+      else if (fn === 'loadReferrals') { _loaded.delete('referrals'); loadReferrals(pg); }
+      else if (fn === 'loadAppointments') { _loaded.delete('appointments'); loadAppointments(pg); }
+      break;
+    }
+
+    /* ── Referral type toggle ── */
+    case 'toggleRefType':
+      toggleRefTypeFields(btn.value || document.getElementById('refType')?.value || '');
+      break;
+  }
+});
