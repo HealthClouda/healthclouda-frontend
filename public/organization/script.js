@@ -96,7 +96,7 @@ if (window._orgSlug) {
   var signinHref = (typeof HC_ROUTER !== 'undefined')
     ? HC_ROUTER.signinPath({ organization_slug: window._orgSlug })
     : './signin.html?org=' + encodeURIComponent(window._orgSlug);
-  document.querySelectorAll('a[href="./signin.html"]').forEach(a => {
+  document.querySelectorAll('a[href="/organization/signin.html"]').forEach(a => {
     a.href = signinHref;
   });
 }
