@@ -9,7 +9,7 @@
   <title>Org Admin | HealthClouda</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="../../assets/images/HealthClouda-icon.png">
+  <link rel="icon" type="image/png" href="/assets/images/HealthClouda-icon.png">
   <script>
     var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
     (function(){
@@ -23,7 +23,7 @@
 
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <img src="../../assets/images/HealthClouda-icon.png" alt="HealthClouda">
+    <img src="/assets/images/HealthClouda-icon.png" alt="HealthClouda">
     <span>HealthClouda</span>
   </div>
 
@@ -346,7 +346,7 @@
 <!-- ═══ SCRIPTS (cache-busted, sequential load) ═══ -->
 <script>
 (function(){
-  var scripts = ['../../assets/js/config.js','../../assets/js/router.js','../../assets/js/api.js','../../assets/js/auth.js','./dashboard.js'];
+  var scripts = ['/assets/js/config.js','/assets/js/router.js','/assets/js/api.js','/assets/js/auth.js','./dashboard.js'];
   function loadNext(i) {
     if (i >= scripts.length) return;
     var s = document.createElement('script');

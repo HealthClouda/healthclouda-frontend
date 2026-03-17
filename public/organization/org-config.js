@@ -14,8 +14,8 @@ const ORG_CONFIG = {
   slug:      "your-org",
 
   // Asset paths — relative to public/org/
-  logo:      "../../assets/images/unilogo.png",
-  heroImage: "../../assets/images/Frame 64.png",
+  logo:      "/assets/images/unilogo.png",
+  heroImage: "/assets/images/Frame 64.png",
 
   // Email placeholder shown in the sign-in input
   emailPlaceholder: "e.g. user@your-org.com",
