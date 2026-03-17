@@ -14,7 +14,7 @@
   <script>
     // Cache-bust version — auto-generates from date (caches per hour, auto-busts on deploy)
     var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
-    document.write('<link rel="stylesheet" href="./dashboard.css?v=' + HC_V + '">');
+    document.write('<link rel="stylesheet" href="/patient/dashboard.css?v=' + HC_V + '">');
   </script>
 </head>
 <body>
@@ -286,7 +286,7 @@
 <!-- ══════════ SCRIPTS ══════════ -->
 <script>
   // HC_V defined in <head> — reuse here for all scripts
-  ['/assets/js/config.js','/assets/js/router.js','/assets/js/api.js','/assets/js/auth.js','./dashboard.js'].forEach(function(src){
+  ['/assets/js/config.js','/assets/js/router.js','/assets/js/api.js','/assets/js/auth.js','/patient/dashboard.js'].forEach(function(src){
     document.write('<script defer src="'+src+'?v='+HC_V+'"><\/script>');
   });
 </script>
