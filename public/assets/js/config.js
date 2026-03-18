@@ -25,6 +25,11 @@ const HC_CONFIG = {
       return 'https://api-staging.healthclouda.ng/api/v1';
     }
 
+    // Vercel deployment
+    if (host === 'healthclouda-frontend.vercel.app') {
+      return 'https://healthclouda-backend-production.up.railway.app/api/v1';
+    }
+
     // Production
     return 'https://api.healthclouda.ng/api/v1';
   })(),
