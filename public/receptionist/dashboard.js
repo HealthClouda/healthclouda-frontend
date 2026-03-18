@@ -472,7 +472,7 @@ async function sendToNurse(patientId, patientName) {
     showToast(escapeHtml(patientName) + ' sent to nurse for vitals.', 'success');
   } catch (err) {
     let msg = 'Failed to send patient to nurse.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
+    if (err.data) msg = err.data.error || err.data.detail || msg;
     showToast(msg, 'error');
   }
 }
@@ -515,13 +515,13 @@ async function submitRegisterPatient(e) {
   } catch (err) {
     let msg = 'Failed to register patient.';
     if (err.status >= 500) msg = 'Server error. Please try again later.';
-    else if (err.response) {
+    else if (err.data) {
       const errors = [];
-      for (const [k, v] of Object.entries(err.response)) {
+      for (const [k, v] of Object.entries(err.data)) {
         if (Array.isArray(v)) errors.push(v.join(', '));
         else if (typeof v === 'string' && k !== 'detail' && k !== 'error') errors.push(v);
       }
-      msg = err.response.error || err.response.detail || errors.join('. ') || msg;
+      msg = err.data.error || err.data.detail || errors.join('. ') || msg;
     }
     showToast(msg, 'error');
   }
@@ -553,7 +553,7 @@ async function submitAccessRequest() {
     if (q && q.length >= 3) searchPatients(q);
   } catch (err) {
     let msg = 'Failed to send access request.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
+    if (err.data) msg = err.data.error || err.data.detail || msg;
     showToast(msg, 'error');
   }
   setButtonLoading(btn, false, 'Send Request');
@@ -613,7 +613,7 @@ async function submitAssignDoctor(e) {
     if (document.getElementById('page-queue')?.classList.contains('active')) loadQueue();
   } catch (err) {
     let msg = 'Failed to assign doctor.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
+    if (err.data) msg = err.data.error || err.data.detail || msg;
     showToast(msg, 'error');
   }
   setButtonLoading(btn, false, 'Assign Doctor');
@@ -751,7 +751,7 @@ async function updateAppointment(id, newStatus) {
     loadAppointments();
   } catch (err) {
     let msg = 'Failed to update appointment.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
+    if (err.data) msg = err.data.error || err.data.detail || msg;
     showToast(msg, 'error');
   }
 }
@@ -810,13 +810,13 @@ async function submitBookAppointment(e) {
     if (document.getElementById('page-appointments')?.classList.contains('active')) loadAppointments();
   } catch (err) {
     let msg = 'Failed to book appointment.';
-    if (err.response) {
+    if (err.data) {
       const errors = [];
-      for (const [k, v] of Object.entries(err.response)) {
+      for (const [k, v] of Object.entries(err.data)) {
         if (Array.isArray(v)) errors.push(v.join(', '));
         else if (typeof v === 'string' && k !== 'detail' && k !== 'error') errors.push(v);
       }
-      msg = err.response.error || err.response.detail || errors.join('. ') || msg;
+      msg = err.data.error || err.data.detail || errors.join('. ') || msg;
     }
     showToast(msg, 'error');
   }
@@ -931,7 +931,7 @@ async function submitNotifyDoctors() {
     closeModal('notifyDoctorsModal');
   } catch (err) {
     let msg = 'Failed to notify doctors.';
-    if (err.response) msg = err.response.error || err.response.detail || msg;
+    if (err.data) msg = err.data.error || err.data.detail || msg;
     showToast(msg, 'error');
   }
   setButtonLoading(btn, false, 'Notify Selected');

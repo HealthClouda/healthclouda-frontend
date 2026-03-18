@@ -24,7 +24,7 @@
       <img id="nav-logo" src="" alt="" style="height:32px;">
       <span id="nav-org-name"></span>
     </div>
-    <a href="./signin.html" class="signin-back-btn">← Back to Login</a>
+    <a href="/organization/signin.html" class="signin-back-btn">← Back to Login</a>
   </nav>
 
   <div class="signin-page-body">
@@ -80,7 +80,7 @@
       </form>
     </div>
 
-    <a href="./org-forgot-password.html" class="back-to-login">← Back</a>
+    <a href="/organization/org-forgot-password.html" class="back-to-login">← Back</a>
 
   </div>
 
@@ -99,7 +99,7 @@
     hc_fadeInCard();
 
     var _signinHref = HC_ROUTER.signinPath();
-    document.querySelectorAll('a[href="./signin.html"]').forEach(function(a){ a.href = _signinHref; });
+    document.querySelectorAll('a[href="/organization/signin.html"]').forEach(function(a){ a.href = _signinHref; });
   </script>
 
 </body>
