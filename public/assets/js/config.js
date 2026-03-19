@@ -55,6 +55,8 @@ const HC_CONFIG = {
     RESEND_OTP:   '/auth/resend-otp/',
     RESET_PW:     '/auth/reset-password/',
     CHANGE_PW:    '/auth/change-password/',
+    SETUP_PW_VALIDATE: '/auth/setup-password/validate/',  // GET ?token=<uuid>
+    SETUP_PW:          '/auth/setup-password/',             // POST { token, password, password2 }
     CONTACT_FORM: '/contact/contact-form/',                        // POST → public contact form
     ORG_CONTACT:  '/org/',                                         // POST /:slug/contact/
     ORG_BY_SLUG:  '/org/by-slug/',                                 // GET /:slug/ → org branding info

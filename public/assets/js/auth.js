@@ -854,6 +854,166 @@ function hc_initChangePasswordForm() {
 }
 
 
+// ══════════════════════════════════════════════════════════════
+//  Password setup (admin-created accounts)
+// ══════════════════════════════════════════════════════════════
+
+async function hc_initSetupPasswordForm() {
+  const headerEl   = document.getElementById('setupHeader');
+  const errorState = document.getElementById('setupErrorState');
+  const formCard   = document.getElementById('setupFormCard');
+  const form       = document.getElementById('setupForm');
+
+  // Read token from query string
+  const params = new URLSearchParams(window.location.search);
+  const token  = params.get('token');
+
+  if (!token) {
+    if (headerEl)   headerEl.style.display   = 'none';
+    if (formCard)    formCard.style.display    = 'none';
+    if (errorState) {
+      errorState.textContent = 'No setup token provided. Please use the link from your email.';
+      errorState.style.display = 'block';
+    }
+    return;
+  }
+
+  // Validate the token
+  try {
+    const res = await publicApiRequest(
+      HC_CONFIG.ENDPOINTS.SETUP_PW_VALIDATE + '?token=' + encodeURIComponent(token),
+      { method: 'GET' }
+    );
+
+    // Populate welcome info
+    const nameEl  = document.getElementById('setupUserName');
+    const roleEl  = document.getElementById('setupUserRole');
+    const emailEl = document.getElementById('setupUserEmail');
+
+    if (nameEl)  nameEl.textContent  = (res.first_name || '') + ' ' + (res.last_name || '');
+    if (roleEl)  roleEl.textContent  = (res.role || '').replace(/_/g, ' ');
+    if (emailEl) emailEl.value       = res.email || '';
+
+    if (headerEl)   headerEl.style.display   = '';
+    if (formCard)    formCard.style.display    = '';
+    if (errorState) errorState.style.display = 'none';
+
+  } catch (err) {
+    if (headerEl)   headerEl.style.display   = 'none';
+    if (formCard)    formCard.style.display    = 'none';
+    if (errorState) {
+      var msg = 'This setup link has expired or already been used. Contact your administrator.';
+      if (err.response) {
+        msg = err.response.error || err.response.detail || msg;
+      }
+      errorState.textContent = msg;
+      errorState.style.display = 'block';
+    }
+    return;
+  }
+
+  // Password form logic (mirrors hc_initResetForm)
+  const pwInput       = document.getElementById('password');
+  const confirmInput  = document.getElementById('confirmPassword');
+  const strengthBar   = document.getElementById('strengthBar');
+  const strengthLabel = document.getElementById('strengthLabel');
+  const matchMsg      = document.getElementById('matchMsg');
+  const submitBtn     = document.getElementById('setupBtn');
+
+  function checkStrength(pw) {
+    const checks = {
+      len:     pw.length >= 8,
+      upper:   /[A-Z]/.test(pw),
+      num:     /[0-9]/.test(pw),
+      special: /[^A-Za-z0-9]/.test(pw),
+    };
+    document.getElementById('req-len')?.classList.toggle('met',     checks.len);
+    document.getElementById('req-upper')?.classList.toggle('met',   checks.upper);
+    document.getElementById('req-num')?.classList.toggle('met',     checks.num);
+    document.getElementById('req-special')?.classList.toggle('met', checks.special);
+
+    const score  = Object.values(checks).filter(Boolean).length;
+    const colors = ['#dc2626','#f97316','#eab308','#16a34a'];
+    const labels = ['Weak','Fair','Good','Strong'];
+    const widths = ['25%','50%','75%','100%'];
+
+    if (pw.length === 0) {
+      if (strengthBar)   strengthBar.style.width = '0';
+      if (strengthLabel) strengthLabel.textContent = '';
+    } else {
+      if (strengthBar) {
+        strengthBar.style.width      = widths[score - 1] || '25%';
+        strengthBar.style.background = colors[score - 1] || colors[0];
+      }
+      if (strengthLabel) {
+        strengthLabel.textContent = labels[score - 1] || 'Weak';
+        strengthLabel.style.color = colors[score - 1] || colors[0];
+      }
+    }
+    return score === 4;
+  }
+
+  function validateForm() {
+    const pw      = pwInput.value;
+    const confirm = confirmInput.value;
+    const strong  = checkStrength(pw);
+
+    if (confirm.length > 0) {
+      if (pw === confirm) {
+        matchMsg.textContent = 'Passwords match';
+        matchMsg.className   = 'match-msg ok';
+      } else {
+        matchMsg.textContent = 'Passwords do not match';
+        matchMsg.className   = 'match-msg err';
+      }
+    } else {
+      matchMsg.textContent = '';
+      matchMsg.className   = 'match-msg';
+    }
+    submitBtn.disabled = !(strong && pw === confirm && confirm.length > 0);
+  }
+
+  pwInput?.addEventListener('input',      validateForm);
+  confirmInput?.addEventListener('input', validateForm);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const error = document.getElementById('setupError');
+    submitBtn.textContent   = 'Setting password...';
+    submitBtn.disabled      = true;
+    submitBtn.style.opacity = '0.75';
+    if (error) error.textContent = '';
+
+    try {
+      await publicApiRequest(HC_CONFIG.ENDPOINTS.SETUP_PW, {
+        method: 'POST',
+        body: JSON.stringify({
+          token:     token,
+          password:  pwInput.value,
+          password2: confirmInput.value,
+        }),
+      });
+      window.location.href = '/signin/';
+    } catch (err) {
+      let msg = 'Failed to set password. Please try again.';
+      if (err.status >= 500) {
+        msg = 'Our server is temporarily unavailable. Please try again later.';
+      } else if (err.response) {
+        msg = err.response.error || err.response.detail || msg;
+      } else if (err.message && err.message.includes('fetch')) {
+        msg = 'Cannot connect to server. Please check your connection.';
+      } else if (err.message) {
+        msg = err.message;
+      }
+      if (error) error.textContent = msg;
+      submitBtn.textContent   = 'Set Password';
+      submitBtn.disabled      = false;
+      submitBtn.style.opacity = '1';
+    }
+  });
+}
+
+
 // ── Card fade-in (shared across all auth pages) ──────────────
 function hc_fadeInCard() {
   const card = document.querySelector('.signin-card');
