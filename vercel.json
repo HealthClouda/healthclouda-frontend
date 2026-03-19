@@ -11,6 +11,8 @@
     { "source": "/reset-password/", "destination": "/reset-password.html" },
     { "source": "/password-success", "destination": "/password-success.html" },
     { "source": "/password-success/", "destination": "/password-success.html" },
+    { "source": "/set-password", "destination": "/set-password.html" },
+    { "source": "/set-password/", "destination": "/set-password.html" },
 
     { "source": "/superadmin", "destination": "/superadmin/index.html" },
     { "source": "/superadmin/", "destination": "/superadmin/index.html" },
