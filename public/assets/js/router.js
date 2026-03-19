@@ -20,7 +20,7 @@ var HC_ROUTER = {
   _reserved: [
     'signin', 'superadmin', 'assets', 'public',
     'forgot-password', 'check-email', 'reset-password', 'password-success',
-    'access-request', '404'
+    'set-password', 'access-request', '404'
   ],
 
   /**
