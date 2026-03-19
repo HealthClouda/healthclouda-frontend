@@ -135,7 +135,7 @@ function hc_initSigninForm() {
         const orgSlug = res.user?.organization_slug || '';
         let hint = '';
         if (orgSlug) {
-          hint = ' Please use your organization portal: /' + orgSlug + '/signin.html';
+          hint = ' Please use your organization portal: /' + orgSlug + '/signin';
         }
         error.textContent = 'Staff members cannot log in here.' + hint;
         btn.textContent = 'Sign In';
@@ -393,10 +393,7 @@ function hc_initAdminSigninForm() {
         user:    res.user,
       });
 
-      const dest = res.redirect_to;
-      window.location.href = (dest && hc_isSafeRedirectUrl(dest))
-        ? dest
-        : HC_ROUTER.roleDashboardPath('SUPERADMIN');
+      hc_redirectByRole('SUPERADMIN');
 
     } catch (err) {
       hc_recordFailedAttempt();
