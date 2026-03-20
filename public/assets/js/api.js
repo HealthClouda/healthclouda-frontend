@@ -129,14 +129,10 @@ async function apiRequest(endpoint, options = {}) {
 
   // ── Non-OK responses → throw structured error ──
   if (!response.ok) {
-    const message =
-      data.detail ||
-      data.message ||
-      data.non_field_errors?.[0] ||
-      `Request failed with status ${response.status}`;
+    const message = hc_formatApiError(data, `Request failed with status ${response.status}`);
     const error = new Error(message);
     error.status = response.status;
-    error.data   = data; // full response body for form validation errors
+    error.data   = data;
     throw error;
   }
 
@@ -185,6 +181,50 @@ function apiDelete(endpoint, options = {}) {
 }
 
 
+// ── Format API errors into readable strings ────────────────
+
+/**
+ * hc_formatApiError(data, fallback)
+ *
+ * Handles common Django REST response shapes:
+ *   { "detail": "Token expired." }
+ *   { "error": "Invalid token." }
+ *   { "non_field_errors": ["..."] }
+ *   { "password": ["Too common.", "Too short."] }
+ *   { "password": "Too common." }
+ *
+ * Returns a single human-readable string.
+ */
+function hc_formatApiError(data, fallback) {
+  fallback = fallback || 'Something went wrong. Please try again.';
+
+  if (!data || typeof data !== 'object') return fallback;
+
+  if (data.detail)  return data.detail;
+  if (data.error)   return data.error;
+  if (data.message) return data.message;
+
+  if (Array.isArray(data.non_field_errors) && data.non_field_errors.length) {
+    return data.non_field_errors.join(' ');
+  }
+
+  // Field-level errors: { field: ["msg", ...] } or { field: "msg" }
+  var lines = [];
+  for (var key in data) {
+    if (!data.hasOwnProperty(key)) continue;
+    var val = data[key];
+    var label = key.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    if (Array.isArray(val)) {
+      lines.push(label + ': ' + val.join(' '));
+    } else if (typeof val === 'string') {
+      lines.push(label + ': ' + val);
+    }
+  }
+
+  return lines.length ? lines.join(' | ') : fallback;
+}
+
+
 // ── Public API (no auth needed) ────────────────────────────
 
 /**
@@ -212,7 +252,7 @@ async function publicApiRequest(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = data.error || data.detail || data.message || `Request failed (${response.status})`;
+    const message = hc_formatApiError(data, `Request failed (${response.status})`);
     const error = new Error(message);
     error.status   = response.status;
     error.data     = data;
