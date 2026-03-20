@@ -161,20 +161,14 @@ function hc_initSigninForm() {
 
       if (err.status >= 500) {
         errorMessage = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        errorMessage = err.response.error || err.response.detail || errorMessage;
-        redirectUrl = err.response.redirect_url;
+      } else if (err.message && (err.message.includes('fetch') || err.message.includes('NetworkError'))) {
+        errorMessage = 'Cannot connect to server. Please check your connection.';
+      } else if (err.message && err.message.includes('CORS')) {
+        errorMessage = 'Server configuration error (CORS). Please contact support.';
       } else if (err.message) {
-        if (err.message.includes('fetch')) {
-          errorMessage = 'Cannot connect to server. Please check your connection.';
-        } else if (err.message.includes('CORS')) {
-          errorMessage = 'Server configuration error (CORS). Please contact support.';
-        } else if (err.message.includes('NetworkError')) {
-          errorMessage = 'Network error. Please check your connection.';
-        } else {
-          errorMessage = err.message;
-        }
+        errorMessage = err.message;
       }
+      if (err.response) redirectUrl = err.response.redirect_url;
 
       // Display error message
       error.textContent = errorMessage;
@@ -294,12 +288,10 @@ function hc_initOrgSigninForm(orgSlug) {
 
       if (err.status >= 500) {
         errorMessage = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        errorMessage = err.response.error || err.response.detail || errorMessage;
-        redirectUrl = err.response.redirect_url;
       } else if (err.message) {
         errorMessage = err.message;
       }
+      if (err.response) redirectUrl = err.response.redirect_url;
 
       // Display error message
       error.textContent = errorMessage;
@@ -402,14 +394,10 @@ function hc_initAdminSigninForm() {
 
       if (err.status >= 500) {
         errorMessage = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        errorMessage = err.response.error || err.response.detail || errorMessage;
+      } else if (err.message && err.message.includes('fetch')) {
+        errorMessage = 'Cannot connect to server. Please check your connection.';
       } else if (err.message) {
-        if (err.message.includes('fetch')) {
-          errorMessage = 'Cannot connect to server. Please check your connection.';
-        } else {
-          errorMessage = err.message;
-        }
+        errorMessage = err.message;
       }
 
       error.textContent = errorMessage;
@@ -511,8 +499,6 @@ function hc_initForgotForm(redirectOnSuccess) {
       let msg = 'Failed to send reset email. Please try again.';
       if (err.status >= 500) {
         msg = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        msg = err.response.error || err.response.detail || msg;
       } else if (err.message && err.message.includes('fetch')) {
         msg = 'Cannot connect to server. Please check your connection.';
       } else if (err.message) {
@@ -589,8 +575,6 @@ function hc_initOtpForm(redirectOnSuccess) {
       let msg = 'Invalid code. Please try again.';
       if (err.status >= 500) {
         msg = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        msg = err.response.error || err.response.detail || msg;
       } else if (err.message && err.message.includes('fetch')) {
         msg = 'Cannot connect to server. Please check your connection.';
       } else if (err.message) {
@@ -737,8 +721,6 @@ function hc_initResetForm(redirectOnSuccess) {
       let msg = 'Failed to update password. Please try again.';
       if (err.status >= 500) {
         msg = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        msg = err.response.error || err.response.detail || msg;
       } else if (err.message && err.message.includes('fetch')) {
         msg = 'Cannot connect to server. Please check your connection.';
       } else if (err.message) {
@@ -899,11 +881,7 @@ async function hc_initSetupPasswordForm() {
     if (headerEl)   headerEl.style.display   = 'none';
     if (formCard)    formCard.style.display    = 'none';
     if (errorState) {
-      var msg = 'This setup link has expired or already been used. Contact your administrator.';
-      if (err.response) {
-        msg = err.response.error || err.response.detail || msg;
-      }
-      errorState.textContent = msg;
+      errorState.textContent = err.message || 'This setup link has expired or already been used. Contact your administrator.';
       errorState.style.display = 'block';
     }
     return;
@@ -995,8 +973,6 @@ async function hc_initSetupPasswordForm() {
       let msg = 'Failed to set password. Please try again.';
       if (err.status >= 500) {
         msg = 'Our server is temporarily unavailable. Please try again later.';
-      } else if (err.response) {
-        msg = err.response.error || err.response.detail || msg;
       } else if (err.message && err.message.includes('fetch')) {
         msg = 'Cannot connect to server. Please check your connection.';
       } else if (err.message) {
