@@ -630,8 +630,16 @@ async function loadOrgUsers(orgId) {
   // Ensure users cache is populated
   if (!_usersCache.length) {
     try {
-      const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_USERS);
-      _usersCache = (Array.isArray(d) ? d : (d.results||[])).map(normalizeUser);
+      const all = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_USERS + '?page=' + page);
+        if (Array.isArray(d)) { all.push(...d); hasMore = false; }
+        else { all.push(...(d.results || [])); hasMore = !!d.next; }
+        page++;
+      }
+      _usersCache = all.map(normalizeUser);
     } catch { _usersCache = []; }
   }
 
@@ -807,8 +815,21 @@ function roleBadgeClass(r) { return `badge badge-role-${r||'patient'}`; }
 async function loadUsers() {
   showSkeletonRows('userTableBody', 7, 8);
   try {
-    const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_USERS);
-    _usersCache = (Array.isArray(d) ? d : (d.results||[])).map(normalizeUser);
+    const all = [];
+    let page = 1;
+    let hasMore = true;
+    while (hasMore) {
+      const d = await safeApiGet(HC_CONFIG.ENDPOINTS.SA_USERS + '?page=' + page);
+      if (Array.isArray(d)) {
+        all.push(...d);
+        hasMore = false;
+      } else {
+        all.push(...(d.results || []));
+        hasMore = !!d.next;
+      }
+      page++;
+    }
+    _usersCache = all.map(normalizeUser);
   } catch {
     _usersCache = [];
   }
@@ -943,13 +964,13 @@ function goUserPage(p) {
 
 async function suspendUser(id, name) {
   if (!confirm(`Suspend "${name}"?`)) return;
-  try { await safeApiDelete(`${HC_CONFIG.ENDPOINTS.SA_USER_DETAIL}${id}/`); } catch {}
+  try { await safeApiDelete(`${HC_CONFIG.ENDPOINTS.SA_USER_DETAIL}${id}/`); } catch { showToast(`Failed to suspend ${name}.`, 'error'); return; }
   const u=_usersCache.find(u=>u.id===id); if(u) u.is_active=false;
   userFilterChange();
   showToast(`${name} suspended`,'error');
 }
 async function activateUser(id, name) {
-  try { await safeApiPost(`${HC_CONFIG.ENDPOINTS.SA_USER_ACTIVATE}${id}/activate/`); } catch {}
+  try { await safeApiPost(`${HC_CONFIG.ENDPOINTS.SA_USER_ACTIVATE}${id}/activate/`); } catch { showToast(`Failed to reactivate ${name}.`, 'error'); return; }
   const u=_usersCache.find(u=>u.id===id); if(u) u.is_active=true;
   userFilterChange();
   showToast(`${name} reactivated`,'success');
