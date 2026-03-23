@@ -1012,9 +1012,9 @@ function onCreateUserRoleChange() {
   const orgGrp  = document.getElementById('newUserOrgGroup');
   const orgSel  = document.getElementById('newUserOrg');
   if (!orgGrp) return;
-  if (role === 'SUPERADMIN') {
+  if (role === 'SUPERADMIN' || role === 'PATIENT') {
     orgGrp.style.display = 'none';
-    if (orgSel) orgSel.removeAttribute('required');
+    if (orgSel) { orgSel.removeAttribute('required'); orgSel.value = ''; }
   } else {
     orgGrp.style.display = '';
     if (orgSel) orgSel.setAttribute('required','');
@@ -1047,7 +1047,7 @@ async function submitCreateUser(e) {
   if (password.length < 8) {
     showToast('Password must be at least 8 characters', 'error'); return;
   }
-  if (role !== 'SUPERADMIN' && !organization) {
+  if (role !== 'SUPERADMIN' && role !== 'PATIENT' && !organization) {
     showToast('Please select an organisation', 'error'); return;
   }
 
@@ -1064,7 +1064,7 @@ async function submitCreateUser(e) {
   try {
     newUser = await safeApiPost(HC_CONFIG.ENDPOINTS.SA_USERS, payload);
   } catch (err) {
-    const msg = err?.response?.data?.detail || err?.response?.data?.email?.[0] || 'Could not create user';
+    const msg = hc_formatApiError(err?.data, 'Could not create user');
     showToast(msg, 'error');
     setButtonLoading(btn, false, 'Create User');
     return;
