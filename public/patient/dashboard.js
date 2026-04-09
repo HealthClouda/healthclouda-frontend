@@ -908,21 +908,13 @@ async function saveProfile() {
     renderProfile();
     showToast('Profile updated successfully', 'success');
   } catch (err) {
-    let msg = 'Failed to update profile. Please try again.';
+    let msg;
     if (err.status >= 500) {
       msg = 'Our server is temporarily unavailable. Please try again later.';
-    } else if (err.response) {
-      // Build field-level error messages
-      const errors = [];
-      for (const [key, val] of Object.entries(err.response)) {
-        if (Array.isArray(val)) errors.push(val.join(', '));
-        else if (typeof val === 'string' && key !== 'detail' && key !== 'error') errors.push(val);
-      }
-      msg = err.response.error || err.response.detail || errors.join('. ') || msg;
     } else if (err.message && err.message.includes('fetch')) {
       msg = 'Cannot connect to server. Please check your connection.';
-    } else if (err.message) {
-      msg = err.message;
+    } else {
+      msg = hc_formatApiError(err.data, 'Failed to update profile. Please try again.');
     }
     showToast(msg, 'error');
     btn.disabled = false;

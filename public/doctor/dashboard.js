@@ -240,17 +240,7 @@ function isAbnormalVital(field, value) {
   return v < r[0] || v > r[1];
 }
 
-function parseApiError(err, fallback) {
-  let msg = fallback || 'An error occurred.';
-  if (err && err.data) {
-    const msgs = [];
-    for (const [f, errs] of Object.entries(err.data)) {
-      msgs.push(f.replace(/_/g, ' ') + ': ' + (Array.isArray(errs) ? errs[0] : errs));
-    }
-    if (msgs.length) msg = msgs.join(' | ');
-  } else if (err && err.message) { msg = err.message; }
-  return msg;
-}
+// Error parsing centralised in hc_formatApiError (api.js)
 
 /* ── Confirm modal utility ── */
 function showConfirmModal(options) {
@@ -713,7 +703,7 @@ async function submitCreateEpisode(e) {
     _loaded.delete('patients');
     loadEpisodes();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to create episode.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to create episode.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Episode');
 }
@@ -750,7 +740,7 @@ async function submitCompleteEpisode() {
     _loaded.delete('patients');
     loadEpisodes();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to complete episode.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to complete episode.'), 'error');
   }
   setButtonLoading(btn, false, 'Complete Episode');
 }
@@ -788,7 +778,7 @@ async function submitAddNote(e) {
     // Refresh episode detail if viewing
     if (_episodeDetailId === episodeId) viewEpisodeDetail(episodeId);
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to add note.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to add note.'), 'error');
   }
   setButtonLoading(btn, false, 'Add Note');
 }
@@ -883,7 +873,7 @@ async function submitCreateRx(e) {
     loadPrescriptions();
     if (_episodeDetailId) viewEpisodeDetail(_episodeDetailId);
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to create prescription.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to create prescription.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Prescription');
 }
@@ -901,7 +891,7 @@ async function cancelPrescription(rxId) {
         _loaded.delete('prescriptions');
         loadPrescriptions();
       } catch (err) {
-        showToast(parseApiError(err, 'Failed to cancel prescription.'), 'error');
+        showToast(hc_formatApiError(err?.data,'Failed to cancel prescription.'), 'error');
       }
     }
   });
@@ -992,7 +982,7 @@ async function acceptReferral(refId) {
     _loaded.delete('dashboard');
     loadReferrals();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to accept referral.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to accept referral.'), 'error');
   }
 }
 
@@ -1012,7 +1002,7 @@ async function declineReferral(refId) {
         _loaded.delete('referrals');
         loadReferrals();
       } catch (err) {
-        showToast(parseApiError(err, 'Failed to decline referral.'), 'error');
+        showToast(hc_formatApiError(err?.data,'Failed to decline referral.'), 'error');
       }
     }
   });
@@ -1094,7 +1084,7 @@ async function downloadReferralLetter(refId, btnEl) {
     URL.revokeObjectURL(blobUrl);
     showToast('Referral letter downloaded!', 'success');
   } catch(err) {
-    showToast(parseApiError(err, 'Failed to download referral letter.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to download referral letter.'), 'error');
   }
   if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'PDF'; }
 }
@@ -1134,7 +1124,7 @@ async function submitCreateRef(e) {
     _loaded.delete('referrals');
     loadReferrals();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to create referral.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to create referral.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Referral');
 }
@@ -1244,7 +1234,7 @@ async function _doUpdateApptStatus(apptId, newStatus, notes) {
     _loaded.delete('dashboard');
     loadAppointments();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to update appointment.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to update appointment.'), 'error');
   }
 }
 

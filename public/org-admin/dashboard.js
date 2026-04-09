@@ -160,17 +160,7 @@ function setButtonLoading(btn, loading, label) {
   else { btn.disabled = false; btn.textContent = label || btn.dataset.origText || 'Submit'; }
 }
 
-function parseApiError(err, fallback) {
-  let msg = fallback || 'An error occurred.';
-  if (err && err.data) {
-    const msgs = [];
-    for (const [f, errs] of Object.entries(err.data)) {
-      msgs.push(f.replace(/_/g, ' ') + ': ' + (Array.isArray(errs) ? errs[0] : errs));
-    }
-    if (msgs.length) msg = msgs.join(' | ');
-  } else if (err && err.message) { msg = err.message; }
-  return msg;
-}
+// Error parsing centralised in hc_formatApiError (api.js)
 
 function openPanel(id) {
   document.getElementById('overlay')?.classList.add('open');
@@ -379,7 +369,7 @@ async function submitAddStaff(e) {
     _loaded.delete('staff');
     loadStaff();
   } catch(err) {
-    showToast(parseApiError(err, editId ? 'Failed to update staff.' : 'Failed to create staff.'), 'error');
+    showToast(hc_formatApiError(err?.data,editId ? 'Failed to update staff.' : 'Failed to create staff.'), 'error');
   } finally {
     setButtonLoading(btn, false, editId ? 'Save Changes' : 'Create Staff');
   }
@@ -404,7 +394,7 @@ async function toggleStaffStatus(id, isActive) {
     await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_STAFF + id + '/status/', { is_active: isActive });
     showToast('Staff status updated.', 'success');
   } catch(err) {
-    showToast(parseApiError(err, 'Failed to update staff status.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to update staff status.'), 'error');
   }
   _loaded.delete('staff');
   loadStaff();
@@ -601,7 +591,7 @@ async function reviewAccessRequest(id, decision) {
     await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + id + '/review/', { decision: decision });
     showToast('Request ' + decision.toLowerCase() + '.', 'success');
   } catch(err) {
-    showToast(parseApiError(err, 'Failed to review request.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to review request.'), 'error');
   }
   _loaded.delete('access');
   loadAccessRequests();
@@ -727,7 +717,7 @@ async function saveSettings(e) {
     await apiPatch(HC_CONFIG.ENDPOINTS.ORG_ADMIN_SETTINGS, payload);
     showToast('Settings saved.', 'success');
   } catch(err) {
-    showToast(parseApiError(err, 'Failed to save settings.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to save settings.'), 'error');
   } finally {
     setButtonLoading(btn, false, 'Save Settings');
   }
