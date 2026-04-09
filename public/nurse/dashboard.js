@@ -563,7 +563,6 @@ async function loadWardManagement() {
   }
 
   container.innerHTML = '<div class="ward-cards">' + wards.map(w => {
-    const pct = w.occupancy_rate ?? (w.total_beds > 0 ? Math.round(((w.occupied_beds || 0) / w.total_beds) * 100) : 0);
     return '<div class="ward-card" id="ward-' + w.id + '">' +
       '<div class="ward-header" style="cursor:pointer" onclick="toggleWardBeds(\'' + escapeHtml(w.id) + '\')">' +
         '<div>' +
@@ -666,7 +665,12 @@ async function submitAddBed(e) {
     loadWardManagement();
     _loaded.delete('dashboard');
   } catch (err) {
-    showToast(hc_formatApiError(err.data, 'Failed to create bed.'), 'error');
+    const isDuplicate = err.status === 400 &&
+      JSON.stringify(err.data || '').toLowerCase().includes('bed_number');
+    const fallback = isDuplicate
+      ? 'A bed with this number already exists in the selected ward.'
+      : 'Failed to create bed.';
+    showToast(hc_formatApiError(err.data, fallback), 'error');
   }
   setButtonLoading(btn, false, 'Create Bed');
 }

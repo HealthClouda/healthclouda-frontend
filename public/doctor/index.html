@@ -414,9 +414,11 @@
   </div>
   <div class="panel-body">
     <form id="createEpisodeForm">
-      <div class="form-group">
-        <label class="form-label" for="epPatientId">Patient ID *</label>
-        <input class="form-input" id="epPatientId" name="patient_id" required placeholder="Patient UUID or HealthClouda ID">
+      <div class="form-group" style="position:relative">
+        <label class="form-label" for="epPatientSearch">Patient *</label>
+        <input class="form-input" id="epPatientSearch" placeholder="Search by name, HCL ID or phone…" autocomplete="off">
+        <input type="hidden" id="epPatientId" name="patient">
+        <div id="epPatientDropdown" class="search-dropdown" style="display:none;position:absolute;z-index:200;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:220px;overflow-y:auto;top:100%;left:0"></div>
       </div>
       <div class="form-group">
         <label class="form-label" for="epType">Episode Type *</label>
@@ -492,7 +494,7 @@
   <div class="panel-body">
     <form id="createRxForm">
       <input type="hidden" id="rxEpisodeId" name="episode_id">
-      <input type="hidden" id="rxPatientId" name="patient_id">
+      <input type="hidden" id="rxPatientId" name="patient">
       <div class="form-group">
         <label class="form-label" for="rxMedication">Medication *</label>
         <input class="form-input" id="rxMedication" name="medication" required placeholder="e.g. Amoxicillin">
@@ -541,9 +543,11 @@
           <option value="inter_org">Inter-Organization</option>
         </select>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="refPatientId">Patient ID *</label>
-        <input class="form-input" id="refPatientId" name="patient_id" required placeholder="Patient UUID">
+      <div class="form-group" style="position:relative">
+        <label class="form-label" for="refPatientSearch">Patient *</label>
+        <input class="form-input" id="refPatientSearch" placeholder="Search by name, HCL ID or phone…" autocomplete="off">
+        <input type="hidden" id="refPatientId" name="patient">
+        <div id="refPatientDropdown" class="search-dropdown" style="display:none;position:absolute;z-index:200;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:220px;overflow-y:auto;top:100%;left:0"></div>
       </div>
       <div class="form-group">
         <label class="form-label" for="refEpisodeId">Episode ID</label>
