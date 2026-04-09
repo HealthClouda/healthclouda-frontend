@@ -503,21 +503,12 @@ async function submitRegisterPatient(e) {
 
   setButtonLoading(btn, true);
   try {
-    await safeApiPost(HC_CONFIG.ENDPOINTS.CREATE_PATIENT, body);
+    const created = await safeApiPost(HC_CONFIG.ENDPOINTS.CREATE_PATIENT, body);
     showToast('Patient registered successfully!', 'success');
-    closeAllPanels();
     form.reset();
-    // Auto-search for the newly created patient
-    const searchName = [body.first_name, body.last_name].filter(Boolean).join(' ').trim();
-    const autoQuery = searchName.length >= 3 ? searchName : (body.email || '');
-    if (autoQuery.length >= 3) {
-      const searchInput = document.getElementById('patientSearchInput');
-      if (searchInput) searchInput.value = autoQuery;
-      // Switch to patients page if not already there
-      const patientsNav = document.querySelector('[data-page="patients"]');
-      if (patientsNav) patientsNav.click();
-      searchPatients(autoQuery);
-    }
+    closeAllPanels();
+    // Org access is auto-granted on creation — open the patient panel immediately
+    openPatientInfoPanel({ ...created, has_visited_org: true });
   } catch (err) {
     const fallback = err.status >= 500 ? 'Server error. Please try again later.' : 'Failed to register patient.';
     showToast(hc_formatApiError(err.data, fallback), 'error');
@@ -956,10 +947,13 @@ async function loadEmergencyBeds() {
       if (w.beds && w.beds.length) {
         bedsHtml = '<div class="bed-grid">' +
           w.beds.map(b => {
-            const cls = b.status === 'occupied' ? 'occupied' : 'available';
-            return '<div class="bed-cell ' + cls + '" title="' + escapeHtml(b.patient_name || 'Available') + '">' +
-              '<div class="bed-number">' + escapeHtml(b.number || b.bed_number || '') + '</div>' +
-              (b.patient_name ? '<div class="bed-patient">' + escapeHtml(b.patient_name) + '</div>' : '<div class="bed-patient">Available</div>') +
+            const patientName = b.current_patient
+              ? [b.current_patient.first_name, b.current_patient.last_name].filter(Boolean).join(' ')
+              : '';
+            const cls = (b.status || '').toUpperCase() === 'OCCUPIED' ? 'occupied' : 'available';
+            return '<div class="bed-cell ' + cls + '" title="' + escapeHtml(b.bed_number + (patientName ? ': ' + patientName : '')) + '">' +
+              '<div class="bed-number">' + escapeHtml(b.bed_number || '') + '</div>' +
+              '<div class="bed-patient">' + escapeHtml(patientName || 'Available') + '</div>' +
             '</div>';
           }).join('') +
         '</div>';

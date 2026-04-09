@@ -675,9 +675,56 @@ function backToEpisodeList() {
 }
 
 // Create Episode
+/* ── Patient search widget (shared by episode + referral forms) ── */
+function initPatientSearchWidget(searchInputId, hiddenInputId, dropdownId) {
+  const searchEl   = document.getElementById(searchInputId);
+  const hiddenEl   = document.getElementById(hiddenInputId);
+  const dropdownEl = document.getElementById(dropdownId);
+  if (!searchEl || !hiddenEl || !dropdownEl) return;
+
+  let debounceTimer;
+
+  searchEl.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    hiddenEl.value = '';
+    const q = searchEl.value.trim();
+    if (q.length < 2) { dropdownEl.style.display = 'none'; return; }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_MY_PATIENTS + '?search=' + encodeURIComponent(q));
+        const patients = data.results || (Array.isArray(data) ? data : []);
+        if (!patients.length) {
+          dropdownEl.innerHTML = '<div style="padding:0.6rem 1rem;color:var(--text-soft);font-size:0.85rem">No patients found</div>';
+        } else {
+          dropdownEl.innerHTML = patients.map(p => {
+            const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
+            const hcId = p.healthclouda_id ? '<span style="color:var(--text-soft);font-size:0.8rem;margin-left:0.4rem">' + escapeHtml(p.healthclouda_id) + '</span>' : '';
+            return '<div class="dropdown-item" data-id="' + p.id + '" data-name="' + escapeHtml(name) + '" style="padding:0.55rem 1rem;cursor:pointer;font-size:0.88rem">' + escapeHtml(name) + hcId + '</div>';
+          }).join('');
+          dropdownEl.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('mousedown', function (ev) {
+              ev.preventDefault();
+              hiddenEl.value  = item.dataset.id;
+              searchEl.value  = item.dataset.name;
+              dropdownEl.style.display = 'none';
+            });
+          });
+        }
+        dropdownEl.style.display = 'block';
+      } catch (_) { dropdownEl.style.display = 'none'; }
+    }, 300);
+  });
+
+  searchEl.addEventListener('blur', () => setTimeout(() => { dropdownEl.style.display = 'none'; }, 150));
+  searchEl.addEventListener('focus', () => { if (dropdownEl.innerHTML) dropdownEl.style.display = 'block'; });
+}
+
 function openCreateEpisodePanel() {
   document.getElementById('createEpisodeForm')?.reset();
+  document.getElementById('epPatientSearch') && (document.getElementById('epPatientSearch').value = '');
+  document.getElementById('epPatientDropdown') && (document.getElementById('epPatientDropdown').style.display = 'none');
   openPanel('createEpisodePanel');
+  initPatientSearchWidget('epPatientSearch', 'epPatientId', 'epPatientDropdown');
 }
 
 async function submitCreateEpisode(e) {
@@ -687,7 +734,7 @@ async function submitCreateEpisode(e) {
   const body = {};
   new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
 
-  if (!body.patient_id || !body.episode_type || !body.chief_complaint) {
+  if (!body.patient || !body.episode_type || !body.chief_complaint) {
     showToast('Please fill in all required fields.', 'error');
     return;
   }
@@ -1099,8 +1146,11 @@ function toggleRefTypeFields(type) {
 
 function openCreateRefPanel() {
   document.getElementById('createRefForm')?.reset();
+  document.getElementById('refPatientSearch') && (document.getElementById('refPatientSearch').value = '');
+  document.getElementById('refPatientDropdown') && (document.getElementById('refPatientDropdown').style.display = 'none');
   toggleRefTypeFields('');
   openPanel('createRefPanel');
+  initPatientSearchWidget('refPatientSearch', 'refPatientId', 'refPatientDropdown');
 }
 
 async function submitCreateRef(e) {
@@ -1110,7 +1160,7 @@ async function submitCreateRef(e) {
   const body = {};
   new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
 
-  if (!body.patient_id || !body.referral_type || !body.reason) {
+  if (!body.patient || !body.referral_type || !body.reason) {
     showToast('Please fill in all required fields.', 'error');
     return;
   }
