@@ -277,6 +277,7 @@ function hc_initOrgSigninForm(orgSlug) {
         user:    res.user,
       });
 
+      sessionStorage.setItem('hc_fresh_login', '1');
       hc_redirectByRole(res.user?.role, HC_ROUTER.roleDashboardPath('PATIENT'));
 
     } catch (err) {
