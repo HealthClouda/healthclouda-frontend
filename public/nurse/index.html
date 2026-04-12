@@ -344,6 +344,56 @@
   </div>
 </div>
 
+<!-- Edit Ward Panel -->
+<div class="slide-panel" id="editWardPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Edit Ward</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="editWardForm" onsubmit="submitEditWard(event)">
+      <div class="form-group">
+        <label class="form-label">Ward Name *</label>
+        <input class="form-input" id="editWardName" name="name" required placeholder="e.g. Medical Ward">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <select class="form-input" id="editWardCategory" name="category" required>
+            <option value="">Select…</option>
+            <option value="MEDICAL">Medical</option>
+            <option value="SURGICAL">Surgical</option>
+            <option value="EMERGENCY">Emergency</option>
+            <option value="GYNAECOLOGY">Gynaecology</option>
+            <option value="PAEDIATRIC">Paediatric</option>
+            <option value="ICU">ICU</option>
+            <option value="MATERNITY">Maternity</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select class="form-input" id="editWardGender" name="gender">
+            <option value="BOTH">Both</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Beds *</label>
+        <input class="form-input" type="number" id="editWardTotalBeds" name="total_beds" required min="1">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="editWardBtn">Save Changes</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Add Bed Panel -->
 <div class="slide-panel" id="addBedPanel">
   <div class="panel-header">

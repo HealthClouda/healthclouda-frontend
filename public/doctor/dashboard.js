@@ -37,6 +37,12 @@
   if (el('dashWelcome'))      el('dashWelcome').textContent      = 'Welcome, Dr. ' + name.split(' ')[0];
 
   loadDutyStatus();
+  if (sessionStorage.getItem('hc_fresh_login')) {
+    sessionStorage.removeItem('hc_fresh_login');
+    safeApiPost(HC_CONFIG.ENDPOINTS.TOGGLE_DUTY, { is_on_duty: true })
+      .then(data => { if (data) updateDutyUI(data.is_on_duty); })
+      .catch(() => {});
+  }
 })();
 
 
@@ -1449,6 +1455,7 @@ async function doctorLogout() {
   let slug = '';
   try { slug = hc_getUser()?.organization_slug || ''; } catch(e) {}
 
+  try { await safeApiPost(HC_CONFIG.ENDPOINTS.TOGGLE_DUTY, { is_on_duty: false }); } catch {}
   try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch(e) {}
   try { hc_clearTokens(); } catch(e) {}
 

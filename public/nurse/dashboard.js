@@ -39,6 +39,12 @@
 
   // Load initial duty status
   loadDutyStatus();
+  if (sessionStorage.getItem('hc_fresh_login')) {
+    sessionStorage.removeItem('hc_fresh_login');
+    safeApiPost(HC_CONFIG.ENDPOINTS.TOGGLE_DUTY, { is_on_duty: true })
+      .then(data => { if (data) updateDutyUI(data.is_on_duty); })
+      .catch(() => {});
+  }
 })();
 
 
@@ -572,6 +578,7 @@ async function loadWardManagement() {
         '</div>' +
         '<div style="display:flex;align-items:center;gap:0.5rem">' +
           '<span class="ward-stats">' + (w.total_beds || 0) + ' beds · ' + (w.available_beds || 0) + ' available</span>' +
+          '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openEditWardPanel(' + JSON.stringify(w).replace(/'/g, '&#39;') + ')" title="Edit ward">Edit</button>' +
           '<span class="ward-expand-icon" id="expandIcon-' + w.id + '">&#9660;</span>' +
         '</div>' +
       '</div>' +
@@ -640,6 +647,40 @@ async function submitAddWard(e) {
     showToast(hc_formatApiError(err.data, 'Failed to create ward.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Ward');
+}
+
+// ── Edit Ward ──
+let _editingWardId = null;
+
+function openEditWardPanel(ward) {
+  _editingWardId = ward.id;
+  document.getElementById('editWardName').value      = ward.name || '';
+  document.getElementById('editWardCategory').value  = ward.category || '';
+  document.getElementById('editWardGender').value    = ward.gender || 'BOTH';
+  document.getElementById('editWardTotalBeds').value = ward.total_beds || '';
+  openPanel('editWardPanel');
+}
+
+async function submitEditWard(e) {
+  e.preventDefault();
+  if (!_editingWardId) return;
+  const form = document.getElementById('editWardForm');
+  const btn  = document.getElementById('editWardBtn');
+  const body = {};
+  new FormData(form).forEach((v, k) => { if (v) body[k] = v; });
+
+  setButtonLoading(btn, true);
+  try {
+    await apiPatch(HC_CONFIG.ENDPOINTS.WARDS + _editingWardId + '/', body);
+    showToast('Ward updated successfully!', 'success');
+    closeAllPanels();
+    _loaded.delete('wards');
+    loadWardManagement();
+    _loaded.delete('dashboard');
+  } catch (err) {
+    showToast(hc_formatApiError(err.data, 'Failed to update ward.'), 'error');
+  }
+  setButtonLoading(btn, false, 'Save Changes');
 }
 
 // ── Add Bed ──
@@ -1024,6 +1065,7 @@ async function nurseLogout() {
   let slug = '';
   try { slug = hc_getUser()?.organization_slug || ''; } catch {}
 
+  try { await safeApiPost(HC_CONFIG.ENDPOINTS.TOGGLE_DUTY, { is_on_duty: false }); } catch {}
   try { await apiPost(HC_CONFIG.ENDPOINTS.LOGOUT, { refresh: hc_getRefreshToken() }); } catch {}
   try { hc_clearTokens(); } catch {}
 
