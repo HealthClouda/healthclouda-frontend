@@ -552,6 +552,8 @@ async function submitVitals(e) {
 /* ══════════════════════════════════════════
    8. WARD & BED MANAGEMENT
 ══════════════════════════════════════════ */
+const _wardMgmtMap = {};
+
 async function loadWardManagement() {
   const container = document.getElementById('wardListContainer');
   if (!container) return;
@@ -568,6 +570,9 @@ async function loadWardManagement() {
     return;
   }
 
+  // Cache ward objects by ID so openEditWardPanel can look them up safely
+  wards.forEach(w => { _wardMgmtMap[w.id] = w; });
+
   container.innerHTML = '<div class="ward-cards">' + wards.map(w => {
     return '<div class="ward-card" id="ward-' + w.id + '">' +
       '<div class="ward-header" style="cursor:pointer" onclick="toggleWardBeds(\'' + escapeHtml(w.id) + '\')">' +
@@ -578,7 +583,7 @@ async function loadWardManagement() {
         '</div>' +
         '<div style="display:flex;align-items:center;gap:0.5rem">' +
           '<span class="ward-stats">' + (w.total_beds || 0) + ' beds · ' + (w.available_beds || 0) + ' available</span>' +
-          '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openEditWardPanel(' + JSON.stringify(w).replace(/'/g, '&#39;') + ')" title="Edit ward">Edit</button>' +
+          '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openEditWardPanel(' + w.id + ')" title="Edit ward">Edit</button>' +
           '<span class="ward-expand-icon" id="expandIcon-' + w.id + '">&#9660;</span>' +
         '</div>' +
       '</div>' +
@@ -652,7 +657,9 @@ async function submitAddWard(e) {
 // ── Edit Ward ──
 let _editingWardId = null;
 
-function openEditWardPanel(ward) {
+function openEditWardPanel(wardId) {
+  const ward = _wardMgmtMap[wardId];
+  if (!ward) return;
   _editingWardId = ward.id;
   document.getElementById('editWardName').value      = ward.name || '';
   document.getElementById('editWardCategory').value  = ward.category || '';
