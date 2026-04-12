@@ -1428,7 +1428,9 @@ function updateDutyUI(onDuty) {
 
 async function toggleDutyStatus() {
   try {
-    const data = await safeApiPost(HC_CONFIG.ENDPOINTS.TOGGLE_DUTY);
+    const btn = document.getElementById('dutyToggleBtn');
+    const currentlyOn = btn?.classList.contains('on') ?? false;
+    const data = await safeApiPost(HC_CONFIG.ENDPOINTS.TOGGLE_DUTY, { is_on_duty: !currentlyOn });
     updateDutyUI(data.is_on_duty);
     showToast(data.message || ('Duty status: ' + (data.is_on_duty ? 'On Duty' : 'Off Duty')), 'success');
   } catch (err) {

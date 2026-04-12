@@ -295,15 +295,29 @@ async function loadRecentActivity() {
 function renderActivityTable(rows) {
   const tbody = document.getElementById('activityTbody');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-soft)">No recent activity</td></tr>`; return; }
-  const actionCls = s => { const v=(s||'').toLowerCase(); return (v==='failed'||v==='suspended')?'danger':''; };
-  tbody.innerHTML = rows.map(r => `
+  const auditActionCls = a => {
+    const v = (a || '').toUpperCase();
+    return (v === 'LOGIN_FAILURE' || v === 'PERMISSION_DENIED' || v === 'DELETE') ? 'danger' : '';
+  };
+  tbody.innerHTML = rows.map(r => {
+    // Support both the AuditLog schema (created_at, user_email, resource_type, ip_address)
+    // and any legacy flat format (time, user_id, entity, ip)
+    const ts     = r.created_at || r.time;
+    const user   = r.user_email || r.user_id || '—';
+    const action = r.action || '—';
+    const entity = r.resource_repr
+      ? `${r.resource_type || ''}: ${r.resource_repr}`.trim()
+      : (r.entity || r.resource_type || '—');
+    const status = r.status || r.action || '';
+    return `
     <tr>
-      <td style="font-size:0.78rem;color:var(--text-soft)">${formatRelativeTime(r.time)}</td>
-      <td class="td-mono">${r.user_id || '—'}</td>
-      <td class="td-action ${actionCls(r.status)}">${r.action || '—'}</td>
-      <td>${r.entity || '—'}</td>
-      <td>${statusBadge(r.status)}</td>
-    </tr>`).join('');
+      <td style="font-size:0.78rem;color:var(--text-soft)">${formatRelativeTime(ts)}</td>
+      <td class="td-mono">${user}</td>
+      <td class="td-action ${auditActionCls(action)}">${action}</td>
+      <td>${entity}</td>
+      <td>${statusBadge(status)}</td>
+    </tr>`;
+  }).join('');
 }
 
 
@@ -1500,10 +1514,16 @@ async function loadAuditLogs() {
 function auditFilterChange() {
   const q      = (document.getElementById('auditSearch')?.value || '').toLowerCase().trim();
   const status =  document.getElementById('filterAuditStatus')?.value || '';
-  _auditFiltered = _auditCache.filter(a =>
-    (!q      || a.user_id?.toLowerCase().includes(q) || a.action?.toLowerCase().includes(q) || a.entity?.toLowerCase().includes(q) || a.ip?.toLowerCase().includes(q)) &&
-    (!status || a.status === status)
-  );
+  _auditFiltered = _auditCache.filter(a => {
+    const searchTarget = [
+      a.user_email, a.user_id, a.action,
+      a.resource_type, a.resource_repr, a.entity,
+      a.ip_address, a.ip,
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchQ      = !q || searchTarget.includes(q);
+    const matchStatus = !status || (a.action || a.status || '') === status;
+    return matchQ && matchStatus;
+  });
   _auditPage = 1;
   renderAuditPage();
 }
@@ -1519,7 +1539,7 @@ function sortAudit(field) {
   const el = document.getElementById('asort-time');
   if (el) el.textContent = _auditSortD === 'asc' ? '↑' : '↓';
   _auditFiltered.sort((a, b) => {
-    const va = new Date(a.time || 0), vb = new Date(b.time || 0);
+    const va = new Date(a.created_at || a.time || 0), vb = new Date(b.created_at || b.time || 0);
     return _auditSortD === 'asc' ? va - vb : vb - va;
   });
   _auditPage = 1;
@@ -1545,16 +1565,29 @@ function renderAuditTable(data) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-soft);font-size:0.82rem">No audit logs found</td></tr>`;
     return;
   }
-  const actionCls = s => { const v = (s || '').toLowerCase(); return (v === 'failed' || v === 'suspended') ? 'danger' : ''; };
-  tbody.innerHTML = data.map(r => `
+  const auditActionCls = a => {
+    const v = (a || '').toUpperCase();
+    return (v === 'LOGIN_FAILURE' || v === 'PERMISSION_DENIED' || v === 'DELETE') ? 'danger' : '';
+  };
+  tbody.innerHTML = data.map(r => {
+    const ts     = r.created_at || r.time;
+    const user   = r.user_email || r.user_id || '—';
+    const action = r.action || '—';
+    const entity = r.resource_repr
+      ? `${r.resource_type || ''}: ${r.resource_repr}`.trim()
+      : (r.entity || r.resource_type || '—');
+    const ip     = r.ip_address || r.ip || '—';
+    const role   = r.user_role ? `<span style="font-size:0.7rem;color:var(--text-soft);display:block">${r.user_role}</span>` : '';
+    return `
     <tr>
-      <td style="font-size:0.78rem;color:var(--text-soft);white-space:nowrap">${formatRelativeTime(r.time)}</td>
-      <td class="td-mono">${r.user_id || '—'}</td>
-      <td class="td-action ${actionCls(r.status)}">${r.action || '—'}</td>
-      <td style="font-size:0.82rem">${r.entity || '—'}</td>
-      <td class="td-mono">${r.ip || '—'}</td>
-      <td>${statusBadge(r.status)}</td>
-    </tr>`).join('');
+      <td style="font-size:0.78rem;color:var(--text-soft);white-space:nowrap">${formatRelativeTime(ts)}</td>
+      <td class="td-mono" style="font-size:0.8rem">${user}${role}</td>
+      <td class="td-action ${auditActionCls(action)}">${action}</td>
+      <td style="font-size:0.82rem">${entity}</td>
+      <td class="td-mono">${ip}</td>
+      <td>${statusBadge(action)}</td>
+    </tr>`;
+  }).join('');
 }
 function renderAuditPagination(totalPages) {
   const el = document.getElementById('auditPagination');
@@ -1577,11 +1610,21 @@ function goAuditPage(p) {
 }
 function exportAuditCSV() {
   if (!_auditFiltered.length) { showToast('No data to export', ''); return; }
-  const headers = ['Timestamp', 'User ID', 'Action', 'Entity', 'IP Address', 'Status'];
-  const rows    = _auditFiltered.map(a => [
-    a.time ? new Date(a.time).toLocaleString() : '',
-    a.user_id, a.action, a.entity, a.ip, a.status,
-  ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(','));
+  const headers = ['Timestamp', 'User', 'Action', 'Resource', 'IP Address', 'Role'];
+  const rows    = _auditFiltered.map(a => {
+    const ts     = a.created_at || a.time;
+    const entity = a.resource_repr
+      ? `${a.resource_type || ''}: ${a.resource_repr}`.trim()
+      : (a.entity || a.resource_type || '');
+    return [
+      ts ? new Date(ts).toLocaleString() : '',
+      a.user_email || a.user_id || '',
+      a.action || '',
+      entity,
+      a.ip_address || a.ip || '',
+      a.user_role || '',
+    ].map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',');
+  });
   const csv  = [headers.join(','), ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
