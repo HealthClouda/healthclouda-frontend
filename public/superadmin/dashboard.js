@@ -1147,6 +1147,7 @@ async function viewUser(id) {
   document.getElementById('viewUserOrgDetail').textContent   = u.organisation_name||'—';
   document.getElementById('viewUserLastLogin').textContent   = u.last_login ? formatDate(u.last_login) : 'Never';
   document.getElementById('viewUserOrgId').textContent       = u.organization?.org_id || '—';
+  document.getElementById('viewUserStaffId').textContent     = u.staff_id || '—';
   document.getElementById('viewUserPwChanged').textContent   = u.password_changed_at ? formatDate(u.password_changed_at) : 'Never';
   document.getElementById('actRecords').textContent          = u.record_count??'—';
   document.getElementById('actLogins').textContent           = u.login_count??'—';

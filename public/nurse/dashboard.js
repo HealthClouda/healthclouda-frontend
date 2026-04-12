@@ -534,16 +534,10 @@ async function submitVitals(e) {
     await safeApiPatch(HC_CONFIG.ENDPOINTS.NURSE_VITALS + patientId + '/vitals/', body);
     showToast('Vitals recorded successfully!', 'success');
     closeModal('vitalsModal');
+    _loaded.delete('patients');
+    _loaded.delete('dashboard');
   } catch (err) {
-    let msg = 'Failed to record vitals.';
-    if (err.data) {
-      const msgs = [];
-      for (const [field, errors] of Object.entries(err.data)) {
-        msgs.push(field.replace(/_/g, ' ') + ': ' + (Array.isArray(errors) ? errors[0] : errors));
-      }
-      if (msgs.length) msg = msgs.join(' | ');
-    } else if (err.message) { msg = err.message; }
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to record vitals.'), 'error');
   }
   setButtonLoading(btn, false, 'Save Vitals');
 }
@@ -569,7 +563,6 @@ async function loadWardManagement() {
   }
 
   container.innerHTML = '<div class="ward-cards">' + wards.map(w => {
-    const pct = w.occupancy_rate ?? (w.total_beds > 0 ? Math.round(((w.occupied_beds || 0) / w.total_beds) * 100) : 0);
     return '<div class="ward-card" id="ward-' + w.id + '">' +
       '<div class="ward-header" style="cursor:pointer" onclick="toggleWardBeds(\'' + escapeHtml(w.id) + '\')">' +
         '<div>' +
@@ -644,15 +637,7 @@ async function submitAddWard(e) {
     // Refresh ward overview on dashboard too
     _loaded.delete('dashboard');
   } catch (err) {
-    let msg = 'Failed to create ward.';
-    if (err.data) {
-      const msgs = [];
-      for (const [f, errs] of Object.entries(err.data)) {
-        msgs.push(f + ': ' + (Array.isArray(errs) ? errs[0] : errs));
-      }
-      if (msgs.length) msg = msgs.join(' | ');
-    } else if (err.message) { msg = err.message; }
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to create ward.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Ward');
 }
@@ -680,15 +665,12 @@ async function submitAddBed(e) {
     loadWardManagement();
     _loaded.delete('dashboard');
   } catch (err) {
-    let msg = 'Failed to create bed.';
-    if (err.data) {
-      const msgs = [];
-      for (const [f, errs] of Object.entries(err.data)) {
-        msgs.push(f + ': ' + (Array.isArray(errs) ? errs[0] : errs));
-      }
-      if (msgs.length) msg = msgs.join(' | ');
-    } else if (err.message) { msg = err.message; }
-    showToast(msg, 'error');
+    const isDuplicate = err.status === 400 &&
+      JSON.stringify(err.data || '').toLowerCase().includes('bed_number');
+    const fallback = isDuplicate
+      ? 'A bed with this number already exists in the selected ward.'
+      : 'Failed to create bed.';
+    showToast(hc_formatApiError(err.data, fallback), 'error');
   }
   setButtonLoading(btn, false, 'Create Bed');
 }
@@ -800,15 +782,7 @@ async function submitAdmitPatient(e) {
     loadAdmissions();
     _loaded.delete('dashboard');
   } catch (err) {
-    let msg = 'Failed to admit patient.';
-    if (err.data) {
-      const msgs = [];
-      for (const [f, errs] of Object.entries(err.data)) {
-        msgs.push(f + ': ' + (Array.isArray(errs) ? errs[0] : errs));
-      }
-      if (msgs.length) msg = msgs.join(' | ');
-    } else if (err.message) { msg = err.message; }
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to admit patient.'), 'error');
   }
   setButtonLoading(btn, false, 'Admit Patient');
 }

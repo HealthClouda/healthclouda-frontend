@@ -240,17 +240,7 @@ function isAbnormalVital(field, value) {
   return v < r[0] || v > r[1];
 }
 
-function parseApiError(err, fallback) {
-  let msg = fallback || 'An error occurred.';
-  if (err && err.data) {
-    const msgs = [];
-    for (const [f, errs] of Object.entries(err.data)) {
-      msgs.push(f.replace(/_/g, ' ') + ': ' + (Array.isArray(errs) ? errs[0] : errs));
-    }
-    if (msgs.length) msg = msgs.join(' | ');
-  } else if (err && err.message) { msg = err.message; }
-  return msg;
-}
+// Error parsing centralised in hc_formatApiError (api.js)
 
 /* ── Confirm modal utility ── */
 function showConfirmModal(options) {
@@ -685,9 +675,56 @@ function backToEpisodeList() {
 }
 
 // Create Episode
+/* ── Patient search widget (shared by episode + referral forms) ── */
+function initPatientSearchWidget(searchInputId, hiddenInputId, dropdownId) {
+  const searchEl   = document.getElementById(searchInputId);
+  const hiddenEl   = document.getElementById(hiddenInputId);
+  const dropdownEl = document.getElementById(dropdownId);
+  if (!searchEl || !hiddenEl || !dropdownEl) return;
+
+  let debounceTimer;
+
+  searchEl.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    hiddenEl.value = '';
+    const q = searchEl.value.trim();
+    if (q.length < 2) { dropdownEl.style.display = 'none'; return; }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const data = await safeApiGet(HC_CONFIG.ENDPOINTS.DOC_MY_PATIENTS + '?search=' + encodeURIComponent(q));
+        const patients = data.results || (Array.isArray(data) ? data : []);
+        if (!patients.length) {
+          dropdownEl.innerHTML = '<div style="padding:0.6rem 1rem;color:var(--text-soft);font-size:0.85rem">No patients found</div>';
+        } else {
+          dropdownEl.innerHTML = patients.map(p => {
+            const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
+            const hcId = p.healthclouda_id ? '<span style="color:var(--text-soft);font-size:0.8rem;margin-left:0.4rem">' + escapeHtml(p.healthclouda_id) + '</span>' : '';
+            return '<div class="dropdown-item" data-id="' + p.id + '" data-name="' + escapeHtml(name) + '" style="padding:0.55rem 1rem;cursor:pointer;font-size:0.88rem">' + escapeHtml(name) + hcId + '</div>';
+          }).join('');
+          dropdownEl.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('mousedown', function (ev) {
+              ev.preventDefault();
+              hiddenEl.value  = item.dataset.id;
+              searchEl.value  = item.dataset.name;
+              dropdownEl.style.display = 'none';
+            });
+          });
+        }
+        dropdownEl.style.display = 'block';
+      } catch (_) { dropdownEl.style.display = 'none'; }
+    }, 300);
+  });
+
+  searchEl.addEventListener('blur', () => setTimeout(() => { dropdownEl.style.display = 'none'; }, 150));
+  searchEl.addEventListener('focus', () => { if (dropdownEl.innerHTML) dropdownEl.style.display = 'block'; });
+}
+
 function openCreateEpisodePanel() {
   document.getElementById('createEpisodeForm')?.reset();
+  document.getElementById('epPatientSearch') && (document.getElementById('epPatientSearch').value = '');
+  document.getElementById('epPatientDropdown') && (document.getElementById('epPatientDropdown').style.display = 'none');
   openPanel('createEpisodePanel');
+  initPatientSearchWidget('epPatientSearch', 'epPatientId', 'epPatientDropdown');
 }
 
 async function submitCreateEpisode(e) {
@@ -697,7 +734,7 @@ async function submitCreateEpisode(e) {
   const body = {};
   new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
 
-  if (!body.patient_id || !body.episode_type || !body.chief_complaint) {
+  if (!body.patient || !body.episode_type || !body.chief_complaint) {
     showToast('Please fill in all required fields.', 'error');
     return;
   }
@@ -713,7 +750,7 @@ async function submitCreateEpisode(e) {
     _loaded.delete('patients');
     loadEpisodes();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to create episode.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to create episode.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Episode');
 }
@@ -750,7 +787,7 @@ async function submitCompleteEpisode() {
     _loaded.delete('patients');
     loadEpisodes();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to complete episode.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to complete episode.'), 'error');
   }
   setButtonLoading(btn, false, 'Complete Episode');
 }
@@ -788,7 +825,7 @@ async function submitAddNote(e) {
     // Refresh episode detail if viewing
     if (_episodeDetailId === episodeId) viewEpisodeDetail(episodeId);
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to add note.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to add note.'), 'error');
   }
   setButtonLoading(btn, false, 'Add Note');
 }
@@ -883,7 +920,7 @@ async function submitCreateRx(e) {
     loadPrescriptions();
     if (_episodeDetailId) viewEpisodeDetail(_episodeDetailId);
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to create prescription.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to create prescription.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Prescription');
 }
@@ -901,7 +938,7 @@ async function cancelPrescription(rxId) {
         _loaded.delete('prescriptions');
         loadPrescriptions();
       } catch (err) {
-        showToast(parseApiError(err, 'Failed to cancel prescription.'), 'error');
+        showToast(hc_formatApiError(err?.data,'Failed to cancel prescription.'), 'error');
       }
     }
   });
@@ -992,7 +1029,7 @@ async function acceptReferral(refId) {
     _loaded.delete('dashboard');
     loadReferrals();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to accept referral.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to accept referral.'), 'error');
   }
 }
 
@@ -1012,7 +1049,7 @@ async function declineReferral(refId) {
         _loaded.delete('referrals');
         loadReferrals();
       } catch (err) {
-        showToast(parseApiError(err, 'Failed to decline referral.'), 'error');
+        showToast(hc_formatApiError(err?.data,'Failed to decline referral.'), 'error');
       }
     }
   });
@@ -1094,7 +1131,7 @@ async function downloadReferralLetter(refId, btnEl) {
     URL.revokeObjectURL(blobUrl);
     showToast('Referral letter downloaded!', 'success');
   } catch(err) {
-    showToast(parseApiError(err, 'Failed to download referral letter.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to download referral letter.'), 'error');
   }
   if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'PDF'; }
 }
@@ -1109,8 +1146,11 @@ function toggleRefTypeFields(type) {
 
 function openCreateRefPanel() {
   document.getElementById('createRefForm')?.reset();
+  document.getElementById('refPatientSearch') && (document.getElementById('refPatientSearch').value = '');
+  document.getElementById('refPatientDropdown') && (document.getElementById('refPatientDropdown').style.display = 'none');
   toggleRefTypeFields('');
   openPanel('createRefPanel');
+  initPatientSearchWidget('refPatientSearch', 'refPatientId', 'refPatientDropdown');
 }
 
 async function submitCreateRef(e) {
@@ -1120,7 +1160,7 @@ async function submitCreateRef(e) {
   const body = {};
   new FormData(form).forEach((v, k) => { if (v) body[k] = v.trim(); });
 
-  if (!body.patient_id || !body.referral_type || !body.reason) {
+  if (!body.patient || !body.referral_type || !body.reason) {
     showToast('Please fill in all required fields.', 'error');
     return;
   }
@@ -1134,7 +1174,7 @@ async function submitCreateRef(e) {
     _loaded.delete('referrals');
     loadReferrals();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to create referral.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to create referral.'), 'error');
   }
   setButtonLoading(btn, false, 'Create Referral');
 }
@@ -1244,7 +1284,7 @@ async function _doUpdateApptStatus(apptId, newStatus, notes) {
     _loaded.delete('dashboard');
     loadAppointments();
   } catch (err) {
-    showToast(parseApiError(err, 'Failed to update appointment.'), 'error');
+    showToast(hc_formatApiError(err?.data,'Failed to update appointment.'), 'error');
   }
 }
 

@@ -471,9 +471,7 @@ async function sendToNurse(patientId, patientName) {
     await safeApiPost(HC_CONFIG.ENDPOINTS.REC_SEND_TO_NURSE, { patient_id: patientId });
     showToast(escapeHtml(patientName) + ' sent to nurse for vitals.', 'success');
   } catch (err) {
-    let msg = 'Failed to send patient to nurse.';
-    if (err.data) msg = err.data.error || err.data.detail || msg;
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to send patient to nurse.'), 'error');
   }
 }
 
@@ -505,25 +503,15 @@ async function submitRegisterPatient(e) {
 
   setButtonLoading(btn, true);
   try {
-    await safeApiPost(HC_CONFIG.ENDPOINTS.CREATE_PATIENT, body);
+    const created = await safeApiPost(HC_CONFIG.ENDPOINTS.CREATE_PATIENT, body);
     showToast('Patient registered successfully!', 'success');
-    closeAllPanels();
     form.reset();
-    // Re-search if there's a query
-    const q = document.getElementById('patientSearchInput')?.value.trim();
-    if (q && q.length >= 3) searchPatients(q);
+    closeAllPanels();
+    // Org access is auto-granted on creation — open the patient panel immediately
+    openPatientInfoPanel({ ...created, has_visited_org: true });
   } catch (err) {
-    let msg = 'Failed to register patient.';
-    if (err.status >= 500) msg = 'Server error. Please try again later.';
-    else if (err.data) {
-      const errors = [];
-      for (const [k, v] of Object.entries(err.data)) {
-        if (Array.isArray(v)) errors.push(v.join(', '));
-        else if (typeof v === 'string' && k !== 'detail' && k !== 'error') errors.push(v);
-      }
-      msg = err.data.error || err.data.detail || errors.join('. ') || msg;
-    }
-    showToast(msg, 'error');
+    const fallback = err.status >= 500 ? 'Server error. Please try again later.' : 'Failed to register patient.';
+    showToast(hc_formatApiError(err.data, fallback), 'error');
   }
   setButtonLoading(btn, false, 'Register Patient');
 }
@@ -552,9 +540,7 @@ async function submitAccessRequest() {
     const q = document.getElementById('patientSearchInput')?.value.trim();
     if (q && q.length >= 3) searchPatients(q);
   } catch (err) {
-    let msg = 'Failed to send access request.';
-    if (err.data) msg = err.data.error || err.data.detail || msg;
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to send access request.'), 'error');
   }
   setButtonLoading(btn, false, 'Send Request');
 }
@@ -612,9 +598,7 @@ async function submitAssignDoctor(e) {
     _loaded.delete('queue');
     if (document.getElementById('page-queue')?.classList.contains('active')) loadQueue();
   } catch (err) {
-    let msg = 'Failed to assign doctor.';
-    if (err.data) msg = err.data.error || err.data.detail || msg;
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to assign doctor.'), 'error');
   }
   setButtonLoading(btn, false, 'Assign Doctor');
 }
@@ -750,9 +734,7 @@ async function updateAppointment(id, newStatus) {
     _loaded.delete('appointments');
     loadAppointments();
   } catch (err) {
-    let msg = 'Failed to update appointment.';
-    if (err.data) msg = err.data.error || err.data.detail || msg;
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to update appointment.'), 'error');
   }
 }
 
@@ -809,16 +791,7 @@ async function submitBookAppointment(e) {
     _loaded.delete('appointments');
     if (document.getElementById('page-appointments')?.classList.contains('active')) loadAppointments();
   } catch (err) {
-    let msg = 'Failed to book appointment.';
-    if (err.data) {
-      const errors = [];
-      for (const [k, v] of Object.entries(err.data)) {
-        if (Array.isArray(v)) errors.push(v.join(', '));
-        else if (typeof v === 'string' && k !== 'detail' && k !== 'error') errors.push(v);
-      }
-      msg = err.data.error || err.data.detail || errors.join('. ') || msg;
-    }
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to book appointment.'), 'error');
   }
   setButtonLoading(btn, false, 'Book Appointment');
 }
@@ -929,10 +902,10 @@ async function submitNotifyDoctors() {
     });
     showToast('Doctors notified successfully!', 'success');
     closeModal('notifyDoctorsModal');
+    _loaded.delete('referrals');
+    if (document.getElementById('page-referrals')?.classList.contains('active')) loadReferrals();
   } catch (err) {
-    let msg = 'Failed to notify doctors.';
-    if (err.data) msg = err.data.error || err.data.detail || msg;
-    showToast(msg, 'error');
+    showToast(hc_formatApiError(err.data, 'Failed to notify doctors.'), 'error');
   }
   setButtonLoading(btn, false, 'Notify Selected');
 }
@@ -974,10 +947,13 @@ async function loadEmergencyBeds() {
       if (w.beds && w.beds.length) {
         bedsHtml = '<div class="bed-grid">' +
           w.beds.map(b => {
-            const cls = b.status === 'occupied' ? 'occupied' : 'available';
-            return '<div class="bed-cell ' + cls + '" title="' + escapeHtml(b.patient_name || 'Available') + '">' +
-              '<div class="bed-number">' + escapeHtml(b.number || b.bed_number || '') + '</div>' +
-              (b.patient_name ? '<div class="bed-patient">' + escapeHtml(b.patient_name) + '</div>' : '<div class="bed-patient">Available</div>') +
+            const patientName = b.current_patient
+              ? [b.current_patient.first_name, b.current_patient.last_name].filter(Boolean).join(' ')
+              : '';
+            const cls = (b.status || '').toUpperCase() === 'OCCUPIED' ? 'occupied' : 'available';
+            return '<div class="bed-cell ' + cls + '" title="' + escapeHtml(b.bed_number + (patientName ? ': ' + patientName : '')) + '">' +
+              '<div class="bed-number">' + escapeHtml(b.bed_number || '') + '</div>' +
+              '<div class="bed-patient">' + escapeHtml(patientName || 'Available') + '</div>' +
             '</div>';
           }).join('') +
         '</div>';
