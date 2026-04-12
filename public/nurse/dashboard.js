@@ -1021,16 +1021,10 @@ async function loadDutyStatus() {
 }
 
 function updateDutyUI(onDuty) {
-  const btn = document.getElementById('dutyToggleBtn');
+  const btn   = document.getElementById('dutyToggleBtn');
   const label = document.getElementById('dutyToggleLabel');
-  const statusEl = document.getElementById('headerDutyStatus');
-
-  if (btn) btn.classList.toggle('on-duty', !!onDuty);
+  if (btn)   btn.className = 'header-duty-btn ' + (onDuty ? 'on' : 'off');
   if (label) label.textContent = onDuty ? 'On Duty' : 'Off Duty';
-  if (statusEl) {
-    statusEl.textContent = onDuty ? 'On Duty' : 'Off Duty';
-    statusEl.className = 'duty-badge ' + (onDuty ? 'on' : 'off');
-  }
 }
 
 async function toggleDutyStatus() {

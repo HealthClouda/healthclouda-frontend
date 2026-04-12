@@ -78,19 +78,17 @@ ul { list-style: none; }
 .sidebar-logout svg { width: 18px; height: 18px; stroke: var(--danger); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ══════════════════════════════════════════════
-     DUTY TOGGLE
+     DUTY TOGGLE (header)
   ══════════════════════════════════════════════ */
-.duty-toggle-btn {
-  display: flex; align-items: center; gap: 4px;
-  padding: 4px 10px; border: 1px solid var(--border); border-radius: 12px;
-  background: #f3f4f6; font-size: 0.68rem; font-weight: 700;
-  color: var(--text-soft); transition: all 0.2s; cursor: pointer;
+.header-duty-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border: none; border-radius: 20px; cursor: pointer;
+  font-size: 0.78rem; font-weight: 700; transition: all 0.2s;
 }
-.duty-toggle-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.duty-toggle-btn.on-duty { background: var(--success-bg); color: var(--success); border-color: rgba(22,163,74,0.3); }
-.duty-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
-.duty-badge.on  { background: var(--success-bg); color: var(--success); }
-.duty-badge.off { background: #f3f4f6; color: var(--text-soft); }
+.header-duty-btn.off { background: #f3f4f6; color: var(--text-soft); }
+.header-duty-btn.on  { background: var(--success-bg); color: var(--success); }
+.duty-icon { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.header-duty-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ══════════════════════════════════════════════
      MOBILE OVERLAY

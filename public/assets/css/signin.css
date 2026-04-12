@@ -331,3 +331,67 @@ MOBILE (≤ 400px)
     align-items: center;
 }
 
+/* ── Password strength bar ── */
+.strength-bar-wrap {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+.strength-bar {
+    height: 100%;
+    border-radius: 4px;
+    width: 0;
+    transition: width 0.35s ease, background 0.35s ease;
+}
+.strength-label {
+    font-size: 0.75rem;
+    margin-top: 0.3rem;
+    color: var(--text-soft, #6b7280);
+    min-height: 1rem;
+}
+
+/* ── Requirements list ── */
+.pw-requirements {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 0.75rem;
+}
+.pw-requirements li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.76rem;
+    color: #9ca3af;
+    transition: color 0.2s;
+}
+.pw-requirements li.met { color: #16a34a; }
+
+/* req-icon: circle → checkmark animation */
+.req-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    position: relative;
+    display: inline-flex;
+}
+.req-icon svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 16px; height: 16px;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.icon-unmet { color: #d1d5db; opacity: 1; transform: scale(1); }
+.icon-met   { opacity: 0; transform: scale(0.6); }
+.pw-requirements li.met .icon-unmet { opacity: 0; transform: scale(1.3); }
+.pw-requirements li.met .icon-met   { opacity: 1; transform: scale(1); }
+
+/* ── Password match message ── */
+.match-msg { font-size: 0.78rem; margin-top: 0.35rem; min-height: 1rem; }
+.match-msg.ok  { color: #16a34a; }
+.match-msg.err { color: #dc2626; }
+
