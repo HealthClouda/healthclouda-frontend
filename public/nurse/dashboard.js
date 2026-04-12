@@ -583,7 +583,7 @@ async function loadWardManagement() {
         '</div>' +
         '<div style="display:flex;align-items:center;gap:0.5rem">' +
           '<span class="ward-stats">' + (w.total_beds || 0) + ' beds · ' + (w.available_beds || 0) + ' available</span>' +
-          '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openEditWardPanel(' + w.id + ')" title="Edit ward">Edit</button>' +
+          '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openEditWardPanel(\'' + w.id + '\')" title="Edit ward">Edit</button>' +
           '<span class="ward-expand-icon" id="expandIcon-' + w.id + '">&#9660;</span>' +
         '</div>' +
       '</div>' +
