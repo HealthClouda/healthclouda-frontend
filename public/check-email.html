@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="description" content="Verify your email for HealthClouda password reset">
+  <title>HealthClouda | Check Your Email</title>
+  <link rel="icon" type="image/png" href="/assets/images/HealthClouda-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+  document.write('<link rel="stylesheet" href="/assets/css/signin.css?v=' + HC_V + '">');</script>
+</head>
+
+<body class="signin-page">
+
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <nav class="signin-nav">
+    <div class="signin-nav-logo">
+      <img src="/assets/images/HealthClouda-icon.png" alt="">
+      <span>HealthClouda</span>
+    </div>
+    <a href="/signin/" class="signin-back-btn">← Back to Login</a>
+  </nav>
+
+  <div class="signin-page-body">
+
+    <div class="signin-card-header">
+      <div class="fp-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9"/>
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+          <path d="M16 19h6"/><path d="M19 16v6"/>
+        </svg>
+      </div>
+      <h1>Check your email</h1>
+      <p class="check-email-sub">
+        We sent a code to <span class="email-display" id="sentEmailDisplay">your email</span><br>
+        Enter the 6-digit code below.
+      </p>
+    </div>
+
+    <div class="signin-card">
+      <form class="signin-form" id="otpForm">
+
+        <div class="otp-wrapper" id="otpWrapper">
+          <input
+            class="otp-real-input"
+            id="otpInput"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="one-time-code"
+            aria-label="6-digit verification code"
+            autofocus
+          >
+          <div class="otp-display" aria-hidden="true">
+            <div class="otp-box" data-idx="0"></div>
+            <div class="otp-box" data-idx="1"></div>
+            <div class="otp-box" data-idx="2"></div>
+            <div class="otp-box" data-idx="3"></div>
+            <div class="otp-box" data-idx="4"></div>
+            <div class="otp-box" data-idx="5"></div>
+          </div>
+        </div>
+
+        <div id="otpError" role="alert" style="text-align:center;color:#dc2626;font-size:0.82rem;min-height:1.1rem;margin-bottom:0.5rem;"></div>
+
+        <button type="submit" class="signin-btn" id="verifyBtn" disabled>Verify</button>
+
+        <div class="resend-row">
+          Haven't got the email yet?
+          <a id="resendLink" class="disabled">Resend email <span id="timerDisplay">(0:30)</span></a>
+        </div>
+
+      </form>
+    </div>
+
+    <a href="/forgot-password/" class="back-to-login">← Back</a>
+
+  </div>
+
+  <script>
+    ['/assets/js/config.js','/assets/js/router.js','/assets/js/api.js','/assets/js/auth.js'].forEach(function(src){
+      document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
+    });
+  </script>
+  <script>
+    hc_initOtpForm();
+    hc_fadeInCard();
+  </script>
+
+</body>
+</html>

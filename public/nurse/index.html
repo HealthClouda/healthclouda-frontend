@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="description" content="Nurse Portal - HealthClouda healthcare management">
+  <title>Nurse Portal | HealthClouda</title>
+  <link rel="icon" type="image/png" href="/assets/images/HealthClouda-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+    document.write('<link rel="stylesheet" href="/nurse/dashboard.css?v=' + HC_V + '">');
+  </script>
+</head>
+<body>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="/assets/images/HealthClouda-icon.png" alt="">
+    <span>HealthClouda</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <button class="nav-item active" data-page="dashboard">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      Dashboard
+    </button>
+
+    <button class="nav-item" data-page="patients">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      My Patients
+    </button>
+
+    <button class="nav-item" data-page="wards">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg></span>
+      Ward &amp; Beds
+    </button>
+
+    <button class="nav-item" data-page="admissions">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      Admissions
+    </button>
+
+    <span class="nav-section-label">Other</span>
+
+    <button class="nav-item" data-page="notifications">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+      Notifications
+      <span class="nav-badge hidden" id="sidebarNotifBadge">0</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-avatar" id="sidebarAvatar">NR</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarUserName">Nurse</div>
+      <div class="sidebar-user-role" id="sidebarUserRole">Nurse</div>
+    </div>
+    <button class="sidebar-logout" title="Logout" onclick="nurseLogout()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</aside>
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" title="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-brand">Nurse Portal</div>
+    <div class="header-right">
+      <button class="header-duty-btn off" id="dutyToggleBtn" title="Toggle duty status" onclick="toggleDutyStatus()">
+        <svg class="duty-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="dutyToggleLabel">Off Duty</span>
+      </button>
+      <button class="notif-btn" id="headerNotifBtn" title="Notifications" onclick="goToNotifications()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge hidden" id="headerNotifBadge">0</span>
+      </button>
+      <span class="header-user" id="headerUserName">Loading…</span>
+    </div>
+  </header>
+
+  <!-- ════ PAGE: DASHBOARD ════ -->
+  <div class="page-content active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="dashWelcome">Dashboard</div>
+        <div class="page-subtitle">Ward overview and patient activity.</div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="dashStatsGrid">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Wards</span>
+          <span class="stat-icon blue"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        </div>
+        <div class="stat-value" id="statTotalWards">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Total Beds</span>
+          <span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg></span>
+        </div>
+        <div class="stat-value" id="statTotalBeds">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Available Beds</span>
+          <span class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        </div>
+        <div class="stat-value" id="statAvailableBeds">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Occupied Beds</span>
+          <span class="stat-icon red"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        </div>
+        <div class="stat-value" id="statOccupiedBeds">—</div>
+        <div class="stat-sub" id="statOccupancyRate"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Active Admissions</span>
+          <span class="stat-icon blue"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+        </div>
+        <div class="stat-value" id="statActiveAdmissions">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Today's Admissions</span>
+          <span class="stat-icon green"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </div>
+        <div class="stat-value" id="statTodayAdmissions">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Today's Discharges</span>
+          <span class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+        </div>
+        <div class="stat-value" id="statTodayDischarges">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Patients in Queue</span>
+          <span class="stat-icon orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        </div>
+        <div class="stat-value" id="statPatientsQueue">—</div>
+      </div>
+    </div>
+
+    <div class="section-title">Ward Overview</div>
+    <div id="wardOverviewContainer">
+      <div class="empty-state">Loading ward data…</div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: MY PATIENTS ════ -->
+  <div class="page-content" id="page-patients">
+    <div class="page-header">
+      <div>
+        <div class="page-title">My Patients</div>
+        <div class="page-subtitle">Patients currently admitted to your wards.</div>
+      </div>
+    </div>
+
+    <div class="filter-group" style="margin-bottom:1rem">
+      <select class="filter-select" id="patientWardFilter" onchange="loadMyPatients()">
+        <option value="">All Wards</option>
+      </select>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left"></div>
+        <div class="table-count" id="patientCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Bed</th>
+              <th>Patient</th>
+              <th>Age</th>
+              <th>Blood Type</th>
+              <th>Allergies</th>
+              <th>Chief Complaint</th>
+              <th>Days</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="patientTableBody">
+            <tr><td colspan="8" class="empty-state">Loading patients…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: WARD & BEDS ════ -->
+  <div class="page-content" id="page-wards">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Ward &amp; Bed Management</div>
+        <div class="page-subtitle">Manage wards, rooms, and beds.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openAddWardPanel()">+ Add Ward</button>
+        <button class="btn btn-ghost" onclick="openAddBedPanel()">+ Add Bed</button>
+      </div>
+    </div>
+    <div id="wardListContainer">
+      <div class="empty-state">Loading wards…</div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: ADMISSIONS ════ -->
+  <div class="page-content" id="page-admissions">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Admissions</div>
+        <div class="page-subtitle">Manage patient admissions, discharges, and transfers.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openAdmitPanel()">+ Admit Patient</button>
+      </div>
+    </div>
+
+    <div class="tab-group" id="admissionTabs">
+      <button class="tab-btn active" data-tab="ACTIVE" onclick="switchAdmissionTab('ACTIVE')">Active</button>
+      <button class="tab-btn" data-tab="DISCHARGED" onclick="switchAdmissionTab('DISCHARGED')">Discharged</button>
+      <button class="tab-btn" data-tab="TRANSFERRED" onclick="switchAdmissionTab('TRANSFERRED')">Transferred</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="filter-group">
+            <select class="filter-select" id="admissionWardFilter" onchange="loadAdmissions()">
+              <option value="">All Wards</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-count" id="admissionCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Ward / Bed</th>
+              <th>Admitted</th>
+              <th>Days</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admissionTableBody">
+            <tr><td colspan="7" class="empty-state">Loading admissions…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: NOTIFICATIONS ════ -->
+  <div class="page-content" id="page-notifications">
+    <div class="notif-page-header">
+      <div>
+        <div class="page-title">Notifications</div>
+        <div class="page-subtitle">Stay updated on your tasks and alerts.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="markAllReadBtn" onclick="markAllNotificationsRead()">Mark all as read</button>
+    </div>
+    <div id="notificationsContainer">
+      <div class="empty-state">Loading notifications…</div>
+    </div>
+  </div>
+
+</div><!-- /main-wrap -->
+
+<!-- ══════════ SLIDE PANELS ══════════ -->
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<!-- Add Ward Panel -->
+<div class="slide-panel" id="addWardPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Add Ward</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="addWardForm" onsubmit="submitAddWard(event)">
+      <div class="form-group">
+        <label class="form-label">Ward Name *</label>
+        <input class="form-input" name="name" required placeholder="e.g. Medical Ward">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <select class="form-input" name="category" required>
+            <option value="">Select…</option>
+            <option value="MEDICAL">Medical</option>
+            <option value="SURGICAL">Surgical</option>
+            <option value="EMERGENCY">Emergency</option>
+            <option value="GYNAECOLOGY">Gynaecology</option>
+            <option value="PAEDIATRIC">Paediatric</option>
+            <option value="ICU">ICU</option>
+            <option value="MATERNITY">Maternity</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select class="form-input" name="gender">
+            <option value="BOTH">Both</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Beds *</label>
+        <input class="form-input" type="number" name="total_beds" required min="1" placeholder="e.g. 20">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="addWardBtn">Create Ward</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Ward Panel -->
+<div class="slide-panel" id="editWardPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Edit Ward</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="editWardForm" onsubmit="submitEditWard(event)">
+      <div class="form-group">
+        <label class="form-label">Ward Name *</label>
+        <input class="form-input" id="editWardName" name="name" required placeholder="e.g. Medical Ward">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <select class="form-input" id="editWardCategory" name="category" required>
+            <option value="">Select…</option>
+            <option value="MEDICAL">Medical</option>
+            <option value="SURGICAL">Surgical</option>
+            <option value="EMERGENCY">Emergency</option>
+            <option value="GYNAECOLOGY">Gynaecology</option>
+            <option value="PAEDIATRIC">Paediatric</option>
+            <option value="ICU">ICU</option>
+            <option value="MATERNITY">Maternity</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select class="form-input" id="editWardGender" name="gender">
+            <option value="BOTH">Both</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Beds *</label>
+        <input class="form-input" type="number" id="editWardTotalBeds" name="total_beds" required min="1">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="editWardBtn">Save Changes</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Bed Panel -->
+<div class="slide-panel" id="addBedPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Add Bed</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="addBedForm" onsubmit="submitAddBed(event)">
+      <div class="form-group">
+        <label class="form-label">Ward *</label>
+        <select class="form-input" name="ward" id="bedWardSelect" required>
+          <option value="">Select ward…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bed Number *</label>
+        <input class="form-input" name="bed_number" required placeholder="e.g. B-001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-input" name="status">
+          <option value="AVAILABLE">Available</option>
+          <option value="MAINTENANCE">Maintenance</option>
+          <option value="RESERVED">Reserved</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="addBedBtn">Create Bed</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Admit Patient Panel -->
+<div class="slide-panel" id="admitPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Admit Patient</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="admitPatientForm" onsubmit="submitAdmitPatient(event)">
+      <div class="form-group">
+        <label class="form-label">Patient ID *</label>
+        <input class="form-input" name="patient" required placeholder="Patient UUID">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Episode ID *</label>
+        <input class="form-input" name="episode" required placeholder="Episode UUID (must be ACTIVE)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ward</label>
+        <select class="form-input" id="admitWardSelect" onchange="loadAvailableBeds()">
+          <option value="">Select ward to filter beds…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bed *</label>
+        <select class="form-input" name="bed" id="admitBedSelect" required>
+          <option value="">Select ward first…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Admission Reason *</label>
+        <textarea class="form-input" name="admission_reason" rows="3" required placeholder="Reason for admission…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="admitPatientBtn">Admit Patient</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Vitals Modal -->
+<div class="modal-overlay" id="vitalsModal">
+  <div class="modal modal-wide">
+    <div class="modal-header-row">
+      <div class="modal-title">Record Vitals</div>
+      <button class="panel-close" onclick="closeModal('vitalsModal')">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-subtitle" id="vitalsPatientName">—</div>
+    <div id="currentVitalsDisplay" style="margin-bottom:1rem">
+      <div class="empty-state">Loading vitals…</div>
+    </div>
+    <form id="vitalsForm" onsubmit="submitVitals(event)">
+      <input type="hidden" id="vitalsPatientId">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">BP Systolic (mmHg)</label>
+          <input class="form-input" type="number" name="blood_pressure_systolic" min="50" max="300" step="1" placeholder="50–300">
+        </div>
+        <div class="form-group">
+          <label class="form-label">BP Diastolic (mmHg)</label>
+          <input class="form-input" type="number" name="blood_pressure_diastolic" min="20" max="200" step="1" placeholder="20–200">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Temperature (°C)</label>
+          <input class="form-input" type="number" name="temperature" min="30" max="45" step="0.1" placeholder="30.0–45.0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pulse Rate (bpm)</label>
+          <input class="form-input" type="number" name="pulse_rate" min="20" max="250" step="1" placeholder="20–250">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Respiratory Rate (/min)</label>
+          <input class="form-input" type="number" name="respiratory_rate" min="5" max="60" step="1" placeholder="5–60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">O₂ Saturation (%)</label>
+          <input class="form-input" type="number" name="oxygen_saturation" min="50" max="100" step="1" placeholder="50–100">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Weight (kg)</label>
+          <input class="form-input" type="number" name="weight" min="0.5" max="500" step="0.1" placeholder="0.5–500">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Height (cm)</label>
+          <input class="form-input" type="number" name="height" min="20" max="300" step="0.1" placeholder="20–300">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" name="notes" rows="2" maxlength="500" placeholder="Additional observations…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('vitalsModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submitVitalsBtn">Save Vitals</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Discharge Modal -->
+<div class="modal-overlay" id="dischargeModal">
+  <div class="modal">
+    <div class="modal-icon info">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </div>
+    <div class="modal-title">Discharge Patient</div>
+    <div class="modal-body">
+      <p style="margin-bottom:1rem;">Discharging <strong id="dischargePatientName">—</strong>.</p>
+      <input type="hidden" id="dischargeAdmissionId">
+      <div class="form-group">
+        <label class="form-label">Discharge Summary</label>
+        <textarea class="form-input" id="dischargeSummary" rows="3" placeholder="Patient recovery summary…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Discharge Instructions</label>
+        <textarea class="form-input" id="dischargeInstructions" rows="3" placeholder="Follow-up instructions…"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('dischargeModal')">Cancel</button>
+      <button class="btn btn-warning" id="submitDischargeBtn" onclick="submitDischarge()">Discharge Patient</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer Modal -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal">
+    <div class="modal-icon info">
+      <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><line x1="21" y1="3" x2="14" y2="10"/><polyline points="9 21 3 21 3 15"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+    </div>
+    <div class="modal-title">Transfer Patient</div>
+    <div class="modal-body">
+      <p style="margin-bottom:1rem;">Transferring <strong id="transferPatientName">—</strong> to a new bed.</p>
+      <input type="hidden" id="transferAdmissionId">
+      <div class="form-group">
+        <label class="form-label">Ward</label>
+        <select class="form-input" id="transferWardSelect" onchange="loadTransferBeds()">
+          <option value="">Select ward…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Bed *</label>
+        <select class="form-input" id="transferBedSelect" required>
+          <option value="">Select ward first…</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('transferModal')">Cancel</button>
+      <button class="btn btn-primary" id="submitTransferBtn" onclick="submitTransfer()">Transfer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script>
+  ['/assets/js/config.js','/assets/js/router.js','/assets/js/api.js','/assets/js/auth.js','/nurse/dashboard.js'].forEach(function(src){
+    document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
+  });
+</script>
+
+</body>
+</html>

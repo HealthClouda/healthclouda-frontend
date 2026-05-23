@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="description" content="Receptionist Portal - HealthClouda healthcare management">
+  <title>Receptionist Portal | HealthClouda</title>
+  <link rel="icon" type="image/png" href="/assets/images/HealthClouda-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');
+    document.write('<link rel="stylesheet" href="/receptionist/dashboard.css?v=' + HC_V + '">');
+  </script>
+</head>
+<body>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="/assets/images/HealthClouda-icon.png" alt="">
+    <span>HealthClouda</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <button class="nav-item active" data-page="dashboard">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      Dashboard
+    </button>
+
+    <button class="nav-item" data-page="patients">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      Patients
+    </button>
+
+    <button class="nav-item" data-page="queue">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      Queue
+    </button>
+
+    <button class="nav-item" data-page="appointments">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      Appointments
+    </button>
+
+    <button class="nav-item" data-page="referrals">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+      Referrals
+    </button>
+
+    <button class="nav-item" data-page="beds">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg></span>
+      Emergency Beds
+    </button>
+
+    <span class="nav-section-label">Other</span>
+
+    <button class="nav-item" data-page="access">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+      Access Requests
+    </button>
+
+    <button class="nav-item" data-page="messages">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+      Messages
+      <span class="nav-badge hidden" id="sidebarMsgBadge">0</span>
+    </button>
+
+    <button class="nav-item" data-page="notifications">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+      Notifications
+      <span class="nav-badge hidden" id="sidebarNotifBadge">0</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-avatar" id="sidebarAvatar">RC</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarUserName">Receptionist</div>
+      <div class="sidebar-user-role" id="sidebarUserRole">Receptionist</div>
+    </div>
+    <button class="sidebar-logout" title="Logout" onclick="recLogout()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</aside>
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" title="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-brand">Receptionist Portal</div>
+    <div class="header-right">
+      <button class="notif-btn" id="headerNotifBtn" title="Notifications" onclick="goToNotifications()">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-badge hidden" id="headerNotifBadge">0</span>
+      </button>
+      <span class="header-user" id="headerUserName">Loading…</span>
+    </div>
+  </header>
+
+  <!-- ════ PAGE: DASHBOARD ════ -->
+  <div class="page-content active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="dashWelcome">Dashboard</div>
+        <div class="page-subtitle">Overview of today's activity.</div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="dashStatsGrid">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Today's Patients</span>
+          <span class="stat-icon blue"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        </div>
+        <div class="stat-value" id="statTodayPatients">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Waiting Queue</span>
+          <span class="stat-icon orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        </div>
+        <div class="stat-value" id="statWaitingQueue">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Pending Referrals</span>
+          <span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+        </div>
+        <div class="stat-value" id="statPendingReferrals">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">On-Duty Doctors</span>
+          <span class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+        </div>
+        <div class="stat-value" id="statOnDutyDoctors">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Bed Occupancy</span>
+          <span class="stat-icon red"><svg viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg></span>
+        </div>
+        <div class="stat-value" id="statBedOccupancy">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Active Episodes</span>
+          <span class="stat-icon blue"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+        </div>
+        <div class="stat-value" id="statActiveEpisodes">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">Awaiting Assignment</span>
+          <span class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></span>
+        </div>
+        <div class="stat-value" id="statAwaitingAssignment">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: PATIENTS ════ -->
+  <div class="page-content" id="page-patients">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Patients</div>
+        <div class="page-subtitle">Search, register, and manage patient records.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openRegisterPanel()">+ Register New Patient</button>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <span class="search-bar-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="text" id="patientSearchInput" placeholder="Search patients by name, email, phone, or HC ID…" autocomplete="off">
+      <div class="search-hint">Type at least 3 characters to search across all patients.</div>
+    </div>
+
+    <div id="patientResultsContainer">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <h3>Search for a patient</h3>
+        <p>Enter a name, email, phone number, or HC ID above.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: QUEUE ════ -->
+  <div class="page-content" id="page-queue">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Queue Overview</div>
+        <div class="page-subtitle">Today's patient check-in queue (read-only). Use this to check doctor load before assigning patients.</div>
+      </div>
+    </div>
+
+    <div id="doctorLoadSummary" style="margin-bottom:1rem"></div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="filter-group">
+            <select class="filter-select" id="queueStatusFilter" onchange="loadQueue()">
+              <option value="">All Statuses</option>
+              <option value="WAITING">Waiting</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="NO_SHOW">No Show</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-count" id="queueCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Patient</th>
+              <th>Doctor</th>
+              <th>Status</th>
+              <th>Checked In</th>
+            </tr>
+          </thead>
+          <tbody id="queueTableBody">
+            <tr><td colspan="5" class="empty-state">Loading queue…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: APPOINTMENTS ════ -->
+  <div class="page-content" id="page-appointments">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Appointments</div>
+        <div class="page-subtitle">Schedule and manage patient appointments.</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openBookAppointmentPanel()">+ Book Appointment</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="filter-group">
+            <select class="filter-select" id="apptStatusFilter" onchange="loadAppointments()">
+              <option value="">All Statuses</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="NO_SHOW">No Show</option>
+            </select>
+            <input type="date" class="filter-select" id="apptDateFilter" onchange="loadAppointments()">
+          </div>
+        </div>
+        <div class="table-count" id="apptCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Doctor</th>
+              <th>Date / Time</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="apptTableBody">
+            <tr><td colspan="6" class="empty-state">Loading appointments…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: REFERRALS ════ -->
+  <div class="page-content" id="page-referrals">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Referrals</div>
+        <div class="page-subtitle">Incoming referrals from other organizations.</div>
+      </div>
+    </div>
+
+    <div class="filter-group" style="margin-bottom:1rem;">
+      <select class="filter-select" id="referralStatusFilter" onchange="loadReferrals()">
+        <option value="">All Statuses</option>
+        <option value="PENDING">Pending</option>
+        <option value="ACCEPTED">Accepted</option>
+        <option value="DECLINED">Declined</option>
+      </select>
+    </div>
+
+    <div id="referralsContainer">
+      <div class="empty-state">Loading referrals…</div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: EMERGENCY BEDS ════ -->
+  <div class="page-content" id="page-beds">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Emergency Beds</div>
+        <div class="page-subtitle">Ward occupancy and bed availability overview.</div>
+      </div>
+    </div>
+    <div id="bedsContainer">
+      <div class="empty-state">Loading bed data…</div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: ACCESS REQUESTS ════ -->
+  <div class="page-content" id="page-access">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Access Requests</div>
+        <div class="page-subtitle">Patient consent requests and responses.</div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="filter-group">
+            <select class="filter-select" id="accessStatusFilter" onchange="loadAccessRequests()">
+              <option value="">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="DENIED">Denied</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-count" id="accessCount">—</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Requested By</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Responded</th>
+            </tr>
+          </thead>
+          <tbody id="accessTableBody">
+            <tr><td colspan="6" class="empty-state">Loading access requests…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: MESSAGES ════ -->
+  <div class="page-content" id="page-messages">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Messages</div>
+        <div class="page-subtitle">Communicate with receptionists at other organizations.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openComposeMessage()">New Message</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="filter-group">
+            <select class="filter-select" id="msgFilter" onchange="loadMessages()">
+              <option value="inbox">Inbox</option>
+              <option value="sent">Sent</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-count" id="msgCount">—</div>
+      </div>
+      <div id="messagesContainer">
+        <div class="empty-state">Loading messages…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: NOTIFICATIONS ════ -->
+  <div class="page-content" id="page-notifications">
+    <div class="notif-page-header">
+      <div>
+        <div class="page-title">Notifications</div>
+        <div class="page-subtitle">Stay updated on your tasks and alerts.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="markAllReadBtn" onclick="markAllNotificationsRead()">Mark all as read</button>
+    </div>
+    <div id="notificationsContainer">
+      <div class="empty-state">Loading notifications…</div>
+    </div>
+  </div>
+
+</div><!-- /main-wrap -->
+
+<!-- ══════════ SLIDE PANELS ══════════ -->
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<!-- Register Patient Panel -->
+<div class="slide-panel" id="registerPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Register New Patient</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="registerPatientForm" onsubmit="submitRegisterPatient(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">First Name *</label>
+          <input class="form-input" name="first_name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name *</label>
+          <input class="form-input" name="last_name" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input class="form-input" type="email" name="email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone *</label>
+        <input class="form-input" type="tel" name="phone" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input class="form-input" type="date" name="date_of_birth">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select class="form-input" name="gender">
+            <option value="">Select…</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="O">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input class="form-input" name="address">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Emergency Contact Name</label>
+        <input class="form-input" name="emergency_contact_name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Emergency Contact Phone</label>
+        <input class="form-input" type="tel" name="emergency_contact_phone">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="registerPatientBtn">Register Patient</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Assign Doctor Panel -->
+<div class="slide-panel" id="assignDoctorPanel">
+  <div class="panel-header">
+    <div>
+      <span class="panel-title">Assign Doctor</span>
+      <div class="panel-subtitle" id="assignPatientName">—</div>
+    </div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="assignDoctorForm" onsubmit="submitAssignDoctor(event)">
+      <input type="hidden" name="patient_id" id="assignPatientId">
+      <div class="form-group">
+        <label class="form-label">Doctor *</label>
+        <select class="form-input" name="doctor_id" id="assignDoctorSelect" required>
+          <option value="">Loading doctors…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Episode Type *</label>
+        <select class="form-input" name="episode_type" required>
+          <option value="">Select…</option>
+          <option value="OUTPATIENT">Outpatient</option>
+          <option value="EMERGENCY">Emergency</option>
+          <option value="INPATIENT">Inpatient</option>
+          <option value="FOLLOW_UP">Follow-up</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Chief Complaint *</label>
+        <textarea class="form-input" name="chief_complaint" rows="3" required placeholder="Describe the patient's main complaint…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="assignDoctorBtn">Assign Doctor</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Book Appointment Panel -->
+<div class="slide-panel" id="bookApptPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Book Appointment</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="bookApptForm" onsubmit="submitBookAppointment(event)">
+      <input type="hidden" name="patient_id" id="apptPatientId">
+      <div class="form-group">
+        <label class="form-label">Patient</label>
+        <div id="apptPatientLabel" style="font-weight:600;font-size:0.92rem;margin-bottom:0.25rem;display:none"></div>
+        <label class="form-label">Patient HC ID *</label>
+        <input class="form-input" name="patient_hc_id" id="apptPatientHcId" required placeholder="e.g. HC-000001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Doctor *</label>
+        <select class="form-input" name="doctor_id" id="apptDoctorSelect" required>
+          <option value="">Loading doctors…</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input class="form-input" type="date" name="date" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time *</label>
+          <input class="form-input" type="time" name="time" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Duration (minutes)</label>
+        <input class="form-input" type="number" name="duration" value="30" min="10" max="180">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <textarea class="form-input" name="reason" rows="2" placeholder="Reason for appointment…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="bookApptBtn">Book Appointment</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Referral Detail Panel -->
+<div class="slide-panel" id="referralPanel">
+  <div class="panel-header">
+    <div><span class="panel-title">Referral Details</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body" id="referralPanelBody">
+    <div class="empty-state">Loading…</div>
+  </div>
+</div>
+
+<!-- Patient Info Card Panel -->
+<div class="slide-panel" id="patientInfoPanel">
+  <div class="panel-header">
+    <div>
+      <span class="panel-title">Patient Information</span>
+      <div class="panel-subtitle" id="patientInfoName">—</div>
+    </div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body" id="patientInfoBody">
+    <div class="empty-state">Loading…</div>
+  </div>
+</div>
+
+<!-- Compose Message Panel -->
+<div class="slide-panel" id="composeMessagePanel">
+  <div class="panel-header">
+    <div><span class="panel-title">New Message</span></div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="composeMessageForm" onsubmit="submitMessage(event)">
+      <div class="form-group">
+        <label class="form-label">Recipient Organization *</label>
+        <input class="form-input" name="to_organization" id="msgToOrg" required placeholder="Search organization name…" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message Type *</label>
+        <select class="form-input" name="message_type" id="msgType" required>
+          <option value="GENERAL">General Inquiry</option>
+          <option value="EMERGENCY">Emergency Request</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <input class="form-input" name="subject" id="msgSubject" required placeholder="Subject line">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message *</label>
+        <textarea class="form-input" name="body" id="msgBody" rows="5" required placeholder="Type your message…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="sendMessageBtn">Send Message</button>
+        <button type="button" class="btn btn-ghost" onclick="closeAllPanels()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Message Detail Panel -->
+<div class="slide-panel" id="messageDetailPanel">
+  <div class="panel-header">
+    <div>
+      <span class="panel-title">Message</span>
+      <div class="panel-subtitle" id="msgDetailSubject">—</div>
+    </div>
+    <button class="panel-close" onclick="closeAllPanels()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body" id="msgDetailBody">
+    <div class="empty-state">Loading…</div>
+  </div>
+</div>
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- Access Request Modal -->
+<div class="modal-overlay" id="accessRequestModal">
+  <div class="modal">
+    <div class="modal-icon info">
+      <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div class="modal-title">Request Patient Access</div>
+    <div class="modal-body">
+      <p style="margin-bottom:1rem;">Sending a consent request to <strong id="accessReqPatientName">—</strong>.</p>
+      <div class="form-group">
+        <label class="form-label">Reason for access *</label>
+        <textarea class="form-input" id="accessReqReason" rows="3" placeholder="Why does your organization need access to this patient's records?"></textarea>
+      </div>
+    </div>
+    <input type="hidden" id="accessReqPatientId">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('accessRequestModal')">Cancel</button>
+      <button class="btn btn-primary" id="accessReqSubmitBtn" onclick="submitAccessRequest()">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notify Staff Modal -->
+<div class="modal-overlay" id="notifyDoctorsModal">
+  <div class="modal">
+    <div class="modal-icon info">
+      <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    <div class="modal-title">Notify Staff</div>
+    <div class="modal-body">
+      <p style="margin-bottom:0.75rem;font-weight:600;font-size:0.85rem;color:var(--text-soft)">Doctors</p>
+      <div id="notifyDoctorsList" style="text-align:left;max-height:150px;overflow-y:auto;margin-bottom:1rem;"></div>
+      <p style="margin-bottom:0.75rem;font-weight:600;font-size:0.85rem;color:var(--text-soft)">Nurses</p>
+      <div id="notifyNursesList" style="text-align:left;max-height:150px;overflow-y:auto;margin-bottom:1rem;"></div>
+      <div class="form-group">
+        <label class="form-label">Message (optional)</label>
+        <textarea class="form-input" id="notifyDoctorsMessage" rows="2" placeholder="Additional message…"></textarea>
+      </div>
+    </div>
+    <input type="hidden" id="notifyReferralId">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('notifyDoctorsModal')">Cancel</button>
+      <button class="btn btn-primary" id="notifyDoctorsBtn" onclick="submitNotifyDoctors()">Notify Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script>
+  ['/assets/js/config.js','/assets/js/router.js','/assets/js/api.js','/assets/js/auth.js','/receptionist/dashboard.js'].forEach(function(src){
+    document.write('<script src="'+src+'?v='+HC_V+'"><\/script>');
+  });
+</script>
+
+</body>
+</html>

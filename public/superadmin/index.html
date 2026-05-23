@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthClouda | Super Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>var HC_V = new Date().toISOString().slice(0,13).replace(/[-T:]/g,'');</script>
+  <script>document.write('<link rel="stylesheet" href="/superadmin/dashboard.css?v=' + HC_V + '">');</script>
+  <link rel="icon" type="image/png" href="/assets/images/HealthClouda-icon.png">
+</head>
+<body>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="/assets/images/HealthClouda-icon.png" alt="">
+    <span>HealthClouda</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Main</span>
+
+    <button class="nav-item active" data-page="dashboard">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      Dashboard
+    </button>
+    <button class="nav-item" data-page="organisations">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg></span>
+      Organisations
+    </button>
+    <button class="nav-item" data-page="users">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      Users
+    </button>
+    <button class="nav-item" data-page="records" style="opacity:0.5">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      Records <span style="font-size:0.65rem;color:var(--text-soft);margin-left:auto">Soon</span>
+    </button>
+    <button class="nav-item" data-page="billing" style="opacity:0.5">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
+      Billing <span style="font-size:0.65rem;color:var(--text-soft);margin-left:auto">Soon</span>
+    </button>
+    <button class="nav-item" data-page="messages" style="opacity:0.5">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      Messages <span style="font-size:0.65rem;color:var(--text-soft);margin-left:auto">Soon</span>
+    </button>
+    <button class="nav-item" data-page="audit">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+      Audit Logs
+    </button>
+
+    <span class="nav-section-label" style="margin-top:0.5rem">System</span>
+    <button class="nav-item" data-page="settings" style="opacity:0.5">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      Settings <span style="font-size:0.65rem;color:var(--text-soft);margin-left:auto">Soon</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-avatar" id="sidebarAvatar">SA</div>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="sidebarUserName">Super Admin</div>
+      <div class="sidebar-user-role" id="sidebarUserRole">Super Admin</div>
+    </div>
+    <button class="sidebar-logout" title="Logout" onclick="hc_logoutAdmin()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</aside>
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeSidebar()"></div>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" title="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-brand">Super Admin</div>
+    <div class="header-search">
+      <span class="header-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="text" id="globalSearch" placeholder="Search organisations or users…">
+    </div>
+    <div class="header-right">
+      <div class="date-range" id="headerDateRange">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span id="headerDateText">Loading…</span>
+      </div>
+      <div class="notif-wrapper" id="notifWrapper">
+        <button class="header-notif" id="notifBtn" title="Notifications" onclick="toggleNotifPanel()">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="header-notif-dot" id="notifDot"></span>
+        </button>
+
+        <!-- Notification Dropdown -->
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-header">
+            <span class="notif-panel-title">Notifications</span>
+            <button class="notif-mark-all" onclick="markAllRead()">Mark all read</button>
+          </div>
+          <div class="notif-list" id="notifList">
+            <div class="notif-loading">Loading…</div>
+          </div>
+          <div class="notif-panel-footer">
+            <button class="notif-clear-all" onclick="clearAllNotifs()">Clear all</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ════ PAGE: DASHBOARD ════ -->
+  <div class="page-content active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">Welcome back. Here's what's happening today.</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Total Users</span><span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></div>
+        <div class="stat-value" id="statTotalUsers">—</div>
+        <div class="stat-trend" id="trendUsers"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Total Organisations</span><span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"/></svg></span></div>
+        <div class="stat-value" id="statTotalOrgs">—</div>
+        <div class="stat-trend" id="trendOrgs"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Monthly Revenue</span><span class="stat-icon green"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span></div>
+        <div class="stat-value" id="statRevenue">—</div>
+        <div class="stat-trend" id="trendRevenue"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Active Records</span><span class="stat-icon blue"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></span></div>
+        <div class="stat-value" id="statRecords">—</div>
+        <div class="stat-trend" id="trendRecords"></div>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-card">
+        <div class="info-card-title"><svg viewBox="0 0 24 24" style="color:var(--success)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> System Health</div>
+        <div class="health-item" id="healthApi"><span class="status-dot online"></span><span>API Status: <b>Loading…</b></span></div>
+        <div class="health-item" id="healthDb"><span class="status-dot online"></span><span>Database: <b>Loading…</b></span></div>
+        <div class="health-item" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--text-soft);fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          <span style="font-size:0.78rem;color:var(--text-soft)">Last Backup: <b style="color:var(--text-mid)" id="healthBackup">Loading…</b></span>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title"><svg viewBox="0 0 24 24" style="color:var(--warning)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Security Alert</div>
+        <div class="alert-item warn" id="secFailedLogins"><span>⚠️</span><span><span class="sec-count">…</span> Failed logins detected</span></div>
+        <div class="alert-item danger" id="secLockedAccounts"><span>🔒</span><span><span class="sec-count">…</span> Locked accounts</span></div>
+        <div class="alert-item safe" id="secSuspicious"><span>✓</span><span class="sec-label">Loading…</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <span class="table-card-title">Recent Activity</span>
+        <button class="btn btn-ghost" style="font-size:0.78rem;padding:0.4rem 0.8rem" onclick="document.querySelector('[data-page=audit]').click()">View all</button>
+      </div>
+      <table>
+        <thead><tr><th>Time</th><th>User ID</th><th>Action</th><th>Entity</th><th>Status</th></tr></thead>
+        <tbody id="activityTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: ORGANISATIONS ════ -->
+  <div class="page-content" id="page-organisations">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Organisations</div>
+        <div class="page-subtitle">Manage all hospitals, clinics, and facilities on HealthClouda</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportOrgsCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+        <button class="btn btn-primary" onclick="openPanel('addOrgPanel')">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Organisation
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <!-- Toolbar: search + filters -->
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="orgSearch" placeholder="Search by name or ID…" oninput="orgFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterType" onchange="orgFilterChange()">
+            <option value="">All Types</option>
+            <option value="HOSPITAL">Hospital</option>
+            <option value="CLINIC">Clinic</option>
+            <option value="SCHOOL_CLINIC">School Clinic</option>
+          </select>
+          <select class="filter-select" id="filterStatus" onchange="orgFilterChange()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearOrgFilters()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th><button class="sort-btn" onclick="sortOrgs('name')">Organisation <span class="sort-icon" id="sort-name">↕</span></button></th>
+              <th>Type</th>
+              <th>ID</th>
+              <th>Slug</th>
+              <th>Status</th>
+              <th><button class="sort-btn" onclick="sortOrgs('date')">Date Added <span class="sort-icon" id="sort-date">↕</span></button></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="orgTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Footer: count + pagination -->
+      <div class="table-footer">
+        <span class="table-count" id="orgCount">Showing 0 organisations</span>
+        <div class="pagination" id="orgPagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: USERS ════ -->
+  <div class="page-content" id="page-users">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Users</div>
+        <div class="page-subtitle">All registered users across every organisation on HealthClouda</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportUsersCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+        <button class="btn btn-primary" onclick="openCreateUserPanel()">
+          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          Create User
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <!-- Toolbar -->
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="userSearch" placeholder="Search by name or email…" oninput="userFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterUserRole" onchange="userFilterChange()">
+            <option value="">All Roles</option>
+            <option value="ORGANIZATION_ADMIN">Org Admin</option>
+            <option value="DOCTOR">Doctor</option>
+            <option value="NURSE">Nurse</option>
+            <option value="RECEPTIONIST">Receptionist</option>
+            <option value="PATIENT">Patient</option>
+          </select>
+          <select class="filter-select" id="filterUserStatus" onchange="userFilterChange()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          <select class="filter-select" id="filterUserOrg" onchange="userFilterChange()">
+            <option value="">All Organisations</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearUserFilters()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th><button class="sort-btn" onclick="sortUsers('name')">User <span class="sort-icon" id="usort-name">↕</span></button></th>
+              <th>Role</th>
+              <th>Organisation</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th><button class="sort-btn" onclick="sortUsers('date')">Joined <span class="sort-icon" id="usort-date">↕</span></button></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div class="table-footer">
+        <span class="table-count" id="userCount">Showing 0 users</span>
+        <div class="pagination" id="userPagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: RECORDS ════ -->
+  <div class="page-content" id="page-records">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Records</div>
+        <div class="page-subtitle">Patient health records across all organisations</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportRecordsCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <!-- Toolbar: search + filters -->
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="recordSearch" placeholder="Search by patient name or record ID…" oninput="recordFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterRecordType" onchange="recordFilterChange()">
+            <option value="">All Types</option>
+            <option value="Consultation">Consultation</option>
+            <option value="Lab Result">Lab Result</option>
+            <option value="Prescription">Prescription</option>
+            <option value="Admission">Admission</option>
+            <option value="Discharge">Discharge</option>
+          </select>
+          <select class="filter-select" id="filterRecordOrg" onchange="recordFilterChange()">
+            <option value="">All Organisations</option>
+          </select>
+          <select class="filter-select" id="filterRecordStatus" onchange="recordFilterChange()">
+            <option value="">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Archived">Archived</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearRecordFilters()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Record ID</th>
+              <th><button class="sort-btn" onclick="sortRecords('patient')">Patient <span class="sort-icon" id="rsort-patient">↕</span></button></th>
+              <th>Type</th>
+              <th>Organisation</th>
+              <th>Doctor</th>
+              <th><button class="sort-btn" onclick="sortRecords('date')">Date <span class="sort-icon" id="rsort-date">↕</span></button></th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="recordTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Footer: count + pagination -->
+      <div class="table-footer">
+        <span class="table-count" id="recordCount">Showing 0 records</span>
+        <div class="pagination" id="recordPagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: BILLING ════ -->
+  <div class="page-content" id="page-billing">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Billing</div>
+        <div class="page-subtitle">Revenue, subscriptions and plan management across all organisations</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportBillingCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Revenue stat cards -->
+    <div class="stats-grid" style="margin-bottom:1.25rem">
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Total Revenue</span><span class="stat-icon green"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span></div>
+        <div class="stat-value" id="billStatRevenue">—</div>
+        <div class="stat-trend" id="billTrendRevenue"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Active Subscriptions</span><span class="stat-icon blue"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span></div>
+        <div class="stat-value" id="billStatActive">—</div>
+        <div class="stat-trend" id="billTrendActive"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">Overdue Payments</span><span class="stat-icon orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span></div>
+        <div class="stat-value" id="billStatOverdue">—</div>
+        <div class="stat-trend" id="billTrendOverdue"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top"><span class="stat-label">MRR</span><span class="stat-icon purple"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span></div>
+        <div class="stat-value" id="billStatMRR">—</div>
+        <div class="stat-trend" id="billTrendMRR"></div>
+      </div>
+    </div>
+
+    <!-- Plan breakdown + recent transactions -->
+    <div class="info-row" style="margin-bottom:1.25rem">
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          Plan Distribution
+        </div>
+        <div id="billPlanBreakdown">
+          <div class="bill-plan-row">
+            <div class="bill-plan-info"><span class="bill-plan-dot" style="background:#7c3aed"></span><span>Premium</span></div>
+            <div class="bill-plan-bar-wrap"><div class="bill-plan-bar" id="barPremium" style="width:0%;background:#7c3aed"></div></div>
+            <span class="bill-plan-count" id="countPremium">—</span>
+          </div>
+          <div class="bill-plan-row">
+            <div class="bill-plan-info"><span class="bill-plan-dot" style="background:#0075FF"></span><span>Pro</span></div>
+            <div class="bill-plan-bar-wrap"><div class="bill-plan-bar" id="barPro" style="width:0%;background:#0075FF"></div></div>
+            <span class="bill-plan-count" id="countPro">—</span>
+          </div>
+          <div class="bill-plan-row">
+            <div class="bill-plan-info"><span class="bill-plan-dot" style="background:#16a34a"></span><span>Basic</span></div>
+            <div class="bill-plan-bar-wrap"><div class="bill-plan-bar" id="barBasic" style="width:0%;background:#16a34a"></div></div>
+            <span class="bill-plan-count" id="countBasic">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          Payment Status
+        </div>
+        <div class="health-item" id="billStatusPaid"><span class="status-dot online"></span><span>Paid this month: <b id="billPaidCount">—</b></span></div>
+        <div class="health-item" id="billStatusPending"><span class="status-dot" style="background:var(--warning);box-shadow:0 0 0 3px var(--warning-bg)"></span><span>Pending: <b id="billPendingCount">—</b></span></div>
+        <div class="health-item" id="billStatusOverdue"><span class="status-dot offline"></span><span>Overdue: <b id="billOverdueCount">—</b></span></div>
+      </div>
+    </div>
+
+    <!-- Transactions table -->
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="billSearch" placeholder="Search by organisation…" oninput="billFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterBillPlan" onchange="billFilterChange()">
+            <option value="">All Plans</option>
+            <option value="Basic">Basic</option>
+            <option value="Pro">Pro</option>
+            <option value="Premium">Premium</option>
+          </select>
+          <select class="filter-select" id="filterBillStatus" onchange="billFilterChange()">
+            <option value="">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearBillFilters()">Clear</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Organisation</th>
+              <th><button class="sort-btn" onclick="sortBilling('plan')">Plan <span class="sort-icon" id="bsort-plan">↕</span></button></th>
+              <th><button class="sort-btn" onclick="sortBilling('amount')">Amount <span class="sort-icon" id="bsort-amount">↕</span></button></th>
+              <th>Status</th>
+              <th><button class="sort-btn" onclick="sortBilling('date')">Due Date <span class="sort-icon" id="bsort-date">↕</span></button></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="billTableBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span class="table-count" id="billCount">Showing 0 transactions</span>
+        <div class="pagination" id="billPagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: MESSAGES ════ -->
+  <div class="page-content" id="page-messages">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Messages</div>
+        <div class="page-subtitle">Communications between Super Admin and organisations</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" onclick="openComposePanel()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Message
+        </button>
+      </div>
+    </div>
+
+    <div class="messages-layout">
+      <!-- Inbox list -->
+      <div class="msg-sidebar">
+        <div class="msg-sidebar-header">
+          <div class="page-search" style="width:100%">
+            <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input type="text" id="msgSearch" placeholder="Search messages…" oninput="msgFilterChange()">
+          </div>
+          <div class="msg-filter-tabs">
+            <button class="msg-tab active" onclick="setMsgFilter('all', this)">All</button>
+            <button class="msg-tab" onclick="setMsgFilter('unread', this)">Unread</button>
+            <button class="msg-tab" onclick="setMsgFilter('sent', this)">Sent</button>
+          </div>
+        </div>
+        <div class="msg-list" id="msgList">
+          <div class="notif-loading">Loading messages…</div>
+        </div>
+      </div>
+
+      <!-- Message viewer -->
+      <div class="msg-viewer" id="msgViewer">
+        <div class="msg-viewer-empty">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <p>Select a message to read it</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: AUDIT LOGS ════ -->
+  <div class="page-content" id="page-audit">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Audit Logs</div>
+        <div class="page-subtitle">Full system-wide activity and security trail</div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="exportAuditCSV()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="page-search">
+          <span class="page-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input type="text" id="auditSearch" placeholder="Search by user, action, entity…" oninput="auditFilterChange()">
+        </div>
+        <div class="filter-group">
+          <select class="filter-select" id="filterAuditStatus" onchange="auditFilterChange()">
+            <option value="">All Status</option>
+            <option value="successful">Successful</option>
+            <option value="failed">Failed</option>
+            <option value="suspended">Suspended</option>
+            <option value="completed">Completed</option>
+          </select>
+          <button class="btn btn-ghost" style="padding:0 0.75rem;height:36px;font-size:0.78rem" onclick="clearAuditFilters()">Clear</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th><button class="sort-btn" onclick="sortAudit('time')">Timestamp <span class="sort-icon" id="asort-time">↕</span></button></th>
+              <th>User ID</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>IP Address</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="auditTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span class="table-count" id="auditCount">Showing 0 logs</span>
+        <div class="pagination" id="auditPagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: SETTINGS ════ -->
+  <div class="page-content" id="page-settings">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Settings</div>
+        <div class="page-subtitle">System-wide platform configuration</div>
+      </div>
+    </div>
+
+    <div class="settings-grid">
+      <!-- Card 1: Platform Profile -->
+      <div class="table-card">
+        <div class="table-toolbar"><div class="table-count">Platform Profile</div></div>
+        <div class="panel-body">
+          <form id="platformForm" onsubmit="savePlatformSettings(event)">
+            <div class="form-group">
+              <label class="form-label">Platform Name</label>
+              <input class="form-input" type="text" id="setPlatformName" value="HealthClouda">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Support Email</label>
+              <input class="form-input" type="email" id="setSupportEmail" placeholder="support@healthclouda.ng">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Support Phone</label>
+              <input class="form-input" type="tel" id="setSupportPhone" placeholder="e.g. 09012345678">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default Timezone</label>
+              <select class="form-input" id="setTimezone">
+                <option value="Africa/Lagos">Africa/Lagos (WAT)</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="savePlatformBtn" type="submit">Save Settings</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Card 2: Change Password -->
+      <div class="table-card">
+        <div class="table-toolbar"><div class="table-count">Change Password</div></div>
+        <div class="panel-body">
+          <form id="saChangePasswordForm" onsubmit="changeSAPassword(event)">
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input type="password" class="form-input" id="saOldPassword" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" class="form-input" id="saNewPassword" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" class="form-input" id="saConfirmPassword" required>
+            </div>
+            <div id="saPwError" class="status-error"></div>
+            <div id="saPwSuccess" class="status-success"></div>
+            <button class="btn btn-primary" id="changeSAPwBtn" type="submit">Update Password</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Card 3: Security Settings -->
+      <div class="table-card">
+        <div class="table-toolbar"><div class="table-count">Security Settings</div></div>
+        <div class="panel-body">
+          <form id="securityForm" onsubmit="saveSecuritySettings(event)">
+            <div class="form-group">
+              <label class="form-label">Session Timeout (minutes)</label>
+              <input class="form-input" type="number" id="setSessionTimeout" value="30" min="5" max="480">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Login Attempts</label>
+              <input class="form-input" type="number" id="setMaxAttempts" value="5" min="3" max="20">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Minimum Password Length</label>
+              <input class="form-input" type="number" id="setMinPwLength" value="8" min="6" max="32">
+            </div>
+            <button class="btn btn-primary" id="saveSecurityBtn" type="submit">Save Security Settings</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Card 4: Maintenance Mode -->
+      <div class="table-card">
+        <div class="table-toolbar"><div class="table-count">Maintenance Mode</div></div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label class="form-label">Enable Maintenance Mode</label>
+            <div class="maintenance-toggle">
+              <button type="button" class="btn btn-ghost" id="maintenanceToggle" onclick="toggleMaintenance()">Disabled</button>
+              <span class="badge badge-success" id="maintenanceBadge">System Online</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Maintenance Message</label>
+            <textarea class="form-input" id="maintenanceMsg" rows="3" placeholder="Scheduled maintenance in progress. We'll be back shortly."></textarea>
+          </div>
+          <button class="btn btn-primary" id="saveMaintenanceBtn" type="button" onclick="saveMaintenanceSettings()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-wrap -->
+
+<!-- ══════════ OVERLAY ══════════ -->
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<!-- ══════════ PANEL: VIEW ORGANISATION ══════════ -->
+<div class="slide-panel" id="viewOrgPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="viewOrgTitle">Loading…</div>
+      <div id="viewOrgBadge"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel('viewOrgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body">
+    <div class="org-profile-header">
+      <div class="org-profile-avatar" id="viewOrgAvatar">—</div>
+      <div>
+        <div class="org-profile-name" id="viewOrgName">—</div>
+        <div class="org-profile-meta" id="viewOrgAdmin">—</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this,'tabOverview')">Overview</button>
+      <button class="tab-btn" onclick="switchOrgTab(this,'tabUsers')">Users</button>
+      <button class="tab-btn" onclick="switchOrgTab(this,'tabBilling')">Billing</button>
+    </div>
+
+    <!-- Overview tab -->
+    <div class="tab-content active" id="tabOverview">
+      <div class="section-label">Contact Info</div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+        <div><div class="contact-info-label">Email</div><div class="contact-info-value" id="viewOrgEmail">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <div><div class="contact-info-label">Phone</div><div class="contact-info-value" id="viewOrgPhone">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><div class="contact-info-label">Address</div><div class="contact-info-value" id="viewOrgAddress">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><div class="contact-info-label">Location</div><div class="contact-info-value" id="viewOrgLocationVal">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <div><div class="contact-info-label">Date Registered</div><div class="contact-info-value" id="viewOrgDate">—</div></div>
+      </div>
+
+      <div class="section-label" style="margin-top:1.25rem">Organisation Identifiers</div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <div><div class="contact-info-label">Slug</div><div class="contact-info-value td-mono" id="viewOrgSlug">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <div><div class="contact-info-label">License Number</div><div class="contact-info-value" id="viewOrgLicense">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div><div class="contact-info-label">Verified</div><div class="contact-info-value" id="viewOrgVerified">—</div></div>
+      </div>
+      <div class="contact-info-item">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div>
+          <div class="contact-info-label">Landing Page URL</div>
+          <div class="contact-info-value" id="viewOrgLandingUrl" style="word-break:break-all">—</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:1.25rem">Statistics</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div style="text-align:center;padding:0.75rem;background:var(--bg-card);border-radius:8px">
+          <div style="font-size:1.25rem;font-weight:700;color:var(--text-main)" id="viewOrgStaff">0</div>
+          <div style="font-size:0.7rem;color:var(--text-soft)">Staff</div>
+        </div>
+        <div style="text-align:center;padding:0.75rem;background:var(--bg-card);border-radius:8px">
+          <div style="font-size:1.25rem;font-weight:700;color:var(--text-main)" id="viewOrgPatients">0</div>
+          <div style="font-size:0.7rem;color:var(--text-soft)">Patients</div>
+        </div>
+        <div style="text-align:center;padding:0.75rem;background:var(--bg-card);border-radius:8px">
+          <div style="font-size:1.25rem;font-weight:700;color:var(--text-main)" id="viewOrgEpisodes">0</div>
+          <div style="font-size:0.7rem;color:var(--text-soft)">Episodes</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:1.25rem">Weekly Performance</div>
+      <div class="mini-chart" id="viewOrgChart"></div>
+    </div>
+
+    <!-- Users tab -->
+    <div class="tab-content" id="tabUsers">
+      <div id="orgUsersContent"><div class="tab-loading">Loading users…</div></div>
+    </div>
+
+    <!-- Billing tab -->
+    <div class="tab-content" id="tabBilling">
+      <div id="orgBillingContent"><div class="tab-loading">Loading billing…</div></div>
+    </div>
+  </div>
+
+  <div class="panel-footer">
+    <button class="btn btn-danger" id="panelSuspendBtn" onclick="panelSuspendOrg()">Suspend</button>
+    <button class="btn btn-primary" onclick="openEditOrgPanel()">Edit Details</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: ADD ORGANISATION ══════════ -->
+<div class="slide-panel" id="addOrgPanel">
+  <div class="panel-header">
+    <div><div class="panel-title">Add Organisation</div><div class="panel-subtitle">Register a new hospital or clinic</div></div>
+    <button class="panel-close" onclick="closePanel('addOrgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="addOrgForm" onsubmit="submitAddOrg(event)">
+      <div class="form-group"><label class="form-label">Organisation Name *</label><input class="form-input" type="text" id="newOrgName" placeholder="e.g. City Hospital" required></div>
+      <div class="form-group"><label class="form-label">Address *</label><input class="form-input" type="text" id="newOrgAddress" placeholder="Full street address" required></div>
+      <div class="form-group"><label class="form-label">City *</label><input class="form-input" type="text" id="newOrgCity" placeholder="e.g. Lagos" required></div>
+      <div class="form-group"><label class="form-label">State *</label><input class="form-input" type="text" id="newOrgState" placeholder="e.g. Lagos" required></div>
+      <div class="form-group"><label class="form-label">Country Code *</label><input class="form-input" type="text" id="newOrgCountryCode" placeholder="e.g. NG" maxlength="5" required></div>
+      <div class="form-group"><label class="form-label">Country Name *</label><input class="form-input" type="text" id="newOrgCountryName" placeholder="e.g. Nigeria" required></div>
+      <div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" id="newOrgEmail" placeholder="admin@organisation.com" required></div>
+      <div class="form-group"><label class="form-label">Phone Number</label><input class="form-input" type="tel" id="newOrgPhone" placeholder="e.g. 09012345678"></div>
+      <div class="form-group">
+        <label class="form-label">Organisation Type *</label>
+        <select class="form-input" id="newOrgType" required>
+          <option value="">Select type…</option>
+          <option value="HOSPITAL">Hospital</option>
+          <option value="CLINIC">Clinic</option>
+          <option value="SCHOOL_CLINIC">School Clinic</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">License Number</label><input class="form-input" type="text" id="newOrgLicense" placeholder="Healthcare license number"></div>
+    </form>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('addOrgPanel')">Cancel</button>
+    <button class="btn btn-primary" onclick="submitAddOrg(event)">Add Organisation</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: EDIT ORGANISATION ══════════ -->
+<div class="slide-panel" id="editOrgPanel">
+  <div class="panel-header">
+    <div><div class="panel-title">Edit Organisation</div><div class="panel-subtitle" id="editOrgSubtitle">Update organisation details</div></div>
+    <button class="panel-close" onclick="closePanel('editOrgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="editOrgForm" onsubmit="submitEditOrg(event)">
+      <div class="form-group"><label class="form-label">Organisation Name *</label><input class="form-input" type="text" id="editOrgName" required></div>
+      <div class="form-group"><label class="form-label">Address *</label><input class="form-input" type="text" id="editOrgAddress" required></div>
+      <div class="form-group"><label class="form-label">City *</label><input class="form-input" type="text" id="editOrgCity" required></div>
+      <div class="form-group"><label class="form-label">State *</label><input class="form-input" type="text" id="editOrgState" required></div>
+      <div class="form-group"><label class="form-label">Country Code *</label><input class="form-input" type="text" id="editOrgCountryCode" maxlength="5" required></div>
+      <div class="form-group"><label class="form-label">Country Name *</label><input class="form-input" type="text" id="editOrgCountryName" required></div>
+      <div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" id="editOrgEmail" required></div>
+      <div class="form-group"><label class="form-label">Phone Number</label><input class="form-input" type="tel" id="editOrgPhone"></div>
+      <div class="form-group">
+        <label class="form-label">Organisation Type *</label>
+        <select class="form-input" id="editOrgType" required>
+          <option value="HOSPITAL">Hospital</option>
+          <option value="CLINIC">Clinic</option>
+          <option value="SCHOOL_CLINIC">School Clinic</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">License Number</label><input class="form-input" type="text" id="editOrgLicense"></div>
+    </form>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('editOrgPanel')">Cancel</button>
+    <button class="btn btn-primary" id="editOrgSaveBtn" onclick="submitEditOrg(event)">Save Changes</button>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: DELETE CONFIRM ══════════ -->
+<div class="modal-overlay" id="deleteModal" onclick="closeDeleteModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-icon danger">
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </div>
+    <div class="modal-title">Delete Organisation?</div>
+    <div class="modal-body" id="deleteModalBody">This action is permanent and cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="deleteConfirmBtn" onclick="confirmDeleteOrg()">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: VIEW USER ══════════ -->
+<div class="slide-panel" id="viewUserPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="viewUserTitle">Loading…</div>
+      <div id="viewUserBadge"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel('viewUserPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body">
+    <!-- User profile header -->
+    <div class="org-profile-header">
+      <div class="user-profile-avatar" id="viewUserAvatar">—</div>
+      <div>
+        <div class="org-profile-name" id="viewUserName">—</div>
+        <div class="org-profile-meta" id="viewUserOrg">—</div>
+      </div>
+    </div>
+
+    <!-- Role + status chips -->
+    <div class="user-chips" id="viewUserChips"></div>
+
+    <!-- Contact info -->
+    <div class="section-label" style="margin-top:1.25rem">Contact Info</div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+      <div><div class="contact-info-label">Email</div><div class="contact-info-value" id="viewUserEmail">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <div><div class="contact-info-label">Phone</div><div class="contact-info-value" id="viewUserPhone">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <div><div class="contact-info-label">Date Joined</div><div class="contact-info-value" id="viewUserJoined">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"/></svg>
+      <div><div class="contact-info-label">Organisation</div><div class="contact-info-value" id="viewUserOrgDetail">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <div><div class="contact-info-label">Last Login</div><div class="contact-info-value" id="viewUserLastLogin">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><text x="4" y="17" font-size="14" font-weight="bold" fill="currentColor">#</text></svg>
+      <div><div class="contact-info-label">Organisation ID</div><div class="contact-info-value" id="viewUserOrgId">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+      <div><div class="contact-info-label">Staff ID</div><div class="contact-info-value td-mono" id="viewUserStaffId">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <div><div class="contact-info-label">Password Changed</div><div class="contact-info-value" id="viewUserPwChanged">—</div></div>
+    </div>
+
+    <!-- Activity summary -->
+    <div class="section-label" style="margin-top:1.25rem">Activity Summary</div>
+    <div class="user-activity-grid" id="viewUserActivity">
+      <div class="user-activity-card">
+        <div class="user-activity-val" id="actRecords">—</div>
+        <div class="user-activity-label">Records</div>
+      </div>
+      <div class="user-activity-card">
+        <div class="user-activity-val" id="actLogins">—</div>
+        <div class="user-activity-label">Logins</div>
+      </div>
+      <div class="user-activity-card">
+        <div class="user-activity-val" id="actActions">—</div>
+        <div class="user-activity-label">Actions</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-footer">
+    <button class="btn btn-primary" onclick="openEditUser(_viewingUserId)">Edit</button>
+    <button class="btn btn-danger" id="userSuspendBtn" onclick="panelToggleUserStatus()">Suspend</button>
+    <button class="btn btn-ghost" onclick="closePanel('viewUserPanel')">Close</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: EDIT USER ══════════ -->
+<div class="slide-panel" id="editUserPanel">
+  <div class="panel-header">
+    <div><div class="panel-title">Edit User</div><div class="panel-subtitle" id="editUserSubtitle">Update user details</div></div>
+    <button class="panel-close" onclick="closePanel('editUserPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="editUserForm" onsubmit="submitEditUser(event)">
+      <input type="hidden" id="editUserId">
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="editUserEmail" disabled></div>
+      <div class="form-group"><label class="form-label">First Name</label><input class="form-input" type="text" id="editUserFirstName" placeholder="First name"></div>
+      <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" type="text" id="editUserLastName" placeholder="Last name"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" id="editUserPhone" placeholder="e.g. 09012345678" maxlength="20"></div>
+      <div class="form-group">
+        <label class="form-label">Role *</label>
+        <select class="form-input" id="editUserRole" required>
+          <option value="ORGANIZATION_ADMIN">Org Admin</option>
+          <option value="DOCTOR">Doctor</option>
+          <option value="NURSE">Nurse</option>
+          <option value="RECEPTIONIST">Receptionist</option>
+          <option value="PATIENT">Patient</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Organisation</label><input class="form-input" type="text" id="editUserOrg" disabled></div>
+    </form>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('editUserPanel')">Cancel</button>
+    <button class="btn btn-primary" id="editUserBtn" onclick="submitEditUser(event)">Save Changes</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: CREATE USER ══════════ -->
+<div class="slide-panel" id="addUserPanel">
+  <div class="panel-header">
+    <div><div class="panel-title">Create User</div><div class="panel-subtitle">Add a new staff member or patient</div></div>
+    <button class="panel-close" onclick="closePanel('addUserPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <form id="addUserForm" onsubmit="submitCreateUser(event)">
+      <div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" id="newUserEmail" placeholder="user@example.com" required></div>
+      <div class="form-group"><label class="form-label">First Name *</label><input class="form-input" type="text" id="newUserFirstName" placeholder="First name" required></div>
+      <div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" type="text" id="newUserLastName" placeholder="Last name" required></div>
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <div style="position:relative">
+          <input class="form-input" type="password" id="newUserPassword" placeholder="Min. 8 characters" minlength="8" required style="padding-right:2.5rem">
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('newUserPassword', this)" title="Show password">
+            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role *</label>
+        <select class="form-input" id="newUserRole" required onchange="onCreateUserRoleChange()">
+          <option value="">Select role…</option>
+          <option value="ORGANIZATION_ADMIN">Org Admin</option>
+          <option value="DOCTOR">Doctor</option>
+          <option value="NURSE">Nurse</option>
+          <option value="RECEPTIONIST">Receptionist</option>
+          <option value="PATIENT">Patient</option>
+        </select>
+      </div>
+      <div class="form-group" id="newUserOrgGroup">
+        <label class="form-label">Organisation *</label>
+        <select class="form-input" id="newUserOrg" required>
+          <option value="">Select organisation…</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" id="newUserPhone" placeholder="e.g. 09012345678" maxlength="20"></div>
+    </form>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('addUserPanel')">Cancel</button>
+    <button class="btn btn-primary" id="createUserBtn" onclick="submitCreateUser(event)">Create User</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: COMPOSE MESSAGE ══════════ -->
+<div class="slide-panel" id="composeMsgPanel">
+  <div class="panel-header">
+    <div><div class="panel-title">New Message</div><div class="panel-subtitle">Send a message to an organisation</div></div>
+    <button class="panel-close" onclick="closePanel('composeMsgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <div class="form-group">
+      <label class="form-label">To (Organisation) *</label>
+      <select class="form-input" id="msgTo">
+        <option value="">Select organisation…</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Subject *</label>
+      <input class="form-input" type="text" id="msgSubject" placeholder="e.g. Action Required: Billing Update">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Priority</label>
+      <select class="form-input" id="msgPriority">
+        <option value="normal">Normal</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Message *</label>
+      <textarea class="form-input" id="msgBody" rows="6" placeholder="Type your message here…" style="resize:vertical;min-height:120px"></textarea>
+    </div>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('composeMsgPanel')">Cancel</button>
+    <button class="btn btn-primary" id="msgSendBtn" onclick="sendMessage()">Send Message</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: VIEW MESSAGE ══════════ -->
+<div class="slide-panel" id="viewMsgPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="viewMsgSubject">Loading…</div>
+      <div class="panel-subtitle" id="viewMsgMeta"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel('viewMsgPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="panel-body">
+    <div class="msg-view-header">
+      <div class="org-profile-header" style="margin-bottom:1rem">
+        <div class="org-profile-avatar" id="viewMsgAvatar" style="background:#0075FF">—</div>
+        <div>
+          <div class="org-profile-name" id="viewMsgFrom">—</div>
+          <div class="org-profile-meta" id="viewMsgTime">—</div>
+        </div>
+      </div>
+      <span id="viewMsgPriorityBadge"></span>
+    </div>
+    <div class="msg-view-body" id="viewMsgBody">—</div>
+    <div class="section-label" style="margin-top:1.5rem">Reply</div>
+    <div class="form-group">
+      <textarea class="form-input" id="replyBody" rows="4" placeholder="Type your reply…" style="resize:vertical;min-height:90px"></textarea>
+    </div>
+  </div>
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('viewMsgPanel')">Close</button>
+    <button class="btn btn-primary" onclick="sendReply()">Send Reply</button>
+  </div>
+</div>
+
+<!-- ══════════ PANEL: VIEW RECORD ══════════ -->
+<div class="slide-panel" id="viewRecordPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title" id="viewRecordTitle">Loading…</div>
+      <div id="viewRecordBadge"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel('viewRecordPanel')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="panel-body">
+    <!-- Record profile header -->
+    <div class="org-profile-header">
+      <div class="org-profile-avatar" id="viewRecordAvatar" style="background:#0075FF">—</div>
+      <div>
+        <div class="org-profile-name" id="viewRecordPatient">—</div>
+        <div class="org-profile-meta" id="viewRecordPatientId">—</div>
+      </div>
+    </div>
+
+    <!-- Record details -->
+    <div class="section-label" style="margin-top:1.25rem">Record Details</div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      <div><div class="contact-info-label">Record ID</div><div class="contact-info-value" id="viewRecordId">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <div><div class="contact-info-label">Type</div><div class="contact-info-value" id="viewRecordType">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"/></svg>
+      <div><div class="contact-info-label">Organisation</div><div class="contact-info-value" id="viewRecordOrg">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <div><div class="contact-info-label">Doctor</div><div class="contact-info-value" id="viewRecordDoctor">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <div><div class="contact-info-label">Date</div><div class="contact-info-value" id="viewRecordDate">—</div></div>
+    </div>
+    <div class="contact-info-item">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+      <div><div class="contact-info-label">Status</div><div class="contact-info-value" id="viewRecordStatus">—</div></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="section-label" style="margin-top:1.25rem">Notes / Summary</div>
+    <div style="font-size:0.85rem;color:var(--text-soft);line-height:1.6;padding:0.5rem 0" id="viewRecordNotes">—</div>
+  </div>
+
+  <div class="panel-footer">
+    <button class="btn btn-ghost" onclick="closePanel('viewRecordPanel')">Close</button>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/router.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/superadmin/dashboard.js"></script>
+
+</body>
+</html>
