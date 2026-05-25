@@ -48,6 +48,15 @@ Staff trying the general portal get a 400 with `org_slug` and `redirect_url` in 
    - This file (`CLAUDE.md`) — if workflow or project context changed
 3. Recommend what to tackle next session.
 
+## API Contract
+
+- **Live API reference (single source of truth):** https://healthclouda-backend-production.up.railway.app/api/v1/docs/
+  Consult this before building any feature that calls the backend. It is auto-updated when the backend ships changes.
+- All endpoints are prefixed with `/api/v1/`.
+- Auth uses JWT — `Authorization: Bearer <access_token>` on all protected requests.
+- If an endpoint you need doesn't exist, or a response is missing a field, open an issue on the backend repo tagged `api-request` with: what you need, why, and the rough shape you expect. Do not guess or silently work around it.
+- If something starts breaking after a backend deploy, check the Swagger UI first — the contract may have changed.
+
 ## Key Patterns to Enforce
 - All authenticated requests: `Authorization: Bearer <access_token>` header.
 - All org-scoped staff endpoints require the user to be logged in via their org portal.
