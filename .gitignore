@@ -1,6 +1,19 @@
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Dependencies
 node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# OS / editor
 .DS_Store
-PRD.md
 .vscode/
+
+# Sensitive internal docs (gitignored — keep locally)
+PRD.md
 API-doc.md
