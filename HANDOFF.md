@@ -41,6 +41,29 @@ GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was pre
 
 ## Session Log
 
+### 2026-06-11 — Full technical review + Next.js migration plan
+
+**What was done:**
+- Full codebase audit: measured all JS files (~8,500 lines), CSS (~1,680 lines), 22 HTML shells, 6 dashboards.
+- Identified architecture ceiling: no module system, global scope pollution, 6× code duplication, zero tests, localStorage token security debt, memory leaks from uncleared intervals.
+- Evaluated Vanilla JS → Next.js migration: verdict is **proceed**.
+- Created `MIGRATION-PLAN.md` — full reference document covering audit, stack analysis, migration decision, step-by-step guide, phased timeline, and final recommendation.
+
+**Decisions made:**
+- Migrate to Next.js (App Router) via `rewrite/react` branch (existing branch strategy from HANDOFF.md applies).
+- **Convert the existing repo** — do not create a new one. Git history is preserved.
+- Do not rebuild — port `config.js`, `api.js`, `router.js` directly. Redesign only the structure.
+- Phase 1 (auth) ships to `staging` as a standalone PR before dashboards are touched.
+- No new features on `develop` (Vanilla JS) once Phase 1 ships.
+
+**Pending / TODOs:**
+- [ ] Start Phase 0: cut `rewrite/react` branch, init Next.js, port `config.js` → `config.ts`.
+- [ ] Open backend `api-request` issues for 2 missing receptionist endpoints before Phase 3.
+- [ ] Remap Vercel environments (`main` → Production, `staging` → Beta, `develop` → Dev) — still pending from prior session.
+- [ ] Set up GitHub Actions CI (lint + build check on PRs to `develop`) — still pending.
+
+---
+
 ### 2026-05-25 — CLAUDE.md upgrade + ARCHITECTURE.md created
 
 **What was done:**

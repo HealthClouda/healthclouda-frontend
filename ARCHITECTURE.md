@@ -257,6 +257,20 @@ All HTTP calls go through one of these — never use `fetch()` directly in HTML 
 
 ---
 
+## Migration
+
+A full technical review and Next.js migration plan has been written. See `MIGRATION-PLAN.md` for:
+- Codebase audit with measurements
+- Tech stack analysis
+- Migration decision rationale (why Next.js)
+- Step-by-step migration guide (Phases 0–5)
+- Phased timeline (9–16 weeks)
+- Recommended Next.js project structure
+
+The migration will happen on the `rewrite/react` branch per the existing branch strategy in `HANDOFF.md`.
+
+---
+
 ## Key Invariants
 
 - `config.js` must load before any other JS file on every page.
