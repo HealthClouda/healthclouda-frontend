@@ -6,8 +6,7 @@
 
 ## Project Snapshot
 
-- **Stack (current):** Vanilla HTML / CSS / JavaScript
-- **Stack (planned):** React rewrite — see Migration Plan below
+- **Stack (current):** Next.js (App Router) on `develop` — React rewrite merged via PRs #45/#46
 - **Backend:** Django / DRF on Railway
 - **Frontend:** Vercel
 - **API reference:** `API-doc.md` (gitignored — keep locally)
@@ -40,6 +39,27 @@ GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was pre
 ---
 
 ## Session Log
+
+### 2026-06-12 — Vercel deploy failures fixed (Output Directory override)
+
+**What was done:**
+- Diagnosed why every Vercel deployment failed after the React rewrite merged: builds errored with `NEXT_NO_ROUTES_MANIFEST` because the **dashboard Output Directory setting was still `public`** (leftover from the static site). Dashboard settings override `vercel.json`, so the `"framework": "nextjs"` fix in fe6b115 never took effect.
+- Cleared the Output Directory override via the Vercel API (`outputDirectory: null` → Next.js default `.next`).
+- Redeployed `develop` head (6e14a2c) — preview built green in 1m.
+- Production was stuck on a stale commit (e17319e) with a real `module_not_found` build bug already fixed by PR #46, so the current develop build was promoted to production. `healthclouda-frontend.vercel.app` is live (HTTP 200).
+- Verified `develop` branch ruleset: PRs required (1 approval), no direct pushes, no force-push/deletion.
+
+**Decisions made:**
+- Vercel production branch **stays `develop` for now** — the `main` → Production remap is deferred (to be discussed).
+- Branch `fix/vercel-nextjs-config` is redundant — its only commit duplicates fe6b115 already on `develop`, and the actual fix was the dashboard setting. Safe to delete without merging.
+
+**Pending / TODOs:**
+- [ ] Delete the redundant `fix/vercel-nextjs-config` remote branch.
+- [ ] Preview URLs return 401 (Vercel Deployment Protection) — decide whether previews should be publicly viewable.
+- [ ] Remap Vercel environments (`main` → Production) — deferred, see decision above.
+- [ ] Set up GitHub Actions CI (lint + build check on PRs to `develop`) — still pending.
+
+---
 
 ### 2026-06-11 — Full technical review + Next.js migration plan
 
