@@ -17,3 +17,4 @@ out/
 # Sensitive internal docs (gitignored — keep locally)
 PRD.md
 API-doc.md
+.vercel

@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+/* Carousel infinite scroll */
+@keyframes carousel-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Smooth scrolling for anchor nav */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
