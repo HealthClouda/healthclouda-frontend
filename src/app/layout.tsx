@@ -6,6 +6,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://healthclouda.vercel.app'),
   title: 'HealthClouda | Cloud-Based EHR Platform',
   description:
     'HealthClouda is a cloud-based electronic health record platform enabling seamless hospital-to-hospital medical record sharing across Africa.',
