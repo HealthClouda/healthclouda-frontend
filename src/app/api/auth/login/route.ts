@@ -93,12 +93,34 @@ export async function POST(req: NextRequest) {
   const { access, refresh, user } = data as LoginResponse;
   clearLimit(key);
 
-  const response = NextResponse.json({ user }, { status: 200 });
+  // The login response user has no organization info — enrich from /auth/me/
+  // so redirects and the UI can build /{slug}/... paths (see CONTRACT-AUDIT AUTH-4).
+  let fullUser = user;
+  try {
+    const meRes = await fetch(`${API_BASE_URL}${ENDPOINTS.ME}`, {
+      headers: { Authorization: `Bearer ${access}` },
+    });
+    if (meRes.ok) {
+      const me = (await meRes.json()) as {
+        organization?: { slug?: string; name?: string } | null;
+      };
+      fullUser = {
+        ...user,
+        organization_slug: me.organization?.slug ?? orgSlug,
+        organization_name: me.organization?.name,
+      };
+    }
+  } catch {
+    // Enrichment is best-effort — fall back to the portal slug for org logins.
+    fullUser = { ...user, organization_slug: orgSlug };
+  }
+
+  const response = NextResponse.json({ user: fullUser }, { status: 200 });
   response.cookies.set(AUTH_COOKIES.ACCESS, access, ACCESS_COOKIE_OPTIONS);
   response.cookies.set(AUTH_COOKIES.REFRESH, refresh, REFRESH_COOKIE_OPTIONS);
   response.cookies.set(
     AUTH_COOKIES.USER,
-    encodeURIComponent(JSON.stringify(user)),
+    encodeURIComponent(JSON.stringify(fullUser)),
     USER_COOKIE_OPTIONS,
   );
 

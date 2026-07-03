@@ -37,7 +37,11 @@ function isSigninRoute(pathname: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get(AUTH_COOKIES.ACCESS)?.value;
+  const refreshToken = request.cookies.get(AUTH_COOKIES.REFRESH)?.value;
   const userRaw = request.cookies.get(AUTH_COOKIES.USER)?.value;
+  // The access cookie expires hourly; a present refresh cookie means the
+  // session is still alive (client refreshes on first API call).
+  const hasSession = Boolean(accessToken || refreshToken);
 
   // Let Next.js internals, static files, and API routes through
   if (
@@ -48,8 +52,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Guard dashboard routes — redirect to signin if no token
-  if (isDashboardRoute(pathname) && !accessToken) {
+  // Guard dashboard routes — redirect to signin if no live session
+  if (isDashboardRoute(pathname) && !hasSession) {
     const parts = pathname.split('/').filter(Boolean);
     const isOrgScoped = parts.length >= 2 && !DASHBOARD_SEGMENTS.has(parts[0]) && parts[0] !== 'superadmin';
     const signinUrl = isOrgScoped
@@ -59,11 +63,12 @@ export function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from signin pages to their dashboard
-  if (accessToken && userRaw && isSigninRoute(pathname)) {
+  if (hasSession && userRaw && isSigninRoute(pathname)) {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw)) as { role: Role; organization_slug?: string };
       const roleBase = ROLE_PATHS[user.role];
-      if (roleBase) {
+      // Never build /undefined/... — only redirect when the destination is known
+      if (roleBase && (user.role === ROLES.SUPERADMIN || user.organization_slug)) {
         const dest = user.role === ROLES.SUPERADMIN
           ? '/superadmin'
           : `/${user.organization_slug}/${roleBase}`;

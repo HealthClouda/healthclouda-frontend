@@ -78,7 +78,14 @@ export function SigninForm({ loginType, orgSlug, orgName, orgLogo }: SigninFormP
     }
 
     const user = json.user as User;
-    router.push(roleDashboardPath(user.role, user.organization_slug));
+    // Fall back to the portal's own slug — the backend login response may not
+    // carry org info (enriched best-effort in the login route).
+    const slug = user.organization_slug ?? orgSlug;
+    if (!slug && user.role !== 'SUPERADMIN') {
+      setServerError('Signed in, but your organization could not be determined. Please use your organization portal.');
+      return;
+    }
+    router.push(roleDashboardPath(user.role, slug));
   }
 
   const isOrg = loginType === 'org';
