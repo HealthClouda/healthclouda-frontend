@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Avatar } from '@/components/ui/Avatar';
+import { signinPath } from '@/lib/router';
 import type { User } from '@/types/auth';
 
 export interface NavItem {
@@ -25,7 +26,8 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/signin');
+    // Staff should land back on their org portal, not the patient portal
+    router.push(signinPath(user.organization_slug, user.role));
     router.refresh();
   }
 

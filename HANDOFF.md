@@ -40,6 +40,48 @@ GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was pre
 
 ## Session Log
 
+### 2026-07-03 — Full-codebase audit (5 lenses) + auth-layer fix (PR: fix/auth-layer)
+
+**Context:** Backend fix phase M0–M5 is complete (see `FRONTEND_HANDOFF.pdf`, gitignored-style local doc,
+updated 2026-07-03 with `seed_demo` demo logins — all `@demo.test` / `Demo#Pass1`). Goal: catch all bugs,
+align frontend with the new backend contract. Offline-first is DEFERRED to staging phase (backend decision
+2026-07-02); build online-only but keep all data access behind a swappable layer.
+
+**What was done:**
+- Phase 0 baseline: install (flaky network corrupted 3 native binaries — fixed via cache verify + targeted
+  re-downloads), build green (22 routes, 102–142 kB first load), vitest 9/9, dev server + local Docker
+  backend (`localhost:8000`) verified end-to-end with seeded logins.
+- Phase 1: **full codebase review** through 5 lenses (correctness/contract, security, performance,
+  architecture, UX/a11y) against the handoff PDF + live OpenAPI schema + live backend.
+  → **`CONTRACT-AUDIT.md`** (committed): ~9 P0s, ~20 P1s, ~25 missing workflows, proposed PR order,
+  4 open backend questions. Read it before doing any Phase 2 work.
+- Phase 2 started — **PR 1 (`fix/auth-layer`)**, all verified live against Docker backend:
+  - Refresh route now persists the ROTATED refresh token (was discarded → 2nd refresh always 401'd).
+  - New `src/lib/client-api.ts`: single data layer, 401 → single-flight refresh → retry → org-aware
+    signin redirect. `use-api.ts` rewired on top (same interface). This is the offline swap seam.
+  - Login route enriches user with `organization_slug/name` from `/auth/me/` (login response has none —
+    staff used to be redirected to `/undefined/<role>`).
+  - Middleware gates on access OR refresh cookie (access cookie expires hourly — page navs used to bounce
+    to signin despite valid refresh token); never builds `/undefined/` redirects.
+  - Logout + 401 redirects are org-aware; receptionist search param fixed (`?q=` → `?query=`).
+
+**Decisions made:**
+- Offline-first deferred to staging phase; `SYNC-CONTRACT.md` already designed (lives in backend repo).
+- Fix order = CONTRACT-AUDIT.md "Phase 2 fix order" (auth → error/pagination hygiene → per-role PRs,
+  mirroring backend app-by-app review).
+
+**Pending / TODOs:**
+- [ ] Get PR `fix/auth-layer` reviewed + merged (includes CONTRACT-AUDIT.md + this entry).
+- [ ] PR 2: error states + pagination + `?limit=`→`?page_size=` (see audit UX-ERR-1, PERF-1, GLOBAL-1).
+- [ ] PR 3+: per-role contract fixes — NOTE stats field names mismatch backend on likely all roles (GLOBAL-6).
+- [ ] Nurse vitals rebuild (NURSE-1) — biggest P0 remaining, needs its own session.
+- [ ] Answer 4 open backend questions at the bottom of CONTRACT-AUDIT.md (patient appointments endpoint,
+  org-admin review removal, `is_on_duty` source, list filters).
+- [ ] ESLint config + GitHub Actions CI (ARCH-2/3) — still pending from May.
+- [ ] ARCHITECTURE.md still documents the old Vanilla JS app — rewrite after PR 1–3 land.
+
+---
+
 ### 2026-06-12 — Vercel deploy failures fixed (Output Directory override)
 
 **What was done:**

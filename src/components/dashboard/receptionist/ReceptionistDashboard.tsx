@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { useApi, apiAction } from '@/hooks/use-api';
+import { dataGet } from '@/lib/client-api';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -220,9 +221,9 @@ function PatientSearchPage() {
     setLoading(true);
     setSearched(true);
     try {
-      const res = await fetch(`/api/data?path=${encodeURIComponent(ENDPOINTS.REC_PATIENT_SEARCH + '?q=' + encodeURIComponent(query))}`);
-      if (!res.ok) throw new Error('Search failed');
-      const data = await res.json() as Paginated<PatientSummary> | PatientSummary[];
+      const data = await dataGet<Paginated<PatientSummary> | PatientSummary[]>(
+        ENDPOINTS.REC_PATIENT_SEARCH + '?query=' + encodeURIComponent(query),
+      );
       setPatients(Array.isArray(data) ? data : data.results ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Search failed');

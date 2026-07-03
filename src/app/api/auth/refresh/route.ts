@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { API_BASE_URL, ENDPOINTS } from '@/lib/config';
-import { AUTH_COOKIES, ACCESS_COOKIE_OPTIONS, getRefreshToken } from '@/lib/auth';
+import {
+  AUTH_COOKIES,
+  ACCESS_COOKIE_OPTIONS,
+  REFRESH_COOKIE_OPTIONS,
+  getRefreshToken,
+} from '@/lib/auth';
 
 export async function POST() {
   const refreshToken = await getRefreshToken();
@@ -28,8 +33,14 @@ export async function POST() {
     return res;
   }
 
-  const { access } = await drfRes.json();
+  // SimpleJWT rotates refresh tokens and blacklists the old one — the new
+  // refresh token MUST be persisted or the next refresh fails with a
+  // blacklisted token and the user is logged out.
+  const { access, refresh } = await drfRes.json();
   const res = NextResponse.json({ success: true }, { status: 200 });
   res.cookies.set(AUTH_COOKIES.ACCESS, access, ACCESS_COOKIE_OPTIONS);
+  if (refresh) {
+    res.cookies.set(AUTH_COOKIES.REFRESH, refresh, REFRESH_COOKIE_OPTIONS);
+  }
   return res;
 }
