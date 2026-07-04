@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { useApi } from '@/hooks/use-api';
+import { useApi, usePaginatedList } from '@/hooks/use-api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
@@ -43,8 +45,10 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 // ─── Overview ─────────────────────────────────────────────────────
 
 function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData | null; user: User; onNavigate: (p: string) => void }) {
-  const { data: apptData, loading: apptLoading } = useApi<Paginated<Appointment>>(ENDPOINTS.PATIENT_ME + 'appointments/?upcoming=true&limit=3');
-  const { data: notifData, loading: notifLoading } = useApi<Paginated<Notification>>(ENDPOINTS.PATIENT_NOTIFS + '?limit=5');
+  const { data: apptData, loading: apptLoading, error: apptError, refetch: apptRefetch } =
+    useApi<Paginated<Appointment>>(ENDPOINTS.PATIENT_ME + 'appointments/?upcoming=true&page_size=3');
+  const { data: notifData, loading: notifLoading, error: notifError, refetch: notifRefetch } =
+    useApi<Paginated<Notification>>(ENDPOINTS.PATIENT_NOTIFS + '?page_size=5');
   const upcoming = apptData?.results ?? [];
   const notifs = notifData?.results ?? [];
 
@@ -75,7 +79,9 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
             <h2 className="text-sm font-semibold text-gray-900">Upcoming Appointments</h2>
             <button onClick={() => onNavigate('appointments')} className="text-xs font-medium text-teal-600 hover:text-teal-800">View all →</button>
           </div>
-          {apptLoading ? <ShimmerRows count={3} /> : !upcoming.length ? (
+          {apptLoading ? <ShimmerRows count={3} /> : apptError ? (
+            <ErrorState message={apptError} onRetry={apptRefetch} />
+          ) : !upcoming.length ? (
             <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-5 text-center">
               <p className="text-sm font-medium text-teal-700">No upcoming appointments</p>
               <p className="text-xs text-teal-500 mt-1">Your next appointment will appear here</p>
@@ -103,7 +109,9 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-900">Notifications</h2>
           </div>
-          {notifLoading ? <ShimmerRows count={4} /> : !notifs.length ? (
+          {notifLoading ? <ShimmerRows count={4} /> : notifError ? (
+            <ErrorState message={notifError} onRetry={notifRefetch} />
+          ) : !notifs.length ? (
             <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-5 text-center">
               <p className="text-sm text-gray-500">No notifications</p>
             </div>
@@ -129,19 +137,21 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
 // ─── My Health page ───────────────────────────────────────────────
 
 function HealthPage() {
-  const { data, loading } = useApi<Paginated<Episode>>(ENDPOINTS.EPISODES + '?my=true');
-  const episodes = data?.results ?? [];
+  const { items: episodes, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Episode>(ENDPOINTS.EPISODES + '?my=true');
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-semibold text-gray-900">My Health Records</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} episodes on record</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} episodes on record</p>}
       </div>
 
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Episodes</h3>
-        {loading ? <ShimmerRows count={5} /> : !episodes.length ? (
+        {loading ? <ShimmerRows count={5} /> : error ? (
+          <ErrorState message={error} onRetry={refetch} />
+        ) : !episodes.length ? (
           <EmptyState title="No health records" description="Your medical episodes will appear here." />
         ) : (
           <TableWrap>
@@ -161,6 +171,7 @@ function HealthPage() {
             </tbody>
           </TableWrap>
         )}
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
       </div>
     </div>
   );
@@ -169,16 +180,18 @@ function HealthPage() {
 // ─── Appointments page ────────────────────────────────────────────
 
 function AppointmentsPage() {
-  const { data, loading } = useApi<Paginated<Appointment>>(ENDPOINTS.PATIENT_ME + 'appointments/');
-  const list = data?.results ?? [];
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Appointment>(ENDPOINTS.PATIENT_ME + 'appointments/');
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">My Appointments</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
       </div>
-      {loading ? <ShimmerRows count={6} /> : !list.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No appointments" description="Your appointments will be listed here." />
       ) : (
         <div className="space-y-3">
@@ -203,6 +216,7 @@ function AppointmentsPage() {
           })}
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -211,8 +225,10 @@ function AppointmentsPage() {
 
 function AccessPage() {
   const [tab, setTab] = useState<'access' | 'referrals'>('access');
-  const { data: arData, loading: arLoading } = useApi<Paginated<AccessRequest>>(ENDPOINTS.PATIENT_ACCESS_REQUESTS);
-  const { data: refData, loading: refLoading } = useApi<Paginated<Referral> | Referral[]>(ENDPOINTS.PATIENT_REFERRALS);
+  const { data: arData, loading: arLoading, error: arError, refetch: arRefetch } =
+    useApi<Paginated<AccessRequest>>(ENDPOINTS.PATIENT_ACCESS_REQUESTS);
+  const { data: refData, loading: refLoading, error: refError, refetch: refRefetch } =
+    useApi<Paginated<Referral> | Referral[]>(ENDPOINTS.PATIENT_REFERRALS);
 
   const accessList = arData?.results ?? [];
   const refList = Array.isArray(refData) ? refData : refData?.results ?? [];
@@ -232,7 +248,9 @@ function AccessPage() {
       </div>
 
       {tab === 'access' && (
-        arLoading ? <ShimmerRows count={4} /> : !accessList.length ? (
+        arLoading ? <ShimmerRows count={4} /> : arError ? (
+          <ErrorState message={arError} onRetry={arRefetch} />
+        ) : !accessList.length ? (
           <EmptyState title="No access requests" description="Requests to access your medical data will appear here." />
         ) : (
           <TableWrap>
@@ -254,7 +272,9 @@ function AccessPage() {
       )}
 
       {tab === 'referrals' && (
-        refLoading ? <ShimmerRows count={4} /> : !refList.length ? (
+        refLoading ? <ShimmerRows count={4} /> : refError ? (
+          <ErrorState message={refError} onRetry={refRefetch} />
+        ) : !refList.length ? (
           <EmptyState title="No referrals" description="Referrals from your doctor will appear here." />
         ) : (
           <TableWrap>
@@ -296,6 +316,12 @@ interface Props {
 
 export function PatientDashboard({ user, initialStats, slug: _slug }: Props) {
   const [page, setPage] = useState('overview');
+  // AUTH-6: server render can't refresh an expired session — fall back to a
+  // client-side stats fetch instead of shimmering forever.
+  const { data: fetchedStats } = useApi<PatientDashboardData>(
+    initialStats ? null : ENDPOINTS.PATIENT_DASHBOARD,
+  );
+  const stats = initialStats ?? fetchedStats;
 
   return (
     <DashboardShell
@@ -305,7 +331,7 @@ export function PatientDashboard({ user, initialStats, slug: _slug }: Props) {
       user={user}
       pageTitle={page === 'overview' ? undefined : PAGE_TITLES[page]}
     >
-      {page === 'overview'     && <OverviewPage stats={initialStats} user={user} onNavigate={setPage} />}
+      {page === 'overview'     && <OverviewPage stats={stats} user={user} onNavigate={setPage} />}
       {page === 'health'       && <HealthPage />}
       {page === 'appointments' && <AppointmentsPage />}
       {page === 'access'       && <AccessPage />}

@@ -40,7 +40,7 @@ GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was pre
 
 ## Session Log
 
-### 2026-07-04 — PR #49 regression tests + stale-branch cleanup (branch: test/auth-regression)
+### 2026-07-04 — PR #49 regression tests + branch cleanup + PR 2 error/pagination hygiene
 
 **Context:** PR #49 (`fix/auth-layer`) merged into `develop` (`447758b`). Per the pre-fix/post-fix
 discipline adopted 2026-07-03, first task was to backfill regression guards for the auth fixes that
@@ -70,11 +70,28 @@ shipped without tests, then clean up merged branches.
 - `rewrite/react` is NOT deleted yet: merged into `develop` but the migration plan says "delete after
   final merge" and `main` has not received the rewrite. Delete once it reaches `main`.
 
+**PR 2 (`fix/error-pagination`, stacked on `test/auth-regression`) — same session:**
+- Pre-fix failing tests FIRST (6/6 red confirmed against buggy code):
+  `ReceptionistDashboard.test.tsx` — page_size param, client stats fallback, error-state-not-empty-state,
+  retry refetch, pagination controls, `?page=2` request. Plus a 429 friendly-message guard in
+  `client-api.test.ts`.
+- **GLOBAL-1:** all 8 `?limit=` call sites → `?page_size=` (DRF ignores `limit`).
+- **UX-ERR-1:** new shared `ErrorState` component (+ Try again); every list/preview on all 6 dashboards
+  now distinguishes failed fetch from empty. NOTE: patient appointments VISIBLY error until PATIENT-1
+  is resolved (endpoint 404s — backend decision pending).
+- **PERF-1:** new `usePaginatedList` hook (owns page state, builds `?page_size=/&page=`); `<Pagination />`
+  wired on all full list pages (6 dashboards). Filter/tab switches reset to page 1.
+- **AUTH-6:** all 6 dashboards fall back to client-side stats fetch when `initialStats` is null —
+  client layer refreshes the session, so expired-token server renders recover instead of eternal shimmer.
+- **GLOBAL-5:** 429 friendly message now visible via error states; guard test added.
+- Verified: `tsc --noEmit` clean, vitest 30/30, `next build` green.
+
 **Pending / TODOs:**
-- [ ] Get `test/auth-regression` reviewed + merged into `develop`.
+- [ ] Get PR #50 (`test/auth-regression`) reviewed + merged into `develop` — **merge with a MERGE COMMIT**
+  (not squash/rebase) so the stacked PR 2 retargets cleanly.
+- [ ] Then merge PR 2 (`fix/error-pagination`) — retarget base to `develop` after #50 lands.
 - [ ] Delete `rewrite/react` once the rewrite lands on `main`.
-- [ ] PR 2: error states + pagination + `?limit=`→`?page_size=` (audit UX-ERR-1, PERF-1, GLOBAL-1) —
-  same discipline: start with a failing test.
+- [ ] PR 3: receptionist contract fixes (REC-2, REC-3, GLOBAL-3 HCL-ID) — failing tests first.
 - [ ] Remaining items carry over from the 2026-07-03 entry below.
 
 ---
