@@ -40,6 +40,41 @@ GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was pre
 
 ## Session Log
 
+### 2026-07-04 — PR #49 regression tests + stale-branch cleanup (branch: test/auth-regression)
+
+**Context:** PR #49 (`fix/auth-layer`) merged into `develop` (`447758b`). Per the pre-fix/post-fix
+discipline adopted 2026-07-03, first task was to backfill regression guards for the auth fixes that
+shipped without tests, then clean up merged branches.
+
+**What was done:**
+- **Branch hygiene** (our "merged → delete" principle): fast-forwarded local `develop` to `447758b`;
+  deleted 5 stale remote branches (`fix/auth-layer` #49, `fix/vercel-deploy-handoff` #48,
+  `fix/ward-edit-id-quoting`, `chore/repo-cleanup` #44, and the redundant `fix/vercel-nextjs-config`)
+  and their local copies. Remaining remotes: `main`/`staging`/`develop` (protected) + `rewrite/react`.
+- **Regression tests — 14 new, vitest 23/23 green** (`test/auth-regression` off `develop`):
+  - `src/app/api/auth/refresh/route.test.ts` — refresh route persists the ROTATED refresh token;
+    401 clears cookies; no-cookie short-circuits without calling DRF.
+  - `src/middleware.test.ts` — gates on access OR refresh cookie (refresh-only nav passes through);
+    never builds `/undefined/...`; org-aware + superadmin signin redirects.
+  - `src/lib/client-api.test.ts` — single-flight refresh (concurrent 401s → ONE refresh → retry both);
+    org-aware signin redirect when refresh fails.
+  - `src/lib/router.test.ts` — `getOrgSlugFromPathname` slug vs. reserved-path handling.
+  - **Verified genuine:** temporarily reverted the refresh-rotation and `/undefined/` fixes and confirmed
+    the guards go red (buggy middleware reproduced exactly `/undefined/doctor`), then restored → green.
+
+**Decisions made:**
+- `rewrite/react` is NOT deleted yet: merged into `develop` but the migration plan says "delete after
+  final merge" and `main` has not received the rewrite. Delete once it reaches `main`.
+
+**Pending / TODOs:**
+- [ ] Get `test/auth-regression` reviewed + merged into `develop`.
+- [ ] Delete `rewrite/react` once the rewrite lands on `main`.
+- [ ] PR 2: error states + pagination + `?limit=`→`?page_size=` (audit UX-ERR-1, PERF-1, GLOBAL-1) —
+  same discipline: start with a failing test.
+- [ ] Remaining items carry over from the 2026-07-03 entry below.
+
+---
+
 ### 2026-07-03 — Full-codebase audit (5 lenses) + auth-layer fix (PR: fix/auth-layer)
 
 **Context:** Backend fix phase M0–M5 is complete (see `FRONTEND_HANDOFF.pdf`, gitignored-style local doc,
@@ -71,7 +106,10 @@ align frontend with the new backend contract. Offline-first is DEFERRED to stagi
   mirroring backend app-by-app review).
 
 **Pending / TODOs:**
-- [ ] Get PR `fix/auth-layer` reviewed + merged (includes CONTRACT-AUDIT.md + this entry).
+- [x] Get PR `fix/auth-layer` reviewed + merged — **merged as PR #49** (`447758b` on `develop`).
+- [x] **Adopt pre-fix/post-fix test discipline (agreed 2026-07-03):** every fix PR starts with a failing
+  test reproducing the flagged issue, fix turns it green, test stays as regression guard.
+  Regression tests for PR #49 backfilled 2026-07-04 (see that session entry).
 - [ ] PR 2: error states + pagination + `?limit=`→`?page_size=` (see audit UX-ERR-1, PERF-1, GLOBAL-1).
 - [ ] PR 3+: per-role contract fixes — NOTE stats field names mismatch backend on likely all roles (GLOBAL-6).
 - [ ] Nurse vitals rebuild (NURSE-1) — biggest P0 remaining, needs its own session.
