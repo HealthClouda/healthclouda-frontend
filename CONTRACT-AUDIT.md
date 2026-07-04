@@ -6,6 +6,11 @@
 >
 > **Severity:** P0 = broken right now, blocks core use · P1 = contract mismatch, wrong/degraded behaviour ·
 > P2 = backend feature with no frontend UI · P3 = quality/polish.
+>
+> **Progress log:**
+> - **PR #49 `fix/auth-layer`** (merged 2026-07-04) — closed **AUTH-1, AUTH-2, AUTH-3, AUTH-4, AUTH-5,
+>   AUTH-5b, REC-1, ARCH-1**. Regression guards added on `test/auth-regression` (2026-07-04). Note:
+>   **AUTH-6 deliberately left open** — `serverFetch` still swallows errors as `null`; folded into PR 2.
 
 ## Verification sources
 
@@ -20,19 +25,19 @@
 
 ### P0 — broken now
 
-- [ ] **AUTH-1: Token refresh is never called.** `src/app/api/auth/refresh/route.ts` exists but no code calls it
+- [x] **AUTH-1: Token refresh is never called.** _(✅ PR #49 — `client-api.ts` refreshes on 401.)_ `src/app/api/auth/refresh/route.ts` exists but no code calls it
   (only match for `auth/refresh` is the config constant). Access cookie `maxAge` = 1h; on expiry `/api/data`
   and `/api/action` return 401 and `use-api.ts:22` hard-redirects to `/signin`. **Every user is logged out
   every hour** despite a valid 7-day refresh token.
-- [ ] **AUTH-2: Rotated refresh token discarded.** Backend rotates + blacklists refresh tokens
+- [x] **AUTH-2: Rotated refresh token discarded.** _(✅ PR #49 — refresh cookie now re-set from response.)_ Backend rotates + blacklists refresh tokens
   (schema: `TokenRefresh` requires `access` **and** `refresh`). `refresh/route.ts:31-33` persists only
   `access` — the cookie keeps the blacklisted token, so the second refresh always 401s.
   Fix: also set the refresh cookie (options already exist in `lib/auth.ts`).
-- [ ] **AUTH-3: Refresh must be single-flight.** Route handlers share no memory across invocations —
+- [x] **AUTH-3: Refresh must be single-flight.** _(✅ PR #49 — module-level shared refresh promise.)_ Route handlers share no memory across invocations —
   dedupe client-side: one module-level shared promise wrapping `/api/auth/refresh`; on 401 → refresh once →
   retry original request → only then redirect to signin. (Backend explicitly warned: concurrent refreshes
   = blacklisted-token race = logout.)
-- [ ] **AUTH-4: Staff login redirects to `/undefined/<role>`.** Verified live: the login response `user` object
+- [x] **AUTH-4: Staff login redirects to `/undefined/<role>`.** _(✅ PR #49 — login enriches from `/auth/me/`; middleware never builds `/undefined/`.)_ Verified live: the login response `user` object
   has NO `organization_slug`/`organization_name`/`is_on_duty` (fields the frontend `User` type assumes).
   `SigninForm.tsx:81` builds `roleDashboardPath(user.role, user.organization_slug)` → `/undefined/receptionist`.
   Same bug in `middleware.ts:62-71` (redirect away from signin). Fix: login route enriches the user cookie
@@ -48,8 +53,8 @@
   `/patients/me/appointments/` (twice) — not in the schema → 404 → patients always see "No appointments".
   No patient appointments endpoint exists in the backend; either use dashboard stats + episodes, or open an
   `api-request` issue for one. **[backend decision needed]**
-- [ ] **REC-1: Patient search sends the wrong param.** `ReceptionistDashboard.tsx:223` sends `?q=`;
-  backend expects `?query=` (schema-confirmed). Search never works.
+- [x] **REC-1: Patient search sends the wrong param.** `ReceptionistDashboard.tsx:223` sends `?q=`;
+  backend expects `?query=` (schema-confirmed). Search never works. _(✅ PR #49 — now sends `?query=`.)_
 - [ ] **ORGADMIN-1: Access-request review endpoint doesn't exist.** Approve/Deny buttons POST
   `{decision}` to `/org-admin/access-requests/<id>/review/` — absent from the schema → 404. Per the consent
   model only the **patient** grants/denies (`PATCH /patients/me/access-requests/<id>/` with
@@ -82,8 +87,8 @@
 - [ ] **UX-ERR-1: Fetch errors render as empty states.** Most pages ignore `useApi`'s `error` and render
   "No check-ins" etc. when the backend is down/erroring. Clinically dangerous (empty queue ≠ failed fetch).
   Every list needs a distinct error state + retry.
-- [ ] **AUTH-5: 401 redirect loses org context.** `use-api.ts` sends staff to `/signin` (patient portal)
-  instead of `/{slug}/signin`.
+- [x] **AUTH-5: 401 redirect loses org context.** `use-api.ts` sends staff to `/signin` (patient portal)
+  instead of `/{slug}/signin`. _(✅ PR #49 — `redirectToSignin()` is org-aware via `getOrgSlugFromPathname`.)_
 
 ## Lens 2 — Security
 
@@ -112,7 +117,8 @@
 
 ## Lens 4 — Architecture / maintainability
 
-- [ ] **ARCH-1: Consolidate the data layer** (offline-readiness requirement from backend, 2026-07-02).
+- [x] **ARCH-1: Consolidate the data layer** (offline-readiness requirement from backend, 2026-07-02).
+  _(✅ PR #49 — `src/lib/client-api.ts` is the single seam; `use-api.ts` sits on it; components no longer call `fetch` directly. This is the offline swap point.)_
   `useApi`/`apiAction` is already a decent seam — formalize it: one module owns all fetching (incl. the
   401→refresh→retry logic from AUTH-3), components never call `fetch` directly. This is the swap point for
   IndexedDB-first at staging phase. (`PatientSearchPage` calls `fetch` directly today — fold it in.)
@@ -124,7 +130,8 @@
   Tighten to actual serializer shapes as each screen is fixed; consider OpenAPI codegen (handoff tip #1).
 - [ ] ARCH-5: 6× duplicated icons + TableWrap/Th/Td across dashboards — extract to shared modules.
 - [ ] ARCH-6: Test coverage is 2 files (StatCard, config). Add hook tests (MSW) + Playwright flows per role
-  using seeded logins (`@demo.test` / `Demo#Pass1`).
+  using seeded logins (`@demo.test` / `Demo#Pass1`). _(⏳ In progress — PR #49 added 4 auth regression
+  test files (refresh route, middleware, client-api, router); MSW hook tests + per-role Playwright still to do.)_
 - [ ] ARCH-7: `ARCHITECTURE.md` still documents the Vanilla JS app — full rewrite needed.
 
 ## Lens 5 — UX / Accessibility
@@ -177,7 +184,9 @@ org-admin review (broken, see ORGADMIN-1).
 - [ ] **AUTH-6: `serverFetch` fails silently → dashboards stuck in skeleton.** Returns `null` on any
   non-OK/exception; pages pass `initialStats: null` and `StatCard loading={!stats}` shimmers forever.
   After token expiry the server render can't refresh either. Fold into PR 1 + PR 2 (error surface).
-- [ ] **AUTH-5b: Logout redirects to `/signin`** (Sidebar.tsx) — same org-context loss as the 401 redirect.
+  _(⏳ NOT done in PR #49 — `serverFetch` still returns `null` on non-OK/exception; moved to PR 2.)_
+- [x] **AUTH-5b: Logout redirects to `/signin`** (Sidebar.tsx) — same org-context loss as the 401 redirect.
+  _(✅ PR #49 — Sidebar uses `signinPath(user.organization_slug, user.role)`.)_
 - [ ] **UX-6: Header notification bell is never wired.** No dashboard passes
   `notifications`/`notificationCount`/`onMarkAllRead` to `DashboardShell` — bell always shows 0 despite
   endpoints + seeded unread notifications. Wire staff/patient notification endpoints per role.
@@ -207,7 +216,7 @@ org-admin review (broken, see ORGADMIN-1).
 
 ## Phase 2 fix order (proposed)
 
-1. **PR 1 — Auth layer:** AUTH-1..5 + ARCH-1 (single data-layer module with 401→single-flight refresh→retry). Everything sits on this.
+1. ✅ **PR 1 — Auth layer** (DONE, PR #49 merged 2026-07-04): AUTH-1..5, AUTH-5b + ARCH-1 (single data-layer module with 401→single-flight refresh→retry). Everything sits on this. Regression guards on `test/auth-regression`.
 2. **PR 2 — Error/pagination hygiene:** UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5 (shared list-fetch handling).
 3. **PR 3 — Receptionist contract fixes:** REC-1, REC-2, REC-3, GLOBAL-3 (HCL-ID display).
 4. **PR 4 — Nurse vitals rebuild:** NURSE-1 (view + record).
