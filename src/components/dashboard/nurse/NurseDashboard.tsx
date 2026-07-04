@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle } from '@/components/dashboard/DutyToggle';
-import { useApi } from '@/hooks/use-api';
+import { useApi, usePaginatedList } from '@/hooks/use-api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, timeAgo, truncate } from '@/lib/utils';
@@ -40,7 +42,8 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 // ─── Overview ────────────────────────────────────────────────────
 
 function OverviewPage({ stats, onNavigate, isOnDuty }: { stats: NurseStats | null; onNavigate: (p: string) => void; isOnDuty: boolean }) {
-  const { data: vitalsData, loading: vLoading } = useApi<Paginated<VitalRecord> | VitalRecord[]>(ENDPOINTS.NURSE_MY_PATIENTS + '?vitals_pending=true&limit=5');
+  const { data: vitalsData, loading: vLoading, error: vError, refetch: vRefetch } =
+    useApi<Paginated<VitalRecord> | VitalRecord[]>(ENDPOINTS.NURSE_MY_PATIENTS + '?vitals_pending=true&page_size=5');
   const pending = Array.isArray(vitalsData) ? vitalsData : (vitalsData as Paginated<VitalRecord> | null)?.results ?? [];
 
   return (
@@ -68,7 +71,9 @@ function OverviewPage({ stats, onNavigate, isOnDuty }: { stats: NurseStats | nul
           <h2 className="text-sm font-semibold text-gray-900">Vitals Pending</h2>
           <button onClick={() => onNavigate('vitals')} className="text-xs font-medium text-purple-600 hover:text-purple-800">Record vitals →</button>
         </div>
-        {vLoading ? <ShimmerRows count={4} /> : !pending.length ? (
+        {vLoading ? <ShimmerRows count={4} /> : vError ? (
+          <ErrorState message={vError} onRetry={vRefetch} />
+        ) : !pending.length ? (
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-5 text-center">
             <p className="text-sm font-medium text-emerald-700">All vitals recorded — great work!</p>
           </div>
@@ -98,16 +103,18 @@ function OverviewPage({ stats, onNavigate, isOnDuty }: { stats: NurseStats | nul
 // ─── My Patients page ─────────────────────────────────────────────
 
 function MyPatientsPage() {
-  const { data, loading } = useApi<Paginated<PatientSummary>>(ENDPOINTS.NURSE_MY_PATIENTS);
-  const patients = data?.results ?? [];
+  const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<PatientSummary>(ENDPOINTS.NURSE_MY_PATIENTS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">My Patients</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} assigned</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} assigned</p>}
       </div>
-      {loading ? <ShimmerRows count={6} /> : !patients.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !patients.length ? (
         <EmptyState title="No patients assigned" description="Patients assigned to you will appear here." />
       ) : (
         <TableWrap>
@@ -134,6 +141,7 @@ function MyPatientsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -141,13 +149,15 @@ function MyPatientsPage() {
 // ─── Vitals page ──────────────────────────────────────────────────
 
 function VitalsPage() {
-  const { data, loading } = useApi<Paginated<VitalRecord> | VitalRecord[]>(ENDPOINTS.NURSE_MY_PATIENTS + '?include_vitals=true');
+  const { data, loading, error, refetch } = useApi<Paginated<VitalRecord> | VitalRecord[]>(ENDPOINTS.NURSE_MY_PATIENTS + '?include_vitals=true');
   const records = Array.isArray(data) ? data : (data as Paginated<VitalRecord> | null)?.results ?? [];
 
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold text-gray-900">Vitals Records</h2>
-      {loading ? <ShimmerRows count={6} /> : !records.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !records.length ? (
         <EmptyState title="No vitals recorded" description="Patient vitals recorded by you will appear here." />
       ) : (
         <TableWrap>
@@ -175,13 +185,15 @@ function VitalsPage() {
 // ─── Ward Overview page ───────────────────────────────────────────
 
 function WardsPage() {
-  const { data, loading } = useApi<Ward[] | Paginated<Ward>>(ENDPOINTS.NURSE_WARDS_OVERVIEW);
+  const { data, loading, error, refetch } = useApi<Ward[] | Paginated<Ward>>(ENDPOINTS.NURSE_WARDS_OVERVIEW);
   const wards = Array.isArray(data) ? data : (data as Paginated<Ward> | null)?.results ?? [];
 
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold text-gray-900">Ward Overview</h2>
-      {loading ? <ShimmerRows count={3} /> : !wards.length ? (
+      {loading ? <ShimmerRows count={3} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !wards.length ? (
         <EmptyState title="No wards" description="Ward information will appear here." />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -235,6 +247,10 @@ interface Props {
 export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
   const [page, setPage] = useState('overview');
   const [isOnDuty, setIsOnDuty] = useState(user.is_on_duty ?? false);
+  // AUTH-6: server render can't refresh an expired session — fall back to a
+  // client-side stats fetch instead of shimmering forever.
+  const { data: fetchedStats } = useApi<NurseStats>(initialStats ? null : ENDPOINTS.NURSE_STATS);
+  const stats = initialStats ?? fetchedStats;
 
   return (
     <DashboardShell
@@ -245,7 +261,7 @@ export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
       pageTitle={PAGE_TITLES[page]}
       dutyToggle={<DutyToggle isOnDuty={isOnDuty} onToggle={setIsOnDuty} />}
     >
-      {page === 'overview' && <OverviewPage stats={initialStats} onNavigate={setPage} isOnDuty={isOnDuty} />}
+      {page === 'overview' && <OverviewPage stats={stats} onNavigate={setPage} isOnDuty={isOnDuty} />}
       {page === 'patients' && <MyPatientsPage />}
       {page === 'vitals'   && <VitalsPage />}
       {page === 'wards'    && <WardsPage />}

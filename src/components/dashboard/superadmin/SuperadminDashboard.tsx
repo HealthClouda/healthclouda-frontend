@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { useApi, apiAction } from '@/hooks/use-api';
+import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
@@ -65,8 +67,10 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 function OverviewPage({
   stats, onNavigate,
 }: { stats: SuperadminStats | null; onNavigate: (p: string) => void }) {
-  const { data: activity, loading: actLoading } = useApi<{ results?: ActivityItem[] } | ActivityItem[]>(ENDPOINTS.SA_ACTIVITY);
-  const { data: orgsData, loading: orgsLoading } = useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS + '?limit=5');
+  const { data: activity, loading: actLoading, error: actError, refetch: actRefetch } =
+    useApi<{ results?: ActivityItem[] } | ActivityItem[]>(ENDPOINTS.SA_ACTIVITY);
+  const { data: orgsData, loading: orgsLoading, error: orgsError, refetch: orgsRefetch } =
+    useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS + '?page_size=5');
 
   const activityList = Array.isArray(activity)
     ? activity.slice(0, 8)
@@ -90,7 +94,9 @@ function OverviewPage({
             <h2 className="text-sm font-semibold text-gray-900">Recent Organizations</h2>
             <button onClick={() => onNavigate('organizations')} className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</button>
           </div>
-          {orgsLoading ? <ShimmerRows count={4} /> : !recentOrgs.length ? (
+          {orgsLoading ? <ShimmerRows count={4} /> : orgsError ? (
+            <ErrorState message={orgsError} onRetry={orgsRefetch} />
+          ) : !recentOrgs.length ? (
             <EmptyState title="No organizations" description="None registered yet." />
           ) : (
             <TableWrap>
@@ -119,7 +125,9 @@ function OverviewPage({
             <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
             <button onClick={() => onNavigate('audit')} className="text-xs font-medium text-blue-600 hover:text-blue-800">View audit logs →</button>
           </div>
-          {actLoading ? <ShimmerRows count={5} /> : !activityList.length ? (
+          {actLoading ? <ShimmerRows count={5} /> : actError ? (
+            <ErrorState message={actError} onRetry={actRefetch} />
+          ) : !activityList.length ? (
             <EmptyState title="No recent activity" description="System activity will appear here." />
           ) : (
             <div className="space-y-1">
@@ -143,7 +151,8 @@ function OverviewPage({
 // ─── Organizations page ───────────────────────────────────────────
 
 function OrgsPage() {
-  const { data, loading, refetch } = useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS);
+  const { items: orgs, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<OrgSummary>(ENDPOINTS.SA_ORGS);
   const { toast } = useToast();
   const [confirm, setConfirm] = useState<{ org: OrgSummary; action: 'suspend' | 'activate' | 'verify' } | null>(null);
   const [working, setWorking] = useState(false);
@@ -167,18 +176,18 @@ function OrgsPage() {
     }
   }
 
-  const orgs = data?.results ?? [];
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Organizations</h2>
-          {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
         </div>
       </div>
 
-      {loading ? <ShimmerRows count={6} /> : !orgs.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !orgs.length ? (
         <EmptyState title="No organizations" description="No organizations have been registered yet." />
       ) : (
         <TableWrap>
@@ -217,6 +226,7 @@ function OrgsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
 
       <ConfirmDialog
         open={!!confirm}
@@ -235,16 +245,18 @@ function OrgsPage() {
 // ─── Users page ───────────────────────────────────────────────────
 
 function UsersPage() {
-  const { data, loading } = useApi<Paginated<StaffMember>>(ENDPOINTS.SA_USERS);
-  const users = data?.results ?? [];
+  const { items: users, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<StaffMember>(ENDPOINTS.SA_USERS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">All Users</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} registered</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} registered</p>}
       </div>
-      {loading ? <ShimmerRows count={8} /> : !users.length ? (
+      {loading ? <ShimmerRows count={8} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !users.length ? (
         <EmptyState title="No users" description="No users registered yet." />
       ) : (
         <TableWrap>
@@ -271,6 +283,7 @@ function UsersPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -278,16 +291,18 @@ function UsersPage() {
 // ─── Audit Logs page ──────────────────────────────────────────────
 
 function AuditPage() {
-  const { data, loading } = useApi<Paginated<ActivityItem>>(ENDPOINTS.SA_AUDIT);
-  const logs = data?.results ?? [];
+  const { items: logs, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<ActivityItem>(ENDPOINTS.SA_AUDIT);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Audit Logs</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} entries</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} entries</p>}
       </div>
-      {loading ? <ShimmerRows count={10} /> : !logs.length ? (
+      {loading ? <ShimmerRows count={10} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !logs.length ? (
         <EmptyState title="No audit logs" description="System activity will be logged here." />
       ) : (
         <TableWrap>
@@ -307,6 +322,7 @@ function AuditPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -327,6 +343,10 @@ interface Props {
 
 export function SuperadminDashboard({ user, initialStats }: Props) {
   const [page, setPage] = useState('overview');
+  // AUTH-6: server render can't refresh an expired session — fall back to a
+  // client-side stats fetch instead of shimmering forever.
+  const { data: fetchedStats } = useApi<SuperadminStats>(initialStats ? null : ENDPOINTS.SA_STATS);
+  const stats = initialStats ?? fetchedStats;
 
   return (
     <DashboardShell
@@ -336,7 +356,7 @@ export function SuperadminDashboard({ user, initialStats }: Props) {
       user={user}
       pageTitle={PAGE_TITLES[page]}
     >
-      {page === 'overview'      && <OverviewPage stats={initialStats} onNavigate={setPage} />}
+      {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} />}
       {page === 'organizations' && <OrgsPage />}
       {page === 'users'         && <UsersPage />}
       {page === 'audit'         && <AuditPage />}
