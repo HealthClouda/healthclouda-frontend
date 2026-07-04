@@ -61,6 +61,10 @@ shipped without tests, then clean up merged branches.
   - `src/lib/router.test.ts` — `getOrgSlugFromPathname` slug vs. reserved-path handling.
   - **Verified genuine:** temporarily reverted the refresh-rotation and `/undefined/` fixes and confirmed
     the guards go red (buggy middleware reproduced exactly `/undefined/doctor`), then restored → green.
+- **`CONTRACT-AUDIT.md` progress-tracked** (audit's own rule: "check items off as PRs land"): verified
+  against the merged code which items PR #49 actually closed → checked off **AUTH-1..5, AUTH-5b, REC-1,
+  ARCH-1** with per-item annotations + a top-of-file progress log. Confirmed **AUTH-6 is still open**
+  (`serverFetch` swallows errors as `null`) → moved to PR 2; ARCH-6 marked in-progress.
 
 **Decisions made:**
 - `rewrite/react` is NOT deleted yet: merged into `develop` but the migration plan says "delete after
