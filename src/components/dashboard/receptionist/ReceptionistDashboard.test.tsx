@@ -61,11 +61,21 @@ const user = {
   organization_slug: 'acme',
 } as unknown as User;
 
+// Real backend field names (GLOBAL-6, shape verified live 2026-07-05).
 const stats = {
-  check_ins_today: 7,
-  pending_assignments: 2,
-  available_emergency_beds: 3,
-  incoming_referrals: 1,
+  todays_patients: 10,
+  pending_referrals: 1,
+  bed_occupancy_rate: 40,
+  emergency_occupancy_rate: 0,
+  total_beds: 5,
+  occupied_beds: 2,
+  emergency_total: 0,
+  emergency_occupied: 0,
+  awaiting_assignment: 2,
+  todays_checkins: 7,
+  waiting_queue: 2,
+  active_episodes: 10,
+  on_duty_doctors: 1,
 };
 
 const emptyPage = { count: 0, next: null, previous: null, results: [] };
@@ -151,6 +161,145 @@ describe('UX-ERR-1 — failed fetch must NOT render as an empty state', () => {
     await waitFor(() => {
       expect(screen.getByText('Patient 1')).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * Pre-fix tests for CONTRACT-AUDIT PR 3 (receptionist contract fixes), written
+ * RED against the buggy code:
+ *
+ *  - GLOBAL-6 (receptionist slice): stats tiles read invented field names
+ *    (`check_ins_today`, `pending_assignments`, `available_emergency_beds`,
+ *    `incoming_referrals`); the backend actually returns `todays_checkins`,
+ *    `awaiting_assignment`, `total_beds`/`occupied_beds`, `pending_referrals`
+ *    (verified live 2026-07-05) — every tile renders undefined.
+ *  - REC-3: `/receptionist/doctors/on-duty/` returns a DRF envelope
+ *    ({count, results}) — verified live — but the code types it as a bare
+ *    array, so `doctors.length` is undefined and the assign-doctor dropdown
+ *    NEVER renders.
+ *  - REC-2 + GLOBAL-3: search renders Email/DOB (deliberately dropped from
+ *    the minimised response) and never shows `healthclouda_id` (HCL-…),
+ *    `masked_phone`, or the 3 access flags — the fields that ARE returned.
+ */
+
+const liveStats = {
+  todays_patients: 14,
+  pending_referrals: 1,
+  bed_occupancy_rate: 33.3,
+  emergency_occupancy_rate: 0,
+  total_beds: 9,
+  occupied_beds: 3,
+  emergency_total: 0,
+  emergency_occupied: 0,
+  awaiting_assignment: 2,
+  todays_checkins: 5,
+  waiting_queue: 2,
+  active_episodes: 14,
+  on_duty_doctors: 1,
+};
+
+describe('GLOBAL-6 — stats tiles must read the real backend field names', () => {
+  it('renders todays_checkins / awaiting_assignment / available beds / pending_referrals', async () => {
+    render(
+      <ReceptionistDashboard
+        user={user}
+        initialStats={liveStats}
+        slug="acme"
+      />,
+    );
+
+    // 5 check-ins today, 2 awaiting assignment, 9-3=6 beds available, 1 pending referral.
+    expect(await screen.findByText('5')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('6')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+});
+
+describe('REC-3 — doctors on-duty is a DRF envelope, not a bare array', () => {
+  const onDutyEnvelope = {
+    count: 1,
+    results: [{
+      id: 'd1',
+      first_name: 'Emeka',
+      last_name: 'Okafor',
+      email: 'doctor@demo.test',
+      is_on_duty: true,
+      duty_toggled_at: '2026-07-05T16:35:02Z',
+    }],
+  };
+
+  it('renders the on-duty strip and the assign-doctor dropdown from envelope.results', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path.startsWith(ENDPOINTS.REC_DOCTORS_ON_DUTY)
+        ? Promise.resolve(onDutyEnvelope)
+        : path.startsWith(ENDPOINTS.REC_CHECK_INS)
+          ? Promise.resolve({ count: 1, next: null, previous: null, results: [checkIn(1)] })
+          : Promise.resolve(emptyPage),
+    );
+
+    render(<ReceptionistDashboard user={user} initialStats={liveStats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check-ins' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Patient 1')).toBeInTheDocument();
+    });
+    // Unassigned check-in + a doctor on duty → the dropdown MUST exist.
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getAllByText(/Dr\. Emeka Okafor/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('REC-2 + GLOBAL-3 — search renders the minimised contract fields', () => {
+  const searchResult = {
+    id: 'f2cd8de9-8f85-45d2-bd0d-8311d12f3079',
+    healthclouda_id: 'HCL-JOJU5R',
+    first_name: 'Emeka',
+    last_name: 'Adeyemi',
+    masked_phone: '080•••3376',
+    has_visited_org: true,
+    has_pending_access_request: false,
+    has_approved_access: false,
+  };
+
+  async function searchFor(term: string) {
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+    fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: term } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  }
+
+  it('shows HCL-ID, masked phone and access status — not Email/DOB', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)
+        ? Promise.resolve({ count: 1, results: [searchResult] })
+        : Promise.resolve(emptyPage),
+    );
+
+    render(<ReceptionistDashboard user={user} initialStats={liveStats} slug="acme" />);
+    await searchFor('ade');
+
+    expect(await screen.findByText('HCL-JOJU5R')).toBeInTheDocument(); // GLOBAL-3
+    expect(screen.getByText('080•••3376')).toBeInTheDocument();
+    // has_visited_org=true, no pending request, no approved access → "visited" status.
+    expect(screen.getByText(/visited/i)).toBeInTheDocument();
+    // Columns for fields the minimised response deliberately drops must be gone.
+    expect(screen.queryByText(/date of birth/i)).not.toBeInTheDocument();
+  });
+
+  it('surfaces approved access as the patient access status', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)
+        ? Promise.resolve({
+            count: 1,
+            results: [{ ...searchResult, has_approved_access: true }],
+          })
+        : Promise.resolve(emptyPage),
+    );
+
+    render(<ReceptionistDashboard user={user} initialStats={liveStats} slug="acme" />);
+    await searchFor('ade');
+
+    expect(await screen.findByText(/access granted/i)).toBeInTheDocument();
   });
 });
 

@@ -15,7 +15,7 @@ import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  ReceptionistStats, CheckIn, Appointment, Referral, PatientSummary, Paginated,
+  ReceptionistStats, CheckIn, Appointment, Referral, PatientSearchResult, OnDutyDoctor, Paginated,
 } from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -53,13 +53,13 @@ function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard loading={!stats} label="Check-ins Today" value={stats?.check_ins_today} icon={<UserPlusIcon />} color="green" />
-        <StatCard loading={!stats} label="Pending Assignment" value={stats?.pending_assignments} icon={<CalIcon />} color="amber"
-          delta={stats?.pending_assignments ? 'Needs doctor assignment' : undefined}
-          onClick={stats?.pending_assignments ? () => onNavigate('checkins') : undefined} />
-        <StatCard loading={!stats} label="Avail. Beds" value={stats?.available_emergency_beds} icon={<BedIcon />} color="blue" />
-        <StatCard loading={!stats} label="Referrals In" value={stats?.incoming_referrals} icon={<ArrowIcon />} color="purple"
-          onClick={stats?.incoming_referrals ? () => onNavigate('referrals') : undefined} />
+        <StatCard loading={!stats} label="Check-ins Today" value={stats?.todays_checkins} icon={<UserPlusIcon />} color="green" />
+        <StatCard loading={!stats} label="Pending Assignment" value={stats?.awaiting_assignment} icon={<CalIcon />} color="amber"
+          delta={stats?.awaiting_assignment ? 'Needs doctor assignment' : undefined}
+          onClick={stats?.awaiting_assignment ? () => onNavigate('checkins') : undefined} />
+        <StatCard loading={!stats} label="Avail. Beds" value={stats ? stats.total_beds - stats.occupied_beds : undefined} icon={<BedIcon />} color="blue" />
+        <StatCard loading={!stats} label="Pending Referrals" value={stats?.pending_referrals} icon={<ArrowIcon />} color="purple"
+          onClick={stats?.pending_referrals ? () => onNavigate('referrals') : undefined} />
       </div>
 
       {/* Today's Queue */}
@@ -102,7 +102,9 @@ function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; 
 function CheckInsPage() {
   const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<CheckIn>(ENDPOINTS.REC_CHECK_INS);
-  const { data: doctors } = useApi<{ id: string; first_name: string; last_name: string }[]>(ENDPOINTS.REC_DOCTORS_ON_DUTY);
+  // REC-3: the endpoint returns a DRF envelope, not a bare array.
+  const { data: doctorsData } = useApi<Paginated<OnDutyDoctor>>(ENDPOINTS.REC_DOCTORS_ON_DUTY);
+  const doctors = doctorsData?.results ?? [];
   const { toast } = useToast();
   const [assigning, setAssigning] = useState<string | null>(null);
 
@@ -219,10 +221,18 @@ function AppointmentsPage() {
 
 // ─── Patient Search page ──────────────────────────────────────────
 
+// REC-2: search results are minimised — access state is the useful signal.
+function AccessBadge({ p }: { p: PatientSearchResult }) {
+  if (p.has_approved_access) return <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Access granted</span>;
+  if (p.has_pending_access_request) return <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Request pending</span>;
+  if (p.has_visited_org) return <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">Visited before</span>;
+  return <span className="text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">New to org</span>;
+}
+
 function PatientSearchPage() {
   const [query, setQuery] = useState('');
   const [searched, setSearched] = useState(false);
-  const [patients, setPatients] = useState<PatientSummary[]>([]);
+  const [patients, setPatients] = useState<PatientSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -232,10 +242,10 @@ function PatientSearchPage() {
     setLoading(true);
     setSearched(true);
     try {
-      const data = await dataGet<Paginated<PatientSummary> | PatientSummary[]>(
+      const data = await dataGet<Paginated<PatientSearchResult>>(
         ENDPOINTS.REC_PATIENT_SEARCH + '?query=' + encodeURIComponent(query),
       );
-      setPatients(Array.isArray(data) ? data : data.results ?? []);
+      setPatients(data.results ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Search failed');
     } finally {
@@ -267,17 +277,18 @@ function PatientSearchPage() {
       ) : patients.length > 0 ? (
         <TableWrap>
           <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Phone</Th><Th>Date of Birth</Th></tr>
+            <tr><Th>Patient</Th><Th>Phone</Th><Th>Access</Th></tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {patients.map(p => (
               <tr key={p.id} className="hover:bg-gray-50/60 transition-colors">
                 <Td>
                   <div className="font-medium text-gray-900">{p.first_name} {p.last_name}</div>
-                  <div className="text-xs text-gray-400">{p.email ?? '—'}</div>
+                  {/* GLOBAL-3: the HCL-ID is the human-facing patient identifier (wristbands) */}
+                  <div className="text-xs text-gray-400 font-mono">{p.healthclouda_id}</div>
                 </Td>
-                <Td className="text-xs">{p.phone_number ?? '—'}</Td>
-                <Td className="text-xs">{p.date_of_birth ? formatDate(p.date_of_birth) : '—'}</Td>
+                <Td className="text-xs">{p.masked_phone || '—'}</Td>
+                <Td><AccessBadge p={p} /></Td>
               </tr>
             ))}
           </tbody>

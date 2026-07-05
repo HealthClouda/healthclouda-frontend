@@ -76,12 +76,15 @@ Mid-session we discovered PR #51 had merged into a dead base and never reached `
 - Dev-tier deployed backend is NOT seeded (`demo-clinic` 404s) — verification ran against local Docker.
 
 **Pending / TODOs:**
-- [ ] **Qeeyat: merge PR #52 with a MERGE COMMIT** — `develop`/Vercel is live WITHOUT PR 2's fixes until then.
-- [ ] Then merge the stacked docs PR (this branch — auto-retargets to `develop` when #52 lands).
-- [ ] After both: delete stale remote `fix/error-pagination` + local `test/auth-regression`/`fix/error-pagination`
-  (`test/auth-regression` remote auto-deletes now).
+- [x] Qeeyat merged **PR #52 and #53** (same day, 17:36/17:37) — auto-delete + auto-retarget worked exactly
+  as designed on its first run. `develop`/Vercel now has PR 2's fixes.
+- [x] Branch cleanup complete: stale remote `fix/error-pagination` + all merged locals deleted.
+  Remotes now: `main`/`staging`/`develop` + `rewrite/react` + the open PR branch.
+- [x] **PR 3 DONE same session — PR #54 open** (`fix/receptionist-contract` → `develop`, Qeeyat reviewing):
+  GLOBAL-6 receptionist stats shape (verified live), REC-3 on-duty envelope, REC-2+GLOBAL-3 search fields
+  (HCL-ID, masked_phone, access badges). 4 pre-fix tests red→green; vitest 34/34, tsc clean, build green.
 - [ ] Tell Qeeyat: branches auto-delete on merge now + the merge-commit-for-stack-parents rule.
-- [ ] PR 3: receptionist contract fixes (REC-2, REC-3 envelope, GLOBAL-3 HCL-ID) — failing tests first.
+- [ ] Merge PR #54; then check off REC-2/REC-3/GLOBAL-6(rec) in CONTRACT-AUDIT.md.
 - [ ] Watch for backend notifications: `GET /patients/me/appointments/` (PATIENT-1) and duty fields on
   `/auth/me/`+login (GLOBAL-4) — wire patient appointments + DutyToggle initial state when they land.
 - [ ] Ask backend to run `seed_demo` on the deployed dev tier (enables verifying against the real URL).
