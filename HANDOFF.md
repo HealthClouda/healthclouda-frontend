@@ -24,6 +24,13 @@
 
 GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was previously `~ALL` (blocked everything) — fixed 2026-05-25.
 
+**Stacking rules (adopted 2026-07-05, after the PR #51 mishap):** independent work always branches off
+up-to-date `develop` — never stack, never wait. Stack on another feature branch ONLY when the new work
+needs code from that unmerged PR. `delete_branch_on_merge` is ON (enabled 2026-07-05), so GitHub
+auto-retargets a stacked PR to `develop` when its parent merges — but stack parents MUST merge via
+**merge commit** (squash breaks the retargeted child with phantom conflicts). Reviewer: confirm the
+child PR's base shows `develop` before merging it.
+
 ---
 
 ## React Migration Plan
@@ -39,6 +46,48 @@ GitHub ruleset ID `11328360` protects only `main`, `staging`, `develop`. Was pre
 ---
 
 ## Session Log
+
+### 2026-07-05 — Backend questions answered + PR #51 stranded-merge rescue + stacking rules
+
+**Context:** Goal was to answer the 4 open backend questions at the bottom of `CONTRACT-AUDIT.md`.
+Mid-session we discovered PR #51 had merged into a dead base and never reached `develop`.
+
+**What was done:**
+- **All 4 backend questions ANSWERED** — first verified empirically (live prod schema + FRONTEND_HANDOFF.pdf
+  + probing the seeded local Docker backend with the demo logins), then confirmed with the backend side:
+  1. **PATIENT-1:** confirmed gap (route 404s, dashboard has no appointment data). Backend will build
+     paginated `GET /patients/me/appointments/` (`?status=`/`?date=`) — **queued, they'll notify**.
+  2. **ORGADMIN-1:** removal INTENTIONAL (org-admin approval bypassed patient consent — security fix).
+     PR 6: delete approve/deny, keep the read-only list.
+  3. **GLOBAL-4:** backend will add `is_on_duty` + `duty_toggled_at` to `/auth/me/` AND login user for
+     DOCTOR/NURSE — **queued, they'll notify**.
+  4. **GLOBAL-2:** verified live — `?status=`/`?date=`/`?search=` work; `?today=`/`?upcoming=`/`?my=`
+     silently IGNORED; episode enum is `ACTIVE` not `OPEN` (frontend's `?status=OPEN` → 0 rows). Frontend
+     fixes go in the role PRs.
+  - Bonus: **REC-3 verified** — on-duty doctors returns a paginated ENVELOPE, not a bare array (PR 3 fix).
+  - All findings + decisions annotated in `CONTRACT-AUDIT.md` (this branch).
+- **PR #51 stranded-merge discovered & rescued:** #51 (`fix/error-pagination`) was merged by Qeeyat into
+  its stacked base `test/auth-regression` 33 min AFTER that base merged into `develop` (#50) — the
+  retarget never happened, so PR 2's fixes never reached `develop`/Vercel. Opened **PR #52**
+  (`test/auth-regression` → `develop`, diff = exactly #51's changes) — **awaiting Qeeyat**.
+- **Root cause fixed:** repo setting `delete_branch_on_merge` was OFF → enabled (with Bastoh's approval).
+  Stacking rules adopted — see the Branch Strategy section above.
+- **`.gitignore`:** added `FRONTEND_HANDOFF.pdf` (internal doc policy) + `*.tsbuildinfo` (TS build cache).
+- Dev-tier deployed backend is NOT seeded (`demo-clinic` 404s) — verification ran against local Docker.
+
+**Pending / TODOs:**
+- [ ] **Qeeyat: merge PR #52 with a MERGE COMMIT** — `develop`/Vercel is live WITHOUT PR 2's fixes until then.
+- [ ] Then merge the stacked docs PR (this branch — auto-retargets to `develop` when #52 lands).
+- [ ] After both: delete stale remote `fix/error-pagination` + local `test/auth-regression`/`fix/error-pagination`
+  (`test/auth-regression` remote auto-deletes now).
+- [ ] Tell Qeeyat: branches auto-delete on merge now + the merge-commit-for-stack-parents rule.
+- [ ] PR 3: receptionist contract fixes (REC-2, REC-3 envelope, GLOBAL-3 HCL-ID) — failing tests first.
+- [ ] Watch for backend notifications: `GET /patients/me/appointments/` (PATIENT-1) and duty fields on
+  `/auth/me/`+login (GLOBAL-4) — wire patient appointments + DutyToggle initial state when they land.
+- [ ] Ask backend to run `seed_demo` on the deployed dev tier (enables verifying against the real URL).
+- [ ] Delete `rewrite/react` once the rewrite lands on `main`; ESLint + CI (ARCH-2/3) still pending.
+
+---
 
 ### 2026-07-04 — PR #49 regression tests + branch cleanup + PR 2 error/pagination hygiene
 

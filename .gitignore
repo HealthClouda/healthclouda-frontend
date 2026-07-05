@@ -17,4 +17,8 @@ out/
 # Sensitive internal docs (gitignored — keep locally)
 PRD.md
 API-doc.md
+FRONTEND_HANDOFF.pdf
 .vercel
+
+# TypeScript incremental build cache
+*.tsbuildinfo
