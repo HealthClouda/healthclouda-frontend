@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { dataGet, dataAction } from '@/lib/client-api';
+import type { Paginated } from '@/types/dashboard';
 
 export interface ApiState<T> {
   data: T | null;
@@ -37,4 +38,49 @@ export async function apiAction(
   data?: unknown,
 ): Promise<unknown> {
   return dataAction(path, method, data);
+}
+
+export interface PaginatedListState<T> {
+  items: T[];
+  count: number;
+  page: number;
+  setPage: (page: number) => void;
+  totalPages: number;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+/**
+ * Paginated DRF list — owns the page state and builds the query string with
+ * the REAL DRF params (`?page_size=` / `?page=`; `?limit=` is silently
+ * ignored by PageNumberPagination — audit GLOBAL-1). Pair with
+ * `<Pagination />` + `<ErrorState />` on every list page (PERF-1, UX-ERR-1).
+ */
+export function usePaginatedList<T>(
+  endpoint: string | null,
+  pageSize = 20,
+): PaginatedListState<T> {
+  const [page, setPage] = useState(1);
+  let path: string | null = null;
+  if (endpoint) {
+    const sep = endpoint.includes('?') ? '&' : '?';
+    path = `${endpoint}${sep}page_size=${pageSize}${page > 1 ? `&page=${page}` : ''}`;
+  }
+  const { data, loading, error, refetch } = useApi<Paginated<T> | T[]>(path);
+
+  // Tolerate non-paginated (bare array) responses from hand-rolled APIViews.
+  const items = Array.isArray(data) ? data : data?.results ?? [];
+  const count = Array.isArray(data) ? data.length : data?.count ?? 0;
+
+  return {
+    items,
+    count,
+    page,
+    setPage,
+    totalPages: Math.max(1, Math.ceil(count / pageSize)),
+    loading,
+    error,
+    refetch,
+  };
 }

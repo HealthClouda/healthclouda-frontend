@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { useApi, apiAction } from '@/hooks/use-api';
+import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { dataGet } from '@/lib/client-api';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
@@ -44,7 +46,8 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 // ─── Overview ────────────────────────────────────────────────────
 
 function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; onNavigate: (p: string) => void }) {
-  const { data: checkinsData, loading: ciLoading } = useApi<Paginated<CheckIn>>(ENDPOINTS.REC_CHECK_INS + '?limit=6');
+  const { data: checkinsData, loading: ciLoading, error: ciError, refetch: ciRefetch } =
+    useApi<Paginated<CheckIn>>(ENDPOINTS.REC_CHECK_INS + '?page_size=6');
   const todayQueue = checkinsData?.results ?? [];
 
   return (
@@ -65,7 +68,9 @@ function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; 
           <h2 className="text-sm font-semibold text-gray-900">Today&apos;s Queue</h2>
           <button onClick={() => onNavigate('checkins')} className="text-xs font-medium text-emerald-600 hover:text-emerald-800">Manage check-ins →</button>
         </div>
-        {ciLoading ? <ShimmerRows count={4} /> : !todayQueue.length ? (
+        {ciLoading ? <ShimmerRows count={4} /> : ciError ? (
+          <ErrorState message={ciError} onRetry={ciRefetch} />
+        ) : !todayQueue.length ? (
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-6 text-center">
             <p className="text-sm font-medium text-emerald-700">Queue is clear — no pending check-ins</p>
           </div>
@@ -95,11 +100,11 @@ function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; 
 // ─── Check-ins page ───────────────────────────────────────────────
 
 function CheckInsPage() {
-  const { data, loading, refetch } = useApi<Paginated<CheckIn>>(ENDPOINTS.REC_CHECK_INS);
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<CheckIn>(ENDPOINTS.REC_CHECK_INS);
   const { data: doctors } = useApi<{ id: string; first_name: string; last_name: string }[]>(ENDPOINTS.REC_DOCTORS_ON_DUTY);
   const { toast } = useToast();
   const [assigning, setAssigning] = useState<string | null>(null);
-  const list = data?.results ?? [];
 
   async function assignDoctor(checkInId: string, doctorId: string) {
     setAssigning(checkInId);
@@ -118,7 +123,7 @@ function CheckInsPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Check-ins</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total today</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total today</p>}
       </div>
 
       {/* Doctors on duty strip */}
@@ -133,7 +138,9 @@ function CheckInsPage() {
         </div>
       )}
 
-      {loading ? <ShimmerRows count={6} /> : !list.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No check-ins" description="Patient check-ins will appear here." />
       ) : (
         <TableWrap>
@@ -166,6 +173,7 @@ function CheckInsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -173,16 +181,18 @@ function CheckInsPage() {
 // ─── Appointments page ────────────────────────────────────────────
 
 function AppointmentsPage() {
-  const { data, loading } = useApi<Paginated<Appointment>>(ENDPOINTS.REC_APPOINTMENTS);
-  const list = data?.results ?? [];
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Appointment>(ENDPOINTS.REC_APPOINTMENTS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Appointments</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
       </div>
-      {loading ? <ShimmerRows count={6} /> : !list.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No appointments" description="Appointments will appear here." />
       ) : (
         <TableWrap>
@@ -202,6 +212,7 @@ function AppointmentsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -286,16 +297,18 @@ function PatientSearchPage() {
 // ─── Referrals page ───────────────────────────────────────────────
 
 function ReferralsPage() {
-  const { data, loading } = useApi<Paginated<Referral>>(ENDPOINTS.REC_REFERRALS);
-  const list = data?.results ?? [];
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Referral>(ENDPOINTS.REC_REFERRALS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Incoming Referrals</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
       </div>
-      {loading ? <ShimmerRows count={5} /> : !list.length ? (
+      {loading ? <ShimmerRows count={5} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No referrals" description="Incoming referrals will appear here." />
       ) : (
         <TableWrap>
@@ -315,6 +328,7 @@ function ReferralsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -337,6 +351,13 @@ interface Props {
 
 export function ReceptionistDashboard({ user, initialStats, slug: _slug }: Props) {
   const [page, setPage] = useState('overview');
+  // AUTH-6: the server render can't refresh an expired session — when it hands
+  // us null, fetch stats client-side (client-api refreshes on 401) instead of
+  // shimmering forever.
+  const { data: fetchedStats } = useApi<ReceptionistStats>(
+    initialStats ? null : ENDPOINTS.REC_STATS,
+  );
+  const stats = initialStats ?? fetchedStats;
 
   return (
     <DashboardShell
@@ -346,7 +367,7 @@ export function ReceptionistDashboard({ user, initialStats, slug: _slug }: Props
       user={user}
       pageTitle={PAGE_TITLES[page]}
     >
-      {page === 'overview'     && <OverviewPage stats={initialStats} onNavigate={setPage} />}
+      {page === 'overview'     && <OverviewPage stats={stats} onNavigate={setPage} />}
       {page === 'checkins'     && <CheckInsPage />}
       {page === 'appointments' && <AppointmentsPage />}
       {page === 'patients'     && <PatientSearchPage />}

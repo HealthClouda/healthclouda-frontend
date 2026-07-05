@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle } from '@/components/dashboard/DutyToggle';
-import { useApi, apiAction } from '@/hooks/use-api';
+import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
@@ -50,8 +52,10 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 function OverviewPage({
   stats, onNavigate, isOnDuty,
 }: { stats: DoctorStats | null; onNavigate: (p: string) => void; isOnDuty: boolean }) {
-  const { data: apptData, loading: apptLoading } = useApi<Paginated<Appointment>>(ENDPOINTS.DOC_APPOINTMENTS + '?today=true&limit=6');
-  const { data: epData, loading: epLoading } = useApi<Paginated<Episode>>(ENDPOINTS.DOC_EPISODES + '?status=OPEN&limit=5');
+  const { data: apptData, loading: apptLoading, error: apptError, refetch: apptRefetch } =
+    useApi<Paginated<Appointment>>(ENDPOINTS.DOC_APPOINTMENTS + '?today=true&page_size=6');
+  const { data: epData, loading: epLoading, error: epError, refetch: epRefetch } =
+    useApi<Paginated<Episode>>(ENDPOINTS.DOC_EPISODES + '?status=OPEN&page_size=5');
   const todayAppts = apptData?.results ?? [];
   const recentEps = epData?.results ?? [];
 
@@ -79,7 +83,9 @@ function OverviewPage({
             <h2 className="text-sm font-semibold text-gray-900">Today&apos;s Appointments</h2>
             <button onClick={() => onNavigate('appointments')} className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</button>
           </div>
-          {apptLoading ? <ShimmerRows count={4} /> : !todayAppts.length ? (
+          {apptLoading ? <ShimmerRows count={4} /> : apptError ? (
+            <ErrorState message={apptError} onRetry={apptRefetch} />
+          ) : !todayAppts.length ? (
             <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-5 text-center">
               <p className="text-sm font-medium text-blue-700">No appointments scheduled for today</p>
             </div>
@@ -107,7 +113,9 @@ function OverviewPage({
             <h2 className="text-sm font-semibold text-gray-900">Open Episodes</h2>
             <button onClick={() => onNavigate('episodes')} className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</button>
           </div>
-          {epLoading ? <ShimmerRows count={4} /> : !recentEps.length ? (
+          {epLoading ? <ShimmerRows count={4} /> : epError ? (
+            <ErrorState message={epError} onRetry={epRefetch} />
+          ) : !recentEps.length ? (
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-5 text-center">
               <p className="text-sm font-medium text-emerald-700">No open episodes</p>
             </div>
@@ -136,16 +144,18 @@ function OverviewPage({
 // ─── My Patients ───────────────────────────────────────────────────
 
 function MyPatientsPage() {
-  const { data, loading } = useApi<Paginated<PatientSummary>>(ENDPOINTS.DOC_MY_PATIENTS);
-  const patients = data?.results ?? [];
+  const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<PatientSummary>(ENDPOINTS.DOC_MY_PATIENTS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">My Patients</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} active</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} active</p>}
       </div>
-      {loading ? <ShimmerRows count={7} /> : !patients.length ? (
+      {loading ? <ShimmerRows count={7} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !patients.length ? (
         <EmptyState title="No patients" description="Patients assigned to you will appear here." />
       ) : (
         <TableWrap>
@@ -172,6 +182,7 @@ function MyPatientsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -181,11 +192,11 @@ function MyPatientsPage() {
 function EpisodesPage() {
   const [filter, setFilter] = useState<'OPEN' | 'CLOSED' | ''>('OPEN');
   const path = ENDPOINTS.DOC_EPISODES + (filter ? `?status=${filter}` : '');
-  const { data, loading, refetch } = useApi<Paginated<Episode>>(path);
+  const { items: episodes, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Episode>(path);
   const { toast } = useToast();
   const [completing, setCompleting] = useState<Episode | null>(null);
   const [working, setWorking] = useState(false);
-  const episodes = data?.results ?? [];
 
   async function completeEpisode() {
     if (!completing) return;
@@ -207,13 +218,13 @@ function EpisodesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Episodes</h2>
-          {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} {filter.toLowerCase() || 'total'}</p>}
+          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} {filter.toLowerCase() || 'total'}</p>}
         </div>
         <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
           {(['OPEN', 'CLOSED', ''] as const).map(f => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => { setFilter(f); setPage(1); }}
               className={`px-3 py-1.5 transition-colors ${filter === f ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               {f === '' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
@@ -222,7 +233,9 @@ function EpisodesPage() {
         </div>
       </div>
 
-      {loading ? <ShimmerRows count={6} /> : !episodes.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !episodes.length ? (
         <EmptyState title={`No ${filter.toLowerCase() || ''} episodes`} description="Episodes will appear here." />
       ) : (
         <TableWrap>
@@ -248,6 +261,7 @@ function EpisodesPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
 
       <ConfirmDialog
         open={!!completing}
@@ -266,16 +280,18 @@ function EpisodesPage() {
 // ─── Appointments ─────────────────────────────────────────────────
 
 function AppointmentsPage() {
-  const { data, loading } = useApi<Paginated<Appointment>>(ENDPOINTS.DOC_APPOINTMENTS);
-  const list = data?.results ?? [];
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Appointment>(ENDPOINTS.DOC_APPOINTMENTS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Appointments</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
       </div>
-      {loading ? <ShimmerRows count={7} /> : !list.length ? (
+      {loading ? <ShimmerRows count={7} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No appointments" description="Your scheduled appointments will appear here." />
       ) : (
         <TableWrap>
@@ -309,26 +325,28 @@ function AppointmentsPage() {
 function ReferralsPage() {
   const [tab, setTab] = useState<'outgoing' | 'incoming'>('outgoing');
   const path = tab === 'outgoing' ? ENDPOINTS.DOC_REFERRALS_OUT : ENDPOINTS.DOC_REFERRALS_IN;
-  const { data, loading } = useApi<Paginated<Referral>>(path);
-  const list = data?.results ?? [];
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Referral>(path);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Referrals</h2>
-          {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} {tab}</p>}
+          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} {tab}</p>}
         </div>
         <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
           {(['outgoing', 'incoming'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => { setTab(t); setPage(1); }}
               className={`px-3 py-1.5 capitalize transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               {t}
             </button>
           ))}
         </div>
       </div>
-      {loading ? <ShimmerRows count={5} /> : !list.length ? (
+      {loading ? <ShimmerRows count={5} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title={`No ${tab} referrals`} description="Referrals will appear here." />
       ) : (
         <TableWrap>
@@ -348,6 +366,7 @@ function ReferralsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -355,11 +374,11 @@ function ReferralsPage() {
 // ─── Prescriptions ────────────────────────────────────────────────
 
 function PrescriptionsPage() {
-  const { data, loading, refetch } = useApi<Paginated<Prescription>>(ENDPOINTS.DOC_PRESCRIPTIONS);
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<Prescription>(ENDPOINTS.DOC_PRESCRIPTIONS);
   const { toast } = useToast();
   const [cancelling, setCancelling] = useState<Prescription | null>(null);
   const [working, setWorking] = useState(false);
-  const list = data?.results ?? [];
 
   async function cancelRx() {
     if (!cancelling) return;
@@ -380,9 +399,11 @@ function PrescriptionsPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Prescriptions</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
       </div>
-      {loading ? <ShimmerRows count={6} /> : !list.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No prescriptions" description="Prescriptions you've issued will appear here." />
       ) : (
         <TableWrap>
@@ -407,6 +428,7 @@ function PrescriptionsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
       <ConfirmDialog
         open={!!cancelling}
         onClose={() => setCancelling(null)}
@@ -441,6 +463,11 @@ interface Props {
 export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
   const [page, setPage] = useState('overview');
   const [isOnDuty, setIsOnDuty] = useState(user.is_on_duty ?? false);
+  // AUTH-6: server render can't refresh an expired session — fall back to a
+  // client-side stats fetch (client-api refreshes on 401) instead of
+  // shimmering forever.
+  const { data: fetchedStats } = useApi<DoctorStats>(initialStats ? null : ENDPOINTS.DOC_STATS);
+  const stats = initialStats ?? fetchedStats;
 
   return (
     <DashboardShell
@@ -451,7 +478,7 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       pageTitle={PAGE_TITLES[page]}
       dutyToggle={<DutyToggle isOnDuty={isOnDuty} onToggle={setIsOnDuty} />}
     >
-      {page === 'overview'      && <OverviewPage stats={initialStats} onNavigate={setPage} isOnDuty={isOnDuty} />}
+      {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} isOnDuty={isOnDuty} />}
       {page === 'patients'      && <MyPatientsPage />}
       {page === 'episodes'      && <EpisodesPage />}
       {page === 'appointments'  && <AppointmentsPage />}

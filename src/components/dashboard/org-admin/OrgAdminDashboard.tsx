@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { useApi, apiAction } from '@/hooks/use-api';
+import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
@@ -45,7 +47,8 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 // ─── Overview ────────────────────────────────────────────────────
 
 function OverviewPage({ stats, onNavigate }: { stats: OrgAdminStats | null; onNavigate: (p: string) => void }) {
-  const { data: accessData, loading: arLoading } = useApi<Paginated<AccessRequest>>(ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + '?status=PENDING&limit=5');
+  const { data: accessData, loading: arLoading, error: arError, refetch: arRefetch } =
+    useApi<Paginated<AccessRequest>>(ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS + '?status=PENDING&page_size=5');
   const pending = accessData?.results ?? [];
 
   return (
@@ -63,7 +66,9 @@ function OverviewPage({ stats, onNavigate }: { stats: OrgAdminStats | null; onNa
           <h2 className="text-sm font-semibold text-gray-900">Pending Access Requests</h2>
           <button onClick={() => onNavigate('access-requests')} className="text-xs font-medium text-indigo-600 hover:text-indigo-800">View all →</button>
         </div>
-        {arLoading ? <ShimmerRows count={3} /> : !pending.length ? (
+        {arLoading ? <ShimmerRows count={3} /> : arError ? (
+          <ErrorState message={arError} onRetry={arRefetch} />
+        ) : !pending.length ? (
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-5 text-center">
             <p className="text-sm font-medium text-emerald-700">All clear — no pending access requests</p>
           </div>
@@ -93,18 +98,20 @@ function OverviewPage({ stats, onNavigate }: { stats: OrgAdminStats | null; onNa
 // ─── Staff page ───────────────────────────────────────────────────
 
 function StaffPage() {
-  const { data, loading } = useApi<Paginated<StaffMember>>(ENDPOINTS.ORG_ADMIN_STAFF);
-  const staff = data?.results ?? [];
+  const { items: staff, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<StaffMember>(ENDPOINTS.ORG_ADMIN_STAFF);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Staff Members</h2>
-          {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
         </div>
       </div>
-      {loading ? <ShimmerRows count={6} /> : !staff.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !staff.length ? (
         <EmptyState title="No staff members" description="No staff have been added to this organization." />
       ) : (
         <TableWrap>
@@ -138,6 +145,7 @@ function StaffPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -145,16 +153,18 @@ function StaffPage() {
 // ─── Patients page ────────────────────────────────────────────────
 
 function PatientsPage() {
-  const { data, loading } = useApi<Paginated<PatientSummary>>(ENDPOINTS.ORG_ADMIN_PATIENTS);
-  const patients = data?.results ?? [];
+  const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<PatientSummary>(ENDPOINTS.ORG_ADMIN_PATIENTS);
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Patients</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} registered</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} registered</p>}
       </div>
-      {loading ? <ShimmerRows count={8} /> : !patients.length ? (
+      {loading ? <ShimmerRows count={8} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !patients.length ? (
         <EmptyState title="No patients" description="No patients have been registered under this organization." />
       ) : (
         <TableWrap>
@@ -181,6 +191,7 @@ function PatientsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
@@ -188,13 +199,15 @@ function PatientsPage() {
 // ─── Wards page ───────────────────────────────────────────────────
 
 function WardsPage() {
-  const { data: wards, loading } = useApi<Ward[] | Paginated<Ward>>(ENDPOINTS.ORG_ADMIN_WARDS_OVERVIEW);
+  const { data: wards, loading, error, refetch } = useApi<Ward[] | Paginated<Ward>>(ENDPOINTS.ORG_ADMIN_WARDS_OVERVIEW);
   const wardList = Array.isArray(wards) ? wards : wards?.results ?? [];
 
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold text-gray-900">Ward Overview</h2>
-      {loading ? <ShimmerRows count={4} /> : !wardList.length ? (
+      {loading ? <ShimmerRows count={4} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !wardList.length ? (
         <EmptyState title="No wards" description="No wards have been configured for this organization." />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -234,11 +247,11 @@ function WardsPage() {
 // ─── Access Requests page ─────────────────────────────────────────
 
 function AccessRequestsPage() {
-  const { data, loading, refetch } = useApi<Paginated<AccessRequest>>(ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS);
+  const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<AccessRequest>(ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS);
   const { toast } = useToast();
   const [confirm, setConfirm] = useState<{ req: AccessRequest; action: 'approve' | 'deny' } | null>(null);
   const [working, setWorking] = useState(false);
-  const list = data?.results ?? [];
 
   async function handleReview() {
     if (!confirm) return;
@@ -259,9 +272,11 @@ function AccessRequestsPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Access Requests</h2>
-        {data && <p className="text-sm text-gray-400 mt-0.5">{data.count} total</p>}
+        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
       </div>
-      {loading ? <ShimmerRows count={6} /> : !list.length ? (
+      {loading ? <ShimmerRows count={6} /> : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : !list.length ? (
         <EmptyState title="No access requests" description="Patient data access requests will appear here." />
       ) : (
         <TableWrap>
@@ -289,6 +304,7 @@ function AccessRequestsPage() {
           </tbody>
         </TableWrap>
       )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
       <ConfirmDialog
         open={!!confirm}
         onClose={() => setConfirm(null)}
@@ -321,6 +337,10 @@ interface Props {
 
 export function OrgAdminDashboard({ user, initialStats, slug: _slug }: Props) {
   const [page, setPage] = useState('overview');
+  // AUTH-6: server render can't refresh an expired session — fall back to a
+  // client-side stats fetch instead of shimmering forever.
+  const { data: fetchedStats } = useApi<OrgAdminStats>(initialStats ? null : ENDPOINTS.ORG_ADMIN_STATS);
+  const stats = initialStats ?? fetchedStats;
 
   return (
     <DashboardShell
@@ -330,7 +350,7 @@ export function OrgAdminDashboard({ user, initialStats, slug: _slug }: Props) {
       user={user}
       pageTitle={PAGE_TITLES[page]}
     >
-      {page === 'overview'        && <OverviewPage stats={initialStats} onNavigate={setPage} />}
+      {page === 'overview'        && <OverviewPage stats={stats} onNavigate={setPage} />}
       {page === 'staff'           && <StaffPage />}
       {page === 'patients'        && <PatientsPage />}
       {page === 'wards'           && <WardsPage />}

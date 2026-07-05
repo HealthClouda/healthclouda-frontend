@@ -63,6 +63,15 @@ describe('client-api — single-flight refresh', () => {
     expect(refreshCalls).toHaveLength(1);
   });
 
+  it('GLOBAL-5: surfaces 429 as a friendly "try again shortly" message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ detail: 'throttled' }, 429)),
+    );
+
+    await expect(dataGet('/a/')).rejects.toThrow(/try again shortly/i);
+  });
+
   it('redirects to the ORG signin (not /signin) when the refresh itself fails', async () => {
     const fetchMock = vi.fn((input: string) => {
       if (input.includes('/api/auth/refresh')) {

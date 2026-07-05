@@ -11,6 +11,9 @@
 > - **PR #49 `fix/auth-layer`** (merged 2026-07-04) — closed **AUTH-1, AUTH-2, AUTH-3, AUTH-4, AUTH-5,
 >   AUTH-5b, REC-1, ARCH-1**. Regression guards added on `test/auth-regression` (2026-07-04). Note:
 >   **AUTH-6 deliberately left open** — `serverFetch` still swallows errors as `null`; folded into PR 2.
+> - **PR 2 `fix/error-pagination`** (2026-07-04) — closed **UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5,
+>   AUTH-6** across all 6 dashboards (shared `usePaginatedList` hook + `ErrorState` component;
+>   pre-fix failing tests written first per the test discipline).
 
 ## Verification sources
 
@@ -70,9 +73,9 @@
 - [ ] **REC-2: Search results render dropped fields.** Table shows Email + DOB — the minimised search
   response deliberately omits them. Must show `healthclouda_id` (HCL-…), masked `phone`, and the 3 access
   flags (`has_visited_org`, `has_pending_access_request`, `has_approved_access`) instead.
-- [ ] **GLOBAL-1: `?limit=` is not a DRF pagination param** (`?page_size=` is). Used in ~6 places
+- [x] **GLOBAL-1: `?limit=` is not a DRF pagination param** (`?page_size=` is). Used in ~6 places
   (rec check-ins, doctor appts/episodes, patient notifs, superadmin orgs, org-admin access requests) —
-  silently ignored; every "preview" list actually pulls 20.
+  silently ignored; every "preview" list actually pulls 20. _(✅ PR 2 — all 8 call sites now `?page_size=`.)_
 - [ ] **GLOBAL-2: Unverified/invented query params** — `?today=true`, `?upcoming=true`, `?my=true`,
   `?status=OPEN` (doctor episodes) **[verify live]**; org-admin `?status=PENDING` is documented ✓.
   If unsupported, "Today's Appointments" etc. show unfiltered data — worse than erroring, in a clinic.
@@ -82,11 +85,14 @@
   DutyToggle always starts "off duty" regardless of truth. **[api-request: expose duty state]**
 - [ ] **REC-3: Doctors on-duty response shape unknown** (schema: "No response body"). Code assumes a bare
   array; if it's an envelope, the assign-doctor dropdown never renders. **[verify live]**
-- [ ] **GLOBAL-5: No 429 handling.** Login route surfaces its own local 429, but DRF 429s from data/action
+- [x] **GLOBAL-5: No 429 handling.** Login route surfaces its own local 429, but DRF 429s from data/action
   proxies surface as raw "HTTP 429" errors. Contract says show "try again shortly".
-- [ ] **UX-ERR-1: Fetch errors render as empty states.** Most pages ignore `useApi`'s `error` and render
+  _(✅ PR #49 added the friendly message in `client-api.ts`; PR 2 makes it visible via error states + guard test.)_
+- [x] **UX-ERR-1: Fetch errors render as empty states.** Most pages ignore `useApi`'s `error` and render
   "No check-ins" etc. when the backend is down/erroring. Clinically dangerous (empty queue ≠ failed fetch).
-  Every list needs a distinct error state + retry.
+  Every list needs a distinct error state + retry. _(✅ PR 2 — shared `ErrorState` (+ Try again) wired on
+  every list/preview across all 6 dashboards. NOTE: patient appointments now VISIBLY error until
+  PATIENT-1 is resolved — that endpoint 404s.)_
 - [x] **AUTH-5: 401 redirect loses org context.** `use-api.ts` sends staff to `/signin` (patient portal)
   instead of `/{slug}/signin`. _(✅ PR #49 — `redirectToSignin()` is org-aware via `getOrgSlugFromPathname`.)_
 
@@ -107,8 +113,9 @@
 ## Lens 3 — Performance / low-bandwidth (Nigeria lens)
 
 - [x] Bundle sizes healthy: 102–142 kB first load, all routes.
-- [ ] **PERF-1: No pagination UI anywhere** — `Pagination.tsx` exists but is never imported. Every list
+- [x] **PERF-1: No pagination UI anywhere** — `Pagination.tsx` exists but is never imported. Every list
   silently truncates at 20 rows (DRF default). Wire it up on all list pages.
+  _(✅ PR 2 — `usePaginatedList` hook + `<Pagination />` on all full list pages, all 6 dashboards.)_
 - [ ] **PERF-2: Dashboard tab switches refetch everything, state resets** (nav is in-component `useState`,
   not routes). No deep links, no back button, no cache. Consider per-tab routes or cached fetches —
   also the seam the offline layer will need.
@@ -181,10 +188,11 @@ org-admin review (broken, see ORGADMIN-1).
 
 ## Second pass — auth flows, API routes, layout, e2e (full-codebase completion)
 
-- [ ] **AUTH-6: `serverFetch` fails silently → dashboards stuck in skeleton.** Returns `null` on any
+- [x] **AUTH-6: `serverFetch` fails silently → dashboards stuck in skeleton.** Returns `null` on any
   non-OK/exception; pages pass `initialStats: null` and `StatCard loading={!stats}` shimmers forever.
   After token expiry the server render can't refresh either. Fold into PR 1 + PR 2 (error surface).
-  _(⏳ NOT done in PR #49 — `serverFetch` still returns `null` on non-OK/exception; moved to PR 2.)_
+  _(✅ PR 2 — every dashboard falls back to a CLIENT-side stats fetch when `initialStats` is null;
+  the client data layer can single-flight-refresh the session, so expired-token server renders recover.)_
 - [x] **AUTH-5b: Logout redirects to `/signin`** (Sidebar.tsx) — same org-context loss as the 401 redirect.
   _(✅ PR #49 — Sidebar uses `signinPath(user.organization_slug, user.role)`.)_
 - [ ] **UX-6: Header notification bell is never wired.** No dashboard passes
@@ -217,7 +225,7 @@ org-admin review (broken, see ORGADMIN-1).
 ## Phase 2 fix order (proposed)
 
 1. ✅ **PR 1 — Auth layer** (DONE, PR #49 merged 2026-07-04): AUTH-1..5, AUTH-5b + ARCH-1 (single data-layer module with 401→single-flight refresh→retry). Everything sits on this. Regression guards on `test/auth-regression`.
-2. **PR 2 — Error/pagination hygiene:** UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5 (shared list-fetch handling).
+2. ✅ **PR 2 — Error/pagination hygiene** (DONE 2026-07-04, `fix/error-pagination`): UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5 + AUTH-6 (shared `usePaginatedList` + `ErrorState`).
 3. **PR 3 — Receptionist contract fixes:** REC-1, REC-2, REC-3, GLOBAL-3 (HCL-ID display).
 4. **PR 4 — Nurse vitals rebuild:** NURSE-1 (view + record).
 5. **PR 5 — Patient fixes:** PATIENT-1 (pending backend decision), grant/deny UI, notifications.
