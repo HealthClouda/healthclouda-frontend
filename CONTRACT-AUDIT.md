@@ -55,13 +55,22 @@
 - [ ] **PATIENT-1: Appointments endpoint doesn't exist.** `PatientDashboard` fetches
   `/patients/me/appointments/` (twice) — not in the schema → 404 → patients always see "No appointments".
   No patient appointments endpoint exists in the backend; either use dashboard stats + episodes, or open an
-  `api-request` issue for one. **[backend decision needed]**
+  `api-request` issue for one. ~~**[backend decision needed]**~~ **[backend decided 2026-07-05 — WAITING on build]:**
+  backend will ship a dedicated paginated `GET /patients/me/appointments/` with `?status=`/`?date=` filters,
+  standard DRF envelope — no dashboard block. Not live yet; they'll notify when it lands on the dev URL.
+  Nothing to wire until then (patient appointments keeps its visible error state per UX-ERR-1).
+  _(Verified live 2026-07-05 vs local backend: hard 404 (no route), and `/patients/me/dashboard/` has NO
+  appointment keys at all — patients have zero appointment visibility anywhere.)_
 - [x] **REC-1: Patient search sends the wrong param.** `ReceptionistDashboard.tsx:223` sends `?q=`;
   backend expects `?query=` (schema-confirmed). Search never works. _(✅ PR #49 — now sends `?query=`.)_
 - [ ] **ORGADMIN-1: Access-request review endpoint doesn't exist.** Approve/Deny buttons POST
   `{decision}` to `/org-admin/access-requests/<id>/review/` — absent from the schema → 404. Per the consent
   model only the **patient** grants/denies (`PATCH /patients/me/access-requests/<id>/` with
-  `{"action":"grant"|"deny"}`). Remove/replace the org-admin review UI. **[confirm intent with backend]**
+  `{"action":"grant"|"deny"}`). Remove/replace the org-admin review UI. ~~**[confirm intent with backend]**~~
+  **[backend CONFIRMED 2026-07-05: removal is INTENTIONAL — it let an org admin approve access without
+  patient consent; removed in the security fix phase. Consent is exclusively patient/token-bound
+  (`POST /receptionist/access-requests/respond/` with `{token, action}`). Action for PR 6: DELETE the
+  approve/deny actions; KEEP the read-only access-requests list screen (`GET ?status=` stays).]**
 
 ### P1 — contract mismatches / wrong behaviour
 
@@ -77,14 +86,34 @@
   (rec check-ins, doctor appts/episodes, patient notifs, superadmin orgs, org-admin access requests) —
   silently ignored; every "preview" list actually pulls 20. _(✅ PR 2 — all 8 call sites now `?page_size=`.)_
 - [ ] **GLOBAL-2: Unverified/invented query params** — `?today=true`, `?upcoming=true`, `?my=true`,
-  `?status=OPEN` (doctor episodes) **[verify live]**; org-admin `?status=PENDING` is documented ✓.
+  `?status=OPEN` (doctor episodes) **[verified live 2026-07-05]**; org-admin `?status=PENDING` is documented ✓.
   If unsupported, "Today's Appointments" etc. show unfiltered data — worse than erroring, in a clinic.
+  _Verified against local backend (seeded, same code as dev tier), doctor login:_
+  - `/doctor/appointments/`: `?status=` ✓ (SCHEDULED→4, COMPLETED→1, bogus→0), `?date=YYYY-MM-DD` ✓
+    (today→2, matches seed), **`?today=true` and `?upcoming=true` silently IGNORED** (count stays 7).
+  - `/doctor/episodes/`: `?status=` filters, but the enum is **`ACTIVE`, not `OPEN`** — frontend's
+    `?status=OPEN` → **0 results** (all seeded episodes are `ACTIVE`). **`?my=true` silently IGNORED.**
+  - `/doctor/prescriptions/`: `?status=` ✓ (ACTIVE→5, bogus→0).
+  - `/doctor/my-patients/`: `?search=` ✓ (baseline 14, no-match→0).
+  - Pattern: unknown params are silently ignored; unknown status values return 0 rows. So "Today's
+    Appointments" shows ALL appointments, and an `OPEN`-filtered episode list shows NONE. Fix in role PRs:
+    use `?date=` for today, drop `?upcoming=`/`?my=`, send `?status=ACTIVE`.
 - [ ] **GLOBAL-3: No `healthclouda_id` anywhere in the app.** Patients must be identified by HCL-ID
   (wristbands), never raw UUIDs (patient "My Health" shows UUID fragments `#a1b2c3d4`).
 - [ ] **GLOBAL-4: `is_on_duty` initial state is never provided** (not in login user, not in `/auth/me/`).
-  DutyToggle always starts "off duty" regardless of truth. **[api-request: expose duty state]**
+  DutyToggle always starts "off duty" regardless of truth. ~~**[api-request: expose duty state]**~~
+  **[backend AGREED 2026-07-05 — WAITING on build]:** `is_on_duty` + `duty_toggled_at` will be added to the
+  user object on BOTH `/auth/me/` and login, for DOCTOR/NURSE (same shape as the toggle-duty response;
+  fields only meaningful for DOCTOR/NURSE — null/absent semantics for other roles TBD). Queued, not yet
+  live — wire DutyToggle initial state once it ships.
+  _(Verified live 2026-07-05: login user = `{id, email, first_name, last_name, role, last_login}`;
+  `/auth/me/` adds `phone/organization/is_active` but still no duty state. The field EXISTS and is exposed
+  elsewhere — `POST /auth/me/toggle-duty/` returns `{message, is_on_duty, duty_toggled_at}` and the
+  receptionist on-duty list includes both.)_
 - [ ] **REC-3: Doctors on-duty response shape unknown** (schema: "No response body"). Code assumes a bare
-  array; if it's an envelope, the assign-doctor dropdown never renders. **[verify live]**
+  array; if it's an envelope, the assign-doctor dropdown never renders. **[verified live 2026-07-05:
+  it IS an envelope** — `{count, results: [{id, first_name, last_name, email, is_on_duty,
+  duty_toggled_at}]}` — so the bare-array assumption is a confirmed bug. Fix in PR 3.]
 - [x] **GLOBAL-5: No 429 handling.** Login route surfaces its own local 429, but DRF 429s from data/action
   proxies surface as raw "HTTP 429" errors. Contract says show "try again shortly".
   _(✅ PR #49 added the friendly message in `client-api.ts`; PR 2 makes it visible via error states + guard test.)_
@@ -233,9 +262,22 @@ org-admin review (broken, see ORGADMIN-1).
 7. **Then P2 build-out** in workflow-value order: check-in creation → vitals (done in 4) → prescriptions/referrals → appointments → the rest.
 8. **Parallel any time:** ARCH-2/3 (ESLint + CI), ARCH-7 (ARCHITECTURE.md rewrite).
 
-## Open questions for the backend side
+## Open questions for the backend side — ALL ANSWERED 2026-07-05
 
-1. PATIENT-1: should `/patients/me/appointments/` exist, or how do patients see appointments? (`api-request`)
-2. ORGADMIN-1: is org-admin access-request review intentionally removed (patient-only consent)?
-3. GLOBAL-4: where should `is_on_duty` come from at login/me? (`api-request`)
-4. GLOBAL-2: which list filters exist (`?today=`, `?upcoming=`, `?status=` on doctor endpoints)? Will verify live; annotate `@extend_schema` on custom APIViews when convenient so Swagger shows response shapes.
+> Verified live 2026-07-05 against the seeded local backend, then confirmed with the backend side the
+> same day. Decisions below; per-item annotations above carry the evidence + frontend actions.
+
+1. PATIENT-1: ✅ **Backend will build** paginated `GET /patients/me/appointments/` (`?status=`/`?date=`,
+   DRF envelope, staff-list conventions). No dashboard block. **Not live yet — they'll notify us.**
+2. ORGADMIN-1: ✅ **Removal intentional** (security fix — org-admin approval bypassed patient consent).
+   Delete approve/deny in PR 6; keep the read-only access-requests list.
+3. GLOBAL-4: ✅ **Backend will add** `is_on_duty` + `duty_toggled_at` to the user object on `/auth/me/`
+   AND login, for DOCTOR/NURSE. **Queued, not yet live.**
+4. GLOBAL-2: ✅ **All findings confirmed.** `?today=`/`?upcoming=`/`?my=` not implemented — stop sending
+   them (backend open to adding filters on request, alongside item 1's `?status=`/`?date=` pattern).
+   Episode enum is `ACTIVE`, not `OPEN`. `@extend_schema` logged as a backend nice-to-have; until then
+   this handoff doc + asking them beats trusting "No response body" in Swagger.
+
+**Watch list (backend will notify):** `GET /patients/me/appointments/` (PATIENT-1) and duty fields on
+`/auth/me/` + login (GLOBAL-4). When they land, wire: patient appointments section (drop the standing
+error state) and DutyToggle initial state.
