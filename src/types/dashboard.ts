@@ -18,12 +18,21 @@ export interface OrgAdminStats {
   beds_occupied?: number;
 }
 
+// Shape verified live 2026-07-05 (GLOBAL-6) — GET /receptionist/dashboard/stats/
 export interface ReceptionistStats {
-  check_ins_today: number;
-  pending_assignments: number;
-  incoming_referrals: number;
-  available_emergency_beds: number;
-  appointments_today?: number;
+  todays_patients: number;
+  pending_referrals: number;
+  bed_occupancy_rate: number;
+  emergency_occupancy_rate: number;
+  total_beds: number;
+  occupied_beds: number;
+  emergency_total: number;
+  emergency_occupied: number;
+  awaiting_assignment: number;
+  todays_checkins: number;
+  waiting_queue: number;
+  active_episodes: number;
+  on_duty_doctors: number;
 }
 
 export interface NurseStats {
@@ -79,6 +88,29 @@ export interface PatientSummary {
   phone_number?: string;
   date_of_birth?: string;
   created_at?: string;
+}
+
+// Minimised receptionist search result (REC-2) — GET /receptionist/patients/search/?query=
+// Deliberately has NO email/DOB/blood_type; full detail requires granted access.
+export interface PatientSearchResult {
+  id: string;
+  healthclouda_id: string;
+  first_name: string;
+  last_name: string;
+  masked_phone: string;
+  has_visited_org: boolean;
+  has_pending_access_request: boolean;
+  has_approved_access: boolean;
+}
+
+// GET /receptionist/doctors/on-duty/ — DRF envelope of these (REC-3)
+export interface OnDutyDoctor {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  is_on_duty: boolean;
+  duty_toggled_at: string | null;
 }
 
 export interface Episode {
