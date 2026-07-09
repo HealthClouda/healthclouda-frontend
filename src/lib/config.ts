@@ -58,6 +58,9 @@ export const ENDPOINTS = {
   // ── Patient ────────────────────────────────────────────────
   PATIENT_ME: '/patients/me/',
   PATIENT_DASHBOARD: '/patients/me/dashboard/',
+  // Shipped 2026-07-09 (PATIENT-1) — DRF envelope; ?status= (case-insensitive)
+  // + ?date=YYYY-MM-DD; spans ALL orgs the patient has visited.
+  PATIENT_APPOINTMENTS: '/patients/me/appointments/',
   PATIENT_NOTIFS: '/patients/me/notifications/',
   PATIENT_UNREAD: '/patients/me/notifications/unread-count/',
   PATIENT_READ_ALL: '/patients/me/notifications/read-all/',
