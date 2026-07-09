@@ -8,7 +8,10 @@ export interface User {
   role: Role;
   organization_slug?: string;
   organization_name?: string;
+  // Present on /auth/me/ for DOCTOR/NURSE only (GLOBAL-4, shipped 2026-07-09);
+  // keys omitted entirely for other roles.
   is_on_duty?: boolean;
+  duty_toggled_at?: string | null;
 }
 
 export interface Organization {
