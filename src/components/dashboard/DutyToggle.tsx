@@ -16,8 +16,11 @@ export function DutyToggle({ isOnDuty, onToggle }: DutyToggleProps) {
   async function handle() {
     setLoading(true);
     try {
-      await apiAction(ENDPOINTS.TOGGLE_DUTY, 'POST');
-      const next = !isOnDuty;
+      // The response is authoritative — `{message, is_on_duty, duty_toggled_at}`
+      // (verified live). A local flip renders the opposite of the real state
+      // when duty was already toggled elsewhere (second tab, other device).
+      const res = (await apiAction(ENDPOINTS.TOGGLE_DUTY, 'POST')) as { is_on_duty?: boolean } | null;
+      const next = typeof res?.is_on_duty === 'boolean' ? res.is_on_duty : !isOnDuty;
       onToggle(next);
       toast.success(next ? 'You are now on duty' : 'You are now off duty');
     } catch {

@@ -93,8 +93,10 @@ export async function POST(req: NextRequest) {
   const { access, refresh, user } = data as LoginResponse;
   clearLimit(key);
 
-  // The login response user has no organization info — enrich from /auth/me/
-  // so redirects and the UI can build /{slug}/... paths (see CONTRACT-AUDIT AUTH-4).
+  // The login response user has no organization info and no duty state —
+  // enrich from /auth/me/ so redirects can build /{slug}/... paths (AUTH-4)
+  // and DutyToggle starts from the real is_on_duty (GLOBAL-4; the fields are
+  // only present for DOCTOR/NURSE — preserve their absence for other roles).
   let fullUser = user;
   try {
     const meRes = await fetch(`${API_BASE_URL}${ENDPOINTS.ME}`, {
@@ -103,11 +105,15 @@ export async function POST(req: NextRequest) {
     if (meRes.ok) {
       const me = (await meRes.json()) as {
         organization?: { slug?: string; name?: string } | null;
+        is_on_duty?: boolean;
+        duty_toggled_at?: string | null;
       };
       fullUser = {
         ...user,
         organization_slug: me.organization?.slug ?? orgSlug,
         organization_name: me.organization?.name,
+        ...('is_on_duty' in me ? { is_on_duty: me.is_on_duty } : {}),
+        ...('duty_toggled_at' in me ? { duty_toggled_at: me.duty_toggled_at } : {}),
       };
     }
   } catch {
