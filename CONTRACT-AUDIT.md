@@ -14,6 +14,15 @@
 > - **PR 2 `fix/error-pagination`** (2026-07-04) — closed **UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5,
 >   AUTH-6** across all 6 dashboards (shared `usePaginatedList` hook + `ErrorState` component;
 >   pre-fix failing tests written first per the test discipline).
+> - **PR 3 `fix/receptionist-contract`** (merged as #54, 2026-07-05) — closed **REC-2, REC-3,
+>   GLOBAL-6 (receptionist slice), GLOBAL-3 (receptionist search)**. Other roles' stats/GLOBAL-3
+>   surfaces remain open.
+> - **PR `fix/patient-appointments`** (2026-07-09) — closed **PATIENT-1**: backend shipped
+>   `GET /patients/me/appointments/` (their PR #65, same day); verified live (envelope, item shape,
+>   `?status=` case-insensitive, `?date=` + 400 on malformed) and wired: real filters on the
+>   overview panel (drops invented `?upcoming=`), status tabs + new item shape on the list page.
+>   GLOBAL-4 fields also shipped on `/auth/me/` — fix goes in `fix/duty-initial-state` (code-only
+>   PR; annotations here to avoid doc conflicts).
 
 ## Verification sources
 
@@ -52,7 +61,10 @@
   `GET/PATCH /nurse/patients/<id>/vitals/` (structured VitalsRecord; PATCH appends a reading).
   Also **no UI to record vitals at all** — the core nurse workflow. Needs rebuild: patient list → vitals
   panel per patient (view + record).
-- [ ] **PATIENT-1: Appointments endpoint doesn't exist.** `PatientDashboard` fetches
+- [x] **PATIENT-1: Appointments endpoint doesn't exist.** _(✅ `fix/patient-appointments` — endpoint
+  shipped 2026-07-09 & verified live: DRF envelope, `?status=`/`?date=` filters, item shape
+  `{id, organization{name,slug}, doctor_name, scheduled_at, duration_minutes, status, reason,
+  cancelled_at, cancellation_reason, created_at}`. Dashboard wired to the real contract.)_ `PatientDashboard` fetches
   `/patients/me/appointments/` (twice) — not in the schema → 404 → patients always see "No appointments".
   No patient appointments endpoint exists in the backend; either use dashboard stats + episodes, or open an
   `api-request` issue for one. ~~**[backend decision needed]**~~ **[backend decided 2026-07-05 — WAITING on build]:**
@@ -74,12 +86,15 @@
 
 ### P1 — contract mismatches / wrong behaviour
 
-- [ ] **GLOBAL-6: Dashboard stats field names don't match the backend.** Verified live (receptionist):
+- [ ] **GLOBAL-6: Dashboard stats field names don't match the backend.** _(✅ receptionist slice
+  closed by PR #54 — `ReceptionistStats` now matches the live shape; remaining roles still unverified.)_
+  Verified live (receptionist):
   backend returns `{todays_checkins, awaiting_assignment, waiting_queue, bed_occupancy_rate, on_duty_doctors, …}`;
   frontend `ReceptionistStats` expects `{check_ins_today, pending_assignments, incoming_referrals,
   available_emergency_beds}` — every stat card reads undefined. Check ALL role stats types against live
   responses (likely systemic) and fix in each role PR. Search response field is `masked_phone` (not `phone`).
-- [ ] **REC-2: Search results render dropped fields.** Table shows Email + DOB — the minimised search
+- [x] **REC-2: Search results render dropped fields.** _(✅ PR #54 — table shows HCL-ID, masked
+  phone + access-status badge; Email/DOB columns removed.)_ Table shows Email + DOB — the minimised search
   response deliberately omits them. Must show `healthclouda_id` (HCL-…), masked `phone`, and the 3 access
   flags (`has_visited_org`, `has_pending_access_request`, `has_approved_access`) instead.
 - [x] **GLOBAL-1: `?limit=` is not a DRF pagination param** (`?page_size=` is). Used in ~6 places
@@ -102,15 +117,16 @@
   (wristbands), never raw UUIDs (patient "My Health" shows UUID fragments `#a1b2c3d4`).
 - [ ] **GLOBAL-4: `is_on_duty` initial state is never provided** (not in login user, not in `/auth/me/`).
   DutyToggle always starts "off duty" regardless of truth. ~~**[api-request: expose duty state]**~~
-  **[backend AGREED 2026-07-05 — WAITING on build]:** `is_on_duty` + `duty_toggled_at` will be added to the
-  user object on BOTH `/auth/me/` and login, for DOCTOR/NURSE (same shape as the toggle-duty response;
-  fields only meaningful for DOCTOR/NURSE — null/absent semantics for other roles TBD). Queued, not yet
-  live — wire DutyToggle initial state once it ships.
+  **[backend SHIPPED 2026-07-09 — verified live same day]:** `is_on_duty` + `duty_toggled_at` are on
+  `/auth/me/` for DOCTOR + NURSE; the keys are **omitted entirely** (not null) for other roles. NOT on
+  the login response — fine, our login route enriches from `/auth/me/` since PR #49, but that enrichment
+  only copies `organization.*` and must also copy the duty fields. Fix in `fix/duty-initial-state`.
   _(Verified live 2026-07-05: login user = `{id, email, first_name, last_name, role, last_login}`;
   `/auth/me/` adds `phone/organization/is_active` but still no duty state. The field EXISTS and is exposed
   elsewhere — `POST /auth/me/toggle-duty/` returns `{message, is_on_duty, duty_toggled_at}` and the
   receptionist on-duty list includes both.)_
-- [ ] **REC-3: Doctors on-duty response shape unknown** (schema: "No response body"). Code assumes a bare
+- [x] **REC-3: Doctors on-duty response shape unknown** _(✅ PR #54 — typed as `Paginated<OnDutyDoctor>`;
+  dropdown renders from `envelope.results`.)_ (schema: "No response body"). Code assumes a bare
   array; if it's an envelope, the assign-doctor dropdown never renders. **[verified live 2026-07-05:
   it IS an envelope** — `{count, results: [{id, first_name, last_name, email, is_on_duty,
   duty_toggled_at}]}` — so the bare-array assumption is a confirmed bug. Fix in PR 3.]
@@ -255,9 +271,9 @@ org-admin review (broken, see ORGADMIN-1).
 
 1. ✅ **PR 1 — Auth layer** (DONE, PR #49 merged 2026-07-04): AUTH-1..5, AUTH-5b + ARCH-1 (single data-layer module with 401→single-flight refresh→retry). Everything sits on this. Regression guards on `test/auth-regression`.
 2. ✅ **PR 2 — Error/pagination hygiene** (DONE 2026-07-04, `fix/error-pagination`): UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5 + AUTH-6 (shared `usePaginatedList` + `ErrorState`).
-3. **PR 3 — Receptionist contract fixes:** REC-1, REC-2, REC-3, GLOBAL-3 (HCL-ID display).
+3. ✅ **PR 3 — Receptionist contract fixes** (DONE, PR #54 merged 2026-07-05): REC-1, REC-2, REC-3, GLOBAL-3 (HCL-ID display).
 4. **PR 4 — Nurse vitals rebuild:** NURSE-1 (view + record).
-5. **PR 5 — Patient fixes:** PATIENT-1 (pending backend decision), grant/deny UI, notifications.
+5. **PR 5 — Patient fixes:** ~~PATIENT-1~~ (✅ done 2026-07-09, `fix/patient-appointments`), grant/deny UI, notifications.
 6. **PR 6 — Org-admin:** remove broken review (ORGADMIN-1), staff invite flow.
 7. **Then P2 build-out** in workflow-value order: check-in creation → vitals (done in 4) → prescriptions/referrals → appointments → the rest.
 8. **Parallel any time:** ARCH-2/3 (ESLint + CI), ARCH-7 (ARCHITECTURE.md rewrite).
@@ -278,6 +294,7 @@ org-admin review (broken, see ORGADMIN-1).
    Episode enum is `ACTIVE`, not `OPEN`. `@extend_schema` logged as a backend nice-to-have; until then
    this handoff doc + asking them beats trusting "No response body" in Swagger.
 
-**Watch list (backend will notify):** `GET /patients/me/appointments/` (PATIENT-1) and duty fields on
-`/auth/me/` + login (GLOBAL-4). When they land, wire: patient appointments section (drop the standing
-error state) and DutyToggle initial state.
+**Watch list — CLEARED 2026-07-09:** both items shipped in backend PR #65 (notified same day) and were
+verified live against the seeded Docker backend: `GET /patients/me/appointments/` (PATIENT-1 — wired in
+`fix/patient-appointments`) and duty fields on `/auth/me/` for DOCTOR/NURSE (GLOBAL-4 — note: NOT on the
+login response; our `/auth/me/` enrichment covers it; wired in `fix/duty-initial-state`).

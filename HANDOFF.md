@@ -47,6 +47,47 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-09 — Backend watch-list shipped → PATIENT-1 + GLOBAL-4 wired (PRs #55, #56)
+
+**Context:** Backend notified that both watch-list items landed (their PR #65, deployed to prod):
+`GET /patients/me/appointments/` (PATIENT-1) and duty fields on `/auth/me/` (GLOBAL-4).
+Goal: verify the contracts empirically, then wire both — pre-fix tests first.
+
+**What was done:**
+- **Both contracts verified live** (prod schema + seeded local Docker backend, all roles probed):
+  - Appointments: route on prod schema ✓; envelope + item shape exactly as promised; `?status=`
+    case-insensitive ✓; `?date=YYYY-MM-DD` ✓ (400 `{error, code, details}` on malformed) ✓.
+  - Duty fields: `/auth/me/` has them for DOCTOR + NURSE; keys **omitted entirely** (not null) for
+    other roles; **NOT on the login response** — backend's message was accurate on every point.
+    Covered anyway: our login route enriches from `/auth/me/` (PR #49) — but that enrichment only
+    copied `organization.*`, which was the real frontend bug.
+- **PR #55 `fix/patient-appointments`** (→ develop, Qeeyat reviewing): overview panel drops the
+  invented `?upcoming=` (GLOBAL-2 pattern — it silently showed ALL appointments) for
+  `?status=scheduled`; list page gets status tabs (reset to page 1) + the real item shape incl.
+  duration, reason, org name, cancellation reason. New `PATIENT_APPOINTMENTS` endpoint constant +
+  strict `PatientAppointment` type. 4 pre-fix tests red→green. **Carries all doc updates**
+  (CONTRACT-AUDIT: PATIENT-1 closed, #54 items checked off, watch list cleared; this HANDOFF entry).
+- **PR #56 `fix/duty-initial-state`** (→ develop, Qeeyat reviewing, **independent — not stacked**):
+  login enrichment copies `is_on_duty`/`duty_toggled_at` (preserving key-absence for other roles);
+  DutyToggle now trusts the toggle response instead of blindly flipping local state (stale-tab bug).
+  2 pre-fix tests red→green. **Code-only by design** so #55/#56 can't conflict on shared docs —
+  merge in either order.
+- Both PRs: vitest 38/38, tsc clean, `next build` green, and driven end-to-end through the real
+  Next login route + `/api/data` proxy against the local backend (patient, doctor, receptionist).
+- Post-#54 bookkeeping: develop synced, merged branch pruned (GitHub auto-delete worked ✓).
+
+**Pending / TODOs:**
+- [ ] Merge PR #55 and PR #56 (independent, either order).
+- [ ] **PR 4: Nurse vitals rebuild (NURSE-1)** — the last P0, needs its own session.
+- [ ] Then PR 5 remainder (patient grant/deny UI, notifications, mark-read) and PR 6 (org-admin:
+  DELETE broken approve/deny per ORGADMIN-1, staff invite flow).
+- [ ] GLOBAL-2 leftovers in doctor PR: `?status=OPEN`→`ACTIVE`, drop `?my=`/`?today=`/`?upcoming=`.
+- [ ] Bastoh may connect Claude design to the repo — implement its designs when they land.
+- [ ] Ask backend to run `seed_demo` on the deployed dev tier; ESLint + CI (ARCH-2/3); ARCHITECTURE.md
+  rewrite (ARCH-7); delete `rewrite/react` once the rewrite lands on `main`.
+
+---
+
 ### 2026-07-05 — Backend questions answered + PR #51 stranded-merge rescue + stacking rules
 
 **Context:** Goal was to answer the 4 open backend questions at the bottom of `CONTRACT-AUDIT.md`.

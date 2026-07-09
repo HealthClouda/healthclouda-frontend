@@ -14,7 +14,7 @@ import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  PatientDashboardData, Episode, Appointment, AccessRequest, Referral, Notification, Paginated,
+  PatientDashboardData, Episode, PatientAppointment, AccessRequest, Referral, Notification, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -45,8 +45,10 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 // ─── Overview ─────────────────────────────────────────────────────
 
 function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData | null; user: User; onNavigate: (p: string) => void }) {
+  // PATIENT-1: real endpoint + real filter — `?upcoming=` was never implemented
+  // backend-side and silently showed ALL appointments (GLOBAL-2 pattern).
   const { data: apptData, loading: apptLoading, error: apptError, refetch: apptRefetch } =
-    useApi<Paginated<Appointment>>(ENDPOINTS.PATIENT_ME + 'appointments/?upcoming=true&page_size=3');
+    useApi<Paginated<PatientAppointment>>(ENDPOINTS.PATIENT_APPOINTMENTS + '?status=scheduled&page_size=3');
   const { data: notifData, loading: notifLoading, error: notifError, refetch: notifRefetch } =
     useApi<Paginated<Notification>>(ENDPOINTS.PATIENT_NOTIFS + '?page_size=5');
   const upcoming = apptData?.results ?? [];
@@ -94,8 +96,8 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
                     <CalIcon />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{a.doctor_name ?? 'Doctor'}</p>
-                    <p className="text-xs text-gray-400">{formatDate(a.appointment_date)}{a.appointment_time ? ` · ${formatTime(a.appointment_time)}` : ''}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{a.doctor_name || 'Doctor'}</p>
+                    <p className="text-xs text-gray-400">{formatDate(a.scheduled_at)} · {formatTime(a.scheduled_at)} · {a.organization.name}</p>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>
@@ -179,15 +181,34 @@ function HealthPage() {
 
 // ─── Appointments page ────────────────────────────────────────────
 
+const APPT_FILTERS = ['scheduled', 'completed', 'cancelled', ''] as const;
+type ApptFilter = (typeof APPT_FILTERS)[number];
+
 function AppointmentsPage() {
+  // PATIENT-1: ?status= is case-insensitive backend-side; '' = all.
+  const [filter, setFilter] = useState<ApptFilter>('');
+  const path = ENDPOINTS.PATIENT_APPOINTMENTS + (filter ? `?status=${filter}` : '');
   const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<Appointment>(ENDPOINTS.PATIENT_ME + 'appointments/');
+    usePaginatedList<PatientAppointment>(path);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">My Appointments</h2>
-        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">My Appointments</h2>
+          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} {filter || 'total'}</p>}
+        </div>
+        <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
+          {APPT_FILTERS.map(f => (
+            <button
+              key={f}
+              onClick={() => { setFilter(f); setPage(1); }}
+              className={`px-3 py-1.5 capitalize transition-colors ${filter === f ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              {f === '' ? 'All' : f}
+            </button>
+          ))}
+        </div>
       </div>
       {loading ? <ShimmerRows count={6} /> : error ? (
         <ErrorState message={error} onRetry={refetch} />
@@ -204,11 +225,14 @@ function AppointmentsPage() {
                   <span className={`[&>svg]:w-5 [&>svg]:h-5 ${isPast ? 'text-gray-400' : 'text-teal-600'}`}><CalIcon /></span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900">{a.doctor_name ?? 'Doctor'}</p>
+                  <p className="font-semibold text-gray-900">{a.doctor_name || 'Doctor'}</p>
                   <p className="text-sm text-gray-500">
-                    {formatDate(a.appointment_date)}{a.appointment_time ? ` at ${formatTime(a.appointment_time)}` : ''}
+                    {formatDate(a.scheduled_at)} at {formatTime(a.scheduled_at)} · {a.duration_minutes} min · {a.organization.name}
                   </p>
-                  {a.notes && <p className="text-xs text-gray-400 mt-0.5">{truncate(a.notes, 60)}</p>}
+                  {a.reason && <p className="text-xs text-gray-400 mt-0.5">{truncate(a.reason, 60)}</p>}
+                  {a.status === 'CANCELLED' && a.cancellation_reason && (
+                    <p className="text-xs text-red-400 mt-0.5">Cancelled: {truncate(a.cancellation_reason, 60)}</p>
+                  )}
                 </div>
                 <StatusBadge status={a.status} />
               </div>

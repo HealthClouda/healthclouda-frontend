@@ -123,6 +123,21 @@ export interface Episode {
   closed_at?: string | null;
 }
 
+// GET /patients/me/appointments/ item (PATIENT-1) — shape verified live
+// 2026-07-09. Spans all orgs the patient has visited; most recent first.
+export interface PatientAppointment {
+  id: string;
+  organization: { name: string; slug: string };
+  doctor_name: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: string;
+  reason: string;
+  cancelled_at: string | null;
+  cancellation_reason: string;
+  created_at: string;
+}
+
 export interface Appointment {
   id: string;
   patient?: { first_name: string; last_name: string };
