@@ -35,11 +35,20 @@ export interface ReceptionistStats {
   on_duty_doctors: number;
 }
 
+// Shape verified live 2026-07-11 (NURSE-1) — GET /nurse/dashboard/stats/
+// is ward/admission aggregates; there is NO vitals_pending / critical_patients.
 export interface NurseStats {
-  total_patients: number;
-  vitals_pending: number;
-  wards_count?: number;
-  critical_patients?: number;
+  total_wards: number;
+  total_beds: number;
+  available_beds: number;
+  occupied_beds: number;
+  maintenance_beds: number;
+  reserved_beds: number;
+  occupancy_rate: number;
+  active_admissions: number;
+  todays_admissions: number;
+  todays_discharges: number;
+  patients_in_queue: number;
 }
 
 export interface DoctorStats {
@@ -177,6 +186,8 @@ export interface Ward {
   occupied_beds: number;
   available_beds: number;
   ward_type?: string;
+  // Nurse wards-overview serializer uses `category` (verified 2026-07-11).
+  category?: string;
 }
 
 export interface Prescription {
@@ -210,14 +221,71 @@ export interface AccessRequest {
   created_at: string;
 }
 
-export interface VitalRecord {
+// ─── Nurse vitals (NURSE-1) — shapes verified live 2026-07-11 ───
+
+// GET /nurse/my-patients/ item — an active ADMISSION with nested objects,
+// not a flat patient row. Envelope is {count, results} (no next/previous).
+export interface NurseAdmission {
   id: string;
-  patient?: { first_name: string; last_name: string };
-  blood_pressure?: string;
-  heart_rate?: number;
-  temperature?: number;
-  oxygen_saturation?: number;
+  patient: {
+    id: string;
+    healthclouda_id: string;
+    first_name: string;
+    last_name: string;
+    gender: string;
+    blood_type: string | null;
+    age: number | null;
+    allergies: string | null;
+    emergency_contact_name: string | null;
+    emergency_contact_phone: string | null;
+  };
+  bed: { id: string; bed_number: string; status: string } | null;
+  ward: { id: string; name: string; category: string; gender: string } | null;
+  room: { id: string; name?: string } | null;
+  episode: {
+    id: string;
+    episode_type: string;
+    status: string;
+    chief_complaint: string;
+  } | null;
+  admitted_at: string;
+  admission_reason: string;
+  length_of_stay: number;
+}
+
+// One vitals reading. PATCH /nurse/patients/<id>/vitals/ APPENDS a new
+// reading (partial bodies fine — unsent fields stored as null, so the
+// client must omit untouched inputs). Backend bounds (probed live):
+// temp 30–45°C, systolic ≥50, diastolic 20–200, pulse 20–250, resp 5–60,
+// SpO2 50–100, weight 0.5–500kg, height 20–300cm.
+export interface VitalsReading {
+  id: string;
+  temperature: number | null;
+  blood_pressure_systolic: number | null;
+  blood_pressure_diastolic: number | null;
+  pulse_rate: number | null;
+  respiratory_rate: number | null;
+  oxygen_saturation: number | null;
+  weight: number | null;
+  height: number | null;
+  notes: string;
   recorded_at: string;
+  recorded_by_info: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    email: string;
+  } | null;
+}
+
+// GET/PATCH /nurse/patients/<id>/vitals/ response. `vitals` is the LATEST
+// reading (null when none recorded yet); 404 = patient not found / no
+// active episode at this org.
+export interface PatientVitals {
+  patient_id: string;
+  episode_id: string;
+  vitals: VitalsReading | null;
 }
 
 export interface Notification {

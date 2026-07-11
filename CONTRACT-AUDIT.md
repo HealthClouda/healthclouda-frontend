@@ -23,6 +23,11 @@
 >   overview panel (drops invented `?upcoming=`), status tabs + new item shape on the list page.
 >   GLOBAL-4 fields also shipped on `/auth/me/` — fix goes in `fix/duty-initial-state` (code-only
 >   PR; annotations here to avoid doc conflicts).
+> - **PR 4 `fix/nurse-vitals`** (2026-07-11) — closed **NURSE-1 + GLOBAL-6 (nurse slice)**: full
+>   contract verified live (my-patients = admission envelope; per-patient GET/PATCH vitals incl.
+>   validation bounds; real stats shape — `vitals_pending`/`critical_patients` don't exist).
+>   Rebuilt all four nurse pages on the real shapes + built the record-vitals workflow (the P2
+>   "Record vitals" row below). 8 pre-fix tests red→green.
 
 ## Verification sources
 
@@ -55,7 +60,17 @@
   Same bug in `middleware.ts:62-71` (redirect away from signin). Fix: login route enriches the user cookie
   from `GET /auth/me/` server-side (returns `organization.slug/.name/.org_id`), and/or use the portal's own
   `orgSlug` prop for org logins.
-- [ ] **NURSE-1: Vitals feature is miswired.** `NurseDashboard` Overview + Vitals page fetch
+- [x] **NURSE-1: Vitals feature is miswired.** _(✅ PR 4 `fix/nurse-vitals` 2026-07-11 — contract
+  verified live and all four nurse pages rebuilt on it. `GET /nurse/my-patients/` is a `{count,
+  results}` envelope of ADMISSIONS ({patient{healthclouda_id,…}, bed, ward, episode, admitted_at,
+  length_of_stay}); `GET/PATCH /nurse/patients/<patient_id>/vitals/` returns `{patient_id,
+  episode_id, vitals: <latest|null>}`, PATCH appends a reading (partial ok; 400 `{error,code,
+  details}` out of bounds — temp 30–45, sys ≥50, dia 20–200, pulse 20–250, resp 5–60, SpO2 50–100,
+  wt 0.5–500, ht 20–300; 404 = no active episode; empty body would store an all-null reading, so
+  the form requires ≥1 field and omits untouched inputs). Stats contract was also invented —
+  real shape is ward/admission aggregates (GLOBAL-6 nurse slice, fixed same PR). New Vitals page:
+  patient picker → latest-reading panel + record form. 8 pre-fix tests red→green.)_
+  `NurseDashboard` Overview + Vitals page fetch
   `/nurse/my-patients/` (a *patients* endpoint) typed as `VitalRecord[]`, with invented params
   (`?vitals_pending=true`, `?include_vitals=true`). Real contract: per-patient
   `GET/PATCH /nurse/patients/<id>/vitals/` (structured VitalsRecord; PATCH appends a reading).
@@ -87,7 +102,9 @@
 ### P1 — contract mismatches / wrong behaviour
 
 - [ ] **GLOBAL-6: Dashboard stats field names don't match the backend.** _(✅ receptionist slice
-  closed by PR #54 — `ReceptionistStats` now matches the live shape; remaining roles still unverified.)_
+  closed by PR #54 — `ReceptionistStats` now matches the live shape. ✅ nurse slice closed by PR 4
+  2026-07-11 — real shape is ward/admission aggregates, `NurseStats` rewritten. Doctor / patient /
+  org-admin / superadmin still unverified.)_
   Verified live (receptionist):
   backend returns `{todays_checkins, awaiting_assignment, waiting_queue, bed_occupancy_rate, on_duty_doctors, …}`;
   frontend `ReceptionistStats` expects `{check_ins_today, pending_assignments, incoming_referrals,
@@ -213,7 +230,7 @@ org-admin review (broken, see ORGADMIN-1).
 | Doctor | Create prescription | `POST /doctor/prescriptions/` |
 | Doctor | **Create referral** | `POST /doctor/referrals/` — 5-level urgency enum (EMERGENCY/URGENT/SEMI_URGENT/ROUTINE/ELECTIVE) + required `patient_consent_obtained` + `consent_destination_disclosed`; note managed accept/reject workflow is the next backend milestone — confirm Swagger before building receiving-org side |
 | Doctor | View vitals + history | `GET /doctor/patients/<id>/vitals/`, `/vitals/history/` (paginated; 404 = no active episode) |
-| Nurse | **Record vitals** | `PATCH /nurse/patients/<id>/vitals/` (appends reading) — see NURSE-1 |
+| Nurse | ~~**Record vitals**~~ ✅ PR 4 (2026-07-11) | `PATCH /nurse/patients/<id>/vitals/` (appends reading) — see NURSE-1 |
 | Org-admin | **Invite staff** + resend email | `POST /org-admin/staff/`, `POST /auth/users/<id>/resend-setup-email/` (async email, returns 200 immediately) |
 | Org-admin | Deactivate/edit staff | `PATCH /org-admin/staff/<id>/` |
 | Org-admin | Org settings | `GET/PATCH /org-admin/settings/` |
@@ -272,7 +289,8 @@ org-admin review (broken, see ORGADMIN-1).
 1. ✅ **PR 1 — Auth layer** (DONE, PR #49 merged 2026-07-04): AUTH-1..5, AUTH-5b + ARCH-1 (single data-layer module with 401→single-flight refresh→retry). Everything sits on this. Regression guards on `test/auth-regression`.
 2. ✅ **PR 2 — Error/pagination hygiene** (DONE 2026-07-04, `fix/error-pagination`): UX-ERR-1, PERF-1, GLOBAL-1, GLOBAL-5 + AUTH-6 (shared `usePaginatedList` + `ErrorState`).
 3. ✅ **PR 3 — Receptionist contract fixes** (DONE, PR #54 merged 2026-07-05): REC-1, REC-2, REC-3, GLOBAL-3 (HCL-ID display).
-4. **PR 4 — Nurse vitals rebuild:** NURSE-1 (view + record).
+4. ✅ **PR 4 — Nurse vitals rebuild** (DONE 2026-07-11, `fix/nurse-vitals`): NURSE-1 (view + record)
+   + GLOBAL-6 nurse slice.
 5. **PR 5 — Patient fixes:** ~~PATIENT-1~~ (✅ done 2026-07-09, `fix/patient-appointments`), grant/deny UI, notifications.
 6. **PR 6 — Org-admin:** remove broken review (ORGADMIN-1), staff invite flow.
 7. **Then P2 build-out** in workflow-value order: check-in creation → vitals (done in 4) → prescriptions/referrals → appointments → the rest.
