@@ -1,38 +1,41 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Lato } from 'next/font/google';
 import { Toaster } from '@/components/ui/Toaster';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+// Design system (design_handoff_prelogin): Inter = headings/labels/buttons,
+// Lato = body copy on pre-login pages. Dashboards stay on Inter.
+const lato = Lato({ subsets: ['latin'], weight: ['300', '400', '700'], variable: '--font-lato' });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://healthclouda.vercel.app'),
-  title: 'HealthClouda | Cloud-Based EHR Platform',
+  title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
   description:
-    'HealthClouda is a cloud-based electronic health record platform enabling seamless hospital-to-hospital medical record sharing across Africa.',
+    'HealthClouda links hospitals and clinics across Africa so records and referrals move with the patient — securely, instantly. No repeated tests. No paper files.',
   openGraph: {
     type: 'website',
     siteName: 'HealthClouda',
-    title: 'HealthClouda | Cloud-Based EHR Platform',
+    title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
     description:
-      'Secure, cloud-based EHR/EMR platform for hospitals and health facilities across Africa.',
+      'One patient record. Every facility, connected. Secure, cloud-based records that move with the patient.',
     images: [{ url: '/assets/images/Hero_picture.png' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'HealthClouda | Cloud-Based EHR Platform',
-    description: 'Cloud-based EHR platform for African healthcare providers.',
+    title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
+    description: 'One patient record. Every facility, connected.',
     images: ['/assets/images/Hero_picture.png'],
   },
   icons: {
-    icon: '/assets/images/HealthClouda-icon.png',
-    apple: '/assets/images/HealthClouda-icon.png',
+    icon: '/assets/images/HealthClouda-icon-tight.png',
+    apple: '/assets/images/HealthClouda-icon-tight.png',
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${lato.variable}`}>
       <body>
         {children}
         <Toaster />

@@ -2,267 +2,202 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LandingNav } from '@/components/landing/LandingNav';
-import { WellbeingCarousel } from '@/components/landing/WellbeingCarousel';
 import { ContactForm } from '@/components/landing/ContactForm';
 
+// General landing — recreated pixel-per-spec from
+// design_handoff_prelogin/designs/HealthClouda Landing.dc.html (batch 1).
+// Desktop values match the design exactly; responsive collapses added for
+// small screens (the design file is desktop-only).
+
 export const metadata: Metadata = {
-  title: 'HealthClouda | Cloud-Based EHR Platform',
+  title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
   description:
-    'HealthClouda is a cloud-based electronic health record platform enabling seamless hospital-to-hospital medical record sharing across Africa. Secure, scalable, and compliant.',
+    'HealthClouda links hospitals and clinics across Africa so your records and referrals move with you — securely, instantly. No repeated tests. No paper files. No starting over.',
 };
 
-// ─── Section: Hero ────────────────────────────────────────────────
+const kicker = 'font-heading text-[13px] font-bold text-primary uppercase tracking-[0.1em]';
+const h2 = 'font-heading text-3xl md:text-4xl font-[750] tracking-[-0.02em] text-ink leading-[1.25]';
 
-function HeroSection() {
+function Check() {
+  return <span className="text-primary font-bold">✓</span>;
+}
+
+// ─── Hero ─────────────────────────────────────────────────────────
+
+function PortalMock() {
   return (
-    <section id="home" className="pt-24 pb-16 md:pt-32 md:pb-24 px-6 overflow-hidden bg-gradient-to-b from-blue-50/50 to-white">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-        {/* Text */}
-        <div>
-          <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-blue-100">
-            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-            Cloud-Based EHR for African Healthcare
+    <div className="relative max-w-[920px] mx-auto mt-14">
+      <div className="border-[3px] border-primary rounded-[20px] overflow-hidden shadow-[0_24px_64px_rgba(0,117,255,0.18)] bg-white text-left">
+        {/* Mock top bar */}
+        <div className="flex items-center justify-between px-7 py-4 border-b border-hairline">
+          <div className="flex items-center gap-2.5">
+            <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={26} height={26} className="object-contain" />
+            <span className="font-heading text-[15px] font-extrabold text-ink">HealthClouda</span>
+            <span className="font-heading text-[11.5px] font-bold text-primary-dark bg-chip px-2.5 py-1 rounded-full">Patient portal</span>
           </div>
-
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight mb-6">
-            Modern EHR Built for{' '}
-            <span className="text-blue-600">Smarter Healthcare</span>
-          </h1>
-
-          <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-lg">
-            Revolutionize healthcare delivery with our comprehensive Electronic Health Record system designed specifically for African healthcare providers. Secure, scalable, and compliant.
-          </p>
-
-          <div className="flex flex-wrap gap-3 mb-10">
-            <Link
-              href="/signin"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-colors text-sm shadow-md shadow-blue-200"
-            >
-              Login to Your Account
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-            </Link>
-            <Link
-              href="#contact-us"
-              className="inline-flex items-center gap-2 text-gray-700 font-medium px-6 py-3.5 rounded-xl border border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all text-sm"
-            >
-              For Organisations
-            </Link>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap gap-5">
-            {['HIPAA & NDPR Compliant', 'Microsoft Azure', 'Multi-Tenant EHR'].map(b => (
-              <div key={b} className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-                <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-                {b}
-              </div>
-            ))}
+          <div className="flex items-center gap-3.5">
+            <span className="w-2 h-2 bg-primary rounded-full" />
+            <span className="w-[34px] h-[34px] bg-chip text-primary-dark rounded-full flex items-center justify-center font-heading text-[12.5px] font-extrabold">AO</span>
           </div>
         </div>
-
-        {/* Hero image */}
-        <div className="relative hidden lg:block">
-          <div className="absolute -inset-6 bg-gradient-to-br from-blue-100/60 via-indigo-50 to-white rounded-3xl -z-10" />
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-blue-100 border border-blue-50" style={{ aspectRatio: '4/3' }}>
-            <Image
-              src="/assets/images/Hero_picture.png"
-              alt="HealthClouda EHR platform in use at a healthcare facility"
-              fill
-              className="object-cover"
-              priority
-              sizes="(min-width: 1024px) 50vw, 100vw"
-            />
+        {/* Mock body */}
+        <div className="p-7 grid md:grid-cols-[1.35fr_1fr] gap-6 bg-page">
+          <div className="flex flex-col gap-4 min-w-0">
+            <div>
+              <h3 className="font-heading text-[21px] font-[750] text-ink mb-1">Good afternoon, Adaeze</h3>
+              <p className="font-body text-[13.5px] text-gray-500">Your health, in one place — wherever you&apos;re treated.</p>
+            </div>
+            <div className="inline-flex items-center gap-2.5 bg-white border border-dashed border-primary/40 rounded-xl px-4 py-3 self-start">
+              <span className="font-body text-xs text-gray-500 font-bold">Your HealthClouda ID</span>
+              <span className="font-heading text-[13px] font-extrabold text-primary-dark tracking-[0.05em]">HCL-NG-DEMO-4Q2A</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { n: '1', label: 'Upcoming appointment', blue: false },
+                { n: '2', label: 'Active prescriptions', blue: false },
+                { n: '1', label: 'Active referral', blue: true },
+              ].map(s => (
+                <div key={s.label} className="bg-white border border-hairline rounded-[14px] px-4 py-3.5">
+                  <p className={`font-heading text-xl font-extrabold ${s.blue ? 'text-primary' : 'text-ink'}`}>{s.n}</p>
+                  <p className="font-body text-[11.5px] text-gray-500 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white border border-hairline rounded-[14px] px-[18px] py-4 flex items-center justify-between gap-3.5">
+              <div className="min-w-0">
+                <p className="font-heading text-[13.5px] font-bold text-ink">
+                  Referral · Ikeja Clinic <span className="text-primary">⟶</span> LUTH Cardiology
+                </p>
+                <p className="font-body text-xs text-gray-500 mt-1">Your records travelled with the referral — no paper needed.</p>
+              </div>
+              <span className="font-heading text-[11.5px] font-bold text-green-600 bg-green-50 border border-green-200 px-[11px] py-[5px] rounded-full whitespace-nowrap">Letter ready</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 min-w-0">
+            <p className="font-heading text-xs font-bold text-gray-500 uppercase tracking-[0.07em]">Access requests</p>
+            <div className="bg-white border border-hairline rounded-[14px] px-[18px] py-4 flex flex-col gap-3">
+              <p className="font-body text-[13px] text-gray-700 leading-[1.55]">
+                <span className="font-heading font-bold text-ink">St. Mary&apos;s Hospital</span> is requesting access to your medical records.
+              </p>
+              <div className="flex gap-2.5">
+                <span className="font-heading text-[12.5px] font-bold text-white bg-primary px-[18px] py-2 rounded-[10px]">Grant</span>
+                <span className="font-heading text-[12.5px] font-bold text-gray-700 bg-white border-[1.5px] border-hairline px-[18px] py-2 rounded-[10px]">Deny</span>
+              </div>
+            </div>
+            <div className="bg-white border border-hairline rounded-[14px] px-[18px] py-4 flex flex-col gap-1.5">
+              <p className="font-heading text-[12.5px] font-bold text-ink">Amoxicillin 500mg</p>
+              <p className="font-body text-xs text-gray-500">3× daily · 5 days left · Dr. Okafor</p>
+            </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-// ─── Section: Features ────────────────────────────────────────────
-
-const FEATURES = [
-  {
-    icon: '/assets/images/person_add.png',
-    title: 'Patient Records',
-    desc: 'Comprehensive electronic health records with secure patient data management and unique HealthClouda IDs.',
-  },
-  {
-    icon: '/assets/images/science.png',
-    title: 'Lab Integration',
-    desc: 'Seamless laboratory test ordering, tracking, and result management across departments.',
-  },
-  {
-    icon: '/assets/images/pill.png',
-    title: 'Prescriptions',
-    desc: 'Digital prescription management with integration for facility pharmacies and dispensing workflows.',
-  },
-  {
-    icon: '/assets/images/chat_bubble.png',
-    title: 'Secure Messaging',
-    desc: 'HIPAA-compliant communication between nurses, doctors, labs, and pharmacists — all in one platform.',
-  },
-];
-
-function FeaturesSection() {
+function HeroSection() {
   return (
-    <section id="features" className="py-20 px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Features</p>
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Everything You Need for Modern Healthcare
-          </h2>
-          <p className="text-gray-500 max-w-xl mx-auto">
-            Comprehensive features designed for the future of African healthcare environments — built for the way your teams actually work.
-          </p>
-        </div>
+    <section id="home" className="relative pt-[164px] px-6 md:px-8 pb-0 text-center overflow-hidden">
+      {/* Blue flare background */}
+      <div className="absolute -top-[180px] left-1/2 -translate-x-1/2 w-[1100px] h-[700px] pointer-events-none [background:radial-gradient(ellipse_55%_45%_at_50%_40%,rgba(0,117,255,0.13)_0%,rgba(0,117,255,0.05)_45%,rgba(0,117,255,0)_75%)]" />
+      <div className="absolute top-[320px] -left-[220px] w-[520px] h-[520px] pointer-events-none [background:radial-gradient(circle,rgba(0,117,255,0.07)_0%,rgba(0,117,255,0)_70%)]" />
+      <div className="absolute top-[220px] -right-[240px] w-[560px] h-[560px] pointer-events-none [background:radial-gradient(circle,rgba(0,117,255,0.07)_0%,rgba(0,117,255,0)_70%)]" />
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {FEATURES.map(f => (
-            <div
-              key={f.title}
-              className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md hover:border-blue-100 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-5 group-hover:bg-blue-100 transition-colors">
-                <Image src={f.icon} alt={f.title} width={28} height={28} className="object-contain" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-2">{f.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+      <div className="relative max-w-[780px] mx-auto flex flex-col items-center gap-6">
+        <div className="inline-flex items-center gap-2 bg-chip border border-primary/[0.22] text-primary-dark font-heading text-[12.5px] font-bold tracking-[0.04em] uppercase px-4 py-[7px] rounded-full">
+          <span className="w-[7px] h-[7px] bg-primary rounded-full" />
+          Healthcare&apos;s connective infrastructure
+        </div>
+        <h1 className="font-heading text-4xl sm:text-5xl md:text-[58px] font-[750] leading-[1.16] tracking-[-0.025em] text-ink text-balance">
+          One patient record.<br />Every facility, <span className="text-primary">connected.</span>
+        </h1>
+        <p className="font-body text-lg leading-[1.7] text-gray-700 max-w-[620px] text-pretty">
+          HealthClouda links hospitals and clinics across Africa so your records and referrals move with you — securely, instantly. No repeated tests. No paper files. No starting over.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3.5 mt-1.5">
+          <Link
+            href="/signin"
+            className="font-heading inline-flex items-center gap-2 px-[30px] py-3.5 bg-primary text-white rounded-xl text-[15.5px] font-semibold shadow-[0_4px_16px_rgba(0,117,255,0.3)] hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,117,255,0.35)] transition-all"
+          >
+            Patient sign in
+          </Link>
+          <a
+            href="#network"
+            className="font-heading inline-flex items-center gap-2 px-[26px] py-3.5 bg-white text-ink border-[1.5px] border-hairline rounded-xl text-[15.5px] font-semibold hover:border-primary hover:text-primary transition-colors"
+          >
+            See how it works
+          </a>
+        </div>
+        <p className="font-body text-[13px] text-gray-500">
+          Patient accounts are created at any registered HealthClouda facility — not online.
+        </p>
+        <div className="flex flex-wrap justify-center gap-7 mt-1">
+          {['HIPAA & NDPR compliant', 'Secure cloud infrastructure', 'You control access'].map(t => (
+            <div key={t} className="flex items-center gap-[7px] font-body text-[13px] text-gray-500 font-bold">
+              <Check /> {t}
             </div>
           ))}
         </div>
       </div>
+
+      <PortalMock />
     </section>
   );
 }
 
-// ─── Section: One Platform ────────────────────────────────────────
+// ─── How it works ─────────────────────────────────────────────────
 
-function OnePlatformSection() {
-  return (
-    <section className="py-20 px-6 bg-gradient-to-br from-blue-600 to-indigo-700 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-white rounded-full" />
-        <div className="absolute -bottom-20 -left-10 w-64 h-64 bg-white rounded-full" />
-      </div>
-
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center relative">
-        {/* Text */}
-        <div className="text-white">
-          <p className="text-sm font-semibold text-blue-200 uppercase tracking-widest mb-3">
-            One Platform
-          </p>
-          <h2 className="text-3xl font-bold mb-6 leading-tight">
-            One Platform, Every Healthcare Role Covered
-          </h2>
-          <p className="text-blue-100 leading-relaxed mb-8">
-            Our secure, user-friendly Electronic Health Record system is purpose-built for hospitals and health facilities looking to simplify documentation, enhance collaboration, and improve patient care. From doctors and nurses to receptionists and administrators — everyone has a role-specific dashboard.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            {['Doctor Portal', 'Nurse Portal', 'Receptionist', 'Org Admin', 'Patient Portal', 'Super Admin'].map(role => (
-              <div key={role} className="flex items-center gap-2 text-sm text-blue-100">
-                <svg className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-                {role}
-              </div>
-            ))}
-          </div>
-
-          <Link
-            href="/signin"
-            className="inline-flex items-center gap-2 bg-white text-blue-700 font-semibold px-6 py-3.5 rounded-xl hover:bg-blue-50 transition-colors text-sm shadow-md"
-          >
-            Login to Your Account
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </Link>
-        </div>
-
-        {/* Image */}
-        <div className="relative hidden lg:block">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl" style={{ aspectRatio: '3/4' }}>
-            <Image
-              src="/assets/images/Female_doctor.jpg"
-              alt="Doctor using HealthClouda EHR system"
-              fill
-              className="object-cover"
-              sizes="(min-width: 1024px) 45vw, 100vw"
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── Section: Benefits ────────────────────────────────────────────
-
-const BENEFITS = [
+const STEPS = [
   {
-    img: '/assets/images/BENEFIT_ONE.png',
-    imgAlt: 'Streamlined patient workflow',
-    title: 'Effortless Patient Workflows',
-    body: 'Every clinic operates differently and HealthClouda adapts. You\'ll get smart, customizable clinical forms that reflect your exact workflow: registration, history taking, vitals, diagnostic notes and follow-ups — all shaped around how your team works. Faster onboarding, fewer errors, more time for care.',
-    tag: 'Workflow',
-    tagColor: 'bg-blue-100 text-blue-700',
+    n: '01',
+    title: 'One ID, created once',
+    body: 'A patient registers at any connected facility and receives a unique HealthClouda ID. Their record starts here — and follows them everywhere.',
+    chip: <span className="tracking-[0.06em]">HCL-NG-DEMO-4Q2A</span>,
   },
   {
-    img: '/assets/images/Heart.png',
-    imgAlt: 'Patient safety intelligence',
-    title: 'Proactive Intelligence that Keeps Patients Safe',
-    body: 'HealthClouda includes safety alerts for allergies, drug interactions, critical vitals, duplicate records, and follow-up reminders. When something looks off, the system prompts staff to double-check and intervene early — ensuring patients receive the right care at the right time.',
-    tag: 'Safety',
-    tagColor: 'bg-red-100 text-red-700',
-    flipped: true,
+    n: '02',
+    title: 'Refer in one click',
+    body: 'A doctor refers the patient to a specialist or another hospital. The referral letter, history, vitals and prescriptions transfer securely with it.',
+    chip: (
+      <span className="flex items-center gap-2.5">
+        <span>Ikeja Clinic</span><span className="text-primary">⟶</span><span>LUTH Cardiology</span>
+      </span>
+    ),
   },
   {
-    img: '/assets/images/noun-africa.png',
-    imgAlt: 'Built for Africa',
-    title: "Built for Africa's Realities",
-    body: "HealthClouda doesn't just work in Africa — it's built for it. Full offline mode keeps work going during power or connectivity drops. Cost-effective for varying budgets, it scales from a single-practitioner clinic to a growing hospital. Intuitive design and optional local language support help every team member adopt it quickly.",
-    tag: 'Africa-First',
-    tagColor: 'bg-emerald-100 text-emerald-700',
+    n: '03',
+    title: 'Care continues instantly',
+    body: "The receiving team sees the full picture before the patient arrives — with the patient's consent controlling exactly who sees what.",
+    chip: (
+      <span className="flex items-center gap-2">
+        <span className="w-2 h-2 bg-green-600 rounded-full" />Access granted by patient
+      </span>
+    ),
   },
 ];
 
-function BenefitsSection() {
+function NetworkSection() {
   return (
-    <section className="py-20 px-6 bg-gray-50/60">
-      <div className="max-w-6xl mx-auto space-y-20">
-        {BENEFITS.map((b, i) => (
-          <div
-            key={b.title}
-            className={`grid lg:grid-cols-2 gap-12 items-center ${b.flipped ? 'lg:[direction:rtl]' : ''}`}
-          >
-            {/* Image */}
-            <div className={b.flipped ? 'lg:[direction:ltr]' : ''}>
-              <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-blue-50 shadow-sm border border-gray-100" style={{ aspectRatio: '4/3' }}>
-                <Image
-                  src={b.img}
-                  alt={b.imgAlt}
-                  fill
-                  className="object-contain p-8"
-                  sizes="(min-width: 1024px) 45vw, 100vw"
-                />
-              </div>
-            </div>
+    <section id="network" className="px-6 md:px-8 pt-[110px] pb-[100px] max-w-[1140px] mx-auto">
+      <div className="text-center max-w-[640px] mx-auto mb-14 flex flex-col gap-3.5">
+        <p className={kicker}>How it works</p>
+        <h2 className={h2}>Records that travel with the patient</h2>
+        <p className="font-body text-base text-gray-500 leading-[1.65]">
+          Most EHRs stop at the hospital door. HealthClouda is the network between facilities — the referral, the records and the results arrive before the patient does.
+        </p>
+      </div>
 
-            {/* Text */}
-            <div className={b.flipped ? 'lg:[direction:ltr]' : ''}>
-              <span className={`inline-block text-xs font-bold px-3 py-1.5 rounded-full mb-4 ${b.tagColor}`}>
-                {b.tag}
-              </span>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4 leading-snug">{b.title}</h2>
-              <p className="text-gray-500 leading-relaxed">{b.body}</p>
+      <div className="grid md:grid-cols-3 gap-6">
+        {STEPS.map(s => (
+          <div
+            key={s.n}
+            className="relative bg-white border-[1.5px] border-hairline rounded-[20px] px-7 py-8 flex flex-col gap-3.5 shadow-[0_2px_8px_rgba(0,8,37,0.05)] hover:border-primary hover:shadow-[0_8px_24px_rgba(0,117,255,0.13)] hover:-translate-y-1 transition-all"
+          >
+            <div className="font-heading text-[13px] font-extrabold text-primary bg-chip w-10 h-10 rounded-xl flex items-center justify-center">{s.n}</div>
+            <h3 className="font-heading text-lg font-bold text-ink">{s.title}</h3>
+            <p className="font-body text-[14.5px] text-gray-500 leading-[1.65]">{s.body}</p>
+            <div className="mt-auto font-heading text-[12.5px] font-bold text-primary-dark bg-page border border-dashed border-primary/35 rounded-[10px] px-3.5 py-2.5">
+              {s.chip}
             </div>
           </div>
         ))}
@@ -271,77 +206,222 @@ function BenefitsSection() {
   );
 }
 
-// ─── Section: Wellbeing ───────────────────────────────────────────
+// ─── Features ─────────────────────────────────────────────────────
 
-function WellbeingSection() {
+const FEATURES = [
+  {
+    icon: '/assets/images/person_add.png',
+    title: 'Unified patient records',
+    desc: 'Complete history, vitals, episodes and admissions under one HealthClouda ID — accessible at any connected facility.',
+  },
+  {
+    icon: '/assets/images/chat_bubble.png',
+    title: 'Referrals & transfers',
+    desc: 'Hospital-to-hospital referrals with generated referral letters, incoming queues and doctor notifications.',
+  },
+  {
+    icon: '/assets/images/pill.png',
+    title: 'Prescriptions',
+    desc: 'Digital prescribing that follows the patient — visible to the pharmacy, the next doctor and the patient themselves.',
+  },
+  {
+    icon: '/assets/images/science.png',
+    title: 'Wards, beds & admissions',
+    desc: 'Live ward occupancy, admissions and emergency beds — visible to the roles that need them.',
+  },
+];
+
+function FeaturesSection() {
   return (
-    <section className="py-20 overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 text-center mb-10">
-        <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Wellness</p>
-        <h2 className="text-3xl font-bold text-gray-900 mb-3">Your Wellbeing Matters…</h2>
-        <p className="text-gray-500 max-w-lg mx-auto">
-          Here's a quick dose of wellness inspiration to keep your mind and body in sync throughout the day.
-        </p>
+    <section id="features" className="px-6 md:px-8 py-[90px] bg-white border-y border-hairline">
+      <div className="max-w-[1140px] mx-auto">
+        <div className="text-center max-w-[620px] mx-auto mb-[52px] flex flex-col gap-3.5">
+          <p className={kicker}>Features</p>
+          <h2 className={h2}>Everything a connected facility needs</h2>
+          <p className="font-body text-base text-gray-500 leading-[1.65]">
+            Role-specific tools for every person in the building — designed around how care actually flows.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {FEATURES.map(f => (
+            <div
+              key={f.title}
+              className="bg-white border-[1.5px] border-primary rounded-[20px] px-[22px] py-7 text-center flex flex-col items-center gap-3 shadow-[0_2px_8px_rgba(0,117,255,0.08)] hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,117,255,0.15)] transition-all"
+            >
+              <div className="w-[52px] h-[52px] bg-chip rounded-[14px] flex items-center justify-center">
+                <Image src={f.icon} alt="" width={26} height={26} className="object-contain" />
+              </div>
+              <h3 className="font-heading text-base font-bold text-ink">{f.title}</h3>
+              <p className="font-body text-[13.5px] text-gray-500 leading-[1.6]">{f.desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
-      <WellbeingCarousel />
     </section>
   );
 }
 
-// ─── Section: About ───────────────────────────────────────────────
+// ─── One platform ─────────────────────────────────────────────────
+
+const ROLES = ['Doctor portal', 'Nurse portal', 'Receptionist desk', 'Patient portal', 'Organisation admin', 'Platform admin'];
+
+function OnePlatformSection() {
+  return (
+    <section className="px-6 md:px-8 py-[100px] max-w-[1140px] mx-auto grid lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-[72px] items-center">
+      <div className="flex flex-col gap-5">
+        <p className={kicker}>One platform</p>
+        <h2 className="font-heading text-3xl md:text-[34px] font-[750] tracking-[-0.02em] text-ink leading-[1.25]">
+          Every role in the building, on the same page
+        </h2>
+        <p className="font-body text-base text-gray-700 leading-[1.7]">
+          From the receptionist checking a patient in to the doctor closing an episode, everyone works from one live record. No transcription between systems, no lost paper — and administrators see the whole facility at a glance.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 mt-1">
+          {ROLES.map(r => (
+            <div key={r} className="flex items-center gap-2.5 font-body text-[14.5px] text-gray-700 font-bold">
+              <Check /> {r}
+            </div>
+          ))}
+        </div>
+        <div>
+          <a
+            href="#contact"
+            className="font-heading inline-flex mt-2 px-[26px] py-[13px] bg-primary text-white rounded-xl text-[15px] font-semibold shadow-[0_4px_16px_rgba(0,117,255,0.3)] hover:bg-primary-dark hover:-translate-y-0.5 transition-all"
+          >
+            Request a walkthrough
+          </a>
+        </div>
+      </div>
+      <div className="rounded-[20px] overflow-hidden shadow-[0_4px_24px_rgba(0,117,255,0.12)] max-h-[520px]">
+        <Image
+          src="/assets/images/Female_doctor.jpg"
+          alt="Doctor using HealthClouda"
+          width={800}
+          height={1000}
+          className="w-full h-full object-cover block"
+          sizes="(min-width: 1024px) 45vw, 100vw"
+        />
+      </div>
+    </section>
+  );
+}
+
+// ─── Benefits ─────────────────────────────────────────────────────
+
+const BENEFITS = [
+  {
+    img: '/assets/images/BENEFIT_ONE.png',
+    alt: 'Adaptable clinical workflows',
+    tag: 'Workflow',
+    title: 'Effortless patient workflows',
+    body: 'Every clinic operates differently — HealthClouda adapts. Registration, history taking, vitals, diagnostic notes and follow-ups shape themselves around how your team already works. Faster onboarding, fewer errors, more time for care.',
+    maxH: 280,
+    flipped: false,
+  },
+  {
+    img: '/assets/images/Heart.png',
+    alt: 'Patient safety alerts',
+    tag: 'Safety',
+    title: 'Intelligence that keeps patients safe',
+    body: 'Safety alerts for allergies, drug interactions, critical vitals, duplicate records and missed follow-ups. When something looks off, the system prompts staff to double-check and intervene early — the right care at the right time.',
+    maxH: 240,
+    flipped: true,
+  },
+  {
+    img: '/assets/images/noun-africa.png',
+    alt: 'Built for Africa',
+    tag: 'Africa-first',
+    title: "Built for Africa's realities",
+    body: 'Full offline mode keeps work going through power and connectivity drops. Priced for varying budgets, it scales from a single-practitioner clinic to a multi-campus hospital — with intuitive design your team adopts in days, not months.',
+    maxH: 240,
+    flipped: false,
+  },
+];
+
+function BenefitsSection() {
+  return (
+    <section className="px-6 md:px-8 pt-10 pb-[100px] max-w-[1050px] mx-auto flex flex-col gap-[88px]">
+      {BENEFITS.map(b => {
+        const img = (
+          <div className="bg-[linear-gradient(160deg,#ebf3ff_0%,#f8faff_100%)] border border-hairline rounded-[20px] p-9 flex items-center justify-center">
+            <Image src={b.img} alt={b.alt} width={600} height={b.maxH} className="w-full object-contain" style={{ maxHeight: b.maxH }} />
+          </div>
+        );
+        const copy = (
+          <div className="flex flex-col gap-3.5">
+            <span className="font-heading self-start text-xs font-bold text-primary-dark bg-chip px-3.5 py-1.5 rounded-full tracking-[0.04em] uppercase">{b.tag}</span>
+            <h2 className="font-heading text-[27px] font-[750] tracking-[-0.02em] text-ink leading-[1.3]">{b.title}</h2>
+            <p className="font-body text-[15.5px] text-gray-700 leading-[1.7]">{b.body}</p>
+          </div>
+        );
+        return (
+          <div
+            key={b.title}
+            className={`grid lg:gap-16 gap-8 items-center ${b.flipped ? 'lg:grid-cols-[58fr_42fr]' : 'lg:grid-cols-[42fr_58fr]'}`}
+          >
+            {b.flipped ? <>{copy}{img}</> : <>{img}{copy}</>}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+// ─── About ────────────────────────────────────────────────────────
 
 function AboutSection() {
   return (
-    <section id="about-us" className="py-20 px-6 bg-gray-50/60">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">About</p>
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">Who We Are</h2>
-          <p className="text-gray-500 max-w-2xl mx-auto leading-relaxed">
-            HealthClouda is a secure, cloud-based Electronic Health Record (EHR) and patient data platform designed to reduce long hospital queues and enable seamless, secure sharing of medical records between healthcare facilities in Nigeria and Sub-Saharan Africa.
+    <section id="about" className="px-6 md:px-8 py-[100px] bg-primary/[0.055]">
+      <div className="max-w-[1000px] mx-auto">
+        <div className="text-center max-w-[720px] mx-auto mb-[52px] flex flex-col gap-3.5">
+          <p className={kicker}>About</p>
+          <h2 className={h2}>Who we are</h2>
+          <p className="font-body text-base text-gray-700 leading-[1.75]">
+            HealthClouda is the connective infrastructure for healthcare in Nigeria and Sub-Saharan Africa — a secure, cloud-based platform that ends long queues and paper files by letting medical records move safely between the facilities that care for a patient.
           </p>
         </div>
 
-        {/* Mission & Vision */}
-        <div className="grid md:grid-cols-2 gap-5 mb-5">
-          <div className="bg-white rounded-2xl border border-gray-100 p-7 hover:shadow-md transition-shadow">
-            <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center mb-5">
-              <Image src="/assets/images/target.png" alt="Mission" width={24} height={24} className="object-contain" />
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+          {[
+            {
+              icon: '/assets/images/target.png',
+              title: 'Our mission',
+              body: "To digitize patient records and build Africa's referral infrastructure — so no referral ever travels on paper again, and every provider treats with the patient's full history in hand.",
+            },
+            {
+              icon: '/assets/images/eye.png',
+              title: 'Our vision',
+              body: 'A continent where every hospital and clinic is connected — where any patient can be referred anywhere and their history is one consented request away.',
+            },
+          ].map(c => (
+            <div key={c.title} className="bg-white rounded-[20px] border-t-8 border-primary px-[30px] py-[34px] flex flex-col items-center text-center gap-3.5 shadow-[0_2px_8px_rgba(0,8,37,0.06)]">
+              <div className="w-[52px] h-[52px] bg-chip rounded-[14px] flex items-center justify-center">
+                <Image src={c.icon} alt="" width={28} height={28} className="object-contain" />
+              </div>
+              <h3 className="font-heading text-lg font-bold text-ink">{c.title}</h3>
+              <p className="font-body text-[14.5px] text-gray-700 leading-[1.65]">{c.body}</p>
             </div>
-            <h3 className="font-bold text-gray-900 text-lg mb-3">Our Mission</h3>
-            <p className="text-gray-500 leading-relaxed text-sm">
-              To empower healthcare providers and patients through instant, reliable, and secure access to medical records — improving efficiency and saving lives across Africa.
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-7 hover:shadow-md transition-shadow">
-            <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center mb-5">
-              <Image src="/assets/images/eye.png" alt="Vision" width={24} height={24} className="object-contain" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-lg mb-3">Our Vision</h3>
-            <p className="text-gray-500 leading-relaxed text-sm">
-              A cloud-based EHR platform built for seamless hospital-to-hospital record sharing in Nigeria and across Africa — solving long queues by improving data retrieval and care continuity.
-            </p>
-          </div>
+          ))}
         </div>
 
-        {/* Problem & Solution */}
-        <div className="grid md:grid-cols-2 gap-5">
-          <div className="bg-white rounded-2xl border border-gray-100 p-7">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-amber-400" />
-              <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">The Problem</span>
+        <div className="grid md:grid-cols-2 gap-6 items-stretch">
+          <div className="bg-white rounded-[20px] px-[30px] py-[34px] shadow-[0_2px_8px_rgba(0,8,37,0.06)] flex flex-col gap-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-[42px] h-[42px] bg-amber-100 rounded-xl flex items-center justify-center font-heading text-lg font-extrabold text-amber-700">✕</div>
+              <p className="font-heading text-xs font-bold text-amber-700 uppercase tracking-[0.08em]">The problem</p>
             </div>
-            <p className="text-gray-600 leading-relaxed text-sm">
-              In many African healthcare facilities, patient records are still stored in paper files. Patients face repeated tests, long queues, and delays because their records are inaccessible — wasting time and delaying treatment.
+            <p className="font-body text-[14.5px] text-gray-700 leading-[1.7]">
+              In many hospitals, patient records still live in paper files. And even facilities that have gone digital hit a wall at their own front door — they can&apos;t refer out. Referral letters are still printed, carried by hand and lost, so every new facility means repeated tests and starting over.
             </p>
           </div>
-          <div className="bg-blue-600 rounded-2xl p-7 text-white">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-blue-300" />
-              <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">Our Solution</span>
+          <div className="bg-primary rounded-[20px] px-[30px] py-[34px] shadow-[0_4px_24px_rgba(0,117,255,0.25)] flex flex-col gap-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-[42px] h-[42px] bg-white/[0.16] rounded-xl flex items-center justify-center font-heading text-lg font-extrabold text-white">✓</div>
+              <p className="font-heading text-xs font-bold text-blue-200 uppercase tracking-[0.08em]">Our solution</p>
             </div>
-            <p className="text-blue-100 leading-relaxed text-sm">
-              Built on Microsoft Azure Healthcare Cloud Services, HealthClouda delivers high performance, reliability, and compliance. With a unique HealthClouda ID, patient records are securely accessible from any registered facility — instantly.
+            <p className="font-body text-[14.5px] text-chip leading-[1.7]">
+              We fix both. HealthClouda digitizes the record, then connects the facility: one HealthClouda ID per patient, digital referrals between registered facilities, and records that arrive before the patient does — always with the patient&apos;s consent.
             </p>
           </div>
         </div>
@@ -350,130 +430,105 @@ function AboutSection() {
   );
 }
 
-// ─── Section: Security ────────────────────────────────────────────
+// ─── Security ─────────────────────────────────────────────────────
+
+const SECURITY_ITEMS = [
+  { title: 'Patient-consented access', sub: 'Facilities request access; patients grant or deny it — every request logged.' },
+  { title: '256-bit encryption', sub: 'All data encrypted in transit and at rest, end to end.' },
+  { title: 'Role-based access control', sub: 'Every user sees only what their role requires — nothing more.' },
+  { title: 'Complete audit trails', sub: 'Every view, edit and transfer is logged and attributable.' },
+];
 
 function SecuritySection() {
   return (
-    <section className="py-20 px-6">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-        {/* Text */}
-        <div>
-          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full mb-6 border border-emerald-100">
-            <Image src="/assets/images/encrypted.png" alt="" width={14} height={14} className="object-contain" />
-            Enterprise Security
-          </div>
-
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">HIPAA & NDPR Compliant</h2>
-          <p className="text-gray-500 mb-8 leading-relaxed">
-            Protecting sensitive patient health data with enterprise-grade security standards — built for both international compliance and Nigerian data protection regulations.
-          </p>
-
-          <ul className="space-y-4">
-            {[
-              { icon: '🔒', label: '256-bit SSL encryption', sub: 'All data encrypted in transit and at rest' },
-              { icon: '👥', label: 'Role-based access control', sub: 'Every user sees only what they need to' },
-              { icon: '📋', label: 'Comprehensive audit trails', sub: 'Every action logged and attributable' },
-            ].map(item => (
-              <li key={item.label} className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                  {item.icon}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">{item.label}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">{item.sub}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+    <section id="security" className="px-6 md:px-8 py-[100px] max-w-[1140px] mx-auto grid lg:grid-cols-[1fr_0.85fr] gap-12 lg:gap-[72px] items-center">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2.5">
+          <Image src="/assets/images/encrypted.png" alt="" width={24} height={24} className="object-contain" />
+          <span className="font-heading text-[13px] font-bold text-primary uppercase tracking-[0.08em]">Enterprise security</span>
         </div>
-
-        {/* Cloud architecture card */}
-        <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-gray-100 p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-1">Infrastructure</p>
-              <h3 className="font-bold text-gray-900 text-xl">Cloud-Native Architecture</h3>
-            </div>
-            <div className="w-14 h-14 bg-white rounded-2xl border border-gray-100 flex items-center justify-center shadow-sm">
-              <Image src="/assets/images/cloud.png" alt="Cloud" width={28} height={28} className="object-contain" />
-            </div>
-          </div>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            Scalable, reliable, and always accessible. HealthClouda is built on Microsoft Azure to handle both small clinics and large multi-campus healthcare centers with ease.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { v: '99.9%', l: 'Uptime SLA' },
-              { v: 'Azure', l: 'Cloud Provider' },
-              { v: 'End-to-end', l: 'Encryption' },
-              { v: 'Real-time', l: 'Sync & Backup' },
-            ].map(s => (
-              <div key={s.l} className="bg-white rounded-xl p-3 border border-gray-100">
-                <p className="font-bold text-gray-900 text-sm">{s.v}</p>
-                <p className="text-gray-400 text-xs">{s.l}</p>
+        <h2 className="font-heading text-3xl md:text-[34px] font-[750] tracking-[-0.02em] text-ink leading-[1.25]">
+          Patient data, protected at every hop
+        </h2>
+        <p className="font-body text-base text-gray-700 leading-[1.7]">
+          Records that move between facilities demand a higher bar. HealthClouda is built to HIPAA and NDPR standards, with the patient in control of who sees their data.
+        </p>
+        <div className="flex flex-col gap-3.5 mt-1.5">
+          {SECURITY_ITEMS.map(i => (
+            <div key={i.title} className="flex items-start gap-3">
+              <span className="text-primary font-bold text-[15px] leading-[1.5]">✓</span>
+              <div>
+                <p className="font-heading text-[15px] font-bold text-ink">{i.title}</p>
+                <p className="font-body text-[13.5px] text-gray-500 mt-0.5 leading-[1.55]">{i.sub}</p>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white border-[1.5px] border-hairline rounded-[20px] p-9 flex flex-col gap-5 shadow-[0_2px_8px_rgba(0,8,37,0.05)]">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-heading text-xs font-bold text-primary uppercase tracking-[0.08em] mb-1">Infrastructure</p>
+            <h3 className="font-heading text-xl font-bold text-ink">Cloud-native architecture</h3>
           </div>
+          <div className="w-14 h-14 bg-chip rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Image src="/assets/images/cloud.png" alt="" width={28} height={28} className="object-contain" />
+          </div>
+        </div>
+        <p className="font-body text-sm text-gray-500 leading-[1.65]">
+          Built on secure, modern cloud infrastructure to serve everything from a single clinic to a multi-campus hospital network — reliably, at African scale.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { v: '99.9%', l: 'Uptime target' },
+            { v: 'Cloud-native', l: 'Infrastructure' },
+            { v: 'Offline-first', l: 'Keeps working' },
+            { v: 'Real-time', l: 'Sync & backup' },
+          ].map(s => (
+            <div key={s.l} className="bg-page border border-hairline rounded-xl px-4 py-3.5">
+              <p className="font-heading text-[15px] font-extrabold text-ink">{s.v}</p>
+              <p className="font-body text-xs text-gray-500 mt-0.5">{s.l}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-// ─── Section: Contact ─────────────────────────────────────────────
+// ─── Contact ──────────────────────────────────────────────────────
 
 function ContactSection() {
   return (
-    <section id="contact-us" className="py-20 px-6 bg-gray-50/60">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Contact</p>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Get in Touch</h2>
-          <p className="text-gray-500">Feel free to reach out for any enquiries or questions you might have.</p>
+    <section id="contact" className="px-6 md:px-8 py-[100px] bg-panel">
+      <div className="max-w-[1000px] mx-auto">
+        <div className="text-center max-w-[560px] mx-auto mb-12 flex flex-col gap-3.5">
+          <p className={kicker}>Contact</p>
+          <h2 className={h2}>Bring your facility onto the network</h2>
+          <p className="font-body text-base text-gray-700 leading-[1.65]">
+            Tell us about your organisation and we&apos;ll set you up with a branded portal and onboard your team.
+          </p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-10">
-          {/* Left: info */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Contact Information</h3>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium mb-0.5">Email</p>
-                    <a href="mailto:hardeydamola20082@gmail.com" className="text-sm text-gray-700 hover:text-blue-600 transition-colors">
-                      hardeydamola20082@gmail.com
-                    </a>
-                  </div>
-                </div>
-              </div>
+        <div className="grid lg:grid-cols-[2fr_3fr] gap-8 items-start">
+          <div className="flex flex-col gap-5">
+            <div className="bg-white border border-hairline rounded-[20px] p-7 flex flex-col gap-2 shadow-[0_2px_8px_rgba(0,8,37,0.05)]">
+              <h4 className="font-heading text-[15px] font-bold text-ink">Email us</h4>
+              <a href="mailto:hello@healthclouda.ng" className="font-body text-[14.5px] text-primary font-bold hover:text-primary-dark">hello@healthclouda.ng</a>
+              <p className="font-body text-[13px] text-gray-500 leading-[1.6]">We respond within one business day.</p>
             </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
-              <h3 className="font-semibold text-gray-900 mb-3">For Healthcare Organisations</h3>
-              <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                Ready to bring HealthClouda to your facility? Send us a message and we'll get your organisation set up with a branded portal and your team onboarded.
+            <div className="bg-white border border-hairline rounded-[20px] p-7 flex flex-col gap-2 shadow-[0_2px_8px_rgba(0,8,37,0.05)]">
+              <h4 className="font-heading text-[15px] font-bold text-ink">Staff &amp; patients</h4>
+              <p className="font-body text-[13.5px] text-gray-700 leading-[1.65]">
+                Accounts can&apos;t be created online. Visit the reception desk at any registered facility — admin staff will create your login.
               </p>
-              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                <p className="text-xs font-semibold text-blue-700 mb-1">Note for Staff & Patients</p>
-                <p className="text-xs text-blue-600 leading-relaxed">
-                  Accounts cannot be created online. Visit reception at any registered clinic — admin staff will create your login.
-                </p>
-              </div>
             </div>
           </div>
 
-          {/* Right: form */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-2xl border border-gray-100 p-8">
-              <h3 className="font-semibold text-gray-900 mb-6">Send us a Message</h3>
-              <ContactForm />
-            </div>
+          <div className="bg-white border border-hairline rounded-[20px] p-6 sm:p-9 shadow-[0_4px_24px_rgba(0,117,255,0.1)] flex flex-col gap-4">
+            <h4 className="font-heading text-[17px] font-bold text-ink mb-1">Send us a message</h4>
+            <ContactForm />
           </div>
         </div>
       </div>
@@ -481,45 +536,31 @@ function ContactSection() {
   );
 }
 
-// ─── Section: CTA Banner ──────────────────────────────────────────
+// ─── CTA banner ───────────────────────────────────────────────────
 
 function CtaBanner() {
   return (
-    <section className="py-20 px-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 px-8 py-14 text-center text-white">
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <div className="absolute -top-16 -right-16 w-72 h-72 bg-white rounded-full" />
-            <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-white rounded-full" />
-          </div>
-          <div className="relative">
-            <p className="text-sm font-semibold text-blue-200 uppercase tracking-widest mb-4">
-              Join hundreds of providers across Africa
-            </p>
-            <h2 className="text-3xl font-bold mb-4">
-              Ready to Transform Your Healthcare Practice?
-            </h2>
-            <p className="text-blue-100 mb-8 max-w-lg mx-auto">
-              Join hundreds of healthcare providers across Africa who trust HealthClouda to manage their patient records, streamline operations, and deliver better care.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link
-                href="#contact-us"
-                className="inline-flex items-center gap-2 bg-white text-blue-700 font-semibold px-6 py-3.5 rounded-xl hover:bg-blue-50 transition-colors text-sm shadow-md"
-              >
-                Get Started Today
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-              <Link
-                href="/signin"
-                className="inline-flex items-center gap-2 text-white font-medium px-6 py-3.5 rounded-xl border border-white/30 hover:bg-white/10 transition-colors text-sm"
-              >
-                Patient Sign In
-              </Link>
-            </div>
-          </div>
+    <section className="bg-primary px-6 md:px-8 py-[88px] text-center">
+      <div className="max-w-[640px] mx-auto flex flex-col items-center gap-[18px]">
+        <h2 className="font-heading text-3xl md:text-[34px] font-[750] tracking-[-0.02em] text-white leading-[1.25]">
+          Ready to connect your facility?
+        </h2>
+        <p className="font-body text-base text-white/[0.88] leading-[1.65]">
+          Join the growing network of hospitals and clinics across Africa sharing records securely on HealthClouda.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3.5 mt-2">
+          <a
+            href="#contact"
+            className="font-heading px-[30px] py-3.5 bg-white text-primary rounded-xl text-[15.5px] font-bold hover:bg-chip hover:scale-[1.03] transition-all"
+          >
+            Get started today
+          </a>
+          <Link
+            href="/signin"
+            className="font-heading px-[26px] py-3.5 bg-transparent text-white border-[1.5px] border-white/45 rounded-xl text-[15.5px] font-semibold hover:bg-white/[0.12] transition-colors"
+          >
+            Patient sign in
+          </Link>
         </div>
       </div>
     </section>
@@ -529,89 +570,41 @@ function CtaBanner() {
 // ─── Footer ───────────────────────────────────────────────────────
 
 function Footer() {
-  const year = new Date().getFullYear();
   return (
-    <footer className="bg-[#1a1a2e] text-slate-400 px-6 py-12">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid md:grid-cols-3 gap-10 mb-10">
-          {/* Brand */}
-          <div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <Image
-                src="/assets/images/HealthClouda-icon.png"
-                alt="HealthClouda"
-                width={32}
-                height={32}
-                className="rounded-lg"
-              />
-              <span className="font-bold text-white text-lg">HealthClouda</span>
+    <footer className="bg-footer px-6 md:px-14 pt-16 pb-8">
+      <div className="max-w-[1100px] mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-12 mb-11">
+          <div className="flex flex-col gap-3.5">
+            <div className="flex items-center gap-2.5">
+              <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={30} height={30} className="object-contain invert" />
+              <span className="font-heading text-[19px] font-extrabold text-white">HealthClouda</span>
             </div>
-            <p className="text-sm leading-relaxed text-slate-400 max-w-xs">
-              Empowering African healthcare with secure, cloud-based EHR solutions for hospitals and health facilities of every size.
+            <p className="font-body text-[13.5px] text-slate-400 leading-[1.65] max-w-[280px]">
+              The connective infrastructure for African healthcare — secure, cloud-based records that move with the patient.
             </p>
           </div>
-
-          {/* Quick links */}
-          <div>
-            <h4 className="text-sm font-semibold text-white mb-4">Quick Links</h4>
-            <ul className="space-y-2.5">
-              {[
-                { href: '#about-us', label: 'About Us' },
-                { href: '#features', label: 'Features' },
-                { href: '#contact-us', label: 'Contact Us' },
-                { href: '/signin', label: 'Patient Sign In' },
-              ].map(l => (
-                <li key={l.label}>
-                  <a href={l.href} className="text-sm text-slate-400 hover:text-white transition-colors">
-                    {l.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+          <div className="flex flex-col gap-3">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-[0.08em] text-slate-400 mb-1">Platform</h4>
+            <a href="#network" className="font-body text-[13.5px] text-slate-300 hover:text-white transition-colors">How it works</a>
+            <a href="#features" className="font-body text-[13.5px] text-slate-300 hover:text-white transition-colors">Features</a>
+            <a href="#security" className="font-body text-[13.5px] text-slate-300 hover:text-white transition-colors">Security</a>
           </div>
-
-          {/* Social */}
-          <div>
-            <h4 className="text-sm font-semibold text-white mb-4">Follow Us</h4>
-            <div className="flex gap-3">
-              {/* LinkedIn */}
-              <a
-                href="#"
-                aria-label="LinkedIn"
-                className="w-9 h-9 bg-white/10 hover:bg-blue-600 rounded-xl flex items-center justify-center transition-colors"
-              >
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
-              </a>
-              {/* X / Twitter */}
-              <a
-                href="#"
-                aria-label="X (Twitter)"
-                className="w-9 h-9 bg-white/10 hover:bg-slate-700 rounded-xl flex items-center justify-center transition-colors"
-              >
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-              </a>
-            </div>
-
-            <div className="mt-6">
-              <p className="text-xs text-slate-500 mb-1">Powered by</p>
-              <p className="text-sm font-medium text-slate-300">Microsoft Azure Healthcare</p>
-            </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-[0.08em] text-slate-400 mb-1">Company</h4>
+            <a href="#about" className="font-body text-[13.5px] text-slate-300 hover:text-white transition-colors">About us</a>
+            <a href="#contact" className="font-body text-[13.5px] text-slate-300 hover:text-white transition-colors">Contact</a>
+            <Link href="/signin" className="font-body text-[13.5px] text-slate-300 hover:text-white transition-colors">Patient sign in</Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-[0.08em] text-slate-400 mb-1">Compliance</h4>
+            <span className="font-body text-[13.5px] text-slate-300">HIPAA compliant</span>
+            <span className="font-body text-[13.5px] text-slate-300">NDPR compliant</span>
+            <span className="font-body text-[13.5px] text-slate-300">256-bit SSL</span>
           </div>
         </div>
-
-        <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">© {year} HealthClouda. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <span>HIPAA Compliant</span>
-            <span>·</span>
-            <span>NDPR Compliant</span>
-            <span>·</span>
-            <span>256-bit SSL</span>
-          </div>
+        <div className="border-t border-[#2d2d4e] pt-[22px] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="font-body text-[12.5px] text-slate-500">© {new Date().getFullYear()} HealthClouda. All rights reserved.</p>
+          <p className="font-body text-[12.5px] text-slate-500">Built for African healthcare</p>
         </div>
       </div>
     </footer>
@@ -622,14 +615,14 @@ function Footer() {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-page font-body text-ink overflow-x-hidden">
       <LandingNav />
       <main>
         <HeroSection />
+        <NetworkSection />
         <FeaturesSection />
         <OnePlatformSection />
         <BenefitsSection />
-        <WellbeingSection />
         <AboutSection />
         <SecuritySection />
         <ContactSection />
