@@ -87,9 +87,8 @@ bug list (still owed); then write workflows; Fri 18 buffer.
 **Pending / TODOs:**
 - [ ] Qeeyat: review PR A (blocks design PRs B/C/D).
 - [ ] Next session: **design PR B (auth set)** — biggest design PR; also retires auth-page P1s.
-  NOTE: design route map says `/org/[slug]/…` but the app serves `/[slug]/…` — resolve before B/C
-  (recommendation: keep `/[slug]` and treat the README's `/org/` prefix as a doc quirk, OR add a
-  redirect; ask Bastoh).
+  **Routing DECIDED (Bastoh, 2026-07-11): keep `/[slug]/…`** — the design README's `/org/[slug]`
+  prefix was a doc mistake. All design PRs use the existing route structure.
 - [ ] Then per the schedule above. Bug list still owed by Bastoh.
 
 ---
