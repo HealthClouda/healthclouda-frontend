@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens — design_handoff_prelogin/README.md (pre-login design system).
+ * Utilities: text-primary / bg-primary / bg-chip / text-ink / bg-page /
+ * bg-footer / font-heading / font-body etc.
+ */
+@theme inline {
+  --font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #0075ff;
+  --color-primary-dark: #005fcc;
+  --color-ink: #000825;
+  --color-page: #f8faff;
+  --color-chip: #ebf3ff;
+  --color-panel: #e9f3ff;
+  --color-footer: #1a1a2e;
+  --color-input-bg: #fafbff;
+  --color-input-border: #dde3ee;
+  --color-hairline: #e2e8f0;
+
+  --shadow-card: 0 4px 32px rgba(0, 117, 255, 0.09);
+  --shadow-btn-primary: 0 3px 14px rgba(0, 117, 255, 0.28);
+}
+
 /* Carousel infinite scroll */
 @keyframes carousel-scroll {
   0%   { transform: translateX(0); }

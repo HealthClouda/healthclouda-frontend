@@ -47,6 +47,53 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-11 (evening) — Delivery plan locked; design PR A shipped; PR D API gaps verified + filed
+
+**Delivery decision (Bastoh):** ship **~Tue–Wed 2026-07-21/22**, scope = **Cut 2** (everything incl.
+the P2 write workflows: receptionist check-in/register/appointments, doctor episode/prescription/
+referral). Demo surface = **Vercel deployment on `develop`** (Bastoh is demoing to a potential
+connection) → final smoke pass must run against the deployed URL + prod backend. Schedule:
+weekend = design PRs A+B; Mon–Tue = PR 5 + C + PR 6 + doctor PR + CI; Wed–Thu = PR D + sweeps +
+bug list (still owed); then write workflows; Fri 18 buffer.
+
+**PR A `feat/design-foundations-landing`** (→ develop, reviewer Qeeyat):
+- Design tokens into the styling layer: Lato added via `next/font` (`--font-lato`), Tailwind v4
+  `@theme inline` tokens (`primary/primary-dark/ink/page/chip/panel/footer/hairline/input-*`,
+  `font-heading`/`font-body`, card + button shadows). Dashboards untouched (still Inter).
+- **General landing `/` recreated per the design** (nav w/ mobile drawer, flare hero + patient-portal
+  mock, how-it-works, features, one-platform, benefits, about, security, contact, CTA banner,
+  4-col footer). Wellbeing carousel REMOVED from `/` (design puts it on the org landing — PR C).
+- `design_handoff_prelogin/` committed (Bastoh's call: Qeeyat sees design source in review).
+  Only new asset was `HealthClouda-icon-tight.png` (all others already in `public/assets/images/`).
+- ⚠️ **Known design deviation:** contact form has an added **Phone number** field — backend
+  `ContactUsRequest` REQUIRES `phone_number`; full name split client-side, organisation prefixed
+  into `message`. Verified live: proxy → DRF 201.
+- Verified: vitest 50/50, tsc clean, build green, rendered page markers + compiled token utilities
+  checked, contact submission created on local backend.
+
+**PR D early API verifications (step 4 of the plan) — both answered:**
+1. **Access-request respond:** live prod schema now has `GET /receptionist/access-requests/respond/?token=`
+   (read-only details) + `POST {token, action: accept|deny}` (the mutation — backend fixed the
+   GET-mutation hazard, their FLAG-241). Matches the design's assumption. Local `API-doc.md` is
+   STALE (GET-only) → refresh it before PR D.
+2. **Invite-token validate returns NO org branding:** `GET /auth/setup-password/validate/?token=`
+   → `{valid, email, first_name, last_name, role}` (verified with a real token via local DB).
+   Design needs org name in the welcome copy → **backend issue #66 filed** (additive field ask).
+   If it doesn't land by PR D, ship without org name and pick up later.
+- Bonus intel for **PR 6**: `POST /org-admin/staff/` requires `full_name` (not first/last) and
+  **lowercase** `role` (`"nurse"`); 400 `{error, code, details}`. Note the casing inconsistency
+  with the rest of the API (validate returns `"DOCTOR"`).
+
+**Pending / TODOs:**
+- [ ] Qeeyat: review PR A (blocks design PRs B/C/D).
+- [ ] Next session: **design PR B (auth set)** — biggest design PR; also retires auth-page P1s.
+  NOTE: design route map says `/org/[slug]/…` but the app serves `/[slug]/…` — resolve before B/C
+  (recommendation: keep `/[slug]` and treat the README's `/org/` prefix as a doc quirk, OR add a
+  redirect; ask Bastoh).
+- [ ] Then per the schedule above. Bug list still owed by Bastoh.
+
+---
+
 ### 2026-07-11 (later) — NURSE-1 nurse vitals rebuild (PR: fix/nurse-vitals)
 
 **Context:** Work plan step 1 (bug-list triage) skipped — Bastoh has no list yet — so straight to
