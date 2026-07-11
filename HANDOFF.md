@@ -47,6 +47,86 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-11 (later) — NURSE-1 nurse vitals rebuild (PR: fix/nurse-vitals)
+
+**Context:** Work plan step 1 (bug-list triage) skipped — Bastoh has no list yet — so straight to
+step 2: NURSE-1, the last known P0. Decision made this session: `design_handoff_prelogin/` WILL be
+committed (goes in design PR A so Qeeyat sees the design source in review).
+
+**What was done:**
+- **Full nurse contract verified live** (local Docker backend, nurse@demo.test):
+  - `GET /nurse/my-patients/` → `{count, results}` envelope of **admissions** (nested
+    patient/bed/ward/episode) — the old page parsed flat patients → every cell "—".
+  - `GET/PATCH /nurse/patients/<patient_id>/vitals/` → `{patient_id, episode_id, vitals: latest|null}`.
+    PATCH **appends** a reading; partial bodies fine; 400 `{error, code, details}` with probed bounds
+    (temp 30–45°C, systolic ≥50, diastolic 20–200, pulse 20–250, resp 5–60, SpO2 50–100,
+    weight 0.5–500, height 20–300); 404 = no active episode; **empty body stores an all-null
+    reading** → form requires ≥1 field and omits untouched inputs.
+  - `GET /nurse/dashboard/stats/` → ward/admission aggregates. `vitals_pending`,
+    `critical_patients`, `total_patients` **do not exist** (GLOBAL-6 nurse slice) — the whole
+    "Vitals Pending" concept had no backend support.
+- **PR 4 `fix/nurse-vitals`** (→ develop, reviewer Qeeyat): all four nurse pages rebuilt on the
+  real shapes. New Vitals page = patient picker → latest-reading panel + record form (the core
+  nurse workflow, previously missing entirely). Overview cards now real stats; My Patients shows
+  HCL-ID/ward/bed/complaint with per-row "Record vitals". New types: `NurseAdmission`,
+  `VitalsReading`, `PatientVitals`; `NurseStats` rewritten; dead `VitalRecord` deleted.
+  **8 pre-fix tests red→green**; carries CONTRACT-AUDIT updates (NURSE-1 closed, GLOBAL-6 nurse
+  slice, P2 record-vitals row) + this HANDOFF entry.
+- Verified: vitest 50/50, tsc clean, `next build` green, and driven end-to-end through the real
+  Next login route + `/api/data` + `/api/action` proxies against the local backend (login →
+  stats → my-patients → PATCH reading → 400 out-of-range → GET shows new latest → SSR page 200).
+
+**Pending / TODOs:**
+- [ ] Merge PR 4 (`fix/nurse-vitals`).
+- [ ] Bug list from Bastoh → triage (still owed; anything P0 jumps the queue).
+- [ ] Design PRs A–D per the plan below (commit `design_handoff_prelogin/` with PR A) + the
+  step-4 early API verifications.
+- [ ] Then PR 5 (patient grant/deny + notifications), PR 6 (org-admin), GLOBAL-2 doctor leftovers.
+
+---
+
+### 2026-07-11 — PRs #55/#56 merged ✓; pre-login design batch delivered; work plan agreed
+
+**Short session — no code.** Bastoh delivered the Claude design handoff and we drafted the plan below;
+execution starts next session.
+
+**State changes:**
+- Qeeyat merged **PR #55** (patient appointments) and **PR #56** (duty initial state). `develop`
+  synced locally; both local branches deleted, remotes auto-pruned. All of PATIENT-1 + GLOBAL-4 is live.
+- **Design batch 1 landed:** `design_handoff_prelogin/` (untracked, repo root) — high-fidelity designs
+  + README covering ALL pre-login pages: general landing `/`, org landing `/org/[slug]`, and the
+  10-screen auth set (sign-in general+org, 4-step recovery in both modes, staff-invite set-password,
+  404, access-request respond + outcome states). Read its `README.md` before touching any of it —
+  it has the design tokens, route map, and agreed product decisions.
+
+**Agreed work plan (in order):**
+1. **Triage Bastoh's bug list** (held until #55/#56 merged — now unblocked). He'll share it next
+   session. Anything P0 jumps this queue. Triage against `CONTRACT-AUDIT.md` — some are likely
+   known items (NURSE-1, UX-6 notification bell, doctor `?status=OPEN`); new ones get pre-fix tests.
+2. **NURSE-1 — nurse vitals rebuild** (last known P0, own session). Broken logged-in functionality
+   beats pre-login polish.
+3. **Design batch as independent PRs off `develop`** (no stacking):
+   - **PR A — foundations + general landing `/`:** assets into `public/`, design tokens (Inter/Lato,
+     colors) into the styling layer, landing page. Blocks B–D; goes first.
+   - **PR B — auth set:** sign-in (general + org mode) + 4-step recovery flow with org theming.
+     Highest product value — replaces real functional pages.
+   - **PR C — org landing `/org/[slug]`** + `noindex` on all org routes.
+   - **PR D — set-password + access-request respond + 404** (token-driven utility screens, all
+     outcome states).
+   After PR A merges, B/C/D are parallel.
+4. **Early API verifications (before/alongside PR D):** confirm access-request respond endpoint in
+   current docs (old: `receptionist/access-requests/respond/`), and whether invite-token validation
+   returns org name/logo. If missing → `api-request` issue on the backend repo NOW for lead time.
+
+**Pending / TODOs:**
+- [ ] Get bug list from Bastoh → triage (step 1).
+- [ ] Decide: gitignore `design_handoff_prelogin/` (precedent: internal handoff docs stay out of git)
+  or commit it so Qeeyat sees design source in review. **Unanswered — ask Bastoh.**
+- [ ] Then steps 2–4 above; the 2026-07-09 leftovers (PR 5 patient grant/deny + notifications,
+  PR 6 org-admin, GLOBAL-2 doctor leftovers, seed_demo ask, ARCH-2/3/7) queue behind them.
+
+---
+
 ### 2026-07-09 — Backend watch-list shipped → PATIENT-1 + GLOBAL-4 wired (PRs #55, #56)
 
 **Context:** Backend notified that both watch-list items landed (their PR #65, deployed to prod):
