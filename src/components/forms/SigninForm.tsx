@@ -7,7 +7,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PasswordInput } from './PasswordInput';
+import { TextField } from './TextField';
 import { AuthCard } from './AuthCard';
+import { MailIcon } from './AuthIcons';
+import { authPrimaryBtn } from './authStyles';
 import { roleDashboardPath, passwordFlowPath } from '@/lib/router';
 import { formatApiError } from '@/lib/api';
 import type { User } from '@/types/auth';
@@ -92,86 +95,93 @@ export function SigninForm({ loginType, orgSlug, orgName, orgLogo }: SigninFormP
   const isAdmin = loginType === 'admin';
   const forgotPath = passwordFlowPath('forgot-password', orgSlug);
 
-  const title = isAdmin ? 'Superadmin sign in' : isOrg ? 'Sign in' : 'Sign in to HealthClouda';
-  const subtitle = isAdmin
-    ? 'Administrator access only'
-    : isOrg
-    ? undefined
-    : 'Patient portal';
+  // Heading — general/org/admin variants (design_handoff_prelogin screens 1–2).
+  const title = isAdmin ? (
+    'Superadmin sign in'
+  ) : isOrg ? (
+    <>
+      Sign in to <span className="text-primary">{orgName}</span> HealthClouda
+    </>
+  ) : (
+    'Login to HealthClouda'
+  );
+  const subtitle = isAdmin ? 'Administrator access only' : 'Access your healthcare dashboard';
+  // Org identifier is email-only: the backend login accepts { email, password }
+  // (no HealthClouda-ID identifier). The design's "Email / HealthClouda ID" label
+  // is a known deviation until/unless a backend api-request adds HCL-ID login.
+  const emailLabel = 'Email address';
 
   return (
-    <AuthCard title={title} subtitle={subtitle} orgName={orgName} logo={orgLogo}>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Email address
-          </label>
-          <input
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            className={`w-full px-4 py-3 rounded-lg border ${
-              errors.email ? 'border-red-400' : 'border-gray-300'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900`}
-            {...register('email')}
-          />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
-          )}
-        </div>
+    <AuthCard
+      title={title}
+      subtitle={subtitle}
+      titleClassName={isOrg ? 'text-[36px]' : 'text-[40px]'}
+      orgName={isOrg ? orgName : undefined}
+      orgLogo={isOrg ? orgLogo : undefined}
+      backHref={isOrg && orgSlug ? `/${orgSlug}` : '/'}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
+        <TextField
+          label={emailLabel}
+          icon={<MailIcon />}
+          type="email"
+          autoComplete="email"
+          placeholder="Enter your email"
+          error={errors.email?.message}
+          {...register('email')}
+        />
 
         <div>
-          <div className="flex justify-between items-center mb-1.5">
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <Link href={forgotPath} className="text-sm text-blue-600 hover:underline">
-              Forgot password?
-            </Link>
-          </div>
           <PasswordInput
+            label="Password"
             autoComplete="current-password"
+            placeholder="Enter your password"
             error={errors.password?.message}
             {...register('password')}
           />
         </div>
 
+        {!isAdmin && (
+          <div className="flex items-center justify-between pt-1">
+            {/* Remember me is UI-only for now — session length is set by the
+                httpOnly cookie lifetime; persistent sessions are a later change. */}
+            <label className="flex cursor-pointer items-center gap-[7px] text-sm text-[#374151]">
+              <input type="checkbox" className="h-4 w-4 accent-primary" />
+              <span>Remember me</span>
+            </label>
+            <Link href={forgotPath} className="font-heading text-sm font-bold text-primary hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+        )}
+
         {serverError && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+          <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {serverError}
           </div>
         )}
         {redirectMsg && (
-          <div className="text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg">
+          <div className="rounded-[10px] border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
             {redirectMsg}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors"
-        >
-          {isSubmitting ? 'Signing in…' : 'Sign in'}
+        <button type="submit" disabled={isSubmitting} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting ? 'Signing in…' : 'Sign In'}
         </button>
       </form>
 
       {!isAdmin && (
-        <p className="mt-6 text-center text-sm text-gray-500">
-          {isOrg ? (
-            <>
-              Not your organisation?{' '}
-              <Link href="/signin" className="text-blue-600 hover:underline">
-                Patient portal
-              </Link>
-            </>
-          ) : (
-            <>
-              Is your organisation on HealthClouda?{' '}
-              <Link href="/#contact" className="text-blue-600 hover:underline">
-                Get access
-              </Link>
-            </>
-          )}
-        </p>
+        <div className="mt-5">
+          <p className="mb-[14px] text-center text-[13px] text-[#6b7280]">Don&apos;t have an account?</p>
+          <div className="rounded-[10px] border border-[rgba(0,117,255,0.15)] bg-chip px-4 py-[14px]">
+            <p className="text-center text-[12.5px] leading-[1.55] text-[#1a4b8c]">
+              <strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the
+              reception desk at {isOrg ? 'your organisation clinic' : 'any registered clinic'} — admin staff
+              will create your login.
+            </p>
+          </div>
+        </div>
       )}
     </AuthCard>
   );

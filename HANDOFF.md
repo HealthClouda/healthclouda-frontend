@@ -47,6 +47,64 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-12 — Design PR B (auth set) — sign-in + full recovery flow rebuilt to the design
+
+**Context:** Bastoh shared the backend→frontend handoff MD. Two things mattered for the design PRs:
+(1) **backend issue #66 landed** — `GET /auth/setup-password/validate/` now returns
+`organization_name` + `organization_logo` (either nullable → fall back to HealthClouda). Clears the
+"ship without org name" caveat for PR D. (2) New affordances for later PRs: public
+`POST /auth/setup-password/resend/` (powers the set-password expired-state "Request a new link" button)
+and `POST /auth/users/<id>/resend-setup-email/` (staff-table resend, PR 6).
+
+**Verified live against Swagger** (`/api/v1/schema/`, saved locally) before building:
+- **Access-request respond action enum = `accept`|`deny`** (in the POST operation description). The
+  handoff MD's `approve|deny` is WRONG; our 2026-07-11 note was right. Swagger wins → PR D uses
+  `accept`/`deny` (sending `approve` = silent 400). The POST exposes no formal requestBody serializer
+  (plain APIView) — hand-write the `{token, action}` type. (`ReferralResponseRequest` in the schema is
+  the *referral* accept/reject body — unrelated.)
+- **Org login is email-only.** The login endpoints expose no request-body serializer in the schema
+  (plain APIView), but the handoff documents `{email, password}` in two places and Bastoh confirmed it.
+
+**PR B `feat/design-auth-set`** (→ develop, reviewer Qeeyat) — high-fidelity restyle of the *existing,
+already-wired* auth components (not a from-scratch build). All login/recovery logic preserved; only
+presentation + a few behaviour gaps changed:
+- **Shared shell** `AuthCard` rebuilt: flare-image + gradient bg with two blurred blobs, 64px white top
+  nav (brand left / outlined back-button right; org mode swaps brand → org logo 32px + org name),
+  optional 56px icon chip + H1 + sub, 700px white card (`shadow-card`). One component, themed by org.
+- New primitives: `authStyles.ts` (shared input/button/label classes), `AuthIcons.tsx` (mail/lock/
+  shield/mail+/check/eye + requirement ticks — SVGs lifted verbatim from the design), `TextField`
+  (left-icon labelled input); `PasswordInput` restyled to spec (lock + eye toggle).
+- **Sign-in (general + org + admin)** one `SigninForm`: general H1 "Login to HealthClouda" (40px), org
+  H1 "Sign in to **{Org}** HealthClouda" (org name blue, 36px) + org nav branding; Remember-me
+  (**UI-only** — no session-length plumbing yet, commented), forgot link, `#ebf3ff` Notice box (no
+  online account creation → visit reception). Admin variant = no Notice/Remember.
+- **Recovery flow** all four screens restyled with org theming: forgot (lock chip, org email
+  placeholder `e.g. user@<slug>.com`, back-to-login); check-email (OTP box states + **Verify disabled
+  until 6 digits** + **resend countdown** "Resend email (0:24)"); reset (rebuilt `PasswordStrengthMeter`
+  = single track + live 2×2 requirements grid + match message + **submit gated on full rule set**);
+  success (72px chip w/ **animated blue check** + "Continue (5)" countdown).
+- **Correctness bump:** reset-password zod schema now enforces the *full* backend rule
+  (≥8 + upper + digit + special) client-side, via a shared `passwordChecks/passwordIsValid` helper that
+  the meter UI and schema both consume (reused by set-password in PR D).
+- ⚠️ **Known design deviation:** design labels the org sign-in field **"Email / HealthClouda ID"**, but
+  backend login is **email-only** (verified above) → shipped as **"Email address"**, strict-email
+  validation. HCL-ID login would need a backend `api-request`. (Same spirit as PR A's phone-field note.)
+- Verified: tsc clean, vitest 50/50, `next build` green (22 routes), and **all six screens driven +
+  screenshotted** (Playwright) — general sign-in, forgot, OTP (filled/active/empty box states),
+  reset (Weak strength + requirements grid), success, and **org sign-in** (rendered via a throwaway
+  preview route since the local backend isn't seeded → org logo + blue org name + email-only field +
+  org Notice copy all correct). Set-password / 404 / access-request stay in PR D.
+
+**Pending / TODOs:**
+- [ ] Qeeyat: review + merge PR B.
+- [ ] **PR C — org landing `/[slug]`** + `noindex` on all org routes (design has announcements +
+  wellbeing carousel + org contact form). Then **PR D** — set-password (now with org name/logo from
+  #66) + access-request respond (`accept`|`deny`) + 404. B/C/D are independent off develop.
+- [ ] Then per the 2026-07-11 schedule: PR 5/6/doctor + write workflows. Bug list still owed by Bastoh.
+- [ ] Refresh local `API-doc.md` (stale: GET-only respond) before PR D.
+
+---
+
 ### 2026-07-11 (evening) — Delivery plan locked; design PR A shipped; PR D API gaps verified + filed
 
 **Delivery decision (Bastoh):** ship **~Tue–Wed 2026-07-21/22**, scope = **Cut 2** (everything incl.

@@ -30,6 +30,10 @@
   100% { transform: translateX(-50%); }
 }
 
+/* Auth screens (design_handoff_prelogin): OTP caret blink + success check pop-in */
+@keyframes hc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes hc-pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
 /* Smooth scrolling for anchor nav */
 html {
   scroll-behavior: smooth;

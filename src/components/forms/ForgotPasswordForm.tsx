@@ -7,6 +7,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AuthCard } from './AuthCard';
+import { TextField } from './TextField';
+import { MailIcon, LockIcon } from './AuthIcons';
+import { authPrimaryBtn } from './authStyles';
 import { formatApiError } from '@/lib/api';
 
 const schema = z.object({
@@ -40,46 +43,44 @@ export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
   }
 
   const backPath = orgSlug ? `/${orgSlug}/signin` : '/signin';
+  const placeholder = orgSlug ? `e.g. user@${orgSlug}.com` : 'Enter your email';
 
   return (
     <AuthCard
-      title="Forgot your password?"
-      subtitle="Enter your email and we'll send you a code to reset it."
+      icon={<LockIcon size={26} />}
+      title="Forgot password?"
+      subtitle="Please enter your email to reset the password"
       orgName={orgName}
-      logo={orgLogo}
+      orgLogo={orgLogo}
+      backHref={backPath}
+      backLabel="Back to Login"
+      footer={
+        <Link href={backPath} className="inline-flex items-center gap-1.5 font-heading text-sm font-bold text-primary hover:underline">
+          ← Back to login
+        </Link>
+      }
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
-          <input
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            className={`w-full px-4 py-3 rounded-lg border ${
-              errors.email ? 'border-red-400' : 'border-gray-300'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900`}
-            {...register('email')}
-          />
-          {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+        <TextField
+          label="Your Email"
+          icon={<MailIcon />}
+          type="email"
+          autoComplete="email"
+          placeholder={placeholder}
+          error={errors.email?.message}
+          {...register('email')}
+        />
 
         {serverError && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+          <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {serverError}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors"
-        >
-          {isSubmitting ? 'Sending…' : 'Send reset code'}
+        <button type="submit" disabled={isSubmitting} className={authPrimaryBtn}>
+          {isSubmitting ? 'Sending…' : 'Reset Password'}
         </button>
       </form>
-      <p className="mt-6 text-center text-sm text-gray-500">
-        <Link href={backPath} className="text-blue-600 hover:underline">Back to sign in</Link>
-      </p>
     </AuthCard>
   );
 }
