@@ -47,6 +47,46 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-13 — Brand-asset fixes: favicon, logo sizing, image weight + old-app purge (PR: fix/brand-assets)
+
+**Context:** PR B (#59) merged; Bastoh deployed `develop` to Vercel manually (free plan) and flagged
+two landing-page issues: distorted/oversized favicon and a too-small nav logo. Root cause of BOTH:
+`HealthClouda-icon-tight.png` is **341×171 (2:1)** but was used in square slots — browsers squash a
+non-square favicon into the tab square, and a 34×34 `object-contain` box shrinks the mark to 17px
+tall. The design file itself specified 34×34, so the bug was inherited from the design.
+
+**PR `fix/brand-assets`** (→ develop, reviewer Qeeyat):
+- **Favicon:** proper square icons generated with sharp (mark trimmed, centered, 8% padding) →
+  `src/app/icon.png` (512², transparent, 8 KB) + `src/app/apple-icon.png` (180², white plate for
+  iOS) via App Router file conventions; `metadata.icons` block removed from `layout.tsx`.
+- **Logo mark at natural 2:1 aspect** everywhere it was squared: landing nav 34×34→56×28, hero
+  portal mock 26×26→44×22, footer 30×30→56×28, AuthCard 24×24→48×24 (was visually OK via
+  `h-6 w-auto`, srcset size fixed).
+- **Asset diet** (sharp pipeline, script in scratchpad — not committed):
+  `Backgroud_flare.png` 1.5 MB → **301 KB WebP** (1080w, q60 — blurred decoration; was a raw CSS
+  background on every auth page, bypassing next/image; PNG deleted, AuthCard points at .webp);
+  `Female_doctor.jpg` 805→108 KB (1600w mozjpeg); palette-compressed PNGs in place:
+  `Frame 64` 565→208 KB, `unilogo` 259→74, `EHR` 155→43, P-1…P-6 ~52–101→23–36, `Hero_picture`
+  90→32, `BENEFIT_ONE` 40→9. Total images: ~3.9 MB → ~1.0 MB. (Frame 64/unilogo/EHR are PR C's
+  org-landing assets — compressed ahead of time, same filenames.)
+- **Old Vanilla JS app purged from `public/`** (Bastoh approved): all legacy HTML/JS/CSS —
+  root pages, 6 dashboard folders, organization/, access-request/, assets/js+css, stale
+  sitemap.xml (placeholder domain, .html URLs) — ~900 KB that was deployed verbatim and publicly
+  reachable (e.g. `/signin.html` with localStorage-token login hitting prod API). Kept:
+  `robots.txt`, `assets/images/`. All recoverable from git history. NOTE: makes ARCHITECTURE.md
+  (still describing that old app) fully historical — ARCH-7 rewrite still pending.
+- Verified: tsc clean, vitest 50/50, `next build` green ×2 (pre- and post-purge), prod server
+  driven with Playwright — icon links resolve (`/icon.png` 200), flare .webp 200 on `/signin`,
+  screenshots of nav/hero/footer/signin + full-page (no compression artifacts).
+
+**Pending / TODOs:**
+- [ ] Qeeyat: review + merge `fix/brand-assets`.
+- [ ] PR C — org landing `/[slug]` + `noindex` on org routes; PR D — set-password + access-request
+  respond (`accept`|`deny`) + 404. Refresh local `API-doc.md` before PR D.
+- [ ] Then per the 2026-07-11 schedule: PR 5/6/doctor + write workflows. Bug list still owed by Bastoh.
+
+---
+
 ### 2026-07-12 — Design PR B (auth set) — sign-in + full recovery flow rebuilt to the design
 
 **Context:** Bastoh shared the backend→frontend handoff MD. Two things mattered for the design PRs:

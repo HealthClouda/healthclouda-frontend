@@ -42,7 +42,7 @@ export function AuthCard({
       className="relative min-h-screen overflow-hidden font-body"
       style={{
         background:
-          "url('/assets/images/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%)",
+          "url('/assets/images/Backgroud_flare.webp') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%)",
       }}
     >
       {/* Blurred accent blobs */}
@@ -73,7 +73,7 @@ export function AuthCard({
               <Image
                 src="/assets/images/HealthClouda-icon-tight.png"
                 alt="HealthClouda"
-                width={24}
+                width={48}
                 height={24}
                 className="h-6 w-auto object-contain"
               />
