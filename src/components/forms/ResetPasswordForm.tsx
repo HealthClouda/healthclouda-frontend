@@ -2,17 +2,23 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AuthCard } from './AuthCard';
 import { PasswordInput } from './PasswordInput';
-import { PasswordStrengthMeter } from './PasswordStrengthMeter';
+import { PasswordStrengthMeter, passwordIsValid } from './PasswordStrengthMeter';
+import { ShieldIcon } from './AuthIcons';
+import { authPrimaryBtn } from './authStyles';
 import { formatApiError } from '@/lib/api';
 
+// Enforce the backend rule (≥8, uppercase, digit, special) client-side too.
 const schema = z
   .object({
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().refine(passwordIsValid, {
+      message: 'Password must be 8+ characters with an uppercase letter, a number, and a special character',
+    }),
     password2: z.string(),
   })
   .refine((d) => d.password === d.password2, {
@@ -38,6 +44,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     useForm<FormData>({ resolver: zodResolver(schema) });
 
   const password = watch('password', '');
+  const password2 = watch('password2', '');
+  const canSubmit = passwordIsValid(password) && password === password2 && password2.length > 0;
 
   async function onSubmit(data: FormData) {
     setServerError('');
@@ -51,40 +59,58 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     router.push(orgSlug ? `/${orgSlug}/password-success` : '/password-success');
   }
 
+  const backPath = orgSlug ? `/${orgSlug}/signin` : '/signin';
+
   return (
-    <AuthCard title="Set a new password" orgName={orgName} logo={orgLogo}>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+    <AuthCard
+      icon={<ShieldIcon size={26} />}
+      title="Set a new password"
+      subtitle="Create a new password. Ensure it differs from previous ones for security."
+      orgName={orgName}
+      orgLogo={orgLogo}
+      backHref={backPath}
+      backLabel="Back to Login"
+      footer={
+        <Link href={backPath} className="inline-flex items-center gap-1.5 font-heading text-sm font-bold text-primary hover:underline">
+          ← Back
+        </Link>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">New password</label>
           <PasswordInput
+            label="Password"
             autoComplete="new-password"
-            placeholder="At least 8 characters"
+            placeholder="Enter your password"
             error={errors.password?.message}
             {...register('password')}
           />
           <PasswordStrengthMeter password={password} />
         </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm password</label>
           <PasswordInput
+            label="Confirm Password"
             autoComplete="new-password"
+            placeholder="Re-enter your password"
             error={errors.password2?.message}
             {...register('password2')}
           />
+          {password2.length > 0 && (
+            <div className={`mt-1.5 text-[12.5px] ${password === password2 ? 'text-[#16a34a]' : 'text-red-500'}`}>
+              {password === password2 ? 'Passwords match ✓' : 'Passwords do not match'}
+            </div>
+          )}
         </div>
 
         {serverError && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+          <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {serverError}
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors"
-        >
-          {isSubmitting ? 'Saving…' : 'Set new password'}
+        <button type="submit" disabled={isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting ? 'Saving…' : 'Update Password'}
         </button>
       </form>
     </AuthCard>

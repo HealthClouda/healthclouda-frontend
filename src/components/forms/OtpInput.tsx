@@ -10,6 +10,9 @@ interface OtpInputProps {
   error?: string;
 }
 
+// OTP entry per the design (design_handoff_prelogin): 52×56 boxes, 11px radius;
+// filled = blue border + white bg, empty = faint border + #fafbff, focus = blue
+// border + 3px ring.
 export function OtpInput({ value, onChange, length = 6, error }: OtpInputProps) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = value.split('').concat(Array(length).fill('')).slice(0, length);
@@ -37,7 +40,7 @@ export function OtpInput({ value, onChange, length = 6, error }: OtpInputProps) 
 
   return (
     <div>
-      <div className="flex gap-2 sm:gap-3">
+      <div className="flex justify-center gap-2 sm:gap-3">
         {digits.map((digit, i) => (
           <input
             key={i}
@@ -49,17 +52,17 @@ export function OtpInput({ value, onChange, length = 6, error }: OtpInputProps) 
             onChange={(e) => handleChange(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
             onPaste={handlePaste}
-            className={`w-11 h-14 text-center text-xl font-semibold rounded-lg border-2 transition-colors ${
+            className={`h-14 w-[52px] rounded-[11px] border-[1.5px] text-center font-heading text-[22px] font-bold text-ink outline-none transition-colors focus:border-primary focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,117,255,0.09)] ${
               error
-                ? 'border-red-400'
+                ? 'border-red-400 bg-white'
                 : digit
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300'
-            } focus:outline-none focus:border-blue-500`}
+                ? 'border-primary bg-white'
+                : 'border-input-border bg-input-bg'
+            }`}
           />
         ))}
       </div>
-      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-center text-[13px] text-red-500">{error}</p>}
     </div>
   );
 }
