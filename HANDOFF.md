@@ -50,9 +50,8 @@ child PR's base shows `develop` before merging it.
 ### 2026-07-13 (later) — Design PR C: org landing rebuilt to the design (PR: feat/design-org-landing)
 
 **Context:** Same session as the brand-asset PR below. PR C scoped against the design + live contracts
-before building. **Stacked on `fix/brand-assets`** (justified per the stacking rules — needs the
-`Backgroud_flare.webp` + purged `public/`). ⚠️ Qeeyat: merge #60 with a **merge commit**, then confirm
-this PR's base auto-retargets to `develop` before merging it.
+before building. Was briefly stacked on `fix/brand-assets` (needs its `.webp` + purged `public/`), but
+Qeeyat merged #60 (with a merge commit ✓) before PR C went up → targets `develop` directly.
 
 **Contract verifications (probed prod AND seeded local Docker backend):**
 - **Announcements endpoint does NOT exist** (404 text/html on both, vs json 404 for by-slug with an
