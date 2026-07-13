@@ -27,10 +27,9 @@ export const metadata: Metadata = {
     description: 'One patient record. Every facility, connected.',
     images: ['/assets/images/Hero_picture.png'],
   },
-  icons: {
-    icon: '/assets/images/HealthClouda-icon-tight.png',
-    apple: '/assets/images/HealthClouda-icon-tight.png',
-  },
+  // Favicon + apple-touch icon come from src/app/icon.png and
+  // src/app/apple-icon.png (App Router file conventions) — square renders,
+  // unlike the 2:1 icon-tight mark which browsers squashed in the tab.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -31,7 +31,7 @@ function PortalMock() {
         {/* Mock top bar */}
         <div className="flex items-center justify-between px-7 py-4 border-b border-hairline">
           <div className="flex items-center gap-2.5">
-            <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={26} height={26} className="object-contain" />
+            <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={44} height={22} className="object-contain" />
             <span className="font-heading text-[15px] font-extrabold text-ink">HealthClouda</span>
             <span className="font-heading text-[11.5px] font-bold text-primary-dark bg-chip px-2.5 py-1 rounded-full">Patient portal</span>
           </div>
@@ -576,7 +576,7 @@ function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-12 mb-11">
           <div className="flex flex-col gap-3.5">
             <div className="flex items-center gap-2.5">
-              <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={30} height={30} className="object-contain invert" />
+              <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={56} height={28} className="object-contain invert" />
               <span className="font-heading text-[19px] font-extrabold text-white">HealthClouda</span>
             </div>
             <p className="font-body text-[13.5px] text-slate-400 leading-[1.65] max-w-[280px]">

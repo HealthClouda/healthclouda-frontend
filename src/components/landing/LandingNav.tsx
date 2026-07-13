@@ -33,11 +33,13 @@ export function LandingNav() {
       <nav className="fixed top-0 left-0 right-0 z-[1000] h-[68px] flex items-center justify-between gap-4 px-4 md:px-[clamp(16px,3vw,56px)] bg-white/[0.97] backdrop-blur-[10px] shadow-[0_1px_6px_rgba(0,8,37,0.07)]">
         {/* Brand */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
+          {/* Mark is 2:1 — natural aspect box, not the design's 34×34 square
+              (which shrank it to 17px tall). */}
           <Image
             src="/assets/images/HealthClouda-icon-tight.png"
             alt="HealthClouda"
-            width={34}
-            height={34}
+            width={56}
+            height={28}
             className="object-contain"
           />
           <a href="#home" className="font-heading text-[19px] font-extrabold text-ink tracking-[-0.02em] whitespace-nowrap">
