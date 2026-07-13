@@ -47,6 +47,50 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-13 (later) — Design PR C: org landing rebuilt to the design (PR: feat/design-org-landing)
+
+**Context:** Same session as the brand-asset PR below. PR C scoped against the design + live contracts
+before building. **Stacked on `fix/brand-assets`** (justified per the stacking rules — needs the
+`Backgroud_flare.webp` + purged `public/`). ⚠️ Qeeyat: merge #60 with a **merge commit**, then confirm
+this PR's base auto-retargets to `develop` before merging it.
+
+**Contract verifications (probed prod AND seeded local Docker backend):**
+- **Announcements endpoint does NOT exist** (404 text/html on both, vs json 404 for by-slug with an
+  unknown slug — i.e. route missing, not empty DB). Our `ORG_ANNOUNCEMENTS` constant was invented
+  (GLOBAL-2 pattern) → removed. **Backend #69 filed** (public GET + expected shape). Page ships the
+  design's empty state; wire cards when #69 lands.
+- **`GET /org/by-slug/` is much richer than its stale schema docstring** — Bastoh was right that the
+  fields exist: real response has `clinic_name/address/hours/phone/email`, `emergency_phone`,
+  `city/state/country_name`, `page_title`, and **`logo_url` (NOT `logo`)**; **no `id`/`is_active`**.
+  Backend #70 filed then corrected + closed (only stale-docstring note remains).
+- **Two latent bugs fixed on the back of that:** `Organization` type rewritten to the real shape;
+  all 5 org auth pages passed `org.logo` (always `undefined` — org logos NEVER rendered) → now
+  `logo_url`; old landing's `is_active` check would 404 every org (field absent) → removed.
+- `POST /org/<slug>/contact/` verified (public, `{name,email,phone,message}` all required).
+
+**PR C `feat/design-org-landing`** (→ develop via stack, reviewer Qeeyat):
+- `/[slug]` page fully rebuilt per design: fixed 70px nav ("Sign In to Portal" → org signin), dual-logo
+  hero (HC mark × org logo, initial-tile fallback; org name blue in H1), announcements section (empty
+  state w/ stroke-SVG icon — README decision 5, no emoji), wellbeing carousel, contact section
+  (info column renders clinic fields when non-null + "Trouble signing in?" + emergency line block;
+  form card posts via new `/api/contact/[slug]` proxy), 3-col dark footer (LinkedIn/X).
+- `WellbeingCarousel` rebuilt to spec: 300px cards, design's final copy, rAF auto-scroll 0.7px/frame,
+  pause-on-hover, seamless doubled loop. **Design's arrow buttons dropped (Bastoh, mid-session).**
+- **`noindex` on ALL org routes** via new `src/app/[slug]/layout.tsx` (robots noindex,nofollow) —
+  README decision 1. Verified: org landing + org signin carry the meta, general landing does not.
+- Verified: tsc clean, vitest 50/50, `next build` green, and driven live against the seeded local
+  backend — real org data rendered, carousel transform advances (no arrows), contact form submit
+  → **DRF 201** + success state, screenshots of hero/sections/full page.
+
+**Pending / TODOs:**
+- [ ] Qeeyat: merge #60 (merge commit!) → then PR C (check base retargeted to develop).
+- [ ] Wire announcements cards when backend #69 ships.
+- [ ] **PR D** — set-password (org name/logo from #66) + access-request respond (`accept`|`deny`) + 404.
+  Refresh local `API-doc.md` first (now double-stale: respond POST + by-slug shape).
+- [ ] Then per the 2026-07-11 schedule: PR 5/6/doctor + write workflows. Bug list still owed by Bastoh.
+
+---
+
 ### 2026-07-13 — Brand-asset fixes: favicon, logo sizing, image weight + old-app purge (PR: fix/brand-assets)
 
 **Context:** PR B (#59) merged; Bastoh deployed `develop` to Vercel manually (free plan) and flagged

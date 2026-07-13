@@ -14,13 +14,26 @@ export interface User {
   duty_toggled_at?: string | null;
 }
 
+// Public org branding/profile — GET /org/by-slug/<slug>/ (verified live
+// 2026-07-13 against the seeded local backend; the prod schema docstring is
+// stale). Real response has logo_url (NOT logo), clinic contact fields
+// (nullable until the org fills them in), and NO id/is_active.
 export interface Organization {
-  id: string;
   name: string;
   slug: string;
-  logo?: string;
-  domain?: string;
-  is_active: boolean;
+  org_id: string;
+  org_type: string;
+  city: string | null;
+  state: string | null;
+  country_name: string | null;
+  logo_url: string | null;
+  page_title: string | null;
+  clinic_name: string | null;
+  clinic_address: string | null;
+  clinic_hours: string | null;
+  clinic_phone: string | null;
+  clinic_email: string | null;
+  emergency_phone: string | null;
 }
 
 export interface LoginResponse {

@@ -46,7 +46,8 @@ export const ENDPOINTS = {
   // ── Public / org ───────────────────────────────────────────
   CONTACT_FORM: '/contact/contact-form/',
   ORG_BY_SLUG: (slug: string) => `/org/by-slug/${slug}/`,
-  ORG_ANNOUNCEMENTS: (slug: string) => `/org/${slug}/announcements/`,
+  // ORG_ANNOUNCEMENTS removed 2026-07-13: the route never existed on the
+  // backend (verified live vs prod schema) — re-add when backend#69 ships.
   ORG_CONTACT: (slug: string) => `/org/${slug}/contact/`,
 
   // ── Shared ─────────────────────────────────────────────────
