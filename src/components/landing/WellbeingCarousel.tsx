@@ -1,73 +1,94 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 
+// Design: design_handoff_prelogin org landing — "Your Wellbeing Matters..."
+// carousel. Card copy is final (lifted from the design's data). Cards are
+// doubled for a seamless infinite loop; auto-scrolls at 0.7px/frame and
+// pauses on hover. (Design's arrow buttons dropped — Bastoh, 2026-07-13.)
 const CARDS = [
   {
-    title: 'Drink More Water',
     img: '/assets/images/P-1.png',
-    body: 'Your brain runs on water. Keep a reusable bottle with you and aim for 8 glasses daily.',
+    title: 'Stay Hydrated',
+    body: 'Proper hydration supports focus, recovery, and overall health. Keep water accessible throughout your day.',
   },
   {
-    title: 'Mental Health is Health',
     img: '/assets/images/P-2.png',
-    body: 'Listen to your emotions. If you\'re constantly tired or demotivated, reach out — early support is free.',
+    title: 'Prioritize Mental Wellness',
+    body: 'Stress affects everyone. Take breaks, talk to someone, and remember that seeking support is a sign of strength.',
   },
   {
-    title: 'Wash & Protect',
     img: '/assets/images/P-3.png',
-    body: 'Frequent handwashing reduces infections. Carry sanitizer and mask up if you feel unwell.',
+    title: 'Practice Hand Hygiene',
+    body: 'Regular handwashing is the simplest way to prevent infection. Use soap and water for at least 20 seconds.',
   },
   {
-    title: 'Eat Real Food',
     img: '/assets/images/P-4.png',
-    body: 'Good care needs good fuel. Choose whole foods over processed snacks — your body and mind will thank you.',
+    title: 'Move Your Body',
+    body: 'Even short walks between tasks boost circulation and reduce fatigue. Aim for at least 30 minutes of activity daily.',
   },
   {
-    title: 'Morning Light Matters',
     img: '/assets/images/P-5.png',
-    body: '10 minutes of morning sunlight boosts energy and focus. It helps your body produce serotonin for a happier mood.',
+    title: 'Get Quality Sleep',
+    body: 'Rest is essential for immunity and performance. Maintain a consistent sleep schedule and aim for 7–8 hours.',
   },
   {
-    title: 'Rest Well',
     img: '/assets/images/P-6.png',
-    body: 'Quality rest helps your immune system and focus. Aim for 7–8 hours — rest is part of progress.',
+    title: 'Nourish Your Body',
+    body: 'Balanced meals fuel your day. Prioritize whole foods, fruits, and vegetables over processed alternatives.',
   },
 ];
 
-// Duplicate cards for seamless infinite loop
 const DOUBLED = [...CARDS, ...CARDS];
+const SPEED = 0.7; // px per frame, per the design prototype
 
 export function WellbeingCarousel() {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offset = useRef(0);
+  const paused = useRef(false);
+
+  useEffect(() => {
+    let raf: number;
+    const loop = () => {
+      const t = trackRef.current;
+      if (t && !paused.current) {
+        offset.current += SPEED;
+        const card = t.children[0] as HTMLElement | undefined;
+        if (card) {
+          const gap = parseFloat(getComputedStyle(t).gap) || 24;
+          const loopAt = (card.offsetWidth + gap) * CARDS.length;
+          if (offset.current >= loopAt) offset.current -= loopAt;
+        }
+        t.style.transform = `translateX(-${offset.current}px)`;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
-    <div className="overflow-hidden py-2">
-      <div
-        className="flex gap-5"
-        style={{
-          animation: 'carousel-scroll 32s linear infinite',
-          width: `${DOUBLED.length * (260 + 20)}px`,
-        }}
-        onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.animationPlayState = 'paused')}
-        onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.animationPlayState = 'running')}
-      >
+    <div
+      className="relative w-full overflow-hidden pt-2 pb-6"
+      onMouseEnter={() => { paused.current = true; }}
+      onMouseLeave={() => { paused.current = false; }}
+    >
+      <div ref={trackRef} className="flex gap-6 w-max will-change-transform">
         {DOUBLED.map((card, i) => (
           <div
             key={i}
-            className="flex-shrink-0 w-[260px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+            className="w-[300px] flex-shrink-0 flex flex-col gap-2 bg-white rounded-[20px] border border-hairline shadow-[0_2px_8px_rgba(0,0,0,0.07)] p-5 transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,117,255,0.12)]"
           >
-            <div className="relative h-40 bg-gradient-to-br from-blue-50 to-indigo-50">
-              <Image
-                src={card.img}
-                alt={card.title}
-                fill
-                className="object-cover"
-                sizes="260px"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-gray-900 text-sm mb-1.5">{card.title}</h3>
-              <p className="text-xs text-gray-500 leading-relaxed">{card.body}</p>
-            </div>
+            <Image
+              src={card.img}
+              alt={card.title}
+              width={260}
+              height={180}
+              className="w-full h-[180px] object-cover rounded-xl bg-chip"
+            />
+            <h6 className="font-heading text-base font-bold text-ink mt-2">{card.title}</h6>
+            <p className="font-body text-sm text-gray-500 leading-[1.55]">{card.body}</p>
           </div>
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+﻿import { notFound } from 'next/navigation';
 import { PasswordSuccessContent } from '@/components/forms/PasswordSuccessContent';
 import { publicFetch } from '@/lib/api';
 import { ENDPOINTS } from '@/lib/config';
@@ -14,5 +14,5 @@ export default async function OrgPasswordSuccessPage({
   if (isReservedPath(slug)) return notFound();
   let org: Organization | null = null;
   try { org = await publicFetch<Organization>(ENDPOINTS.ORG_BY_SLUG(slug)); } catch { return notFound(); }
-  return <PasswordSuccessContent orgSlug={slug} orgName={org.name} orgLogo={org.logo} />;
+  return <PasswordSuccessContent orgSlug={slug} orgName={org.name} orgLogo={org.logo_url ?? undefined} />;
 }

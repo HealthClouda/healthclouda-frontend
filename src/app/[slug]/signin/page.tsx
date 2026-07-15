@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+﻿import { notFound } from 'next/navigation';
 import { SigninForm } from '@/components/forms/SigninForm';
 import { publicFetch } from '@/lib/api';
 import { ENDPOINTS } from '@/lib/config';
@@ -26,7 +26,7 @@ export default async function OrgSigninPage({
       loginType="org"
       orgSlug={slug}
       orgName={org.name}
-      orgLogo={org.logo}
+      orgLogo={org.logo_url ?? undefined}
     />
   );
 }
