@@ -47,6 +47,61 @@ child PR's base shows `develop` before merging it.
 
 ## Session Log
 
+### 2026-07-17 — Design PR D: set-password + access-request respond + 404 (PR: feat/design-utility-screens)
+
+**Context:** PR C (#61) merged (Qeeyat approved, no comments); local repo synced, merged branches
+pruned. `API-doc.md` refreshed from the live schema (7361 lines) before any code, per last session's
+TODO — the refresh surfaced everything PR D needed.
+
+**Contract verifications (probed prod + seeded local Docker backend @ backend develop 4356140):**
+- **Backend #66 SHIPPED** (their #67): validate response now carries `organization_name` +
+  `organization_logo`, both **nullable** — null means "render HealthClouda branding". Verified live:
+  `{valid, email, first_name, last_name, role, organization_name, organization_logo}`.
+- **NEW endpoint `POST /auth/setup-password/resend/`** (their #68): public self-service re-request
+  from an expired invite link; body `{token}` or `{email}`; **always a generic 200** (anti-enumeration).
+- **Respond flow is GET + POST** (their FLAG-241): GET `?token=` is read-only
+  `{organization, patient_name, status: PENDING|APPROVED|DENIED, expired}`; POST
+  `{token, action: accept|deny}` performs the decision. ⚠️ Gotcha: "already approved/denied" 400s
+  use a **`message` key, not `error`** — so the UI derives state from the GET (re-fetches after a
+  rejected POST) instead of parsing POST bodies.
+- **GET respond is missing `reason` + `requested_at`** (design's info block wants Organization /
+  Reason / Requested rows) → **backend #71 filed** (additive ask). UI renders those rows
+  conditionally, so they light up automatically when #71 ships.
+
+**PR D `feat/design-utility-screens`** (→ develop, reviewer Qeeyat):
+- **`/set-password` rebuilt to design screen 7** (new `SetPasswordForm`, page is a thin wrapper +
+  noindex): welcome header "Welcome, **{name}**" (blue) + "Your account at **{Org}** as **{Role}**"
+  (org phrase omitted when null), readonly email field, shared strength/requirements UI from PR B,
+  submit disabled until valid → redirect `/signin`. Error state per design (red circle-x, new
+  AuthCard `danger` icon variant) + **"Request a new link" resend button** on the expired state
+  (Bastoh's heads-up on #66). `organization_logo` deliberately unused — design keeps HC chrome
+  (README decision 3); logo has no slot on this screen.
+- **`/access-request/respond` built** (design screens 9–10, `AccessRequestRespond` + noindex page):
+  10-state machine — loading / invalid / pending / submitting / approved / denied / already-approved /
+  already-denied / expired / connection-error (with retry). `action=accept|deny` URL param
+  auto-submits once (per design README; POST-only mutation preserved). ⚠️ **Known design deviation:**
+  info block adds a **Patient** row (patient_name is in the API; confirms whose records before
+  consenting) — strike in review if unwanted. Reason/Requested rows ship dormant until backend #71.
+- **404** — `src/app/not-found.tsx` per design screen 8 (brand nav, 110px "404", Back to Home);
+  fires for unknown org slugs too (all `[slug]` pages already call `notFound()`).
+- Plumbing: `SETUP_PW_RESEND` endpoint const; proxy routes `/api/auth/setup-password/resend` +
+  `/api/access-request/respond` (GET+POST); `SetupTokenInfo` + `AccessRequestInfo` types.
+- Verified: tsc clean, vitest **63/63** (13 new: respond state machine incl. re-GET-after-rejected-POST
+  + auto-submit; set-password token states incl. resend), `next build` green, and **30/30 live checks**
+  driven with Playwright against the seeded local backend — including a REAL end-to-end invite
+  (org-admin `POST /org-admin/staff/` → token from DB → welcome screen → password set → **login 200
+  with the new password**), expired-invite resend, approve + auto-deny + all outcome/edge cards,
+  404 status code 404. Screenshots in scratchpad. DB reset to seed state after (one throwaway
+  invitee `invitee.prd@demo.test` remains in the local DB, password `Ngz#Pass1`).
+
+**Pending / TODOs:**
+- [ ] Qeeyat: review PR D.
+- [ ] Wire announcements cards when backend #69 ships; render Reason/Requested rows live when #71 ships.
+- [ ] Then per the 2026-07-11 schedule: PR 5/6/doctor + write workflows. Bug list still owed by Bastoh.
+- [ ] ARCH-7: ARCHITECTURE.md rewrite still pending (still describes the purged vanilla app).
+
+---
+
 ### 2026-07-13 (later) — Design PR C: org landing rebuilt to the design (PR: feat/design-org-landing)
 
 **Context:** Same session as the brand-asset PR below. PR C scoped against the design + live contracts

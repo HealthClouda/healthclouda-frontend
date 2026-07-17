@@ -41,6 +41,9 @@ export const ENDPOINTS = {
   CHANGE_PW: '/auth/change-password/',
   SETUP_PW_VALIDATE: '/auth/setup-password/validate/',
   SETUP_PW: '/auth/setup-password/',
+  // Public self-service re-request of an expired invite link (backend #68,
+  // #66 follow-up). Anti-enumeration: always a generic 200.
+  SETUP_PW_RESEND: '/auth/setup-password/resend/',
   TOGGLE_DUTY: '/auth/me/toggle-duty/',
 
   // ── Public / org ───────────────────────────────────────────
