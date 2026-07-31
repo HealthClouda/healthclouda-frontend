@@ -13,7 +13,7 @@ interface AuthCardProps {
   titleClassName?: string;
   /** Optional heading icon (omit on the sign-in screens, which have no chip). */
   icon?: React.ReactNode;
-  iconVariant?: 'chip' | 'success';
+  iconVariant?: 'chip' | 'success' | 'danger';
   /** Org context — swaps the nav brand to the org logo + name. */
   orgName?: string;
   orgLogo?: string;
@@ -95,6 +95,10 @@ export function AuthCard({
           {icon &&
             (iconVariant === 'success' ? (
               <div className="mx-auto mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-chip">
+                {icon}
+              </div>
+            ) : iconVariant === 'danger' ? (
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fee2e2] text-[#dc2626]">
                 {icon}
               </div>
             ) : (

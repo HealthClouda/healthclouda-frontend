@@ -58,6 +58,17 @@ export function CheckIcon({ size = 34 }: { size?: number }) {
   );
 }
 
+// Circle-x for invalid/expired-token error states (old set-password.html on main).
+export function CircleXIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  );
+}
+
 export function EyeIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
