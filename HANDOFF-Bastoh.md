@@ -1,0 +1,586 @@
+# Session Log — @Bastoh
+
+> **This file is mine.** Only I write in it. Nobody else edits it — not to tidy, not to correct.
+> If another dev needs to tell me something, it goes in `HANDOFF.md` where it's shared state.
+
+---
+
+## What goes in here
+
+My **narrative**: what I worked on, what I found, what I decided and why, what's left unfinished.
+
+**Not** here: durable shared facts (branch strategy, env values, In Flight claims, backend contract
+notes) — those live in `HANDOFF.md` so everyone sees them. Issues noticed but not fixed go in
+`CODEBASE_FLAGS.md` (my FLAG range: **001–199**).
+
+**Why it matters:** each dev drives their own AI assistant, and those assistants **cannot see each
+other's memory.** This file is how my work becomes visible to them.
+
+### Entry template
+
+```markdown
+### YYYY-MM-DD — <short title> (branch: <branch-name>)
+
+**Goal:** what I set out to do.
+**What I did:** …
+**What I found:** …
+**Decisions:** … and why.
+**Verified:** tsc / tests / build, plus anything checked against the live schema.
+**Left undone / next:** …
+```
+
+> **Migration note (2026-08-09):** entries dated 2026-07-17 and earlier were moved here verbatim
+> from `HANDOFF.md`, which is being restructured to hold durable shared state only. The
+> "Pending / TODOs" lists inside those older entries are **historical snapshots** — they record what
+> was open *at the time*. Live TODOs belong in `HANDOFF.md`, `CODEBASE_FLAGS.md`, or
+> `BETA_READINESS.md`, not in this file.
+
+---
+
+## Session Log
+
+### 2026-08-09 — Multi-dev doc discipline: onboarding set + flags (branch: develop, uncommitted)
+
+**Goal:** bring this repo up to the same doc discipline as `healthclouda-backend`, so two devs each
+driving their own Claude can work it without the agents seeing each other's memory. Docs/process
+only — **no application code changed this session.**
+
+**Context:** @Qeeyat is joining the frontend (@Ericmoore207 is backend). The doc set has to work for
+her *and* for any dev onboarded later, so nothing is written to one person.
+
+**Read-only codebase survey first (reported before writing any docs):**
+- Next.js `^15.3.3` App Router, React 19, TS 5, Tailwind v4 via `@theme inline` (no
+  `tailwind.config.js`), Zustand used for **toasts only** — no global store for domain data.
+- Data layer is three clean tiers: `serverFetch` (SSR), `publicFetch` (unauth SSR), `client-api.ts`
+  (browser). **The browser never calls DRF directly** — everything goes through `/api/data` and
+  `/api/action`, which attach the JWT server-side. Tokens in httpOnly cookies.
+- Single env var (`NEXT_PUBLIC_API_URL`); only 2 `process.env` reads in all of `src/`.
+- Baseline verified green: `tsc --noEmit` clean, **vitest 63/63**.
+
+**What I found — raised as FLAG-001…009 in the new `CODEBASE_FLAGS.md`:**
+- **FLAG-001 (P1, security):** `hc_user` is `httpOnly:false` **and** is what every dashboard role
+  gate + middleware reads. A user can edit `document.cookie` to `role:"DOCTOR"` + any
+  `organization_slug` and load another org's dashboard shell. Data stays safe (DRF enforces
+  server-side, they'd get 403s into an empty skeleton) — but it's a client-trusted authorization
+  decision, which stops being theoretical when PHI lands.
+- **FLAG-002/003 (P1):** the backend URL changed; the old Railway URL is still hardcoded in
+  `next.config.ts` (CSP `connect-src`) and `.env.example`. Blocked me from re-fetching the live
+  schema, so **every contract claim in our docs is still July-sourced, not verified today.**
+- **FLAG-004 (P2):** `DoctorDashboard.tsx:56/58` still send `?today=true` (silently ignored) and
+  `?status=OPEN` (enum is `ACTIVE` → always 0 rows). Logged as GLOBAL-2 in July, never fixed.
+- **FLAG-005…009:** `serverFetch` swallows all errors as `null`; **no ESLint config exists at all**
+  (so `npm run lint` has never run) and **no `.github/` directory** (no CI); login rate limiter is
+  in-memory (per-lambda on Vercel, ~decorative); `TOKEN_KEYS`/`SESSION_TIMEOUT_MS` are dead
+  constants implying an idle timeout that isn't implemented; `API-doc.md` is gitignored, which
+  contradicts our own "live schema is the seam" rule since other agents can't see it.
+- Worth noting: **the paged-envelope worry was largely already handled** — every list site uses
+  `?.results ?? []` and `usePaginatedList` tolerates both shapes. Remaining exposure is *typing*
+  (hedged `Ward[] | Paginated<Ward>` unions nobody has confirmed), not crashes.
+
+**What I created:**
+- **`ONBOARDING.md`** — generic new-dev orientation, explicitly addressed to the dev **and their AI
+  agent**. Domain glossary (org slug, HCL-ID, episode vs admission, access request = *patient*
+  consent), day-one setup, the 5 architectural facts, working agreements, repo map, first-week path,
+  first-PR checklist. Carries a standing rule that stale content gets fixed in the same PR that
+  made it stale.
+- **`CLAUDE.md`** — rewritten as the shared brain: project context, contract seam, North Star,
+  Team & Multi-Dev Workflow, the session ritual, codebase working rules, review discipline, and a
+  generic "Onboarding a New Dev" process section. Session-start now *requires* reading
+  `ONBOARDING.md` when the dev is new; session-end requires updating it when stale.
+- **`CODEBASE_FLAGS.md`** — FLAG-001…009 with severity, file:line, honest impact, and a verifiable
+  "Done when". Ranges: @Bastoh 001–199, @Qeeyat 200–399, 400+ unallocated.
+- **`HANDOFF-Qeeyat.md`** — pre-seeded so she never faces a blank file.
+- **`HANDOFF-Bastoh.md`** — this file; migrated the 15 historical entries out of `HANDOFF.md`.
+
+**Decisions:**
+- Onboarding lives in its own `ONBOARDING.md`, with `CLAUDE.md` holding only the *process* and
+  pointing at it — avoids duplicating content between the two.
+- Per-dev logs are `HANDOFF-Bastoh.md` / `HANDOFF-Qeeyat.md`. The original spec said
+  `HANDOFF-Ericmoore207.md`, but Eric is backend — frontend is Bastoh + Qeeyat.
+- **`TARGET_ARCHITECTURE_CHECKLIST.md` deliberately NOT written yet** — we don't have an agreed
+  target architecture, and inventing one would have put fiction into a doc other agents treat as
+  binding. Needs a design conversation first.
+- **Target-architecture framing DROPPED in favour of `SECURITY_BASELINE.md`** (decided end of
+  session). Bastoh's actual concern is not architectural elegance — it's that the frontend ends up
+  weak on security while the backend is solid, with PHI arriving. "Target architecture" is too
+  abstract to act on and he can't review it. A PHI security baseline is concrete, checkable, and
+  will *drive* `BETA_READINESS.md` Tier 1 instead of us inventing tiers.
+- **Diagram scope cut.** A full C4-style multi-page draw.io set (as in the backend repo) is
+  over-built for this frontend — folder structure is self-evident and UI diagrams rot fast. Agreed
+  instead on **two diagrams that earn their place, both security artifacts**: (1) token & session
+  lifecycle (login → httpOnly cookies → proxy → 401 → single-flight refresh → rotation → logout),
+  (2) trust boundaries + PHI flow (user's machine / our server / Django). Still generated from an
+  idempotent script.
+- **Bastoh is not a frontend dev** and has asked to be taught as we go. Practical consequence:
+  explain the *why* and the tradeoff, never assume frontend knowledge, and **surface risks he can't
+  be expected to spot — his silence is not approval.**
+
+**Verified:** PR #62 (design PR D) merged into `develop` as merge commit `742f494`; remote branch
+auto-deleted; local `develop` fast-forwarded; merged local branch pruned. All four design PRs
+(A–D) are now in. Working tree clean apart from this session's docs.
+
+**START HERE NEXT SESSION → write `SECURITY_BASELINE.md`.** Scope agreed with Bastoh:
+
+1. **The framing that makes the rest make sense:** the frontend runs on the user's machine, so it
+   can never *enforce* security — the backend is the lock, the frontend is a sign on a door.
+   Consequence: a frontend auth bug is a cosmetic bypass, not a data breach, **provided the backend
+   really enforces.** ⚠️ That assumption is currently *inferred from July audit notes, not tested* —
+   verify it (nurse token → doctor-only endpoint → expect 403) before relying on it. If it's ever
+   false, FLAG-001 stops being cosmetic.
+2. **Credential handling** — already strong (httpOnly cookies + server-side proxy; JS cannot read
+   tokens). Document *why* so nobody "simplifies" it later.
+3. **How the frontend sends and receives data** *(Bastoh's addition, end of session)* — the
+   `/api/data` + `/api/action` proxy contract: what may travel in a URL vs a body (patient IDs and
+   HCL-IDs in query strings leak into browser history, server logs and `Referer` headers), cache
+   headers on PHI responses, error/response shapes, and what a future error tracker (e.g. Sentry)
+   would ship to a third party by default.
+4. **PHI leakage channels** — browser cache/bfcache (Back button after logout), URL history,
+   third-party scripts, screenshots/printing.
+5. **Shared-device session hygiene** — likely the highest *practical* risk given Nigerian clinic
+   reality: no idle timeout exists (FLAG-008) and the refresh cookie lasts **7 days**, so a
+   walked-away machine stays usable for a week.
+6. **Supply chain / CSP** — every npm dep runs with full DOM access; CSP currently allows
+   `unsafe-inline` + `unsafe-eval`, weakening the main browser-level XSS defence.
+7. **Consent correctness** — genuinely frontend-owned. The access-request screen currently asks
+   patients to approve access **without showing the reason** (Reason/Requested rows dormant pending
+   backend #71). Not a crash; for a consent mechanism it's a substantive gap.
+
+Write it in plain language — Bastoh must be able to judge each item without frontend knowledge.
+Each item: why it matters, who owns it, verifiable "done when". It then drives `BETA_READINESS.md`
+Tier 1. Estimate to close the gaps: likely days, not weeks — the hard architectural parts are
+already right.
+
+**Also left undone:**
+- [ ] Restructure `HANDOFF.md` → durable state only (+ 🚧 In Flight table + BACKEND CONTRACT NOTES
+  banner). It still contains the narrative duplicated here.
+- [ ] `ARCHITECTURE.md` full rewrite — still describes the Vanilla JS app deleted in July (100% fiction).
+- [ ] `BETA_READINESS.md`; `TARGET_ARCHITECTURE_CHECKLIST.md` after the target-arch conversation.
+- [ ] Task 4: `docs/frontend-design.drawio` via an idempotent Python generator. **Note:** a partial
+  hand-made file already exists (2 pages: App Shell & Routing – target, Auth & Session – target),
+  with no generator script — it should be superseded by generated output.
+- [ ] **Blocking input needed:** the new backend base URL, and the real beta dates.
+- [ ] Commit all of this on a `docs/*` branch — currently uncommitted on `develop`.
+- [ ] ⚠️ The session-start ritual in `CLAUDE.md` currently points at three files that don't exist
+  yet. Finish them before Qeeyat clones, or her agent will silently skip steps.
+
+---
+
+### 2026-07-17 — Design PR D: set-password + access-request respond + 404 (branch: feat/design-utility-screens)
+
+**Context:** PR C (#61) merged (Qeeyat approved, no comments); local repo synced, merged branches
+pruned. `API-doc.md` refreshed from the live schema (7361 lines) before any code, per last session's
+TODO — the refresh surfaced everything PR D needed.
+
+**Contract verifications (probed prod + seeded local Docker backend @ backend develop 4356140):**
+- **Backend #66 SHIPPED** (their #67): validate response now carries `organization_name` +
+  `organization_logo`, both **nullable** — null means "render HealthClouda branding". Verified live:
+  `{valid, email, first_name, last_name, role, organization_name, organization_logo}`.
+- **NEW endpoint `POST /auth/setup-password/resend/`** (their #68): public self-service re-request
+  from an expired invite link; body `{token}` or `{email}`; **always a generic 200** (anti-enumeration).
+- **Respond flow is GET + POST** (their FLAG-241): GET `?token=` is read-only
+  `{organization, patient_name, status: PENDING|APPROVED|DENIED, expired}`; POST
+  `{token, action: accept|deny}` performs the decision. ⚠️ Gotcha: "already approved/denied" 400s
+  use a **`message` key, not `error`** — so the UI derives state from the GET (re-fetches after a
+  rejected POST) instead of parsing POST bodies.
+- **GET respond is missing `reason` + `requested_at`** (design's info block wants Organization /
+  Reason / Requested rows) → **backend #71 filed** (additive ask). UI renders those rows
+  conditionally, so they light up automatically when #71 ships.
+
+**PR D `feat/design-utility-screens`** (→ develop, reviewer Qeeyat):
+- **`/set-password` rebuilt to design screen 7** (new `SetPasswordForm`, page is a thin wrapper +
+  noindex): welcome header "Welcome, **{name}**" (blue) + "Your account at **{Org}** as **{Role}**"
+  (org phrase omitted when null), readonly email field, shared strength/requirements UI from PR B,
+  submit disabled until valid → redirect `/signin`. Error state per design (red circle-x, new
+  AuthCard `danger` icon variant) + **"Request a new link" resend button** on the expired state
+  (Bastoh's heads-up on #66). `organization_logo` deliberately unused — design keeps HC chrome
+  (README decision 3); logo has no slot on this screen.
+- **`/access-request/respond` built** (design screens 9–10, `AccessRequestRespond` + noindex page):
+  10-state machine — loading / invalid / pending / submitting / approved / denied / already-approved /
+  already-denied / expired / connection-error (with retry). `action=accept|deny` URL param
+  auto-submits once (per design README; POST-only mutation preserved). ⚠️ **Known design deviation:**
+  info block adds a **Patient** row (patient_name is in the API; confirms whose records before
+  consenting) — strike in review if unwanted. Reason/Requested rows ship dormant until backend #71.
+- **404** — `src/app/not-found.tsx` per design screen 8 (brand nav, 110px "404", Back to Home);
+  fires for unknown org slugs too (all `[slug]` pages already call `notFound()`).
+- Plumbing: `SETUP_PW_RESEND` endpoint const; proxy routes `/api/auth/setup-password/resend` +
+  `/api/access-request/respond` (GET+POST); `SetupTokenInfo` + `AccessRequestInfo` types.
+- Verified: tsc clean, vitest **63/63** (13 new: respond state machine incl. re-GET-after-rejected-POST
+  + auto-submit; set-password token states incl. resend), `next build` green, and **30/30 live checks**
+  driven with Playwright against the seeded local backend — including a REAL end-to-end invite
+  (org-admin `POST /org-admin/staff/` → token from DB → welcome screen → password set → **login 200
+  with the new password**), expired-invite resend, approve + auto-deny + all outcome/edge cards,
+  404 status code 404. Screenshots in scratchpad. DB reset to seed state after (one throwaway
+  invitee `invitee.prd@demo.test` remains in the local DB, password `Ngz#Pass1`).
+
+**Pending / TODOs (historical):**
+- [ ] Qeeyat: review PR D.
+- [ ] Wire announcements cards when backend #69 ships; render Reason/Requested rows live when #71 ships.
+- [ ] Then per the 2026-07-11 schedule: PR 5/6/doctor + write workflows. Bug list still owed by Bastoh.
+- [ ] ARCH-7: ARCHITECTURE.md rewrite still pending (still describes the purged vanilla app).
+
+---
+
+### 2026-07-13 (later) — Design PR C: org landing rebuilt to the design (branch: feat/design-org-landing)
+
+**Context:** Same session as the brand-asset PR below. PR C scoped against the design + live contracts
+before building. Was briefly stacked on `fix/brand-assets` (needs its `.webp` + purged `public/`), but
+Qeeyat merged #60 (with a merge commit ✓) before PR C went up → targets `develop` directly.
+
+**Contract verifications (probed prod AND seeded local Docker backend):**
+- **Announcements endpoint does NOT exist** (404 text/html on both, vs json 404 for by-slug with an
+  unknown slug — i.e. route missing, not empty DB). Our `ORG_ANNOUNCEMENTS` constant was invented
+  (GLOBAL-2 pattern) → removed. **Backend #69 filed** (public GET + expected shape). Page ships the
+  design's empty state; wire cards when #69 lands.
+- **`GET /org/by-slug/` is much richer than its stale schema docstring** — Bastoh was right that the
+  fields exist: real response has `clinic_name/address/hours/phone/email`, `emergency_phone`,
+  `city/state/country_name`, `page_title`, and **`logo_url` (NOT `logo`)**; **no `id`/`is_active`**.
+  Backend #70 filed then corrected + closed (only stale-docstring note remains).
+- **Two latent bugs fixed on the back of that:** `Organization` type rewritten to the real shape;
+  all 5 org auth pages passed `org.logo` (always `undefined` — org logos NEVER rendered) → now
+  `logo_url`; old landing's `is_active` check would 404 every org (field absent) → removed.
+- `POST /org/<slug>/contact/` verified (public, `{name,email,phone,message}` all required).
+
+**PR C `feat/design-org-landing`** (→ develop via stack, reviewer Qeeyat):
+- `/[slug]` page fully rebuilt per design: fixed 70px nav ("Sign In to Portal" → org signin), dual-logo
+  hero (HC mark × org logo, initial-tile fallback; org name blue in H1), announcements section (empty
+  state w/ stroke-SVG icon — README decision 5, no emoji), wellbeing carousel, contact section
+  (info column renders clinic fields when non-null + "Trouble signing in?" + emergency line block;
+  form card posts via new `/api/contact/[slug]` proxy), 3-col dark footer (LinkedIn/X).
+- `WellbeingCarousel` rebuilt to spec: 300px cards, design's final copy, rAF auto-scroll 0.7px/frame,
+  pause-on-hover, seamless doubled loop. **Design's arrow buttons dropped (Bastoh, mid-session).**
+- **`noindex` on ALL org routes** via new `src/app/[slug]/layout.tsx` (robots noindex,nofollow) —
+  README decision 1. Verified: org landing + org signin carry the meta, general landing does not.
+- Verified: tsc clean, vitest 50/50, `next build` green, and driven live against the seeded local
+  backend — real org data rendered, carousel transform advances (no arrows), contact form submit
+  → **DRF 201** + success state, screenshots of hero/sections/full page.
+
+**Pending / TODOs (historical):**
+- [ ] Qeeyat: merge #60 (merge commit!) → then PR C (check base retargeted to develop).
+- [ ] Wire announcements cards when backend #69 ships.
+- [ ] **PR D** — set-password (org name/logo from #66) + access-request respond (`accept`|`deny`) + 404.
+  Refresh local `API-doc.md` first (now double-stale: respond POST + by-slug shape).
+
+---
+
+### 2026-07-13 — Brand-asset fixes: favicon, logo sizing, image weight + old-app purge (branch: fix/brand-assets)
+
+**Context:** PR B (#59) merged; Bastoh deployed `develop` to Vercel manually (free plan) and flagged
+two landing-page issues: distorted/oversized favicon and a too-small nav logo. Root cause of BOTH:
+`HealthClouda-icon-tight.png` is **341×171 (2:1)** but was used in square slots — browsers squash a
+non-square favicon into the tab square, and a 34×34 `object-contain` box shrinks the mark to 17px
+tall. The design file itself specified 34×34, so the bug was inherited from the design.
+
+**PR `fix/brand-assets`** (→ develop, reviewer Qeeyat):
+- **Favicon:** proper square icons generated with sharp (mark trimmed, centered, 8% padding) →
+  `src/app/icon.png` (512², transparent, 8 KB) + `src/app/apple-icon.png` (180², white plate for
+  iOS) via App Router file conventions; `metadata.icons` block removed from `layout.tsx`.
+- **Logo mark at natural 2:1 aspect** everywhere it was squared: landing nav 34×34→56×28, hero
+  portal mock 26×26→44×22, footer 30×30→56×28, AuthCard 24×24→48×24 (was visually OK via
+  `h-6 w-auto`, srcset size fixed).
+- **Asset diet** (sharp pipeline, script in scratchpad — not committed):
+  `Backgroud_flare.png` 1.5 MB → **301 KB WebP** (1080w, q60 — blurred decoration; was a raw CSS
+  background on every auth page, bypassing next/image; PNG deleted, AuthCard points at .webp);
+  `Female_doctor.jpg` 805→108 KB (1600w mozjpeg); palette-compressed PNGs in place:
+  `Frame 64` 565→208 KB, `unilogo` 259→74, `EHR` 155→43, P-1…P-6 ~52–101→23–36, `Hero_picture`
+  90→32, `BENEFIT_ONE` 40→9. Total images: ~3.9 MB → ~1.0 MB.
+- **Old Vanilla JS app purged from `public/`** (Bastoh approved): all legacy HTML/JS/CSS — root
+  pages, 6 dashboard folders, organization/, access-request/, assets/js+css, stale sitemap.xml —
+  ~900 KB that was deployed verbatim and publicly reachable (e.g. `/signin.html` with
+  localStorage-token login hitting prod API). Kept: `robots.txt`, `assets/images/`. All recoverable
+  from git history. NOTE: makes ARCHITECTURE.md (still describing that old app) fully historical.
+- Verified: tsc clean, vitest 50/50, `next build` green ×2 (pre- and post-purge), prod server driven
+  with Playwright — icon links resolve (`/icon.png` 200), flare .webp 200 on `/signin`, screenshots
+  of nav/hero/footer/signin + full-page (no compression artifacts).
+
+---
+
+### 2026-07-12 — Design PR B (auth set): sign-in + full recovery flow rebuilt (branch: feat/design-auth-set)
+
+**Context:** Bastoh shared the backend→frontend handoff MD. Two things mattered: (1) **backend issue
+#66 landed** — `GET /auth/setup-password/validate/` now returns `organization_name` +
+`organization_logo` (either nullable → fall back to HealthClouda). (2) New affordances for later PRs:
+public `POST /auth/setup-password/resend/` and `POST /auth/users/<id>/resend-setup-email/` (PR 6).
+
+**Verified live against Swagger** (`/api/v1/schema/`, saved locally) before building:
+- **Access-request respond action enum = `accept`|`deny`** (in the POST operation description). The
+  handoff MD's `approve|deny` is WRONG; our 2026-07-11 note was right. Swagger wins → PR D uses
+  `accept`/`deny` (sending `approve` = silent 400). The POST exposes no formal requestBody serializer
+  (plain APIView) — hand-write the `{token, action}` type.
+- **Org login is email-only.** The login endpoints expose no request-body serializer in the schema
+  (plain APIView), but the handoff documents `{email, password}` in two places and Bastoh confirmed it.
+
+**PR B `feat/design-auth-set`** — high-fidelity restyle of the *existing, already-wired* auth
+components (not a from-scratch build). All login/recovery logic preserved:
+- **Shared shell** `AuthCard` rebuilt: flare-image + gradient bg with two blurred blobs, 64px white top
+  nav (brand left / outlined back-button right; org mode swaps brand → org logo 32px + org name),
+  optional 56px icon chip + H1 + sub, 700px white card (`shadow-card`).
+- New primitives: `authStyles.ts`, `AuthIcons.tsx` (SVGs lifted verbatim from the design), `TextField`;
+  `PasswordInput` restyled to spec.
+- **Sign-in (general + org + admin)** one `SigninForm`: general H1 "Login to HealthClouda" (40px), org
+  H1 "Sign in to **{Org}** HealthClouda" (org name blue, 36px); Remember-me (**UI-only** — no
+  session-length plumbing yet, commented), forgot link, `#ebf3ff` Notice box. Admin variant = no
+  Notice/Remember.
+- **Recovery flow** all four screens restyled with org theming: forgot (lock chip, org email
+  placeholder); check-email (OTP box states + **Verify disabled until 6 digits** + **resend countdown**);
+  reset (rebuilt `PasswordStrengthMeter` + **submit gated on full rule set**); success (72px chip w/
+  **animated blue check** + "Continue (5)" countdown).
+- **Correctness bump:** reset-password zod schema now enforces the *full* backend rule (≥8 + upper +
+  digit + special) client-side, via a shared `passwordChecks/passwordIsValid` helper consumed by both
+  the meter UI and the schema (reused by set-password in PR D).
+- ⚠️ **Known design deviation:** design labels the org sign-in field **"Email / HealthClouda ID"**, but
+  backend login is **email-only** (verified above) → shipped as **"Email address"**, strict-email
+  validation. HCL-ID login would need a backend `api-request`.
+- Verified: tsc clean, vitest 50/50, `next build` green (22 routes), all six screens driven +
+  screenshotted (Playwright), incl. org sign-in via a throwaway preview route.
+
+---
+
+### 2026-07-11 (evening) — Delivery plan locked; design PR A shipped; PR D API gaps verified (branch: feat/design-foundations-landing)
+
+**Delivery decision (Bastoh):** ship **~Tue–Wed 2026-07-21/22**, scope = **Cut 2** (everything incl.
+the P2 write workflows: receptionist check-in/register/appointments, doctor episode/prescription/
+referral). Demo surface = **Vercel deployment on `develop`** → final smoke pass must run against the
+deployed URL + prod backend. Schedule: weekend = design PRs A+B; Mon–Tue = PR 5 + C + PR 6 + doctor
+PR + CI; Wed–Thu = PR D + sweeps + bug list; Fri 18 buffer.
+
+**PR A `feat/design-foundations-landing`:**
+- Design tokens into the styling layer: Lato added via `next/font` (`--font-lato`), Tailwind v4
+  `@theme inline` tokens (`primary/primary-dark/ink/page/chip/panel/footer/hairline/input-*`,
+  `font-heading`/`font-body`, card + button shadows). Dashboards untouched (still Inter).
+- **General landing `/` recreated per the design** (nav w/ mobile drawer, flare hero + patient-portal
+  mock, how-it-works, features, one-platform, benefits, about, security, contact, CTA banner,
+  4-col footer). Wellbeing carousel REMOVED from `/` (design puts it on the org landing — PR C).
+- `design_handoff_prelogin/` committed (Bastoh's call: Qeeyat sees design source in review).
+- ⚠️ **Known design deviation:** contact form has an added **Phone number** field — backend
+  `ContactUsRequest` REQUIRES `phone_number`; full name split client-side, organisation prefixed
+  into `message`. Verified live: proxy → DRF 201.
+- Verified: vitest 50/50, tsc clean, build green, contact submission created on local backend.
+
+**PR D early API verifications — both answered:**
+1. **Access-request respond:** live prod schema now has `GET /receptionist/access-requests/respond/?token=`
+   (read-only details) + `POST {token, action: accept|deny}` (the mutation — backend fixed the
+   GET-mutation hazard, their FLAG-241).
+2. **Invite-token validate returns NO org branding:** `{valid, email, first_name, last_name, role}`
+   (verified with a real token via local DB) → **backend issue #66 filed** (additive field ask).
+- Bonus intel for **PR 6**: `POST /org-admin/staff/` requires `full_name` (not first/last) and
+  **lowercase** `role` (`"nurse"`); 400 `{error, code, details}`. Note the casing inconsistency with
+  the rest of the API (validate returns `"DOCTOR"`).
+
+**Routing DECIDED (Bastoh, 2026-07-11): keep `/[slug]/…`** — the design README's `/org/[slug]`
+prefix was a doc mistake. All design PRs use the existing route structure.
+
+---
+
+### 2026-07-11 (later) — NURSE-1 nurse vitals rebuild (branch: fix/nurse-vitals)
+
+**Context:** Work plan step 1 (bug-list triage) skipped — Bastoh has no list yet — so straight to
+step 2: NURSE-1, the last known P0.
+
+**Full nurse contract verified live** (local Docker backend, nurse@demo.test):
+- `GET /nurse/my-patients/` → `{count, results}` envelope of **admissions** (nested
+  patient/bed/ward/episode) — the old page parsed flat patients → every cell "—".
+- `GET/PATCH /nurse/patients/<patient_id>/vitals/` → `{patient_id, episode_id, vitals: latest|null}`.
+  PATCH **appends** a reading; partial bodies fine; 400 `{error, code, details}` with probed bounds
+  (temp 30–45°C, systolic ≥50, diastolic 20–200, pulse 20–250, resp 5–60, SpO2 50–100, weight
+  0.5–500, height 20–300); 404 = no active episode; **empty body stores an all-null reading** → form
+  requires ≥1 field and omits untouched inputs.
+- `GET /nurse/dashboard/stats/` → ward/admission aggregates. `vitals_pending`, `critical_patients`,
+  `total_patients` **do not exist** (GLOBAL-6 nurse slice) — the whole "Vitals Pending" concept had
+  no backend support.
+
+**PR 4 `fix/nurse-vitals`:** all four nurse pages rebuilt on the real shapes. New Vitals page =
+patient picker → latest-reading panel + record form (the core nurse workflow, previously missing
+entirely). Overview cards now real stats; My Patients shows HCL-ID/ward/bed/complaint with per-row
+"Record vitals". New types: `NurseAdmission`, `VitalsReading`, `PatientVitals`; `NurseStats`
+rewritten; dead `VitalRecord` deleted. **8 pre-fix tests red→green.**
+- Verified: vitest 50/50, tsc clean, `next build` green, driven end-to-end through the real Next
+  login route + `/api/data` + `/api/action` proxies against the local backend.
+
+---
+
+### 2026-07-11 — PRs #55/#56 merged; pre-login design batch delivered; work plan agreed
+
+**Short session — no code.**
+
+- Qeeyat merged **PR #55** (patient appointments) and **PR #56** (duty initial state). `develop`
+  synced locally; both local branches deleted. All of PATIENT-1 + GLOBAL-4 is live.
+- **Design batch 1 landed:** `design_handoff_prelogin/` (repo root) — high-fidelity designs + README
+  covering ALL pre-login pages. Read its `README.md` before touching any of it — design tokens,
+  route map, agreed product decisions.
+
+**Agreed work plan (in order):** triage Bastoh's bug list → NURSE-1 nurse vitals rebuild → design
+batch as independent PRs off `develop` (PR A foundations+landing → PR B auth set → PR C org landing
+→ PR D utility screens) → early API verifications before/alongside PR D.
+
+---
+
+### 2026-07-09 — Backend watch-list shipped → PATIENT-1 + GLOBAL-4 wired (PRs #55, #56)
+
+**Context:** Backend notified that both watch-list items landed (their PR #65, deployed to prod):
+`GET /patients/me/appointments/` (PATIENT-1) and duty fields on `/auth/me/` (GLOBAL-4).
+
+**Both contracts verified live** (prod schema + seeded local Docker backend, all roles probed):
+- Appointments: envelope + item shape exactly as promised; `?status=` case-insensitive ✓;
+  `?date=YYYY-MM-DD` ✓ (400 `{error, code, details}` on malformed) ✓.
+- Duty fields: `/auth/me/` has them for DOCTOR + NURSE; keys **omitted entirely** (not null) for
+  other roles; **NOT on the login response**. Covered anyway: our login route enriches from
+  `/auth/me/` (PR #49) — but that enrichment only copied `organization.*`, which was the real bug.
+
+**PR #55 `fix/patient-appointments`:** overview panel drops the invented `?upcoming=` (GLOBAL-2 —
+it silently showed ALL appointments) for `?status=scheduled`; list page gets status tabs (reset to
+page 1) + the real item shape. New `PATIENT_APPOINTMENTS` const + strict `PatientAppointment` type.
+4 pre-fix tests red→green. **Carries all doc updates.**
+
+**PR #56 `fix/duty-initial-state`** (**independent — not stacked**): login enrichment copies
+`is_on_duty`/`duty_toggled_at` (preserving key-absence for other roles); DutyToggle now trusts the
+toggle response instead of blindly flipping local state (stale-tab bug). 2 pre-fix tests red→green.
+**Code-only by design** so #55/#56 can't conflict on shared docs — merge in either order.
+
+Both: vitest 38/38, tsc clean, build green, driven end-to-end against the local backend.
+
+---
+
+### 2026-07-05 — Backend questions answered + PR #51 stranded-merge rescue + stacking rules
+
+**Context:** Goal was to answer the 4 open backend questions at the bottom of `CONTRACT-AUDIT.md`.
+Mid-session we discovered PR #51 had merged into a dead base and never reached `develop`.
+
+**All 4 backend questions ANSWERED** — verified empirically first, then confirmed with backend:
+1. **PATIENT-1:** confirmed gap. Backend will build paginated `GET /patients/me/appointments/`.
+2. **ORGADMIN-1:** removal INTENTIONAL (org-admin approval bypassed patient consent — security fix).
+   PR 6: delete approve/deny, keep the read-only list.
+3. **GLOBAL-4:** backend will add `is_on_duty` + `duty_toggled_at` to `/auth/me/` AND login user.
+4. **GLOBAL-2:** verified live — `?status=`/`?date=`/`?search=` work; `?today=`/`?upcoming=`/`?my=`
+   silently IGNORED; episode enum is `ACTIVE` not `OPEN` (frontend's `?status=OPEN` → 0 rows).
+- Bonus: **REC-3 verified** — on-duty doctors returns a paginated ENVELOPE, not a bare array.
+
+**PR #51 stranded-merge discovered & rescued:** #51 was merged into its stacked base
+`test/auth-regression` 33 min AFTER that base merged into `develop` (#50) — the retarget never
+happened, so PR 2's fixes never reached `develop`/Vercel. Opened **PR #52** (diff = exactly #51's
+changes).
+
+**Root cause fixed:** repo setting `delete_branch_on_merge` was OFF → enabled. **Stacking rules
+adopted:** independent work always branches off up-to-date `develop` — never stack, never wait.
+Stack ONLY when the new work needs code from an unmerged PR, and stack parents MUST merge via
+**merge commit** (squash breaks the retargeted child with phantom conflicts).
+
+---
+
+### 2026-07-04 — PR #49 regression tests + branch cleanup + PR 2 error/pagination hygiene
+
+**Context:** PR #49 (`fix/auth-layer`) merged into `develop` (`447758b`). Per the pre-fix/post-fix
+discipline adopted 2026-07-03, first task was to backfill regression guards for the auth fixes that
+shipped without tests.
+
+- **Branch hygiene:** fast-forwarded local `develop`; deleted 5 stale remote branches + local copies.
+- **Regression tests — 14 new, vitest 23/23 green** (`test/auth-regression`): refresh route persists
+  the ROTATED refresh token / 401 clears cookies / no-cookie short-circuits; middleware gates on
+  access OR refresh cookie, never builds `/undefined/...`, org-aware + superadmin signin redirects;
+  single-flight refresh (concurrent 401s → ONE refresh → retry both); `getOrgSlugFromPathname` slug
+  vs reserved-path handling.
+  - **Verified genuine:** temporarily reverted the refresh-rotation and `/undefined/` fixes and
+    confirmed the guards go red (buggy middleware reproduced exactly `/undefined/doctor`), then restored.
+- **`CONTRACT-AUDIT.md` progress-tracked:** checked off AUTH-1..5, AUTH-5b, REC-1, ARCH-1 with
+  per-item annotations. Confirmed **AUTH-6 still open** (`serverFetch` swallows errors as `null`).
+
+**PR 2 (`fix/error-pagination`, stacked on `test/auth-regression`) — same session:**
+- Pre-fix failing tests FIRST (6/6 red confirmed against buggy code).
+- **GLOBAL-1:** all 8 `?limit=` call sites → `?page_size=` (DRF ignores `limit`).
+- **UX-ERR-1:** new shared `ErrorState` component; every list/preview on all 6 dashboards now
+  distinguishes failed fetch from empty.
+- **PERF-1:** new `usePaginatedList` hook; `<Pagination />` wired on all full list pages.
+- **AUTH-6:** all 6 dashboards fall back to client-side stats fetch when `initialStats` is null.
+- **GLOBAL-5:** 429 friendly message now visible via error states.
+- Verified: tsc clean, vitest 30/30, build green.
+
+**Decision:** `rewrite/react` is NOT deleted yet — merged into `develop` but the migration plan says
+"delete after final merge" and `main` has not received the rewrite.
+
+---
+
+### 2026-07-03 — Full-codebase audit (5 lenses) + auth-layer fix (branch: fix/auth-layer)
+
+**Context:** Backend fix phase M0–M5 complete. Goal: catch all bugs, align frontend with the new
+backend contract. Offline-first is DEFERRED to staging phase (backend decision 2026-07-02); build
+online-only but keep all data access behind a swappable layer.
+
+- Phase 0 baseline: install (flaky network corrupted 3 native binaries — fixed via cache verify +
+  targeted re-downloads), build green (22 routes, 102–142 kB first load), vitest 9/9, dev server +
+  local Docker backend verified end-to-end with seeded logins.
+- Phase 1: **full codebase review** through 5 lenses (correctness/contract, security, performance,
+  architecture, UX/a11y) against the handoff PDF + live OpenAPI schema + live backend.
+  → **`CONTRACT-AUDIT.md`**: ~9 P0s, ~20 P1s, ~25 missing workflows, proposed PR order, 4 open
+  backend questions.
+- Phase 2 — **PR 1 (`fix/auth-layer`)**, all verified live against Docker backend:
+  - Refresh route now persists the ROTATED refresh token (was discarded → 2nd refresh always 401'd).
+  - New `src/lib/client-api.ts`: single data layer, 401 → single-flight refresh → retry → org-aware
+    signin redirect. `use-api.ts` rewired on top. **This is the offline swap seam.**
+  - Login route enriches user with `organization_slug/name` from `/auth/me/` (staff used to be
+    redirected to `/undefined/<role>`).
+  - Middleware gates on access OR refresh cookie (access cookie expires hourly — page navs used to
+    bounce to signin despite a valid refresh token); never builds `/undefined/` redirects.
+  - Logout + 401 redirects are org-aware; receptionist search param fixed (`?q=` → `?query=`).
+
+**Decision adopted:** **pre-fix/post-fix test discipline** — every fix PR starts with a failing test
+reproducing the flagged issue, the fix turns it green, the test stays as a regression guard.
+
+---
+
+### 2026-06-12 — Vercel deploy failures fixed (Output Directory override)
+
+- Diagnosed why every Vercel deployment failed after the React rewrite merged: builds errored with
+  `NEXT_NO_ROUTES_MANIFEST` because the **dashboard Output Directory setting was still `public`**
+  (leftover from the static site). Dashboard settings override `vercel.json`, so the
+  `"framework": "nextjs"` fix in fe6b115 never took effect.
+- Cleared the Output Directory override via the Vercel API (`outputDirectory: null` → `.next`).
+- Redeployed `develop` head (6e14a2c) — preview built green in 1m. Production was stuck on a stale
+  commit (e17319e) with a real `module_not_found` bug already fixed by PR #46, so the current
+  develop build was promoted to production.
+- Verified `develop` branch ruleset: PRs required (1 approval), no direct pushes, no force-push/deletion.
+
+**Decision:** Vercel production branch **stays `develop` for now** — the `main` → Production remap
+is deferred.
+
+---
+
+### 2026-06-11 — Full technical review + Next.js migration plan
+
+- Full codebase audit: measured all JS files (~8,500 lines), CSS (~1,680 lines), 22 HTML shells,
+  6 dashboards.
+- Identified architecture ceiling: no module system, global scope pollution, 6× code duplication,
+  zero tests, localStorage token security debt, memory leaks from uncleared intervals.
+- Evaluated Vanilla JS → Next.js migration: verdict **proceed**. Created `MIGRATION-PLAN.md`.
+
+**Decisions:** migrate to Next.js (App Router) via `rewrite/react`; **convert the existing repo** —
+do not create a new one (git history preserved); port `config.js`, `api.js`, `router.js` directly,
+redesign only the structure; Phase 1 (auth) ships to `staging` as a standalone PR before dashboards
+are touched; no new features on `develop` (Vanilla JS) once Phase 1 ships.
+
+---
+
+### 2026-05-25 — CLAUDE.md upgrade + ARCHITECTURE.md created
+
+- Replaced `CLAUDE.md` with a more structured version: login portal contract, auth flow notes,
+  explicit session start/during/end workflow, key patterns to enforce.
+- Created `ARCHITECTURE.md` — file structure, routing (Vercel rewrites + `HC_ROUTER`), auth flows
+  (3 portals), API layer, and API endpoint map per role.
+
+**Decision:** `ARCHITECTURE.md` is a required living doc — update it whenever routing, file
+structure, or API integration changes.
+
+---
+
+### 2026-05-25 — Branch strategy restructure + repo cleanup
+
+- Diagnosed state: `main` had only 1 commit (initial), `develop` had 89 commits, no `staging`
+  existed, 36 stale remote branches.
+- Opened PR #43 (`develop` → `main`) to align main — merged by Qeeyat. Created `staging` from `develop`.
+- Updated GitHub ruleset ID `11328360` from `~ALL` to `main/staging/develop` only (was blocking all
+  branch deletions and pushes).
+- Deleted 36 stale remote branches and 30 stale local branches.
+- Created `HANDOFF.md`; fixed `.gitignore` so `CLAUDE.md` and `HANDOFF.md` are tracked.
+- Deleted `BACKEND-PROMPTS.md` and 9 unused placeholder images.
+
+**Decisions:** branch structure mirrors the backend repo exactly (main / staging / develop); React
+rewrite goes `rewrite/react` → `staging` → `develop` → `main` — never splits stack across
+environments; `CLAUDE.md` + `HANDOFF.md` committed, `PRD.md` + `API-doc.md` stay gitignored.

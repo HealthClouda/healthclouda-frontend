@@ -1,64 +1,319 @@
-# HealthClouda Frontend – Claude Assistant
+# HealthClouda Frontend — Shared Brain
 
-## Purpose
-This file is for Claude (or any AI assistant) to understand the frontend project context and
-maintain consistent workflow across sessions.
+> **This file is the operating manual for every agent and every human working in this repo.**
+> Two developers work this codebase, each driving their own AI assistant, and **those assistants
+> cannot see each other's memory.** The documents in this repo are the *only* channel between
+> them. If it isn't written down here, the other side does not know it.
+>
+> Treat every rule below as binding. They exist because something broke without them.
 
-## Project Context
-- Frontend for a multi-tenant EHR/EMR platform (HealthClouda).
-- Connects to the HealthClouda backend API (Django REST Framework).
-- Multi-role portals: Patient, Receptionist, Doctor, Nurse, Org Admin, Super Admin.
-- API base URL (production): https://healthclouda-backend-production.up.railway.app/api/v1/
+---
 
-## Key Documents (maintain these — same discipline as the backend repo)
-- `HANDOFF.md` — session log, current state, TODOs
-- `ARCHITECTURE.md` — component structure, routing, state management, API integration map
+## 1. Project Context
 
-## Login Portals (Backend Contract)
-Three separate login endpoints — do not mix them up:
-- `POST /api/v1/auth/login/` — patients only (general portal)
-- `POST /api/v1/auth/login/<org_slug>/` — staff + patients (org portal)
-- `POST /api/v1/auth/login/admin/` — superadmin only
+**HealthClouda** is an API-first, multi-tenant EHR/EMR platform for Nigerian healthcare
+organisations. Hospitals and clinics store patient records with us, and those records move with
+the patient between facilities.
 
-Staff trying the general portal get a 400 with `org_slug` and `redirect_url` in the response
-— use that to redirect them automatically to their correct org portal.
+**Multi-tenancy is the core constraint.** Many organisations share one system and must never see
+each other's data. Org slugs in URLs, three separate login endpoints, org-scoped API paths — all
+of it exists to enforce that boundary. Never weaken it for convenience.
 
-## Auth Flow Notes
-- JWT: store access + refresh tokens securely (avoid localStorage — XSS risk).
-- Invite setup: new staff land on `/set-password?token=<uuid>` — validate token first via
-  `GET /api/v1/auth/setup-password/validate/?token=<uuid>` then POST to set password.
-- OTP reset: forgot-password → verify-otp → reset-password (three-step flow).
+**Roles:** `SUPERADMIN`, `ORGANIZATION_ADMIN`, `DOCTOR`, `NURSE`, `RECEPTIONIST`, `PATIENT`.
 
-## Session Workflow (REQUIRED — follow this every session)
+**The two repos:**
 
-### Session Start
-1. Read `HANDOFF.md` and `ARCHITECTURE.md`.
-2. Ask the user: **"What would you like to work on today?"** — wait for their answer.
-3. If the goal is large, break it into numbered steps and confirm the breakdown before starting.
+| Repo | Stack | Deploys to |
+|---|---|---|
+| `healthclouda-frontend` (this one) | Next.js 15 App Router, React 19, TypeScript, Tailwind v4 | Vercel |
+| `healthclouda-backend` | Django REST Framework | Railway |
 
-### During the Session
-- Track progress against agreed steps.
-- If scope changes mid-session, restate the updated goal explicitly.
+**Timeline pressure that shapes every decision:** the beta org engagement is underway and **real
+patient data (PHI) arrives within roughly a month.** Anything we let slide now must be findable
+later. That is what `CODEBASE_FLAGS.md` is for.
 
-### Session End
-1. Confirm which steps were completed and which remain.
-2. Update living documents:
-   - `HANDOFF.md` — every session, new dated entry at top of Session Log
-   - `ARCHITECTURE.md` — if component structure, routing, or API integration changed
-   - This file (`CLAUDE.md`) — if workflow or project context changed
-3. Recommend what to tackle next session.
+### The contract seam
 
-## API Contract
+The **live `/api/v1/schema/` (Swagger) is the single source of truth** for the API. Not a PDF,
+not a doc committed here, not what a component currently assumes, and not this file.
 
-- **Live API reference (single source of truth):** https://healthclouda-backend-production.up.railway.app/api/v1/docs/
-  Consult this before building any feature that calls the backend. It is auto-updated when the backend ships changes.
-- All endpoints are prefixed with `/api/v1/`.
-- Auth uses JWT — `Authorization: Bearer <access_token>` on all protected requests.
-- If an endpoint you need doesn't exist, or a response is missing a field, open an issue on the backend repo tagged `api-request` with: what you need, why, and the rough shape you expect. Do not guess or silently work around it.
-- If something starts breaking after a backend deploy, check the Swagger UI first — the contract may have changed.
+- Verify against the live schema **before** building anything that calls the backend.
+- Missing endpoint or field → **open a GitHub issue on the backend repo tagged `api-request`**
+  stating what you need, why, and the shape you expect. Never guess; never silently work around it.
+- Backend changes we must consume are tracked in the **BACKEND CONTRACT NOTES** banner in
+  `HANDOFF.md`.
 
-## Key Patterns to Enforce
-- All authenticated requests: `Authorization: Bearer <access_token>` header.
-- All org-scoped staff endpoints require the user to be logged in via their org portal.
-- Never expose raw patient data across org contexts.
-- Handle token expiry gracefully — use the refresh token before forcing re-login.
+> ⚠️ The backend base URL has changed. Confirm the current value with the team before trusting
+> `.env.example`, `next.config.ts`, or any URL written in these docs.
+
+---
+
+## 2. North Star — Progressive Hardening, Not a Rewrite
+
+We harden this codebase in place. We do not stop and rewrite.
+
+| Branch | Standard | Meaning |
+|---|---|---|
+| `develop` | Demo-functional | Shortcuts allowed — **only if logged** |
+| `staging` | Production-grade | No known shortcuts |
+| `main` | Production | Live |
+
+**Every "good enough for now" decision must leave a tracked breadcrumb.** If you take a shortcut,
+hardcode a value, stub a state, skip a validation, or knowingly leave a gap — it goes in
+`CODEBASE_FLAGS.md` in the same PR. An undocumented shortcut is the actual problem. A documented
+one is a plan.
+
+An agent that silently "works around" a backend gap has done real damage: the workaround looks
+like intent to the next reader.
+
+---
+
+## 3. Team & Multi-Dev Workflow
+
+### Identify yourself — never ask the user who they are
+
+At session start, run:
+
+```bash
+git config user.name
+```
+
+That is the developer you are working for. **Do not ask the user to identify themselves.** Use
+the result to pick the correct session log and FLAG number range.
+
+### Document ownership
+
+| File | Who writes | Contains |
+|---|---|---|
+| `HANDOFF.md` | Everyone | **Durable shared state only** — snapshot, branches, env/deploy facts, 🚧 In Flight table, BACKEND CONTRACT NOTES. **No session narrative.** |
+| `HANDOFF-<Name>.md` | **Owner only** | That dev's session log — narrative, findings, decisions |
+| `CODEBASE_FLAGS.md` | Everyone, own range | Issues found and shortcuts logged |
+| `ONBOARDING.md` | Everyone | New-dev orientation |
+| `ARCHITECTURE.md` | Everyone | What is **actually built** |
+| `TARGET_ARCHITECTURE_CHECKLIST.md` | Everyone | Current → target, dependency-ordered |
+| `BETA_READINESS.md` | Everyone | Prioritised backlog, Tier 1 → Tier 5 |
+
+**Never edit another developer's session log.** Not to tidy it, not to add a note, not to correct
+it. If you need to tell them something, it goes in `HANDOFF.md` where it's shared state.
+
+### The 🚧 In Flight table
+
+Lives at the top of `HANDOFF.md`. It is how devs avoid colliding.
+
+1. **Claim BEFORE cutting a branch** — not after, not at PR time.
+2. **Clear the row on merge.**
+3. **Read it at session start**, every session.
+
+A stale claim is worse than no claim. If you abandon work, clear the row.
+
+### Branches
+
+- Cut `feat/*` or `fix/*` **from an up-to-date `develop`**.
+- PR back into `develop`. **Merge within roughly a day** — long-lived branches cause conflict pain.
+- **Rebase onto `develop`. Never merge `develop` into your branch.**
+- **Never force-push `develop`.**
+
+> **Branch protection is NOT enforced.** GitHub branch rules require Pro on private repos, which
+> we don't have. Nothing above is mechanically prevented — every rule here is **honour system.**
+> That is precisely why it is written down, and why violating it silently is a real cost to the
+> other dev.
+
+### Reviewers — always set one, and it is always the other dev
+
+Every PR gets a reviewer assigned **when it is opened**, never later:
+
+| PR author | Reviewer |
+|---|---|
+| @Bastoh | **@Qeeyat** |
+| @Qeeyat | **@Bastoh** |
+
+```bash
+gh pr create --reviewer <the other dev> ...
+```
+
+This is binding on agents too: after opening a PR, confirm the reviewer is set. An unreviewed PR
+merged into `develop` defeats the only quality gate this repo mechanically has, because branch
+protection is not enforced (below).
+
+### Cross-repo communication
+
+Frontend ↔ backend asks are **GitHub issues on the backend repo**, tagged `api-request`. Not
+Slack, not a doc in this repo, not an assumption in code.
+
+---
+
+## 4. Session Ritual
+
+### Session start — in this exact order
+
+1. **Identify the dev** — `git config user.name`. Never ask.
+2. **Read `HANDOFF.md`** — shared state, In Flight claims, backend contract notes.
+3. **Read _every_ per-dev log — `HANDOFF-<Name>.md` for ALL devs, not just this one.**
+   ⚠️ Reading only your own **fails silently.** Nothing errors; you simply miss what the other dev
+   did, duplicate their work, or contradict a decision they already made. This is the single
+   easiest way to break the multi-dev workflow.
+4. **Read `ARCHITECTURE.md`** — what actually exists.
+5. **Read `TARGET_ARCHITECTURE_CHECKLIST.md`** — where we're heading and in what order.
+6. **Read `BETA_READINESS.md`** — what's blocking beta.
+7. **Then ask the user what they want to work on.** Not before.
+
+**If the dev is new to this repo, also read `ONBOARDING.md` in full** — and point them at it.
+It is written for both of you.
+
+### During the session
+
+- **Narrate as you work.** Say what you're doing, what you're finding, what you're changing.
+- **Investigate read-only first and show evidence before choosing a direction.** Do not start
+  editing files to discover how something works.
+- If scope changes, restate the updated goal explicitly.
+- Claim In Flight before cutting the branch.
+
+### Session end
+
+1. Confirm what was completed and what remains.
+2. **Update `HANDOFF-<YourName>.md`** — new dated entry at the top.
+3. **Update `HANDOFF.md`** if durable state changed (In Flight rows, env/deploy facts, backend
+   contract notes).
+4. **Update `ARCHITECTURE.md`** if routes, components, state, or the API layer changed.
+5. **Update `CODEBASE_FLAGS.md`** with anything noticed but not fixed.
+6. **Tick off `TARGET_ARCHITECTURE_CHECKLIST.md` / `BETA_READINESS.md`** items that are now done —
+   only where the "Done when" is genuinely satisfied.
+7. **Update `ONBOARDING.md` if anything in it went stale** — a changed command, URL, folder, or
+   rule. Do this in the same PR that made it stale.
+8. Recommend what to tackle next session.
+
+---
+
+## 5. Working Rules for This Codebase
+
+**Data access**
+- The browser **never** calls the backend directly. All browser traffic goes through our own
+  proxy routes (`/api/data` reads, `/api/action` writes), which attach the JWT server-side.
+- Never `fetch()` the backend from a component. Use `useApi()` / `dataGet()` / `dataAction()`.
+- `src/lib/client-api.ts` is also the intended swap point for the deferred offline-first layer.
+
+**Constants**
+- Every endpoint string lives in `src/lib/config.ts` → `ENDPOINTS`. Never hardcode a backend path
+  in a component.
+- Every URL path is built via `src/lib/router.ts`. Never hand-write app paths.
+- `RESERVED_PATHS` in `config.ts` must stay in sync with the `src/app/` directory, or org slugs
+  will shadow real routes.
+
+**Backend shapes**
+- DRF list endpoints return `{count, next, previous, results}` — not bare arrays. Use
+  `usePaginatedList()`.
+- Pagination params are `?page=` and `?page_size=`. `?limit=` is silently ignored.
+- **Invented query params are a recurring bug class here.** If a filter isn't in the live schema,
+  DRF ignores it silently and the UI shows wrong data with no error. Verify before using.
+
+**Auth**
+- JWTs live in **httpOnly cookies**. Never move a token anywhere JavaScript can read it.
+- SimpleJWT **rotates and blacklists** refresh tokens: the rotated token must be persisted, and
+  concurrent refreshes log the user out. The single-flight refresh in `client-api.ts` is load-bearing
+  — don't "simplify" it.
+
+**Verification before any PR**
+
+```bash
+npx tsc --noEmit    # must be clean
+npm test            # must be green
+npm run build       # must be green
+```
+
+Never report work as done without running these. Report failures honestly, with output.
+
+---
+
+## 6. Review Discipline
+
+### "Let's fix that" during a review means ADD A FLAG — not edit the source
+
+This is the rule agents break most often. During a **review**, the output is a written record,
+not commits. When the user says "let's fix that," "that's wrong," or "we should change that"
+while reviewing code:
+
+> **→ Add an entry to `CODEBASE_FLAGS.md`. Do not modify source files.**
+
+Fixes happen in a separate, deliberate session with their own branch and PR. If you're genuinely
+unsure whether you're in review mode or fix mode, ask — once.
+
+### The five review lenses
+
+Pass over any change — including your own, before opening the PR — through each:
+
+1. **Security** — can a user reach data that isn't theirs? Is a trust decision made client-side?
+2. **Accessibility** — keyboard reachable, labelled, sufficient contrast, sane to a screen reader?
+3. **Correctness** — does it work, including edge cases and error paths?
+4. **Consistency** — does it match how the rest of this repo does it?
+5. **Performance** — extra round trips, avoidable re-renders, oversized assets?
+
+### FLAG number ranges
+
+Each dev owns a range so numbers never collide across agents that can't see each other. The
+authoritative allocation table is at the top of `CODEBASE_FLAGS.md`. Frontend numbering is
+**independent** of the backend repo's.
+
+---
+
+## 7. Onboarding a New Dev
+
+This section is the *process*. The material a newcomer actually reads is **`ONBOARDING.md`** —
+keep the two in sync and don't duplicate content between them.
+
+### When a new developer joins
+
+**The existing team:**
+
+1. Add them to `HANDOFF.md` (team table) and allocate them a **FLAG range** in the table at the
+   top of `CODEBASE_FLAGS.md`.
+2. Create their session log, `HANDOFF-<Name>.md`, pre-seeded with the file's purpose and rules so
+   they never face a blank file.
+3. Give them the **current backend base URL** and demo logins for each role — neither is committed
+   to this repo.
+4. Point them at `ONBOARDING.md` as the first thing they read.
+
+**The new developer, and their AI assistant:**
+
+1. **Read `ONBOARDING.md` end to end.** It carries the domain glossary, local setup, the request
+   flow, and the working agreements. Both the human and the agent read it — an agent that skips it
+   will invent conventions this repo already has.
+2. Then follow the normal §4 session-start ritual.
+3. **Keep it current.** Anything in `ONBOARDING.md` found stale gets fixed in the same PR that
+   made it stale. This is explicitly everyone's job, including on week one.
+
+### What we expect of a new dev
+
+- Not to understand this codebase yet. It's a multi-tenant medical records system; nobody reads it
+  once and gets it.
+- To ask early — thirty minutes stuck, not two hours.
+- To ship something small and merged before something big and stuck.
+- To experiment freely on `develop`: synthetic data only, no real patients.
+
+Be warm. A newcomer's first week sets how safe they feel asking questions for the next year, and
+a dev who doesn't ask is a dev who guesses in a codebase that handles medical records.
+
+---
+
+## 8. Login Portals (backend contract — do not mix these up)
+
+| Portal | Endpoint | Who |
+|---|---|---|
+| General | `POST /auth/login/` | Patients only |
+| Org | `POST /auth/login/<org_slug>/` | Staff **and** patients |
+| Superadmin | `POST /auth/login/admin/` | Superadmin only |
+
+Staff who try the general portal get a **400 carrying `org_slug` + `redirect_url`** — use it to
+redirect them to their org portal automatically.
+
+**Other auth flows:**
+- **Invite setup:** `/set-password?token=<uuid>` → validate via
+  `GET /auth/setup-password/validate/?token=` → POST to set. Expired links can be re-requested
+  via the public resend endpoint.
+- **OTP reset:** forgot-password → verify-otp → reset-password (three steps).
+- **Access request respond:** GET with `?token=` is read-only; POST performs the decision. The
+  action enum is `accept` / `deny`.
+
+---
+
+*Last updated 2026-08-09. This file is binding on humans and agents alike — if a rule here is
+wrong, change it deliberately and say so in your session log.*

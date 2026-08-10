@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#f8faff; }
+a { color:#0075ff; } a:hover { color:#005FCC; }
+input::placeholder, textarea::placeholder { color:#b0bcc8; }
+@keyframes hcPanelIn { from { transform:translateX(480px); } to { transform:translateX(0); } }
+@keyframes hcFadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes hcDropIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes hcToastIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+#hc-small-screen-gate { display:none; }
+@media (max-width: 767px) {
+  #hc-small-screen-gate { display:flex; }
+  #hc-app-shell { display:none !important; }
+}
+</style>
+</helmet>
+<div id="hc-small-screen-gate" data-screen-label="Small-screen gate" style="flex-direction:column; align-items:center; justify-content:center; gap:16px; min-height:100vh; background:#f8faff; font-family:'Inter',sans-serif; text-align:center; padding:32px;">
+  <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:64px; height:32px; object-fit:contain;">
+  <div style="width:56px; height:56px; border-radius:14px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;">
+    <svg viewBox="0 0 24 24" style="width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+  </div>
+  <div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825;">This dashboard needs a bigger screen</div>
+  <div style="font-size:13.5px; color:#6b7280; max-width:300px; line-height:1.6;">The Super Admin dashboard is designed for tablets, laptops and desktops. Please sign in from a device with a larger screen.</div>
+</div>
+<div id="hc-app-shell" style="display:flex; height:100vh; background:#f8faff; font-family:'Inter',sans-serif; color:#000825; overflow:hidden; position:relative;">
+
+  <aside style="width:230px; flex-shrink:0; background:#ffffff; border-right:1px solid #e8edf5; display:flex; flex-direction:column;">
+    <div style="height:64px; display:flex; align-items:center; gap:10px; padding:0 20px; border-bottom:1px solid #e8edf5;">
+      <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:44px; height:22px; object-fit:contain;">
+      <span style="font-family:'Lato',sans-serif; font-weight:800; font-size:16px; color:#000825;">HealthClouda</span>
+    </div>
+    <nav style="flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:6px 12px 4px;">Main</span>
+      <button onClick="{{ nav.dashboard }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.dashboard }}; color: {{ navFg.dashboard }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        Dashboard
+      </button>
+      <button onClick="{{ nav.organisations }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.organisations }}; color: {{ navFg.organisations }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"></path></svg>
+        Organisations
+      </button>
+      <button onClick="{{ nav.users }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.users }}; color: {{ navFg.users }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Users
+      </button>
+      <button onClick="{{ nav.audit }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.audit }}; color: {{ navFg.audit }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+        Audit Logs
+      </button>
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:14px 12px 4px;">Platform</span>
+      <button onClick="{{ nav.records }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.records }}; color: {{ navFg.records }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif; opacity:0.6;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        Records <span style="margin-left:auto; font-size:9.5px; font-weight:700; color:#6b7280; background:#f3f6fb; border-radius:999px; padding:2px 8px;">Soon</span>
+      </button>
+      <button onClick="{{ nav.billing }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.billing }}; color: {{ navFg.billing }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif; opacity:0.6;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+        Billing <span style="margin-left:auto; font-size:9.5px; font-weight:700; color:#6b7280; background:#f3f6fb; border-radius:999px; padding:2px 8px;">Soon</span>
+      </button>
+      <button onClick="{{ nav.messages }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.messages }}; color: {{ navFg.messages }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif; opacity:0.6;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Messages <span style="margin-left:auto; font-size:9.5px; font-weight:700; color:#6b7280; background:#f3f6fb; border-radius:999px; padding:2px 8px;">Soon</span>
+      </button>
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:14px 12px 4px;">System</span>
+      <button onClick="{{ nav.settings }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.settings }}; color: {{ navFg.settings }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif; opacity:0.6;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Settings <span style="margin-left:auto; font-size:9.5px; font-weight:700; color:#6b7280; background:#f3f6fb; border-radius:999px; padding:2px 8px;">Soon</span>
+      </button>
+    </nav>
+    <div style="border-top:1px solid #e8edf5; padding:14px 16px; display:flex; align-items:center; gap:10px;">
+      <div style="width:36px; height:36px; border-radius:50%; background:#EBF3FF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0075ff; flex-shrink:0;">SA</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12.5px; font-weight:700; color:#000825; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Super Admin</div>
+        <div style="font-size:10.5px; color:#6b7280;">Platform owner</div>
+      </div>
+      <button title="Logout" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:6px; border-radius:6px; cursor:pointer;" style-hover="color:#dc2626; background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16,17 21,12 16,7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex:1; display:flex; flex-direction:column; min-width:0;">
+    <header style="height:64px; flex-shrink:0; background:#ffffff; border-bottom:1px solid #e8edf5; display:flex; align-items:center; padding:0 28px; gap:20px;">
+      <div style="font-size:14.5px; font-weight:700; color:#000825; white-space:nowrap;">Super Admin</div>
+      <div style="flex:1; max-width:380px; position:relative;">
+        <svg viewBox="0 0 24 24" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" placeholder="Search organisations or users…" style="width:100%; height:38px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 36px; font-size:13px; color:#000825; outline:none; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff; background:#ffffff;">
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; align-items:center; gap:8px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px; padding:7px 13px; font-size:12px; color:#374151; font-weight:500; white-space:nowrap;">
+          <svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Jul 29, 2026
+        </div>
+        <div style="position:relative;">
+          <button onClick="{{ toggleNotif }}" title="Notifications" style="position:relative; background:none; border:none; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#6b7280; cursor:pointer;" style-hover="background:#f8faff;">
+            <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute; top:6px; right:6px; min-width:15px; height:15px; background:#dc2626; color:#ffffff; font-size:9px; font-weight:700; border-radius:999px; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; padding:0 2px;">{{ unreadCount }}</span>
+            </sc-if>
+          </button>
+          <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; top:46px; right:0; width:350px; background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 8px 40px rgba(0,8,37,0.13); z-index:600; overflow:hidden; animation:hcDropIn 0.18s ease;">
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px 11px; border-bottom:1px solid #e8edf5;">
+                <span style="font-size:13.5px; font-weight:700; color:#000825;">Notifications</span>
+                <button onClick="{{ markAllRead }}" style="font-size:11.5px; font-weight:600; color:#0075ff; background:none; border:none; cursor:pointer; padding:0; font-family:'Inter',sans-serif;">Mark all read</button>
+              </div>
+              <div style="max-height:340px; overflow-y:auto;">
+                <sc-for list="{{ notifItems }}" as="n" hint-placeholder-count="3">
+                  <div style="display:flex; gap:12px; padding:13px 18px; border-bottom:1px solid #f3f6fb; background: {{ n.bg }};">
+                    <div style="width:34px; height:34px; border-radius:50%; background: {{ n.chipBg }}; color: {{ n.chipFg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                      <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="{{ n.iconPath }}"></path></svg>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:12.5px; font-weight:600; color:#000825; line-height:1.4;">{{ n.title }}</div>
+                      <div style="font-size:11.5px; color:#6b7280; line-height:1.4; margin-top:1px;">{{ n.desc }}</div>
+                      <div style="font-size:10.5px; color:#b0bcc8; margin-top:4px;">{{ n.time }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center; padding:32px 20px; font-size:12.5px; color:#6b7280;">You're all caught up</div>
+                </sc-if>
+              </div>
+              <div style="padding:10px 18px; border-top:1px solid #e8edf5; text-align:center;">
+                <button onClick="{{ clearNotifs }}" style="font-size:11.5px; font-weight:600; color:#6b7280; background:none; border:none; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="color:#dc2626;">Clear all</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto; padding:26px 28px;">
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Dashboard">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Dashboard</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Welcome back. Here's what's happening across the platform.</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:18px;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Total Users</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#ede9fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">4,382</div>
+              <div style="font-size:12px; font-weight:600; color:#16a34a; display:flex; align-items:center; gap:4px;"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="17 11 12 6 7 11"></polyline><line x1="12" y1="6" x2="12" y2="18"></line></svg> 12% this month</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Organisations</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">27</div>
+              <div style="font-size:12px; font-weight:600; color:#16a34a; display:flex; align-items:center; gap:4px;"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="17 11 12 6 7 11"></polyline><line x1="12" y1="6" x2="12" y2="18"></line></svg> 2 new this month</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Active Orgs</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">25</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">2 suspended</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Pending Invites</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ pendingCount }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">Awaiting account setup</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:16px; margin-bottom:18px;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+              <div style="font-size:13.5px; font-weight:700; color:#000825; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#16a34a; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                System Health
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:center; gap:10px; font-size:12.5px; color:#374151;">
+                  <span style="width:8px; height:8px; border-radius:50%; background: {{ health.apiDot }}; box-shadow:0 0 0 3px {{ health.apiRing }}; flex-shrink:0;"></span>
+                  <span>API Status: <b style="color:#000825; font-weight:600;">{{ health.apiLabel }}</b></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; font-size:12.5px; color:#374151;">
+                  <span style="width:8px; height:8px; border-radius:50%; background: {{ health.dbDot }}; box-shadow:0 0 0 3px {{ health.dbRing }}; flex-shrink:0;"></span>
+                  <span>Database: <b style="color:#000825; font-weight:600;">{{ health.dbLabel }}</b></span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; font-size:12px; color:#6b7280; margin-top:4px; padding-top:12px; border-top:1px solid #e8edf5;">
+                  <svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:#6b7280; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>
+                  Last Backup: <b style="color:#374151; font-weight:600;">Today, 04:00 WAT</b>
+                </div>
+              </div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="font-size:13.5px; font-weight:700; color:#000825; display:flex; align-items:center; gap:8px;">
+                  <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#d97706; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                  Pending Invites
+                </div>
+                <button onClick="{{ nav.users }}" style="font-size:11.5px; font-weight:600; color:#0075ff; background:none; border:none; cursor:pointer; font-family:'Inter',sans-serif;">View all users</button>
+              </div>
+              <div style="display:flex; flex-direction:column;">
+                <sc-for list="{{ pendingInvites }}" as="p" hint-placeholder-count="2">
+                  <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f3f6fb;">
+                    <div style="width:34px; height:34px; border-radius:50%; background: {{ p.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.initials }}</div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; font-weight:600; color:#000825;">{{ p.name }}</div>
+                      <div style="font-size:11.5px; color:#6b7280;">{{ p.meta }}</div>
+                    </div>
+                    <button onClick="{{ p.onResend }}" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:600; border:1.5px solid {{ p.resendBorder }}; background: {{ p.resendBg }}; color: {{ p.resendFg }}; cursor:pointer; white-space:nowrap; font-family:'Inter',sans-serif;">{{ p.resendLabel }}</button>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noPending }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center; padding:24px; font-size:12.5px; color:#6b7280;">No pending invitations — everyone's set up.</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="padding:16px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e8edf5;">
+              <span style="font-size:13.5px; font-weight:700; color:#000825;">Recent Activity</span>
+              <button onClick="{{ nav.audit }}" style="font-size:12px; font-weight:600; padding:6px 13px; border-radius:8px; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">View all</button>
+            </div>
+            <table style="width:100%; border-collapse:collapse;">
+              <thead><tr>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Time</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">User</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Action</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Entity</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ activityRows }}" as="r" hint-placeholder-count="5">
+                  <tr>
+                    <td style="padding:12px 22px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace; white-space:nowrap;">{{ r.time }}</td>
+                    <td style="padding:12px 22px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.user }}</td>
+                    <td style="padding:12px 22px; font-size:12.5px; font-weight:500; color:#000825; border-bottom:1px solid #f3f6fb;">{{ r.action }}</td>
+                    <td style="padding:12px 22px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.entity }}</td>
+                    <td style="padding:12px 22px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ r.badgeBg }}; color: {{ r.badgeFg }};">{{ r.status }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isOrganisations }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Organisations">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Organisations</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Manage all hospitals, clinics, and facilities on HealthClouda</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button onClick="{{ exportToast }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+              <button onClick="{{ openAddOrg }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Add Organisation
+              </button>
+            </div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5; flex-wrap:wrap;">
+              <div style="position:relative; width:280px;">
+                <svg viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search by name, slug or ID…" value="{{ orgSearch }}" onChange="{{ setOrgSearch }}" style="width:100%; height:36px; background:#ffffff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 32px; font-size:12.5px; outline:none; color:#000825; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff;">
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                <select value="{{ orgType }}" onChange="{{ setOrgType }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Types</option>
+                  <option value="HOSPITAL">Hospital</option>
+                  <option value="CLINIC">Clinic</option>
+                  <option value="SCHOOL_CLINIC">School Clinic</option>
+                </select>
+                <select value="{{ orgStatus }}" onChange="{{ setOrgStatus }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+                <button onClick="{{ clearOrgFilters }}" style="padding:0 12px; height:36px; font-size:12px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; border-radius:8px; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff;">Clear</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;"><button onClick="{{ sortOrgName }}" style="background:none; border:none; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; cursor:pointer; display:flex; align-items:center; gap:4px; padding:0; font-family:'Inter',sans-serif;" style-hover="color:#0075ff;">Organisation <span style="font-size:10px;">{{ orgSortNameIcon }}</span></button></th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Type</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Slug</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                  <th style="padding:10px 20px; text-align:left; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;"><button onClick="{{ sortOrgDate }}" style="background:none; border:none; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; cursor:pointer; display:flex; align-items:center; gap:4px; padding:0; font-family:'Inter',sans-serif;" style-hover="color:#0075ff;">Date Added <span style="font-size:10px;">{{ orgSortDateIcon }}</span></button></th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ orgRows }}" as="o" hint-placeholder-count="6">
+                    <tr style="background: {{ o.rowBg }};">
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ o.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ o.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ o.name }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px;">{{ o.admin }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ o.typeBg }}; color: {{ o.typeFg }};">{{ o.typeLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ o.slug }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ o.statusBg }}; color: {{ o.statusFg }};">{{ o.statusLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ o.date }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; gap:6px;">
+                          <button onClick="{{ o.onView }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#374151; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">View</button>
+                          <button onClick="{{ o.onToggle }}" style="background:none; border:1px solid {{ o.toggleBorder }}; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color: {{ o.toggleFg }}; font-family:'Inter',sans-serif;">{{ o.toggleLabel }}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ orgEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"></path></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No organisations found</div>
+                  <div style="font-size:12.5px;">Try adjusting your search or filters.</div>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 20px; border-top:1px solid #e8edf5; background:#f8faff;">
+              <span style="font-size:12px; color:#6b7280; font-weight:500;">{{ orgCountLabel }}</span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e8edf5; border-radius:8px; background:#ffffff; font-size:12px; font-weight:600; color:#374151; cursor:not-allowed; opacity:0.4; font-family:'Inter',sans-serif;">‹</button>
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #0075ff; border-radius:8px; background:#0075ff; font-size:12px; font-weight:600; color:#ffffff; cursor:pointer; font-family:'Inter',sans-serif;">1</button>
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e8edf5; border-radius:8px; background:#ffffff; font-size:12px; font-weight:600; color:#374151; cursor:not-allowed; opacity:0.4; font-family:'Inter',sans-serif;">›</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Users">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Users</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">All registered users across every organisation on HealthClouda</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button onClick="{{ exportToast }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+              <button onClick="{{ openInviteUser }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                Invite User
+              </button>
+            </div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5; flex-wrap:wrap;">
+              <div style="position:relative; width:260px;">
+                <svg viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search by name or email…" value="{{ userSearch }}" onChange="{{ setUserSearch }}" style="width:100%; height:36px; background:#ffffff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 32px; font-size:12.5px; outline:none; color:#000825; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff;">
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                <select value="{{ userRole }}" onChange="{{ setUserRole }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Roles</option>
+                  <option value="ORG_ADMIN">Org Admin</option>
+                  <option value="DOCTOR">Doctor</option>
+                  <option value="NURSE">Nurse</option>
+                  <option value="RECEPTIONIST">Receptionist</option>
+                  <option value="PATIENT">Patient</option>
+                </select>
+                <select value="{{ userStatus }}" onChange="{{ setUserStatus }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Invite pending</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+                <select value="{{ userOrg }}" onChange="{{ setUserOrg }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none; max-width:180px;">
+                  <option value="">All Organisations</option>
+                  <option value="Lagos General Hospital">Lagos General Hospital</option>
+                  <option value="Demo Clinic">Demo Clinic</option>
+                  <option value="Nile University Clinic">Nile University Clinic</option>
+                  <option value="Abuja Medical Centre">Abuja Medical Centre</option>
+                  <option value="Sunrise Family Clinic">Sunrise Family Clinic</option>
+                  <option value="Kano Teaching Hospital">Kano Teaching Hospital</option>
+                  <option value="GreenLeaf Clinic">GreenLeaf Clinic</option>
+                </select>
+                <button onClick="{{ clearUserFilters }}" style="padding:0 12px; height:36px; font-size:12px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; border-radius:8px; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff;">Clear</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;"><button onClick="{{ sortUserName }}" style="background:none; border:none; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; cursor:pointer; display:flex; align-items:center; gap:4px; padding:0; font-family:'Inter',sans-serif;" style-hover="color:#0075ff;">User <span style="font-size:10px;">{{ userSortNameIcon }}</span></button></th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Role</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Organisation</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                  <th style="padding:10px 20px; text-align:left; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;"><button onClick="{{ sortUserDate }}" style="background:none; border:none; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; cursor:pointer; display:flex; align-items:center; gap:4px; padding:0; font-family:'Inter',sans-serif;" style-hover="color:#0075ff;">Joined <span style="font-size:10px;">{{ userSortDateIcon }}</span></button></th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="8">
+                    <tr style="background: {{ u.rowBg }};">
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ u.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ u.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ u.name }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px;">{{ u.email }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ u.roleBg }}; color: {{ u.roleFg }};">{{ u.roleLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ u.org }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ u.statusBg }}; color: {{ u.statusFg }};">{{ u.statusLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ u.joined }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; gap:6px;">
+                          <button onClick="{{ u.onView }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#374151; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">View</button>
+                          <sc-if value="{{ u.pending }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ u.onResend }}" style="background: {{ u.resendBg }}; border:1px solid {{ u.resendBorder }}; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color: {{ u.resendFg }}; white-space:nowrap; font-family:'Inter',sans-serif;">{{ u.resendLabel }}</button>
+                          </sc-if>
+                          <sc-if value="{{ u.showToggle }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ u.onToggle }}" style="background:none; border:1px solid {{ u.toggleBorder }}; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color: {{ u.toggleFg }}; font-family:'Inter',sans-serif;">{{ u.toggleLabel }}</button>
+                          </sc-if>
+                        </div>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ userEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No users found</div>
+                  <div style="font-size:12.5px;">Try adjusting your search or filters.</div>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 20px; border-top:1px solid #e8edf5; background:#f8faff;">
+              <span style="font-size:12px; color:#6b7280; font-weight:500;">{{ userCountLabel }}</span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e8edf5; border-radius:8px; background:#ffffff; font-size:12px; font-weight:600; color:#374151; cursor:not-allowed; opacity:0.4; font-family:'Inter',sans-serif;">‹</button>
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #0075ff; border-radius:8px; background:#0075ff; font-size:12px; font-weight:600; color:#ffffff; cursor:pointer; font-family:'Inter',sans-serif;">1</button>
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e8edf5; border-radius:8px; background:#ffffff; font-size:12px; font-weight:600; color:#374151; cursor:not-allowed; opacity:0.4; font-family:'Inter',sans-serif;">›</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAudit }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Audit Logs">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Audit Logs</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Full system-wide activity and security trail</div>
+            </div>
+            <button onClick="{{ exportToast }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">
+              <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export CSV
+            </button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5; flex-wrap:wrap;">
+              <div style="position:relative; width:300px;">
+                <svg viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search by user, action, entity…" value="{{ auditSearch }}" onChange="{{ setAuditSearch }}" style="width:100%; height:36px; background:#ffffff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 32px; font-size:12.5px; outline:none; color:#000825; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff;">
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                <select value="{{ auditStatus }}" onChange="{{ setAuditStatus }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Status</option>
+                  <option value="success">Successful</option>
+                  <option value="failed">Failed</option>
+                </select>
+                <button onClick="{{ clearAuditFilters }}" style="padding:0 12px; height:36px; font-size:12px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; border-radius:8px; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff;">Clear</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Timestamp</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">User</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Action</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Entity</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">IP Address</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ auditRows }}" as="a" hint-placeholder-count="8">
+                    <tr>
+                      <td style="padding:12px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace; white-space:nowrap;">{{ a.time }}</td>
+                      <td style="padding:12px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ a.user }}</td>
+                      <td style="padding:12px 20px; font-size:12.5px; font-weight:500; color: {{ a.actionColor }}; border-bottom:1px solid #f3f6fb;">{{ a.action }}</td>
+                      <td style="padding:12px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ a.entity }}</td>
+                      <td style="padding:12px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ a.ip }}</td>
+                      <td style="padding:12px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ a.badgeBg }}; color: {{ a.badgeFg }};">{{ a.status }}</span></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ auditEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No log entries found</div>
+                  <div style="font-size:12.5px;">Try adjusting your search or filters.</div>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 20px; border-top:1px solid #e8edf5; background:#f8faff;">
+              <span style="font-size:12px; color:#6b7280; font-weight:500;">{{ auditCountLabel }}</span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e8edf5; border-radius:8px; background:#ffffff; font-size:12px; font-weight:600; color:#374151; cursor:not-allowed; opacity:0.4; font-family:'Inter',sans-serif;">‹</button>
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #0075ff; border-radius:8px; background:#0075ff; font-size:12px; font-weight:600; color:#ffffff; cursor:pointer; font-family:'Inter',sans-serif;">1</button>
+                <button style="min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e8edf5; border-radius:8px; background:#ffffff; font-size:12px; font-weight:600; color:#374151; cursor:not-allowed; opacity:0.4; font-family:'Inter',sans-serif;">›</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSoon }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Coming soon" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:14px; text-align:center;">
+          <div style="width:64px; height:64px; border-radius:16px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 24 24" style="width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>
+          </div>
+          <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825;">{{ soonTitle }} is coming soon</div>
+          <div style="font-size:13.5px; color:#6b7280; max-width:360px; line-height:1.6;">{{ soonBlurb }}</div>
+          <span style="display:inline-flex; padding:5px 14px; border-radius:999px; font-size:11.5px; font-weight:700; background:#fef3c7; color:#d97706; margin-top:4px;">On the roadmap</span>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ anyPanelOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePanels }}" style="position:fixed; inset:0; background:rgba(0,8,37,0.35); backdrop-filter:blur(2px); z-index:300; animation:hcFadeIn 0.2s ease;"></div>
+  </sc-if>
+
+  <sc-if value="{{ showViewOrg }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: View organisation" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Organisation Details</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{ vOrg.slug }}</div>
+        </div>
+        <button onClick="{{ closePanels }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:8px;">
+          <div style="width:54px; height:54px; border-radius:14px; background: {{ vOrg.avatarBg }}; color:#ffffff; font-size:17px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ vOrg.initials }}</div>
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#000825;">{{ vOrg.name }}</div>
+            <div style="font-size:12px; color:#6b7280; margin-top:2px;">Admin: {{ vOrg.admin }}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:20px;">
+          <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vOrg.typeBg }}; color: {{ vOrg.typeFg }};">{{ vOrg.typeLabel }}</span>
+          <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vOrg.statusBg }}; color: {{ vOrg.statusFg }};">{{ vOrg.statusLabel }}</span>
+        </div>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:12px;">Contact Info</div>
+        <div style="display:flex; flex-direction:column; gap:13px; margin-bottom:22px;">
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Email</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vOrg.email }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Phone</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vOrg.phone }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Address</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vOrg.address }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Date Registered</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vOrg.date }}</div></div>
+          </div>
+        </div>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:12px;">Identifiers</div>
+        <div style="display:flex; flex-direction:column; gap:13px; margin-bottom:22px;">
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Org Portal</div><div style="font-size:13px; color:#0075ff; margin-top:1px; font-family:ui-monospace,'SF Mono',Menlo,monospace;">healthclouda.com/{{ vOrg.slug }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">License Number</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vOrg.license }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Verified</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vOrg.verified }}</div></div>
+          </div>
+        </div>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:12px;">Statistics</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          <div style="text-align:center; padding:14px 10px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px;">
+            <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825; line-height:1;">{{ vOrg.staff }}</div>
+            <div style="font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">Staff</div>
+          </div>
+          <div style="text-align:center; padding:14px 10px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px;">
+            <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825; line-height:1;">{{ vOrg.patients }}</div>
+            <div style="font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">Patients</div>
+          </div>
+          <div style="text-align:center; padding:14px 10px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px;">
+            <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825; line-height:1;">{{ vOrg.episodes }}</div>
+            <div style="font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">Episodes</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ vOrg.onToggle }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background: {{ vOrg.panelToggleBg }}; color: {{ vOrg.panelToggleFg }}; border:1px solid {{ vOrg.panelToggleBorder }}; cursor:pointer; font-family:'Inter',sans-serif;">{{ vOrg.toggleLabel }}</button>
+        <button onClick="{{ openEditOrg }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Edit Details</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showOrgForm }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Organisation form" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">{{ orgFormTitle }}</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{ orgFormSub }}</div>
+        </div>
+        <button onClick="{{ closePanels }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Organisation Name *</label>
+          <input type="text" placeholder="e.g. City Hospital" defaultValue="{{ orgForm.name }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Address *</label>
+          <input type="text" placeholder="Full street address" defaultValue="{{ orgForm.address }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">City *</label>
+            <input type="text" placeholder="e.g. Lagos" defaultValue="{{ orgForm.city }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">State *</label>
+            <input type="text" placeholder="e.g. Lagos" defaultValue="{{ orgForm.state }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Country *</label>
+          <input type="text" placeholder="e.g. Nigeria" defaultValue="{{ orgForm.country }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Email *</label>
+          <input type="email" placeholder="admin@organisation.com" defaultValue="{{ orgForm.email }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Phone Number</label>
+          <input type="tel" placeholder="e.g. 09012345678" defaultValue="{{ orgForm.phone }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Type *</label>
+            <select defaultValue="{{ orgForm.type }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif;">
+              <option value="">Select type…</option>
+              <option value="HOSPITAL">Hospital</option>
+              <option value="CLINIC">Clinic</option>
+              <option value="SCHOOL_CLINIC">School Clinic</option>
+            </select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">License Number</label>
+            <input type="text" placeholder="Licence no." defaultValue="{{ orgForm.license }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closePanels }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitOrgForm }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">{{ orgFormCta }}</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showViewUser }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: View user" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div style="font-size:15px; font-weight:700; color:#000825;">User Details</div>
+        <button onClick="{{ closePanels }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:12px;">
+          <div style="width:52px; height:52px; border-radius:50%; background: {{ vUser.avatarBg }}; color:#ffffff; font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ vUser.initials }}</div>
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#000825;">{{ vUser.name }}</div>
+            <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{ vUser.org }}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px;">
+          <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vUser.roleBg }}; color: {{ vUser.roleFg }};">{{ vUser.roleLabel }}</span>
+          <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vUser.statusBg }}; color: {{ vUser.statusFg }};">{{ vUser.statusLabel }}</span>
+        </div>
+        <sc-if value="{{ vUser.pending }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; gap:10px; align-items:flex-start; background:#fffbeb; border:1.5px solid #fde68a; border-radius:8px; padding:12px 14px; margin-bottom:22px;">
+            <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#d97706; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            <div style="font-size:12px; color:#92400e; line-height:1.5;">This user hasn't completed account setup yet. Their invitation link expires 72 hours after it's sent.</div>
+          </div>
+        </sc-if>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:12px;">Contact Info</div>
+        <div style="display:flex; flex-direction:column; gap:13px; margin-bottom:22px;">
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Email</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vUser.email }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Phone</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vUser.phone }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11"></path></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Organisation</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vUser.org }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Date Joined</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vUser.joined }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Last Login</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vUser.lastLogin }}</div></div>
+          </div>
+        </div>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:12px;">Activity Summary</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+          <div style="text-align:center; padding:14px 10px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px;">
+            <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825; line-height:1;">{{ vUser.records }}</div>
+            <div style="font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">Records</div>
+          </div>
+          <div style="text-align:center; padding:14px 10px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px;">
+            <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825; line-height:1;">{{ vUser.logins }}</div>
+            <div style="font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">Logins</div>
+          </div>
+          <div style="text-align:center; padding:14px 10px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px;">
+            <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825; line-height:1;">{{ vUser.actions }}</div>
+            <div style="font-size:10px; color:#6b7280; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px;">Actions</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <sc-if value="{{ vUser.pending }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ vUser.onResend }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background: {{ vUser.resendBg }}; color: {{ vUser.resendFg }}; border:1.5px solid {{ vUser.resendBorder }}; cursor:pointer; font-family:'Inter',sans-serif;">{{ vUser.resendLabel }}</button>
+        </sc-if>
+        <sc-if value="{{ vUser.notPending }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ vUser.onToggle }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background: {{ vUser.panelToggleBg }}; color: {{ vUser.panelToggleFg }}; border:1px solid {{ vUser.panelToggleBorder }}; cursor:pointer; font-family:'Inter',sans-serif;">{{ vUser.toggleLabel }}</button>
+        </sc-if>
+        <button onClick="{{ closePanels }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Close</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showInviteUser }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Invite user" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Invite User</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Add a new staff member to an organisation</div>
+        </div>
+        <button onClick="{{ closePanels }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; gap:10px; align-items:flex-start; background:#ebf3ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px 14px; margin-bottom:20px;">
+          <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <div style="font-size:12px; color:#1e40af; line-height:1.5;">No password needed — they'll receive an email with a secure link to set their own password.</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">First Name *</label>
+            <input type="text" placeholder="First name" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Last Name *</label>
+            <input type="text" placeholder="Last name" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Email *</label>
+          <input type="email" placeholder="user@example.com" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Role *</label>
+          <select value="{{ inviteRole }}" onChange="{{ setInviteRole }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select role…</option>
+            <option value="ORG_ADMIN">Org Admin</option>
+            <option value="DOCTOR">Doctor</option>
+            <option value="NURSE">Nurse</option>
+            <option value="RECEPTIONIST">Receptionist</option>
+            <option value="SUPERADMIN">Super Admin (platform)</option>
+          </select>
+        </div>
+        <sc-if value="{{ inviteIsSA }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; gap:10px; align-items:flex-start; background:#fee2e2; border:1.5px solid #fca5a5; border-radius:8px; padding:12px 14px; margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#dc2626; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div style="font-size:12px; color:#991b1b; line-height:1.5;"><b>Full platform access.</b> A Super Admin can manage every organisation, user and setting on HealthClouda. This invitation will be recorded in the audit log.</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ inviteNeedsOrg }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Organisation *</label>
+            <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+              <option value="">Select organisation…</option>
+              <option value="lagos-general">Lagos General Hospital</option>
+              <option value="demo-clinic">Demo Clinic</option>
+              <option value="nile-university">Nile University Clinic</option>
+              <option value="abuja-medical">Abuja Medical Centre</option>
+              <option value="kano-teaching">Kano Teaching Hospital</option>
+              <option value="greenleaf">GreenLeaf Clinic</option>
+            </select>
+          </div>
+        </sc-if>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Phone</label>
+          <input type="tel" placeholder="e.g. 09012345678" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closePanels }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitInvite }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">
+          <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          Send Invitation
+        </button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; background: {{ toastBg }}; color:#ffffff; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; display:flex; align-items:center; gap:8px; box-shadow:0 4px 20px rgba(0,8,37,0.2); animation:hcToastIn 0.25s cubic-bezier(0.4,0,0.2,1);">
+      <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      {{ toastMsg }}
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;systemDegraded&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;Flip System Health card to degraded/high-latency state&quot;}, &quot;emptyStates&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;Show all tables and lists in their empty states&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      page: 'dashboard', panel: null, selOrg: null, selUser: null, orgFormMode: 'add',
+      orgSearch: '', orgType: '', orgStatus: '', orgSortKey: 'date', orgSortDir: 'desc',
+      userSearch: '', userRole: '', userStatus: '', userOrg: '', userSortKey: 'date', userSortDir: 'desc',
+      auditSearch: '', auditStatus: '',
+      notifOpen: false, resent: {}, toast: null,
+      notifs: [
+        { id: 1, kind: 'info', title: 'New organisation registered', desc: 'GreenLeaf Clinic completed registration', time: '25 min ago', read: false },
+        { id: 2, kind: 'success', title: 'Invite accepted', desc: 'Halima Abubakar set up her account at Kano Teaching Hospital', time: '2 hours ago', read: false },
+        { id: 3, kind: 'warning', title: 'Backup completed with warnings', desc: 'Nightly backup finished — 1 table skipped, retried OK', time: 'Today, 04:02', read: true },
+      ],
+      orgs: [
+        { id: 1, name: 'Lagos General Hospital', type: 'HOSPITAL', slug: 'lagos-general', active: true, date: 'Nov 3, 2025', ts: 20251103, admin: 'Dr. Amina Yusuf', email: 'admin@lagosgeneral.ng', phone: '0803 221 4410', address: '14 Marina Road, Lagos Island', license: 'HFL-LA-04412', verified: 'Yes', staff: 84, patients: 3210, episodes: 412 },
+        { id: 2, name: 'Demo Clinic', type: 'CLINIC', slug: 'demo-clinic', active: true, date: 'Jan 15, 2026', ts: 20260115, admin: 'Chidi Okafor', email: 'admin@democlinic.ng', phone: '0901 555 0102', address: '2 Adeola Odeku St, Victoria Island', license: 'HFL-LA-09921', verified: 'Yes', staff: 12, patients: 486, episodes: 63 },
+        { id: 3, name: 'Nile University Clinic', type: 'SCHOOL_CLINIC', slug: 'nile-university', active: true, date: 'Feb 8, 2026', ts: 20260208, admin: 'Dr. Sarah Bello', email: 'clinic@nileuniversity.edu.ng', phone: '0805 662 8871', address: 'Nile University Campus, Abuja', license: 'HFL-FC-01187', verified: 'Yes', staff: 9, patients: 1120, episodes: 148 },
+        { id: 4, name: 'Abuja Medical Centre', type: 'HOSPITAL', slug: 'abuja-medical', active: true, date: 'Mar 22, 2026', ts: 20260322, admin: 'Ibrahim Musa', email: 'info@abujamedical.ng', phone: '0806 118 2245', address: 'Plot valley 45, Garki District, Abuja', license: 'HFL-FC-03318', verified: 'Yes', staff: 57, patients: 2044, episodes: 289 },
+        { id: 5, name: 'Sunrise Family Clinic', type: 'CLINIC', slug: 'sunrise-family', active: false, date: 'Apr 10, 2026', ts: 20260410, admin: 'Grace Adeyemi', email: 'hello@sunrisefamily.ng', phone: '0812 447 9083', address: '7 Allen Avenue, Ikeja, Lagos', license: 'HFL-LA-11250', verified: 'No', staff: 6, patients: 218, episodes: 24 },
+        { id: 6, name: 'Kano Teaching Hospital', type: 'HOSPITAL', slug: 'kano-teaching', active: true, date: 'Apr 28, 2026', ts: 20260428, admin: 'Dr. Fatima Sani', email: 'admin@kanoteaching.ng', phone: '0807 993 5521', address: 'Zaria Road, Kano', license: 'HFL-KN-00761', verified: 'Yes', staff: 132, patients: 5870, episodes: 731 },
+        { id: 7, name: 'GreenLeaf Clinic', type: 'CLINIC', slug: 'greenleaf', active: true, date: 'May 30, 2026', ts: 20260530, admin: 'Tunde Bakare', email: 'care@greenleaf.ng', phone: '0908 210 6634', address: '31 Awolowo Road, Ikoyi, Lagos', license: 'HFL-LA-12904', verified: 'Yes', staff: 8, patients: 152, episodes: 19 },
+        { id: 8, name: 'Unity School Clinic', type: 'SCHOOL_CLINIC', slug: 'unity-school', active: false, date: 'Jun 19, 2026', ts: 20260619, admin: 'Ngozi Eze', email: 'clinic@unityschool.edu.ng', phone: '0813 500 7712', address: 'Unity College Campus, Enugu', license: 'HFL-EN-02243', verified: 'No', staff: 4, patients: 340, episodes: 11 },
+      ],
+      users: [
+        { id: 1, name: 'Dr. Amina Yusuf', email: 'amina.yusuf@lagosgeneral.ng', role: 'ORG_ADMIN', org: 'Lagos General Hospital', active: true, pending: false, joined: 'Nov 3, 2025', ts: 20251103, phone: '0803 221 4410', lastLogin: 'Today, 08:14', records: 128, logins: 342, actions: 811 },
+        { id: 2, name: 'Chidi Okafor', email: 'chidi@democlinic.ng', role: 'ORG_ADMIN', org: 'Demo Clinic', active: true, pending: false, joined: 'Jan 15, 2026', ts: 20260115, phone: '0901 555 0102', lastLogin: 'Yesterday, 17:42', records: 44, logins: 190, actions: 356 },
+        { id: 3, name: 'Dr. Emeka Obi', email: 'emeka.obi@lagosgeneral.ng', role: 'DOCTOR', org: 'Lagos General Hospital', active: true, pending: false, joined: 'Dec 2, 2025', ts: 20251202, phone: '0802 118 4471', lastLogin: 'Today, 09:03', records: 512, logins: 288, actions: 1204 },
+        { id: 4, name: 'Halima Abubakar', email: 'halima.a@kanoteaching.ng', role: 'NURSE', org: 'Kano Teaching Hospital', active: true, pending: false, joined: 'May 2, 2026', ts: 20260502, phone: '0807 320 5518', lastLogin: 'Today, 06:55', records: 233, logins: 96, actions: 402 },
+        { id: 5, name: 'Grace Adeyemi', email: 'grace@sunrisefamily.ng', role: 'RECEPTIONIST', org: 'Sunrise Family Clinic', active: false, pending: false, joined: 'Apr 10, 2026', ts: 20260410, phone: '0812 447 9083', lastLogin: 'Jun 30, 2026', records: 61, logins: 74, actions: 129 },
+        { id: 6, name: 'Dr. Sarah Bello', email: 'sarah.bello@nileuniversity.edu.ng', role: 'DOCTOR', org: 'Nile University Clinic', active: true, pending: true, joined: 'Jul 24, 2026', ts: 20260724, phone: '0805 662 8871', lastLogin: 'Never', records: 0, logins: 0, actions: 0 },
+        { id: 7, name: 'Tosin Adebayo', email: 'tosin.adebayo@abujamedical.ng', role: 'NURSE', org: 'Abuja Medical Centre', active: true, pending: true, joined: 'Jul 27, 2026', ts: 20260727, phone: '0806 900 1123', lastLogin: 'Never', records: 0, logins: 0, actions: 0 },
+        { id: 8, name: 'Blessing Nwosu', email: 'blessing.nw@gmail.com', role: 'PATIENT', org: 'Demo Clinic', active: true, pending: false, joined: 'Feb 20, 2026', ts: 20260220, phone: '0902 415 6672', lastLogin: 'Jul 25, 2026', records: 14, logins: 22, actions: 31 },
+        { id: 9, name: 'Ibrahim Musa', email: 'ibrahim@abujamedical.ng', role: 'ORG_ADMIN', org: 'Abuja Medical Centre', active: true, pending: false, joined: 'Mar 22, 2026', ts: 20260322, phone: '0806 118 2245', lastLogin: 'Today, 07:30', records: 39, logins: 154, actions: 267 },
+        { id: 10, name: 'Yemi Alade', email: 'yemi@greenleaf.ng', role: 'RECEPTIONIST', org: 'GreenLeaf Clinic', active: true, pending: false, joined: 'Jun 2, 2026', ts: 20260602, phone: '0908 210 6634', lastLogin: 'Today, 08:47', records: 27, logins: 40, actions: 88 },
+      ],
+      audit: [
+        { time: '2026-07-29 09:03', user: 'emeka.obi@lagosgeneral.ng', action: 'LOGIN', entity: 'Session', ip: '105.112.24.61', ok: true },
+        { time: '2026-07-29 08:51', user: 'superadmin@healthclouda.ng', action: 'INVITE_SENT', entity: 'User · Tosin Adebayo', ip: '41.190.2.17', ok: true },
+        { time: '2026-07-29 08:14', user: 'amina.yusuf@lagosgeneral.ng', action: 'LOGIN', entity: 'Session', ip: '105.112.24.61', ok: true },
+        { time: '2026-07-29 07:58', user: 'unknown@mailbox.ru', action: 'LOGIN_FAILED', entity: 'Session · admin portal', ip: '185.220.101.4', ok: false },
+        { time: '2026-07-29 07:30', user: 'ibrahim@abujamedical.ng', action: 'ORG_UPDATED', entity: 'Org · Abuja Medical Centre', ip: '197.210.55.130', ok: true },
+        { time: '2026-07-28 18:22', user: 'superadmin@healthclouda.ng', action: 'USER_SUSPENDED', entity: 'User · Grace Adeyemi', ip: '41.190.2.17', ok: true },
+        { time: '2026-07-28 16:05', user: 'superadmin@healthclouda.ng', action: 'ORG_CREATED', entity: 'Org · GreenLeaf Clinic', ip: '41.190.2.17', ok: true },
+        { time: '2026-07-28 11:47', user: 'chidi@democlinic.ng', action: 'PASSWORD_CHANGED', entity: 'Account', ip: '102.89.33.208', ok: true },
+        { time: '2026-07-28 09:12', user: 'unknown@mailbox.ru', action: 'LOGIN_FAILED', entity: 'Session · admin portal', ip: '185.220.101.4', ok: false },
+        { time: '2026-07-27 14:36', user: 'superadmin@healthclouda.ng', action: 'EXPORT_CSV', entity: 'Users · full list', ip: '41.190.2.17', ok: true },
+      ],
+    };
+    this._avatarColors = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#dc2626'];
+  }
+  initials(name) { return name.replace(/^Dr\.\s*/, '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
+  color(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; return this._avatarColors[h % this._avatarColors.length]; }
+  roleBadge(role) {
+    const m = { ORG_ADMIN: ['Org Admin', '#ede9fe', '#7c3aed'], DOCTOR: ['Doctor', '#dbeafe', '#2563eb'], NURSE: ['Nurse', '#dcfce7', '#16a34a'], RECEPTIONIST: ['Receptionist', '#fef3c7', '#d97706'], PATIENT: ['Patient', '#f3f4f6', '#374151'] };
+    return m[role] || [role, '#f3f4f6', '#374151'];
+  }
+  typeBadge(t) {
+    const m = { HOSPITAL: ['Hospital', '#EBF3FF', '#0075ff'], CLINIC: ['Clinic', '#dcfce7', '#16a34a'], SCHOOL_CLINIC: ['School Clinic', '#ede9fe', '#7c3aed'] };
+    return m[t] || [t, '#f3f4f6', '#374151'];
+  }
+  userStatus(u) {
+    if (u.pending) return ['Invite pending', '#fef3c7', '#d97706'];
+    return u.active ? ['Active', '#dcfce7', '#16a34a'] : ['Suspended', '#fee2e2', '#dc2626'];
+  }
+  fireToast(msg, bg) {
+    clearTimeout(this._toastT);
+    this.setState({ toast: { msg, bg: bg || '#16a34a' } });
+    this._toastT = setTimeout(() => this.setState({ toast: null }), 2600);
+  }
+  resend(u) {
+    if (this.state.resent[u.id]) return;
+    this.setState(s => ({ resent: { ...s.resent, [u.id]: true } }));
+    this.fireToast('Invitation resent to ' + u.email);
+    setTimeout(() => this.setState(s => { const r = { ...s.resent }; delete r[u.id]; return { resent: r }; }), 6000);
+  }
+  toggleOrg(id) {
+    this.setState(s => ({ orgs: s.orgs.map(o => o.id === id ? { ...o, active: !o.active } : o) }));
+    const o = this.state.orgs.find(o => o.id === id);
+    this.fireToast(o.active ? o.name + ' suspended' : o.name + ' reactivated', o.active ? '#dc2626' : '#16a34a');
+  }
+  toggleUser(id) {
+    this.setState(s => ({ users: s.users.map(u => u.id === id ? { ...u, active: !u.active } : u) }));
+    const u = this.state.users.find(u => u.id === id);
+    this.fireToast(u.active ? u.name + ' suspended' : u.name + ' reactivated', u.active ? '#dc2626' : '#16a34a');
+  }
+  decorateOrg(o) {
+    const [tl, tb, tf] = this.typeBadge(o.type);
+    return {
+      ...o, initials: this.initials(o.name), avatarBg: this.color(o.name),
+      typeLabel: tl, typeBg: tb, typeFg: tf,
+      statusLabel: o.active ? 'Active' : 'Suspended',
+      statusBg: o.active ? '#dcfce7' : '#fee2e2', statusFg: o.active ? '#16a34a' : '#dc2626',
+      rowBg: o.active ? 'transparent' : '#fff5f5',
+      toggleLabel: o.active ? 'Suspend' : 'Activate',
+      toggleFg: o.active ? '#dc2626' : '#16a34a',
+      toggleBorder: o.active ? '#fca5a5' : '#bbf7d0',
+      panelToggleBg: o.active ? '#fee2e2' : '#dcfce7',
+      panelToggleFg: o.active ? '#dc2626' : '#16a34a',
+      panelToggleBorder: o.active ? '#fca5a5' : '#bbf7d0',
+      onView: () => this.setState({ panel: 'viewOrg', selOrg: o.id }),
+      onToggle: () => this.toggleOrg(o.id),
+    };
+  }
+  decorateUser(u) {
+    const [rl, rb, rf] = this.roleBadge(u.role);
+    const [sl, sb, sf] = this.userStatus(u);
+    const sent = !!this.state.resent[u.id];
+    return {
+      ...u, initials: this.initials(u.name), avatarBg: this.color(u.name),
+      roleLabel: rl, roleBg: rb, roleFg: rf,
+      statusLabel: sl, statusBg: sb, statusFg: sf,
+      rowBg: (!u.active && !u.pending) ? '#fff5f5' : 'transparent',
+      notPending: !u.pending,
+      showToggle: !u.pending && u.role !== 'PATIENT',
+      toggleLabel: u.active ? 'Suspend' : 'Activate',
+      toggleFg: u.active ? '#dc2626' : '#16a34a',
+      toggleBorder: u.active ? '#fca5a5' : '#bbf7d0',
+      panelToggleBg: u.active ? '#fee2e2' : '#dcfce7',
+      panelToggleFg: u.active ? '#dc2626' : '#16a34a',
+      panelToggleBorder: u.active ? '#fca5a5' : '#bbf7d0',
+      resendLabel: sent ? 'Invite sent ✓' : 'Resend invite',
+      resendBg: sent ? '#dcfce7' : '#EBF3FF',
+      resendFg: sent ? '#16a34a' : '#0075ff',
+      resendBorder: sent ? '#bbf7d0' : '#bfdbfe',
+      meta: rl + ' · ' + u.org,
+      onView: () => this.setState({ panel: 'viewUser', selUser: u.id }),
+      onToggle: () => this.toggleUser(u.id),
+      onResend: () => this.resend(u),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const degraded = this.props.systemDegraded ?? false;
+    const emptyAll = this.props.emptyStates ?? false;
+    const pages = ['dashboard', 'organisations', 'users', 'audit', 'records', 'billing', 'messages', 'settings'];
+    const nav = {}, navBg = {}, navFg = {};
+    pages.forEach(p => {
+      nav[p] = () => this.setState({ page: p, notifOpen: false });
+      navBg[p] = s.page === p ? '#EBF3FF' : 'transparent';
+      navFg[p] = s.page === p ? '#0075ff' : '#6b7280';
+    });
+    let orgs = emptyAll ? [] : s.orgs.filter(o => {
+      const q = s.orgSearch.toLowerCase();
+      if (q && !(o.name.toLowerCase().includes(q) || o.slug.includes(q))) return false;
+      if (s.orgType && o.type !== s.orgType) return false;
+      if (s.orgStatus === 'active' && !o.active) return false;
+      if (s.orgStatus === 'suspended' && o.active) return false;
+      return true;
+    });
+    orgs = [...orgs].sort((a, b) => {
+      const d = s.orgSortDir === 'asc' ? 1 : -1;
+      return s.orgSortKey === 'name' ? d * a.name.localeCompare(b.name) : d * (a.ts - b.ts);
+    });
+    let users = emptyAll ? [] : s.users.filter(u => {
+      const q = s.userSearch.toLowerCase();
+      if (q && !(u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))) return false;
+      if (s.userRole && u.role !== s.userRole) return false;
+      if (s.userStatus === 'active' && !(u.active && !u.pending)) return false;
+      if (s.userStatus === 'pending' && !u.pending) return false;
+      if (s.userStatus === 'suspended' && (u.active || u.pending)) return false;
+      if (s.userOrg && u.org !== s.userOrg) return false;
+      return true;
+    });
+    users = [...users].sort((a, b) => {
+      const d = s.userSortDir === 'asc' ? 1 : -1;
+      return s.userSortKey === 'name' ? d * a.name.localeCompare(b.name) : d * (a.ts - b.ts);
+    });
+    const audit = emptyAll ? [] : s.audit.filter(a => {
+      const q = s.auditSearch.toLowerCase();
+      if (q && !(a.user.toLowerCase().includes(q) || a.action.toLowerCase().includes(q) || a.entity.toLowerCase().includes(q))) return false;
+      if (s.auditStatus === 'success' && !a.ok) return false;
+      if (s.auditStatus === 'failed' && a.ok) return false;
+      return true;
+    });
+    const auditRows = audit.map(a => ({
+      ...a,
+      actionColor: a.ok ? '#000825' : '#dc2626',
+      status: a.ok ? 'Successful' : 'Failed',
+      badgeBg: a.ok ? '#dcfce7' : '#fee2e2', badgeFg: a.ok ? '#16a34a' : '#dc2626',
+    }));
+    const activityRows = auditRows.slice(0, 5).map(a => ({ ...a, time: a.time.slice(11) }));
+    const pending = s.users.filter(u => u.pending).map(u => this.decorateUser(u));
+    const selOrg = s.orgs.find(o => o.id === s.selOrg) || s.orgs[0];
+    const selUser = s.users.find(u => u.id === s.selUser) || s.users[0];
+    const notifItems = s.notifs.map(n => ({
+      ...n,
+      bg: n.read ? 'transparent' : '#f0f6ff',
+      chipBg: n.kind === 'success' ? '#dcfce7' : n.kind === 'warning' ? '#fef3c7' : '#EBF3FF',
+      chipFg: n.kind === 'success' ? '#16a34a' : n.kind === 'warning' ? '#d97706' : '#0075ff',
+      iconPath: n.kind === 'success' ? 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3' : n.kind === 'warning' ? 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01' : 'M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11',
+    }));
+    const unread = s.notifs.filter(n => !n.read).length;
+    const soonMeta = {
+      records: ['Records', 'Cross-organisation patient record oversight is on the roadmap. Records stay inside each organisation until then.'],
+      billing: ['Billing', 'Subscription plans, revenue tracking and invoices will live here once billing launches on the platform.'],
+      messages: ['Messages', 'Direct messaging between Super Admin and organisation admins is planned for a future release.'],
+      settings: ['Settings', 'Platform-wide configuration — profile, security policy and maintenance mode — is coming soon.'],
+    };
+    const isSoon = !!soonMeta[s.page];
+    const sortIcon = (key, curKey, dir) => key !== curKey ? '↕' : (dir === 'asc' ? '↑' : '↓');
+    return {
+      nav, navBg, navFg,
+      isDashboard: s.page === 'dashboard', isOrganisations: s.page === 'organisations',
+      isUsers: s.page === 'users', isAudit: s.page === 'audit',
+      isSoon, soonTitle: isSoon ? soonMeta[s.page][0] : '', soonBlurb: isSoon ? soonMeta[s.page][1] : '',
+      health: {
+        apiLabel: degraded ? 'Degraded' : 'Operational', apiDot: degraded ? '#d97706' : '#16a34a', apiRing: degraded ? '#fef3c7' : '#dcfce7',
+        dbLabel: degraded ? 'High latency' : 'Healthy', dbDot: degraded ? '#dc2626' : '#16a34a', dbRing: degraded ? '#fee2e2' : '#dcfce7',
+      },
+      pendingCount: pending.length, pendingInvites: pending, noPending: pending.length === 0,
+      activityRows,
+      orgRows: orgs.map(o => this.decorateOrg(o)),
+      orgEmpty: orgs.length === 0,
+      orgCountLabel: 'Showing ' + orgs.length + ' of ' + s.orgs.length + ' organisations',
+      orgSearch: s.orgSearch, orgType: s.orgType, orgStatus: s.orgStatus,
+      setOrgSearch: e => this.setState({ orgSearch: e.target.value }),
+      setOrgType: e => this.setState({ orgType: e.target.value }),
+      setOrgStatus: e => this.setState({ orgStatus: e.target.value }),
+      clearOrgFilters: () => this.setState({ orgSearch: '', orgType: '', orgStatus: '' }),
+      sortOrgName: () => this.setState(p => ({ orgSortKey: 'name', orgSortDir: p.orgSortKey === 'name' && p.orgSortDir === 'asc' ? 'desc' : 'asc' })),
+      sortOrgDate: () => this.setState(p => ({ orgSortKey: 'date', orgSortDir: p.orgSortKey === 'date' && p.orgSortDir === 'desc' ? 'asc' : 'desc' })),
+      orgSortNameIcon: sortIcon('name', s.orgSortKey, s.orgSortDir),
+      orgSortDateIcon: sortIcon('date', s.orgSortKey, s.orgSortDir),
+      userRows: users.map(u => this.decorateUser(u)),
+      userEmpty: users.length === 0,
+      userCountLabel: 'Showing ' + users.length + ' of ' + s.users.length + ' users',
+      userSearch: s.userSearch, userRole: s.userRole, userStatus: s.userStatus, userOrg: s.userOrg,
+      setUserSearch: e => this.setState({ userSearch: e.target.value }),
+      setUserRole: e => this.setState({ userRole: e.target.value }),
+      setUserStatus: e => this.setState({ userStatus: e.target.value }),
+      setUserOrg: e => this.setState({ userOrg: e.target.value }),
+      clearUserFilters: () => this.setState({ userSearch: '', userRole: '', userStatus: '', userOrg: '' }),
+      sortUserName: () => this.setState(p => ({ userSortKey: 'name', userSortDir: p.userSortKey === 'name' && p.userSortDir === 'asc' ? 'desc' : 'asc' })),
+      sortUserDate: () => this.setState(p => ({ userSortKey: 'date', userSortDir: p.userSortKey === 'date' && p.userSortDir === 'desc' ? 'asc' : 'desc' })),
+      userSortNameIcon: sortIcon('name', s.userSortKey, s.userSortDir),
+      userSortDateIcon: sortIcon('date', s.userSortKey, s.userSortDir),
+      auditRows, auditEmpty: auditRows.length === 0,
+      auditCountLabel: 'Showing ' + auditRows.length + ' of ' + s.audit.length + ' log entries',
+      auditSearch: s.auditSearch, auditStatus: s.auditStatus,
+      setAuditSearch: e => this.setState({ auditSearch: e.target.value }),
+      setAuditStatus: e => this.setState({ auditStatus: e.target.value }),
+      clearAuditFilters: () => this.setState({ auditSearch: '', auditStatus: '' }),
+      anyPanelOpen: !!s.panel,
+      showViewOrg: s.panel === 'viewOrg', vOrg: this.decorateOrg(selOrg),
+      showOrgForm: s.panel === 'orgForm',
+      orgFormTitle: s.orgFormMode === 'add' ? 'Add Organisation' : 'Edit Organisation',
+      orgFormSub: s.orgFormMode === 'add' ? 'Register a new hospital or clinic' : 'Update ' + selOrg.name,
+      orgFormCta: s.orgFormMode === 'add' ? 'Add Organisation' : 'Save Changes',
+      orgForm: s.orgFormMode === 'add' ? { name: '', address: '', city: '', state: '', country: '', email: '', phone: '', type: '', license: '' } : { ...selOrg, city: selOrg.address.split(', ').slice(-1)[0], state: '', country: 'Nigeria' },
+      openAddOrg: () => this.setState({ panel: 'orgForm', orgFormMode: 'add' }),
+      openEditOrg: () => this.setState({ panel: 'orgForm', orgFormMode: 'edit' }),
+      submitOrgForm: () => { this.setState({ panel: null }); this.fireToast(s.orgFormMode === 'add' ? 'Organisation added' : 'Changes saved'); },
+      showViewUser: s.panel === 'viewUser', vUser: this.decorateUser(selUser),
+      showInviteUser: s.panel === 'inviteUser',
+      inviteRole: s.inviteRole || '',
+      inviteIsSA: s.inviteRole === 'SUPERADMIN',
+      inviteNeedsOrg: s.inviteRole !== 'SUPERADMIN',
+      setInviteRole: e => this.setState({ inviteRole: e.target.value }),
+      openInviteUser: () => this.setState({ panel: 'inviteUser', inviteRole: '' }),
+      submitInvite: () => { this.setState({ panel: null }); this.fireToast(s.inviteRole === 'SUPERADMIN' ? 'Super Admin invitation sent — logged to audit trail' : 'Invitation sent — set-password link emailed'); },
+      closePanels: () => this.setState({ panel: null }),
+      exportToast: () => this.fireToast('CSV export started'),
+      notifOpen: s.notifOpen, notifItems, notifEmpty: notifItems.length === 0,
+      hasUnread: unread > 0, unreadCount: unread,
+      toggleNotif: () => this.setState(p => ({ notifOpen: !p.notifOpen })),
+      markAllRead: () => this.setState(p => ({ notifs: p.notifs.map(n => ({ ...n, read: true })) })),
+      clearNotifs: () => this.setState({ notifs: [], notifOpen: false }),
+      toastVisible: !!s.toast, toastMsg: s.toast ? s.toast.msg : '', toastBg: s.toast ? s.toast.bg : '#16a34a',
+    };
+  }
+}
+</script>
+</body>
+</html>
