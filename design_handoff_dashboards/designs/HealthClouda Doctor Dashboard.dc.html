@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#f8faff; }
+a { color:#0075ff; } a:hover { color:#005FCC; }
+input::placeholder, textarea::placeholder { color:#b0bcc8; }
+@keyframes hcPanelIn { from { transform:translateX(480px); } to { transform:translateX(0); } }
+@keyframes hcFadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes hcModalIn { from { transform:scale(0.94); opacity:0; } to { transform:scale(1); opacity:1; } }
+@keyframes hcToastIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+#hc-small-screen-gate { display:none; }
+@media (max-width: 767px) {
+  #hc-small-screen-gate { display:flex; }
+  #hc-app-shell { display:none !important; }
+}
+</style>
+</helmet>
+<div id="hc-small-screen-gate" data-screen-label="Small-screen gate" style="flex-direction:column; align-items:center; justify-content:center; gap:16px; min-height:100vh; background:#f8faff; font-family:'Inter',sans-serif; text-align:center; padding:32px;">
+  <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:64px; height:32px; object-fit:contain;">
+  <div style="width:56px; height:56px; border-radius:14px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;">
+    <svg viewBox="0 0 24 24" style="width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+  </div>
+  <div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825;">This dashboard needs a bigger screen</div>
+  <div style="font-size:13.5px; color:#6b7280; max-width:300px; line-height:1.6;">The Doctor portal is designed for tablets, laptops and desktops. Please sign in from a device with a larger screen.</div>
+</div>
+<div id="hc-app-shell" style="display:flex; height:100vh; background:#f8faff; font-family:'Inter',sans-serif; color:#000825; overflow:hidden; position:relative;">
+
+  <aside style="width:230px; flex-shrink:0; background:#ffffff; border-right:1px solid #e8edf5; display:flex; flex-direction:column;">
+    <div style="height:64px; display:flex; align-items:center; gap:10px; padding:0 20px; border-bottom:1px solid #e8edf5;">
+      <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:44px; height:22px; object-fit:contain;">
+      <span style="font-family:'Lato',sans-serif; font-weight:800; font-size:16px; color:#000825;">HealthClouda</span>
+    </div>
+    <nav style="flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:6px 12px 4px;">Main</span>
+      <button onClick="{{ nav.dashboard }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.dashboard }}; color: {{ navFg.dashboard }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        Dashboard
+      </button>
+      <button onClick="{{ nav.patients }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.patients }}; color: {{ navFg.patients }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        My Patients
+      </button>
+      <button onClick="{{ nav.episodes }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.episodes }}; color: {{ navFg.episodes }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        Episodes
+      </button>
+      <button onClick="{{ nav.prescriptions }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.prescriptions }}; color: {{ navFg.prescriptions }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"></path><line x1="9" y1="3" x2="9" y2="21"></line><line x1="9" y1="8" x2="21" y2="8"></line><line x1="9" y1="13" x2="21" y2="13"></line><line x1="9" y1="18" x2="21" y2="18"></line></svg>
+        Prescriptions
+      </button>
+      <button onClick="{{ nav.referrals }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.referrals }}; color: {{ navFg.referrals }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><polyline points="15 3 21 3 21 9"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><polyline points="9 21 3 21 3 15"></polyline><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        Referrals
+        <sc-if value="{{ hasPendingRefs }}" hint-placeholder-val="{{ false }}">
+          <span style="margin-left:auto; background:#d97706; color:#ffffff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; min-width:18px; text-align:center;">{{ pendingRefCount }}</span>
+        </sc-if>
+      </button>
+      <button onClick="{{ nav.appointments }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.appointments }}; color: {{ navFg.appointments }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        Appointments
+      </button>
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:14px 12px 4px;">Other</span>
+      <button onClick="{{ nav.notifications }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.notifications }}; color: {{ navFg.notifications }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        Notifications
+        <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+          <span style="margin-left:auto; background:#dc2626; color:#ffffff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; min-width:18px; text-align:center;">{{ unreadCount }}</span>
+        </sc-if>
+      </button>
+    </nav>
+    <div style="border-top:1px solid #e8edf5; padding:14px 16px; display:flex; align-items:center; gap:10px;">
+      <div style="width:36px; height:36px; border-radius:50%; background:#EBF3FF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0075ff; flex-shrink:0;">EO</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12.5px; font-weight:700; color:#000825; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Dr. Emeka Obi</div>
+        <div style="font-size:10.5px; color:#6b7280;">Doctor · General Medicine</div>
+      </div>
+      <button title="Logout" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:6px; border-radius:6px; cursor:pointer;" style-hover="color:#dc2626; background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16,17 21,12 16,7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex:1; display:flex; flex-direction:column; min-width:0;">
+    <header style="height:64px; flex-shrink:0; background:#ffffff; border-bottom:1px solid #e8edf5; display:flex; align-items:center; padding:0 28px; gap:14px;">
+      <div style="font-size:14.5px; font-weight:700; color:#000825; white-space:nowrap;">Doctor Portal</div>
+      <span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background:#dbeafe; color:#2563eb;">Lagos General Hospital</span>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
+        <button onClick="{{ toggleDuty }}" title="Toggle duty status" style="display:inline-flex; align-items:center; gap:8px; padding:8px 15px; border-radius:999px; font-size:12.5px; font-weight:700; border:1.5px solid {{ dutyBorder }}; background: {{ dutyBg }}; color: {{ dutyFg }}; cursor:pointer; font-family:'Inter',sans-serif; white-space:nowrap;">
+          <span style="width:8px; height:8px; border-radius:50%; background: {{ dutyDot }};"></span>
+          {{ dutyLabel }}
+        </button>
+        <button onClick="{{ nav.notifications }}" title="Notifications" style="position:relative; background:none; border:none; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#6b7280; cursor:pointer;" style-hover="background:#f8faff;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute; top:6px; right:6px; min-width:15px; height:15px; background:#dc2626; color:#ffffff; font-size:9px; font-weight:700; border-radius:999px; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; padding:0 2px;">{{ unreadCount }}</span>
+          </sc-if>
+        </button>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto; padding:26px 28px;">
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Dashboard">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Good morning, Dr. Obi</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Overview of your clinical activity today.</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:18px;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Today's Appointments</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ statTodayAppts }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">Next at {{ nextApptTime }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Active Episodes</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ statActiveEpisodes }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">{{ statCompletedWeek }} completed this week</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Patients in Queue</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">3</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">Chinwe Eze is next</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Pending Referrals</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><polyline points="15 3 21 3 21 9"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><polyline points="9 21 3 21 3 15"></polyline><line x1="3" y1="21" x2="10" y2="14"></line></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ pendingRefCount }}</div>
+              <div style="font-size:12px; font-weight:500; color:#dc2626;">1 marked critical</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Admissions Under Care</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#ede9fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">2</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">GA-03 · ICU-02</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Active Prescriptions</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"></path><line x1="9" y1="3" x2="9" y2="21"></line></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ statActiveRx }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">Across your episodes</div>
+            </div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="padding:16px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e8edf5;">
+              <span style="font-size:13.5px; font-weight:700; color:#000825;">Today's Schedule</span>
+              <button onClick="{{ nav.appointments }}" style="font-size:12px; font-weight:600; padding:6px 13px; border-radius:8px; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">All appointments</button>
+            </div>
+            <div>
+              <sc-for list="{{ scheduleRows }}" as="a" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:14px; padding:13px 22px; border-bottom:1px solid #f3f6fb;">
+                  <span style="min-width:60px; font-size:12px; font-weight:700; color:#0075ff; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ a.time }}</span>
+                  <div style="width:32px; height:32px; border-radius:50%; background: {{ a.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ a.initials }}</div>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:13px; font-weight:600; color:#000825;">{{ a.patient }}</div>
+                    <div style="font-size:11.5px; color:#6b7280;">{{ a.reason }}</div>
+                  </div>
+                  <span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ a.badgeBg }}; color: {{ a.badgeFg }};">{{ a.statusLabel }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ scheduleEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:28px; font-size:12.5px; color:#6b7280;">No appointments scheduled today.</div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPatients }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="My Patients">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">My Patients</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Patients currently under your care</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5;">
+              <div style="position:relative; width:260px;">
+                <svg viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search patient name…" value="{{ mpSearch }}" onChange="{{ setMpSearch }}" style="width:100%; height:36px; background:#ffffff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 32px; font-size:12.5px; outline:none; color:#000825; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff;">
+              </div>
+              <span style="margin-left:auto; font-size:12px; color:#6b7280; font-weight:500;">{{ mpCountLabel }}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Age/Sex</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Blood</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Chief Complaint</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Type</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Ward / Bed</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Latest Vitals</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ mpRows }}" as="p" hint-placeholder-count="5">
+                    <tr>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ p.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ p.name }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ p.hclId }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ p.ageSex }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; background:#fee2e2; color:#dc2626;">{{ p.blood }}</span></td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; max-width:200px;">{{ p.complaint }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ p.typeBg }}; color: {{ p.typeFg }};">{{ p.typeLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace; white-space:nowrap;">{{ p.wardBed }}</td>
+                      <td style="padding:13px 20px; font-size:12px; border-bottom:1px solid #f3f6fb; white-space:nowrap;"><span style="color: {{ p.vitalsColor }}; font-weight:600;">{{ p.vitalsSummary }}</span></td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; gap:6px;">
+                          <button onClick="{{ p.onVitals }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#374151; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Vitals</button>
+                          <button onClick="{{ p.onEpisode }}" style="background:#EBF3FF; border:1px solid #bfdbfe; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#0075ff; white-space:nowrap; font-family:'Inter',sans-serif;">Open episode</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ mpEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No patients found</div>
+                  <div style="font-size:12.5px;">Patients with episodes under your care appear here.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEpisodeList }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Episodes">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Episodes</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Manage clinical episodes</div>
+            </div>
+            <button onClick="{{ openNewEpisode }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">+ New Episode</button>
+          </div>
+          <div style="display:flex; gap:4px; border-bottom:2px solid #e8edf5; margin-bottom:16px;">
+            <button onClick="{{ epTabActive }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ epActiveFg }}; background:none; border:none; border-bottom:2px solid {{ epActiveBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Active</button>
+            <button onClick="{{ epTabCompleted }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ epCompletedFg }}; background:none; border:none; border-bottom:2px solid {{ epCompletedBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Completed</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Type</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Chief Complaint</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Started</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Days</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ epRows }}" as="e" hint-placeholder-count="4">
+                    <tr>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ e.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ e.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ e.patient }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ e.hclId }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ e.typeBg }}; color: {{ e.typeFg }};">{{ e.typeLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; max-width:220px;">{{ e.complaint }}</td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ e.started }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ e.days }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ e.statusBg }}; color: {{ e.statusFg }};">{{ e.statusLabel }}</span></td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <button onClick="{{ e.onView }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#374151; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">View</button>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ epEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">{{ epEmptyTitle }}</div>
+                  <div style="font-size:12.5px;">Episodes you manage will appear here.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEpisodeDetail }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Episode detail">
+          <button onClick="{{ backToEpisodes }}" style="display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:8px; font-size:12.5px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif; margin-bottom:18px;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">
+            <svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back to episodes
+          </button>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+              <div style="width:52px; height:52px; border-radius:50%; background: {{ vEp.avatarBg }}; color:#ffffff; font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ vEp.initials }}</div>
+              <div style="flex:1; min-width:220px;">
+                <div style="font-size:16px; font-weight:700; color:#000825;">{{ vEp.patient }}</div>
+                <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{ vEp.meta }}</div>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vEp.typeBg }}; color: {{ vEp.typeFg }};">{{ vEp.typeLabel }}</span>
+                <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vEp.statusBg }}; color: {{ vEp.statusFg }};">{{ vEp.statusLabel }}</span>
+              </div>
+            </div>
+            <div style="font-size:13px; color:#374151; margin-top:14px; line-height:1.6;"><b style="color:#000825;">Chief complaint:</b> {{ vEp.complaint }}</div>
+            <sc-if value="{{ vEp.isActive }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+                <button onClick="{{ openAddNote }}" style="padding:9px 15px; border-radius:8px; font-size:12.5px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">+ Add Clinical Note</button>
+                <button onClick="{{ openNewRx }}" style="padding:9px 15px; border-radius:8px; font-size:12.5px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">+ New Prescription</button>
+                <button onClick="{{ openComplete }}" style="padding:9px 15px; border-radius:8px; font-size:12.5px; font-weight:600; background:#dcfce7; color:#16a34a; border:1.5px solid #bbf7d0; cursor:pointer; font-family:'Inter',sans-serif;">✓ Complete Episode</button>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+              <div style="padding:16px 22px; border-bottom:1px solid #e8edf5; font-size:13.5px; font-weight:700; color:#000825;">Clinical Notes</div>
+              <div>
+                <sc-for list="{{ vEp.notes }}" as="n" hint-placeholder-count="3">
+                  <div style="padding:16px 22px; border-bottom:1px solid #f3f6fb;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                      <span style="display:inline-flex; padding:2px 9px; border-radius:999px; font-size:10px; font-weight:700; background:#f3f6fb; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">{{ n.type }}</span>
+                      <span style="font-size:11px; color:#b0bcc8;">{{ n.when }} · {{ n.by }}</span>
+                    </div>
+                    <div style="font-size:13px; color:#374151; line-height:1.6;">{{ n.content }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+              <div style="padding:16px 22px; border-bottom:1px solid #e8edf5; font-size:13.5px; font-weight:700; color:#000825;">Prescriptions</div>
+              <div>
+                <sc-for list="{{ vEp.rx }}" as="r" hint-placeholder-count="2">
+                  <div style="padding:14px 22px; border-bottom:1px solid #f3f6fb;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                      <span style="font-size:13px; font-weight:700; color:#000825;">{{ r.medication }}</span>
+                      <span style="display:inline-flex; padding:2px 9px; border-radius:999px; font-size:10.5px; font-weight:700; background: {{ r.badgeBg }}; color: {{ r.badgeFg }};">{{ r.statusLabel }}</span>
+                    </div>
+                    <div style="font-size:12px; color:#6b7280; margin-top:3px;">{{ r.dosage }} · {{ r.frequency }} · {{ r.duration }}</div>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ vEp.noRx }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center; padding:24px; font-size:12.5px; color:#6b7280;">No prescriptions on this episode yet.</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPrescriptions }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Prescriptions">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Prescriptions</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Medications you have prescribed</div>
+            </div>
+            <button onClick="{{ openNewRx }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">+ New Prescription</button>
+          </div>
+          <div style="display:flex; gap:4px; border-bottom:2px solid #e8edf5; margin-bottom:16px;">
+            <button onClick="{{ rxTabActive }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ rxActiveFg }}; background:none; border:none; border-bottom:2px solid {{ rxActiveBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Active</button>
+            <button onClick="{{ rxTabCompleted }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ rxCompletedFg }}; background:none; border:none; border-bottom:2px solid {{ rxCompletedBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Completed</button>
+            <button onClick="{{ rxTabCancelled }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ rxCancelledFg }}; background:none; border:none; border-bottom:2px solid {{ rxCancelledBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Cancelled</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Medication</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Dosage</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Frequency</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Duration</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ rxRows }}" as="r" hint-placeholder-count="4">
+                    <tr>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ r.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ r.initials }}</div>
+                          <div style="font-size:13px; font-weight:600; color:#000825;">{{ r.patient }}</div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:13px; font-weight:600; color:#000825; border-bottom:1px solid #f3f6fb;">{{ r.medication }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.dosage }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.frequency }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.duration }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <sc-if value="{{ r.isActive }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex; gap:6px;">
+                            <button onClick="{{ r.onComplete }}" style="background:none; border:1px solid #bbf7d0; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#16a34a; font-family:'Inter',sans-serif;">Complete</button>
+                            <button onClick="{{ r.onCancel }}" style="background:none; border:1px solid #fca5a5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#dc2626; font-family:'Inter',sans-serif;">Cancel</button>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ r.notActive }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:12px; color:#b0bcc8;">—</span>
+                        </sc-if>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ rxEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"></path><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No prescriptions</div>
+                  <div style="font-size:12.5px;">Prescriptions you write will appear here.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isReferrals }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Referrals">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Referrals</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Incoming and outgoing patient referrals</div>
+            </div>
+            <button onClick="{{ openNewRef }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">+ New Referral</button>
+          </div>
+          <div style="display:flex; gap:4px; border-bottom:2px solid #e8edf5; margin-bottom:16px;">
+            <button onClick="{{ refTabIn }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ refInFg }}; background:none; border:none; border-bottom:2px solid {{ refInBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Incoming</button>
+            <button onClick="{{ refTabOut }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ refOutFg }}; background:none; border:none; border-bottom:2px solid {{ refOutBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Outgoing</button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <sc-for list="{{ refRows }}" as="r" hint-placeholder-count="3">
+              <div style="background:#ffffff; border:1px solid {{ r.cardBorder }}; border-radius:14px; padding:18px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+                <div style="display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;">
+                  <div style="width:40px; height:40px; border-radius:10px; background: {{ r.avatarBg }}; color:#ffffff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ r.orgInitials }}</div>
+                  <div style="flex:1; min-width:240px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                      <span style="font-size:14px; font-weight:700; color:#000825;">{{ r.patient }}</span>
+                      <span style="display:inline-flex; padding:2px 9px; border-radius:999px; font-size:10.5px; font-weight:700; background: {{ r.urgencyBg }}; color: {{ r.urgencyFg }};">{{ r.urgencyLabel }}</span>
+                      <span style="display:inline-flex; padding:2px 9px; border-radius:999px; font-size:10.5px; font-weight:700; background: {{ r.badgeBg }}; color: {{ r.badgeFg }};">{{ r.statusLabel }}</span>
+                    </div>
+                    <div style="font-size:12px; color:#6b7280; margin-top:3px;">{{ r.direction }} <b style="color:#374151;">{{ r.org }}</b> · {{ r.date }}</div>
+                    <div style="font-size:12.5px; color:#374151; margin-top:8px; line-height:1.5;">{{ r.reason }}</div>
+                  </div>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;">
+                    <sc-if value="{{ r.canRespond }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ r.onAccept }}" style="padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; background:#16a34a; color:#ffffff; border:none; cursor:pointer; font-family:'Inter',sans-serif;">Accept</button>
+                      <button onClick="{{ r.onReject }}" style="padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; background:none; color:#dc2626; border:1.5px solid #fca5a5; cursor:pointer; font-family:'Inter',sans-serif;">Reject</button>
+                    </sc-if>
+                    <sc-if value="{{ r.canDownload }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ r.onDownload }}" style="padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Download Letter</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ refEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center; padding:56px 24px; color:#6b7280; background:#ffffff; border:1px solid #e8edf5; border-radius:14px;">
+                <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><polyline points="15 3 21 3 21 9"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><polyline points="9 21 3 21 3 15"></polyline><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No referrals</div>
+                <div style="font-size:12.5px;">Referrals will appear here.</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAppointments }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Appointments">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Appointments</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Your scheduled and past appointments</div>
+          </div>
+          <div style="display:flex; gap:4px; border-bottom:2px solid #e8edf5; margin-bottom:16px;">
+            <button onClick="{{ apTabScheduled }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ apScheduledFg }}; background:none; border:none; border-bottom:2px solid {{ apScheduledBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Scheduled</button>
+            <button onClick="{{ apTabCompleted }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ apCompletedFg }}; background:none; border:none; border-bottom:2px solid {{ apCompletedBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Completed</button>
+            <button onClick="{{ apTabCancelled }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ apCancelledFg }}; background:none; border:none; border-bottom:2px solid {{ apCancelledBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Cancelled</button>
+            <button onClick="{{ apTabNoShow }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ apNoShowFg }}; background:none; border:none; border-bottom:2px solid {{ apNoShowBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">No Show</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Date/Time</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Reason</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Duration</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ apRows }}" as="a" hint-placeholder-count="4">
+                    <tr>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ a.when }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ a.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ a.initials }}</div>
+                          <div style="font-size:13px; font-weight:600; color:#000825;">{{ a.patient }}</div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; max-width:240px;">{{ a.reason }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ a.duration }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <sc-if value="{{ a.isScheduled }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex; gap:6px;">
+                            <button onClick="{{ a.onComplete }}" style="background:none; border:1px solid #bbf7d0; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#16a34a; white-space:nowrap; font-family:'Inter',sans-serif;">Mark completed</button>
+                            <button onClick="{{ a.onNoShow }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#6b7280; white-space:nowrap; font-family:'Inter',sans-serif;">No show</button>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ a.notScheduled }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:12px; color:#b0bcc8;">—</span>
+                        </sc-if>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ apEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No appointments</div>
+                  <div style="font-size:12.5px;">Try a different tab.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNotifications }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Notifications">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Notifications</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Stay updated on your tasks and alerts</div>
+            </div>
+            <button onClick="{{ markAllRead }}" style="padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Mark all as read</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <sc-for list="{{ notifItems }}" as="n" hint-placeholder-count="4">
+              <div style="display:flex; gap:14px; padding:16px 22px; border-bottom:1px solid #f3f6fb; background: {{ n.bg }}; align-items:flex-start;">
+                <div style="width:36px; height:36px; border-radius:50%; background: {{ n.chipBg }}; color: {{ n.chipFg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="{{ n.iconPath }}"></path></svg>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13px; font-weight:600; color:#000825; line-height:1.4;">{{ n.title }}</div>
+                  <div style="font-size:12px; color:#6b7280; line-height:1.4; margin-top:2px;">{{ n.desc }}</div>
+                </div>
+                <div style="font-size:11px; color:#b0bcc8; white-space:nowrap; flex-shrink:0;">{{ n.time }}</div>
+                <sc-if value="{{ n.unread }}" hint-placeholder-val="{{ false }}">
+                  <span style="width:8px; height:8px; border-radius:50%; background:#0075ff; flex-shrink:0; margin-top:6px;"></span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ anyOverlayOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAll }}" style="position:fixed; inset:0; background:rgba(0,8,37,0.35); backdrop-filter:blur(2px); z-index:300; animation:hcFadeIn 0.2s ease;"></div>
+  </sc-if>
+
+  <sc-if value="{{ showNewEpisode }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: New episode" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">New Episode</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Open a clinical episode for a patient</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select patient…</option>
+            <option value="1">Chinwe Eze — HCL-2025-08841</option>
+            <option value="2">Babatunde Ogun — HCL-2024-03127</option>
+            <option value="3">Aisha Bello — HCL-2026-01566</option>
+            <option value="4">Samuel Okonkwo — HCL-2023-00958</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Episode Type *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select…</option>
+            <option value="OUTPATIENT">Outpatient</option>
+            <option value="INPATIENT">Inpatient</option>
+            <option value="EMERGENCY">Emergency</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Chief Complaint *</label>
+          <textarea rows="3" placeholder="Primary reason for visit…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Initial Notes</label>
+          <textarea rows="3" placeholder="Additional observations (optional)…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitEpisode }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Create Episode</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showAddNote }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Add clinical note" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Add Clinical Note</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{ vEp.patient }} · {{ vEp.typeLabel }} episode</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Note Type *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="GENERAL">General</option>
+            <option value="EXAMINATION">Examination</option>
+            <option value="FOLLOW_UP">Follow-up</option>
+            <option value="PROCEDURE">Procedure</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Content *</label>
+          <textarea rows="7" placeholder="Clinical note content…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitNote }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Add Note</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showNewRx }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: New prescription" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">New Prescription</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Prescribe against an active episode</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Episode *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select active episode…</option>
+            <option value="1">Chinwe Eze — Chest pain (Inpatient)</option>
+            <option value="2">Babatunde Ogun — Post-surgical recovery (Inpatient)</option>
+            <option value="3">Aisha Bello — Lab results review (Outpatient)</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Medication *</label>
+          <input type="text" placeholder="e.g. Amoxicillin" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Dosage *</label>
+            <input type="text" placeholder="e.g. 500mg" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Frequency *</label>
+            <input type="text" placeholder="e.g. Twice daily" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Duration *</label>
+          <input type="text" placeholder="e.g. 7 days" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Instructions</label>
+          <textarea rows="2" placeholder="Special instructions (optional)…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitRx }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Create Prescription</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showNewRef }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: New referral" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">New Referral</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Refer a patient internally or to another organisation</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Referral Type *</label>
+          <select value="{{ refType }}" onChange="{{ setRefType }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="internal_department">Internal Department</option>
+            <option value="inter_org">Inter-Organisation</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select patient…</option>
+            <option value="1">Chinwe Eze — HCL-2025-08841</option>
+            <option value="2">Babatunde Ogun — HCL-2024-03127</option>
+            <option value="3">Aisha Bello — HCL-2026-01566</option>
+          </select>
+          <div style="font-size:11px; color:#6b7280; line-height:1.5;">The active episode travels with the referral automatically.</div>
+        </div>
+        <sc-if value="{{ refIsInternal }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Refer To (Doctor) *</label>
+            <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+              <option value="">Select doctor…</option>
+              <option value="1">Dr. Kemi Balogun — Cardiology</option>
+              <option value="2">Dr. Tunde Bello — Pediatrics</option>
+              <option value="3">Dr. Sarah Bello — Obstetrics</option>
+            </select>
+          </div>
+        </sc-if>
+        <sc-if value="{{ refIsInterOrg }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Refer To (Organisation) *</label>
+            <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+              <option value="">Select organisation…</option>
+              <option value="abuja-medical">Abuja Medical Centre</option>
+              <option value="kano-teaching">Kano Teaching Hospital</option>
+              <option value="demo-clinic">Demo Clinic</option>
+            </select>
+          </div>
+        </sc-if>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Urgency *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Reason *</label>
+          <textarea rows="3" placeholder="Reason for referral…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Clinical Notes</label>
+          <textarea rows="3" placeholder="Additional clinical context (optional)…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitRef }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Create Referral</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showVitalsModal }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Modal: Vitals" style="position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; padding:16px;">
+      <div style="background:#ffffff; border-radius:14px; padding:26px; width:100%; max-width:460px; box-shadow:0 20px 60px rgba(0,8,37,0.2); animation:hcModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:4px;">
+          <div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825;">Patient Vitals</div>
+          <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+            <svg viewBox="0 0 24 24" style="width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+        <div style="font-size:12.5px; color:#6b7280; margin-bottom:16px;">{{ vitPatient.name }} · {{ vitPatient.readingWhen }} · read-only</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px; background:#f3f6fb; border:1px solid #e8edf5; border-radius:10px; overflow:hidden; margin-bottom:16px;">
+          <div style="background:#ffffff; padding:13px 15px;"><div style="font-size:9.5px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">BP</div><div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; margin-top:2px;">{{ vitPatient.bp }}</div></div>
+          <div style="background:#ffffff; padding:13px 15px;"><div style="font-size:9.5px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Temp °C</div><div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color: {{ vitPatient.tempColor }}; margin-top:2px;">{{ vitPatient.temp }}</div></div>
+          <div style="background:#ffffff; padding:13px 15px;"><div style="font-size:9.5px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Pulse</div><div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; margin-top:2px;">{{ vitPatient.pulse }}</div></div>
+          <div style="background:#ffffff; padding:13px 15px;"><div style="font-size:9.5px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Resp /min</div><div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; margin-top:2px;">{{ vitPatient.resp }}</div></div>
+          <div style="background:#ffffff; padding:13px 15px;"><div style="font-size:9.5px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">SpO₂ %</div><div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color: {{ vitPatient.spo2Color }}; margin-top:2px;">{{ vitPatient.spo2 }}</div></div>
+          <div style="background:#ffffff; padding:13px 15px;"><div style="font-size:9.5px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Weight kg</div><div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; margin-top:2px;">{{ vitPatient.weight }}</div></div>
+        </div>
+        <div style="font-size:11.5px; color:#6b7280; margin-bottom:16px;">Recorded by {{ vitPatient.readingBy }}. Vitals are recorded by nursing staff.</div>
+        <button onClick="{{ closeAll }}" style="width:100%; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Close</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showComplete }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Modal: Complete episode" style="position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; padding:16px;">
+      <div style="background:#ffffff; border-radius:14px; padding:28px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,8,37,0.2); animation:hcModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);">
+        <div style="width:52px; height:52px; border-radius:50%; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+          <svg viewBox="0 0 24 24" style="width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; text-align:center; margin-bottom:6px;">Complete Episode</div>
+        <div style="font-size:12.5px; color:#6b7280; text-align:center; margin-bottom:18px;">Completing the {{ vEp.typeLabel }} episode for <b style="color:#000825;">{{ vEp.patient }}</b></div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Final Diagnosis *</label>
+          <textarea rows="3" placeholder="Final diagnosis…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Summary</label>
+          <textarea rows="3" placeholder="Episode summary (optional)…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+          <button onClick="{{ confirmComplete }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#16a34a; color:#ffffff; border:none; cursor:pointer; font-family:'Inter',sans-serif;">Complete Episode</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; background: {{ toastBg }}; color:#ffffff; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; display:flex; align-items:center; gap:8px; box-shadow:0 4px 20px rgba(0,8,37,0.2); animation:hcToastIn 0.25s cubic-bezier(0.4,0,0.2,1);">
+      <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      {{ toastMsg }}
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;emptyStates&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;Show all tables and lists in their empty states&quot;}, &quot;offDuty&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;Start with the duty toggle off (also clickable in the prototype)&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      page: 'dashboard', epDetail: null, panel: null, modal: null, selVitals: null,
+      duty: !(props.offDuty ?? false), epTab: 'ACTIVE', rxTab: 'ACTIVE', refTab: 'incoming', apTab: 'SCHEDULED',
+      mpSearch: '', refType: 'internal_department', toast: null,
+      notifs: [
+        { id: 1, kind: 'warning', title: 'Critical referral received', desc: 'Abuja Medical Centre referred Ngozi Adichie — abnormal ECG', time: '12 min ago', read: false },
+        { id: 2, kind: 'info', title: 'New vitals recorded', desc: 'Ngozi Eze recorded vitals for Chinwe Eze (GA-03)', time: '45 min ago', read: false },
+        { id: 3, kind: 'info', title: 'Patient checked in', desc: 'Babatunde Ogun is waiting in your queue', time: 'Today, 09:05', read: true },
+        { id: 4, kind: 'success', title: 'Referral accepted', desc: 'Kano Teaching Hospital accepted your referral for Yusuf Garba', time: 'Yesterday, 17:20', read: true },
+      ],
+      myPatients: [
+        { id: 1, name: 'Chinwe Eze', hclId: 'HCL-2025-08841', ageSex: '34 / F', blood: 'O+', complaint: 'Chest pain, shortness of breath', type: 'INPATIENT', wardBed: 'GA-03', vit: { bp: '128/84', temp: 37.1, pulse: 82, resp: 16, spo2: 97, weight: 68, when: 'Today, 06:45', by: 'Ngozi Eze' } },
+        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', ageSex: '58 / M', blood: 'A+', complaint: 'Post-surgical recovery — appendectomy', type: 'INPATIENT', wardBed: 'GA-07', vit: { bp: '135/88', temp: 36.9, pulse: 76, resp: 15, spo2: 98, weight: 81, when: 'Today, 06:30', by: 'Ngozi Eze' } },
+        { id: 3, name: 'Aisha Bello', hclId: 'HCL-2026-01566', ageSex: '41 / F', blood: 'B+', complaint: 'Recurring migraines, lab review', type: 'OUTPATIENT', wardBed: '—', vit: { bp: '118/76', temp: 36.7, pulse: 71, resp: 14, spo2: 99, weight: 63, when: 'Jul 22, 2026', by: 'Halima Suleiman' } },
+        { id: 4, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', ageSex: '61 / M', blood: 'A-', complaint: 'Septic shock — stabilising', type: 'EMERGENCY', wardBed: 'ICU-02', vit: { bp: '102/64', temp: 37.8, pulse: 104, resp: 22, spo2: 93, weight: 70, when: 'Today, 07:00', by: 'Ngozi Eze' } },
+        { id: 5, name: 'Samuel Okonkwo', hclId: 'HCL-2023-00958', ageSex: '45 / M', blood: 'O-', complaint: 'Malaria with dehydration', type: 'INPATIENT', wardBed: 'GA-09', vit: { bp: '118/76', temp: 38.6, pulse: 96, resp: 19, spo2: 96, weight: 77, when: 'Yesterday, 22:15', by: 'Night shift' } },
+      ],
+      episodes: [
+        { id: 1, pid: 1, patient: 'Chinwe Eze', hclId: 'HCL-2025-08841', type: 'INPATIENT', complaint: 'Chest pain, shortness of breath', started: 'Jul 27, 2026', days: 2, status: 'ACTIVE',
+          notes: [
+            { type: 'EXAMINATION', when: 'Today, 09:10', by: 'Dr. Emeka Obi', content: 'ECG shows sinus tachycardia, no ST changes. Troponin negative. Continuing observation, repeat ECG in 6 hours.' },
+            { type: 'GENERAL', when: 'Jul 28, 20:40', by: 'Dr. Emeka Obi', content: 'Patient reports reduced chest tightness. Oxygen weaned to room air, SpO2 holding at 97%.' },
+            { type: 'GENERAL', when: 'Jul 27, 14:20', by: 'Dr. Emeka Obi', content: 'Admitted for cardiac workup. Started on aspirin and monitoring. Cardiology consult requested.' },
+          ],
+          rx: [ { medication: 'Aspirin', dosage: '75mg', frequency: 'Once daily', duration: '30 days', status: 'ACTIVE' } ] },
+        { id: 2, pid: 2, patient: 'Babatunde Ogun', hclId: 'HCL-2024-03127', type: 'INPATIENT', complaint: 'Post-surgical recovery — appendectomy', started: 'Jul 25, 2026', days: 4, status: 'ACTIVE',
+          notes: [
+            { type: 'PROCEDURE', when: 'Jul 25, 11:00', by: 'Dr. Emeka Obi', content: 'Laparoscopic appendectomy completed without complications. Estimated blood loss minimal.' },
+            { type: 'FOLLOW_UP', when: 'Today, 08:30', by: 'Dr. Emeka Obi', content: 'Wound healing well, no signs of infection. Ambulating independently. Plan discharge in 24–48h.' },
+          ],
+          rx: [ { medication: 'Amoxicillin-Clavulanate', dosage: '625mg', frequency: 'Three times daily', duration: '7 days', status: 'ACTIVE' }, { medication: 'Paracetamol', dosage: '1g', frequency: 'Every 6 hours PRN', duration: '5 days', status: 'ACTIVE' } ] },
+        { id: 3, pid: 3, patient: 'Aisha Bello', hclId: 'HCL-2026-01566', type: 'OUTPATIENT', complaint: 'Recurring migraines, lab review', started: 'Jul 22, 2026', days: 7, status: 'ACTIVE',
+          notes: [ { type: 'GENERAL', when: 'Jul 22, 13:05', by: 'Dr. Emeka Obi', content: 'Ordered CBC, thyroid panel and MRI referral. Headache diary requested for 2 weeks.' } ],
+          rx: [] },
+        { id: 4, pid: 5, patient: 'Samuel Okonkwo', hclId: 'HCL-2023-00958', type: 'INPATIENT', complaint: 'Malaria with dehydration', started: 'Jul 28, 2026', days: 1, status: 'ACTIVE',
+          notes: [ { type: 'GENERAL', when: 'Jul 28, 16:00', by: 'Dr. Emeka Obi', content: 'Positive RDT for P. falciparum. Started IV artesunate and fluids. Monitoring temperature.' } ],
+          rx: [ { medication: 'Artesunate IV', dosage: '2.4mg/kg', frequency: '0, 12, 24h then daily', duration: '3 days', status: 'ACTIVE' } ] },
+        { id: 5, pid: 4, patient: 'Blessing Nwosu', hclId: 'HCL-2024-05512', type: 'OUTPATIENT', complaint: 'Typhoid fever treatment', started: 'Jul 15, 2026', days: 7, status: 'COMPLETED',
+          notes: [ { type: 'FOLLOW_UP', when: 'Jul 22, 10:15', by: 'Dr. Emeka Obi', content: 'Symptoms fully resolved. Completed antibiotic course. Episode closed with full recovery.' } ],
+          rx: [ { medication: 'Ciprofloxacin', dosage: '500mg', frequency: 'Twice daily', duration: '10 days', status: 'COMPLETED' } ] },
+      ],
+      rxList: [
+        { id: 1, patient: 'Chinwe Eze', medication: 'Aspirin', dosage: '75mg', frequency: 'Once daily', duration: '30 days', status: 'ACTIVE' },
+        { id: 2, patient: 'Babatunde Ogun', medication: 'Amoxicillin-Clavulanate', dosage: '625mg', frequency: 'Three times daily', duration: '7 days', status: 'ACTIVE' },
+        { id: 3, patient: 'Babatunde Ogun', medication: 'Paracetamol', dosage: '1g', frequency: 'Every 6 hours PRN', duration: '5 days', status: 'ACTIVE' },
+        { id: 4, patient: 'Samuel Okonkwo', medication: 'Artesunate IV', dosage: '2.4mg/kg', frequency: '0, 12, 24h then daily', duration: '3 days', status: 'ACTIVE' },
+        { id: 5, patient: 'Blessing Nwosu', medication: 'Ciprofloxacin', dosage: '500mg', frequency: 'Twice daily', duration: '10 days', status: 'COMPLETED' },
+        { id: 6, patient: 'Aisha Bello', medication: 'Sumatriptan', dosage: '50mg', frequency: 'At onset PRN', duration: '30 days', status: 'CANCELLED' },
+      ],
+      referrals: [
+        { id: 1, dir: 'incoming', patient: 'Ngozi Adichie', org: 'Abuja Medical Centre', reason: 'Cardiology consult — abnormal ECG, needs specialist review within 48 hours.', urgency: 'CRITICAL', date: 'Today, 08:20', status: 'PENDING' },
+        { id: 2, dir: 'incoming', patient: 'Kofi Mensah', org: 'Demo Clinic', reason: 'Orthopaedic assessment for suspected femur fracture after fall.', urgency: 'HIGH', date: 'Yesterday, 16:40', status: 'PENDING' },
+        { id: 3, dir: 'incoming', patient: 'Amara Nwosu', org: 'GreenLeaf Clinic', reason: 'Maternity transfer — high-risk pregnancy, 34 weeks.', urgency: 'MEDIUM', date: 'Jul 27, 2026', status: 'ACCEPTED' },
+        { id: 4, dir: 'outgoing', patient: 'Yusuf Garba', org: 'Kano Teaching Hospital', reason: 'Second opinion on oncology scan.', urgency: 'MEDIUM', date: 'Jul 25, 2026', status: 'ACCEPTED' },
+        { id: 5, dir: 'outgoing', patient: 'Chinwe Eze', org: 'Dr. Kemi Balogun (Cardiology)', reason: 'Internal referral — cardiac workup continuation.', urgency: 'HIGH', date: 'Jul 27, 2026', status: 'PENDING' },
+      ],
+      appts: [
+        { id: 1, pid: 1, patient: 'Chinwe Eze', when: 'Today, 11:30', reason: 'Cardiology follow-up', duration: '30 min', status: 'SCHEDULED' },
+        { id: 2, pid: 3, patient: 'Aisha Bello', when: 'Today, 13:00', reason: 'Lab results review', duration: '20 min', status: 'SCHEDULED' },
+        { id: 3, pid: 2, patient: 'Babatunde Ogun', when: 'Today, 15:30', reason: 'Pre-discharge review', duration: '30 min', status: 'SCHEDULED' },
+        { id: 4, pid: 5, patient: 'Samuel Okonkwo', when: 'Today, 08:30', reason: 'Morning ward round', duration: '15 min', status: 'COMPLETED' },
+        { id: 5, pid: 4, patient: 'Mary Nwachukwu', when: 'Yesterday, 15:00', reason: 'Hypertension review', duration: '30 min', status: 'NO_SHOW' },
+        { id: 6, pid: 6, patient: 'Ibrahim Danjuma', when: 'Yesterday, 10:00', reason: 'General consultation', duration: '30 min', status: 'CANCELLED' },
+      ],
+    };
+    this._avatarColors = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#dc2626'];
+  }
+  initials(name) { return name.replace(/^Dr\.\s*/, '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
+  color(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; return this._avatarColors[h % this._avatarColors.length]; }
+  fireToast(msg, bg) {
+    clearTimeout(this._toastT);
+    this.setState({ toast: { msg, bg: bg || '#16a34a' } });
+    this._toastT = setTimeout(() => this.setState({ toast: null }), 2600);
+  }
+  epType(t) {
+    const m = { OUTPATIENT: ['Outpatient', '#EBF3FF', '#0075ff'], INPATIENT: ['Inpatient', '#ede9fe', '#7c3aed'], EMERGENCY: ['Emergency', '#fee2e2', '#dc2626'] };
+    return m[t] || [t, '#f3f4f6', '#374151'];
+  }
+  rxBadge(st) {
+    const m = { ACTIVE: ['Active', '#dcfce7', '#16a34a'], COMPLETED: ['Completed', '#f3f4f6', '#374151'], CANCELLED: ['Cancelled', '#fee2e2', '#dc2626'] };
+    return m[st] || [st, '#f3f4f6', '#374151'];
+  }
+  renderVals() {
+    const s = this.state;
+    const emptyAll = this.props.emptyStates ?? false;
+    const pages = ['dashboard', 'patients', 'episodes', 'prescriptions', 'referrals', 'appointments', 'notifications'];
+    const nav = {}, navBg = {}, navFg = {};
+    pages.forEach(p => {
+      nav[p] = () => this.setState({ page: p, epDetail: null });
+      navBg[p] = s.page === p ? '#EBF3FF' : 'transparent';
+      navFg[p] = s.page === p ? '#0075ff' : '#6b7280';
+    });
+    const mp = (emptyAll ? [] : s.myPatients).filter(p => !s.mpSearch || p.name.toLowerCase().includes(s.mpSearch.toLowerCase()));
+    const mpRows = mp.map(p => {
+      const [tl, tb, tf] = this.epType(p.type);
+      const warn = p.vit && (p.vit.temp >= 38 || p.vit.spo2 < 95);
+      return {
+        ...p, initials: this.initials(p.name), avatarBg: this.color(p.name),
+        typeLabel: tl, typeBg: tb, typeFg: tf,
+        vitalsSummary: p.vit ? p.vit.bp + ' · ' + p.vit.temp.toFixed(1) + '°C' : 'No reading',
+        vitalsColor: warn ? '#dc2626' : '#374151',
+        onVitals: () => this.setState({ modal: 'vitals', selVitals: p.id }),
+        onEpisode: () => {
+          const ep = s.episodes.find(e => e.pid === p.id && e.status === 'ACTIVE') || s.episodes.find(e => e.pid === p.id);
+          if (ep) this.setState({ page: 'episodes', epDetail: ep.id });
+        },
+      };
+    });
+    const vitP = s.myPatients.find(p => p.id === s.selVitals) || s.myPatients[0];
+    const vitPatient = {
+      name: vitP.name,
+      bp: vitP.vit ? vitP.vit.bp : '—', temp: vitP.vit ? vitP.vit.temp.toFixed(1) : '—',
+      tempColor: vitP.vit && vitP.vit.temp >= 38 ? '#dc2626' : '#000825',
+      pulse: vitP.vit ? vitP.vit.pulse : '—', resp: vitP.vit ? vitP.vit.resp : '—',
+      spo2: vitP.vit ? vitP.vit.spo2 : '—',
+      spo2Color: vitP.vit && vitP.vit.spo2 < 95 ? '#dc2626' : '#000825',
+      weight: vitP.vit ? vitP.vit.weight : '—',
+      readingWhen: vitP.vit ? vitP.vit.when : 'No reading', readingBy: vitP.vit ? vitP.vit.by : '—',
+    };
+    const eps = (emptyAll ? [] : s.episodes).filter(e => e.status === s.epTab);
+    const epRows = eps.map(e => {
+      const [tl, tb, tf] = this.epType(e.type);
+      return {
+        ...e, initials: this.initials(e.patient), avatarBg: this.color(e.patient),
+        typeLabel: tl, typeBg: tb, typeFg: tf,
+        statusLabel: e.status === 'ACTIVE' ? 'Active' : 'Completed',
+        statusBg: e.status === 'ACTIVE' ? '#dcfce7' : '#f3f4f6',
+        statusFg: e.status === 'ACTIVE' ? '#16a34a' : '#374151',
+        onView: () => this.setState({ epDetail: e.id }),
+      };
+    });
+    const selEp = s.episodes.find(e => e.id === s.epDetail) || s.episodes[0];
+    const [etl, etb, etf] = this.epType(selEp.type);
+    const vEp = {
+      ...selEp, initials: this.initials(selEp.patient), avatarBg: this.color(selEp.patient),
+      meta: selEp.hclId + ' · started ' + selEp.started + ' · day ' + selEp.days,
+      typeLabel: etl, typeBg: etb, typeFg: etf,
+      statusLabel: selEp.status === 'ACTIVE' ? 'Active' : 'Completed',
+      statusBg: selEp.status === 'ACTIVE' ? '#dcfce7' : '#f3f4f6',
+      statusFg: selEp.status === 'ACTIVE' ? '#16a34a' : '#374151',
+      isActive: selEp.status === 'ACTIVE',
+      rx: selEp.rx.map(r => { const [l, b, f] = this.rxBadge(r.status); return { ...r, statusLabel: l, badgeBg: b, badgeFg: f }; }),
+      noRx: selEp.rx.length === 0,
+    };
+    const rxRows = (emptyAll ? [] : s.rxList).filter(r => r.status === s.rxTab).map(r => ({
+      ...r, initials: this.initials(r.patient), avatarBg: this.color(r.patient),
+      isActive: r.status === 'ACTIVE', notActive: r.status !== 'ACTIVE',
+      onComplete: () => { this.setState(p => ({ rxList: p.rxList.map(x => x.id === r.id ? { ...x, status: 'COMPLETED' } : x) })); this.fireToast(r.medication + ' marked completed'); },
+      onCancel: () => { this.setState(p => ({ rxList: p.rxList.map(x => x.id === r.id ? { ...x, status: 'CANCELLED' } : x) })); this.fireToast(r.medication + ' cancelled', '#dc2626'); },
+    }));
+    const urgencies = { LOW: ['Low', '#f3f4f6', '#6b7280'], MEDIUM: ['Medium', '#EBF3FF', '#0075ff'], HIGH: ['High', '#fef3c7', '#d97706'], CRITICAL: ['Critical', '#fee2e2', '#dc2626'] };
+    const refRows = (emptyAll ? [] : s.referrals).filter(r => r.dir === s.refTab).map(r => {
+      const [ul, ub, uf] = urgencies[r.urgency];
+      const bm = { PENDING: ['Pending', '#fef3c7', '#d97706'], ACCEPTED: ['Accepted', '#dcfce7', '#16a34a'], DECLINED: ['Declined', '#fee2e2', '#dc2626'] };
+      const [bl, bb, bf] = bm[r.status];
+      return {
+        ...r, orgInitials: this.initials(r.org), avatarBg: this.color(r.org),
+        urgencyLabel: ul, urgencyBg: ub, urgencyFg: uf,
+        statusLabel: bl, badgeBg: bb, badgeFg: bf,
+        direction: r.dir === 'incoming' ? 'From' : 'To',
+        cardBorder: (r.urgency === 'CRITICAL' && r.status === 'PENDING') ? '#fca5a5' : '#e8edf5',
+        canRespond: r.dir === 'incoming' && r.status === 'PENDING',
+        canDownload: r.dir === 'outgoing',
+        onAccept: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'ACCEPTED' } : x) })); this.fireToast('Referral accepted — ' + r.patient); },
+        onReject: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'DECLINED' } : x) })); this.fireToast('Referral rejected', '#dc2626'); },
+        onDownload: () => this.fireToast('Referral letter (PDF) download started'),
+      };
+    });
+    const apMap = { SCHEDULED: ['Scheduled', '#EBF3FF', '#0075ff'], COMPLETED: ['Completed', '#dcfce7', '#16a34a'], CANCELLED: ['Cancelled', '#fee2e2', '#dc2626'], NO_SHOW: ['No Show', '#f3f4f6', '#6b7280'] };
+    const apRows = (emptyAll ? [] : s.appts).filter(a => a.status === s.apTab).map(a => {
+      const [l, b, f] = apMap[a.status];
+      return {
+        ...a, initials: this.initials(a.patient), avatarBg: this.color(a.patient),
+        statusLabel: l, badgeBg: b, badgeFg: f,
+        isScheduled: a.status === 'SCHEDULED', notScheduled: a.status !== 'SCHEDULED',
+        onComplete: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'COMPLETED' } : x) })); this.fireToast(a.patient + ' — appointment completed'); },
+        onNoShow: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'NO_SHOW' } : x) })); this.fireToast('Marked as no-show', '#6b7280'); },
+      };
+    });
+    const scheduleRows = (emptyAll ? [] : s.appts).filter(a => a.when.startsWith('Today')).map(a => {
+      const [l, b, f] = apMap[a.status];
+      return { ...a, time: a.when.replace('Today, ', ''), initials: this.initials(a.patient), avatarBg: this.color(a.patient), statusLabel: l, badgeBg: b, badgeFg: f };
+    });
+    const unread = s.notifs.filter(n => !n.read).length;
+    const notifItems = (emptyAll ? [] : s.notifs).map(n => ({
+      ...n, unread: !n.read, bg: n.read ? 'transparent' : '#f0f6ff',
+      chipBg: n.kind === 'success' ? '#dcfce7' : n.kind === 'warning' ? '#fef3c7' : '#EBF3FF',
+      chipFg: n.kind === 'success' ? '#16a34a' : n.kind === 'warning' ? '#d97706' : '#0075ff',
+      iconPath: n.kind === 'success' ? 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3' : n.kind === 'warning' ? 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01' : 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9',
+    }));
+    const pendingIn = s.referrals.filter(r => r.dir === 'incoming' && r.status === 'PENDING').length;
+    const tab = (cur, t) => ({ fg: cur === t ? '#0075ff' : '#6b7280', border: cur === t ? '#0075ff' : 'transparent' });
+    const scheduled = s.appts.filter(a => a.status === 'SCHEDULED' && a.when.startsWith('Today'));
+    return {
+      nav, navBg, navFg,
+      isDashboard: s.page === 'dashboard', isPatients: s.page === 'patients',
+      isEpisodeList: s.page === 'episodes' && !s.epDetail, isEpisodeDetail: s.page === 'episodes' && !!s.epDetail,
+      isPrescriptions: s.page === 'prescriptions', isReferrals: s.page === 'referrals',
+      isAppointments: s.page === 'appointments', isNotifications: s.page === 'notifications',
+      dutyLabel: s.duty ? 'On Duty' : 'Off Duty',
+      dutyBg: s.duty ? '#dcfce7' : '#f3f4f6', dutyFg: s.duty ? '#16a34a' : '#6b7280',
+      dutyBorder: s.duty ? '#bbf7d0' : '#e8edf5', dutyDot: s.duty ? '#16a34a' : '#b0bcc8',
+      toggleDuty: () => { const d = !s.duty; this.setState({ duty: d }); this.fireToast(d ? 'You are now on duty' : 'You are now off duty', d ? '#16a34a' : '#374151'); },
+      statTodayAppts: scheduleRows.length,
+      nextApptTime: scheduled.length ? scheduled[0].when.replace('Today, ', '') : '—',
+      statActiveEpisodes: s.episodes.filter(e => e.status === 'ACTIVE').length,
+      statCompletedWeek: s.episodes.filter(e => e.status === 'COMPLETED').length + 4,
+      statActiveRx: s.rxList.filter(r => r.status === 'ACTIVE').length,
+      pendingRefCount: pendingIn, hasPendingRefs: pendingIn > 0,
+      scheduleRows, scheduleEmpty: scheduleRows.length === 0,
+      mpRows, mpEmpty: mp.length === 0,
+      mpCountLabel: 'Showing ' + mp.length + ' of ' + s.myPatients.length + ' patients',
+      mpSearch: s.mpSearch, setMpSearch: e => this.setState({ mpSearch: e.target.value }),
+      epTabActive: () => this.setState({ epTab: 'ACTIVE' }),
+      epTabCompleted: () => this.setState({ epTab: 'COMPLETED' }),
+      epActiveFg: tab(s.epTab, 'ACTIVE').fg, epActiveBorder: tab(s.epTab, 'ACTIVE').border,
+      epCompletedFg: tab(s.epTab, 'COMPLETED').fg, epCompletedBorder: tab(s.epTab, 'COMPLETED').border,
+      epRows, epEmpty: eps.length === 0,
+      epEmptyTitle: s.epTab === 'ACTIVE' ? 'No active episodes' : 'No completed episodes',
+      vEp, backToEpisodes: () => this.setState({ epDetail: null }),
+      rxTabActive: () => this.setState({ rxTab: 'ACTIVE' }),
+      rxTabCompleted: () => this.setState({ rxTab: 'COMPLETED' }),
+      rxTabCancelled: () => this.setState({ rxTab: 'CANCELLED' }),
+      rxActiveFg: tab(s.rxTab, 'ACTIVE').fg, rxActiveBorder: tab(s.rxTab, 'ACTIVE').border,
+      rxCompletedFg: tab(s.rxTab, 'COMPLETED').fg, rxCompletedBorder: tab(s.rxTab, 'COMPLETED').border,
+      rxCancelledFg: tab(s.rxTab, 'CANCELLED').fg, rxCancelledBorder: tab(s.rxTab, 'CANCELLED').border,
+      rxRows, rxEmpty: rxRows.length === 0,
+      refTabIn: () => this.setState({ refTab: 'incoming' }),
+      refTabOut: () => this.setState({ refTab: 'outgoing' }),
+      refInFg: tab(s.refTab, 'incoming').fg, refInBorder: tab(s.refTab, 'incoming').border,
+      refOutFg: tab(s.refTab, 'outgoing').fg, refOutBorder: tab(s.refTab, 'outgoing').border,
+      refRows, refEmpty: refRows.length === 0,
+      apTabScheduled: () => this.setState({ apTab: 'SCHEDULED' }),
+      apTabCompleted: () => this.setState({ apTab: 'COMPLETED' }),
+      apTabCancelled: () => this.setState({ apTab: 'CANCELLED' }),
+      apTabNoShow: () => this.setState({ apTab: 'NO_SHOW' }),
+      apScheduledFg: tab(s.apTab, 'SCHEDULED').fg, apScheduledBorder: tab(s.apTab, 'SCHEDULED').border,
+      apCompletedFg: tab(s.apTab, 'COMPLETED').fg, apCompletedBorder: tab(s.apTab, 'COMPLETED').border,
+      apCancelledFg: tab(s.apTab, 'CANCELLED').fg, apCancelledBorder: tab(s.apTab, 'CANCELLED').border,
+      apNoShowFg: tab(s.apTab, 'NO_SHOW').fg, apNoShowBorder: tab(s.apTab, 'NO_SHOW').border,
+      apRows, apEmpty: apRows.length === 0,
+      notifItems, hasUnread: unread > 0, unreadCount: unread,
+      markAllRead: () => this.setState(p => ({ notifs: p.notifs.map(n => ({ ...n, read: true })) })),
+      anyOverlayOpen: !!s.panel || !!s.modal,
+      showNewEpisode: s.panel === 'newEpisode', showAddNote: s.panel === 'addNote',
+      showNewRx: s.panel === 'newRx', showNewRef: s.panel === 'newRef',
+      showVitalsModal: s.modal === 'vitals', showComplete: s.modal === 'complete',
+      vitPatient,
+      openNewEpisode: () => this.setState({ panel: 'newEpisode' }),
+      openAddNote: () => this.setState({ panel: 'addNote' }),
+      openNewRx: () => this.setState({ panel: 'newRx' }),
+      openNewRef: () => this.setState({ panel: 'newRef' }),
+      openComplete: () => this.setState({ modal: 'complete' }),
+      refType: s.refType,
+      setRefType: e => this.setState({ refType: e.target.value }),
+      refIsInternal: s.refType === 'internal_department',
+      refIsInterOrg: s.refType === 'inter_org',
+      submitEpisode: () => { this.setState({ panel: null }); this.fireToast('Episode created'); },
+      submitNote: () => { this.setState({ panel: null }); this.fireToast('Clinical note added'); },
+      submitRx: () => { this.setState({ panel: null }); this.fireToast('Prescription created'); },
+      submitRef: () => { this.setState({ panel: null }); this.fireToast('Referral created'); },
+      confirmComplete: () => {
+        this.setState(p => ({ modal: null, epDetail: null, episodes: p.episodes.map(e => e.id === selEp.id ? { ...e, status: 'COMPLETED' } : e) }));
+        this.fireToast('Episode completed — ' + selEp.patient);
+      },
+      closeAll: () => this.setState({ panel: null, modal: null }),
+      toastVisible: !!s.toast, toastMsg: s.toast ? s.toast.msg : '', toastBg: s.toast ? s.toast.bg : '#16a34a',
+    };
+  }
+}
+</script>
+</body>
+</html>

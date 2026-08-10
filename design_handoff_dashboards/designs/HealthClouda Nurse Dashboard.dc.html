@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#f8faff; }
+a { color:#0075ff; } a:hover { color:#005FCC; }
+input::placeholder, textarea::placeholder { color:#b0bcc8; }
+@keyframes hcPanelIn { from { transform:translateX(480px); } to { transform:translateX(0); } }
+@keyframes hcFadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes hcModalIn { from { transform:scale(0.94); opacity:0; } to { transform:scale(1); opacity:1; } }
+@keyframes hcToastIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+#hc-small-screen-gate { display:none; }
+@media (max-width: 767px) {
+  #hc-small-screen-gate { display:flex; }
+  #hc-app-shell { display:none !important; }
+}
+</style>
+</helmet>
+<div id="hc-small-screen-gate" data-screen-label="Small-screen gate" style="flex-direction:column; align-items:center; justify-content:center; gap:16px; min-height:100vh; background:#f8faff; font-family:'Inter',sans-serif; text-align:center; padding:32px;">
+  <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:64px; height:32px; object-fit:contain;">
+  <div style="width:56px; height:56px; border-radius:14px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;">
+    <svg viewBox="0 0 24 24" style="width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+  </div>
+  <div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825;">This dashboard needs a bigger screen</div>
+  <div style="font-size:13.5px; color:#6b7280; max-width:300px; line-height:1.6;">The Nurse portal is designed for tablets, laptops and desktops. Please sign in from a device with a larger screen.</div>
+</div>
+<div id="hc-app-shell" style="display:flex; height:100vh; background:#f8faff; font-family:'Inter',sans-serif; color:#000825; overflow:hidden; position:relative;">
+
+  <aside style="width:230px; flex-shrink:0; background:#ffffff; border-right:1px solid #e8edf5; display:flex; flex-direction:column;">
+    <div style="height:64px; display:flex; align-items:center; gap:10px; padding:0 20px; border-bottom:1px solid #e8edf5;">
+      <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:44px; height:22px; object-fit:contain;">
+      <span style="font-family:'Lato',sans-serif; font-weight:800; font-size:16px; color:#000825;">HealthClouda</span>
+    </div>
+    <nav style="flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:6px 12px 4px;">Main</span>
+      <button onClick="{{ nav.dashboard }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.dashboard }}; color: {{ navFg.dashboard }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        Dashboard
+      </button>
+      <button onClick="{{ nav.patients }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.patients }}; color: {{ navFg.patients }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        My Patients
+      </button>
+      <button onClick="{{ nav.vitals }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.vitals }}; color: {{ navFg.vitals }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        Vitals
+      </button>
+      <button onClick="{{ nav.wards }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.wards }}; color: {{ navFg.wards }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></svg>
+        Ward &amp; Beds
+      </button>
+      <button onClick="{{ nav.admissions }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.admissions }}; color: {{ navFg.admissions }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        Admissions
+      </button>
+      <button onClick="{{ nav.careplans }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.careplans }}; color: {{ navFg.careplans }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif; opacity:0.6;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z"></path><path d="M12 8v6M9 11h6"></path></svg>
+        Care Plans <span style="margin-left:auto; font-size:9.5px; font-weight:700; color:#6b7280; background:#f3f6fb; border-radius:999px; padding:2px 8px;">Soon</span>
+      </button>
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:14px 12px 4px;">Other</span>
+      <button onClick="{{ nav.notifications }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.notifications }}; color: {{ navFg.notifications }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        Notifications
+        <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+          <span style="margin-left:auto; background:#dc2626; color:#ffffff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; min-width:18px; text-align:center;">{{ unreadCount }}</span>
+        </sc-if>
+      </button>
+    </nav>
+    <div style="border-top:1px solid #e8edf5; padding:14px 16px; display:flex; align-items:center; gap:10px;">
+      <div style="width:36px; height:36px; border-radius:50%; background:#EBF3FF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0075ff; flex-shrink:0;">NE</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12.5px; font-weight:700; color:#000825; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Ngozi Eze</div>
+        <div style="font-size:10.5px; color:#6b7280;">Nurse · General Ward A</div>
+      </div>
+      <button title="Logout" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:6px; border-radius:6px; cursor:pointer;" style-hover="color:#dc2626; background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16,17 21,12 16,7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex:1; display:flex; flex-direction:column; min-width:0;">
+    <header style="height:64px; flex-shrink:0; background:#ffffff; border-bottom:1px solid #e8edf5; display:flex; align-items:center; padding:0 28px; gap:14px;">
+      <div style="font-size:14.5px; font-weight:700; color:#000825; white-space:nowrap;">Nurse Portal</div>
+      <span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background:#dcfce7; color:#16a34a;">Lagos General Hospital</span>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
+        <button onClick="{{ toggleDuty }}" title="Toggle duty status" style="display:inline-flex; align-items:center; gap:8px; padding:8px 15px; border-radius:999px; font-size:12.5px; font-weight:700; border:1.5px solid {{ dutyBorder }}; background: {{ dutyBg }}; color: {{ dutyFg }}; cursor:pointer; font-family:'Inter',sans-serif; white-space:nowrap;">
+        <span style="width:8px; height:8px; border-radius:50%; background: {{ dutyDot }};"></span>
+        {{ dutyLabel }}
+        </button>
+        <button onClick="{{ nav.notifications }}" title="Notifications" style="position:relative; background:none; border:none; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#6b7280; cursor:pointer;" style-hover="background:#f8faff;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute; top:6px; right:6px; min-width:15px; height:15px; background:#dc2626; color:#ffffff; font-size:9px; font-weight:700; border-radius:999px; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; padding:0 2px;">{{ unreadCount }}</span>
+          </sc-if>
+        </button>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto; padding:26px 28px;">
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Dashboard">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Good morning, Ngozi</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Ward overview and patient activity for your shift.</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:18px;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">My Patients</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ statMyPatients }}</div>
+              <div style="font-size:12px; font-weight:500; color: {{ vitalsDueColor }};">{{ vitalsDueLabel }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Bed Occupancy</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#ede9fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ occupancyPct }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">{{ occupancyLabel }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Today's Admissions</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">3</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">2 discharges today</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Available Beds</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ availableBeds }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">{{ maintenanceLabel }}</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:16px;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+              <div style="padding:16px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e8edf5;">
+                <span style="font-size:13.5px; font-weight:700; color:#000825;">Vitals Due</span>
+                <button onClick="{{ nav.vitals }}" style="font-size:12px; font-weight:600; padding:6px 13px; border-radius:8px; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Open Vitals</button>
+              </div>
+              <div>
+                <sc-for list="{{ vitalsDueList }}" as="v" hint-placeholder-count="3">
+                  <div style="display:flex; align-items:center; gap:12px; padding:13px 22px; border-bottom:1px solid #f3f6fb;">
+                    <div style="width:34px; height:34px; border-radius:50%; background: {{ v.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ v.initials }}</div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; font-weight:600; color:#000825;">{{ v.name }}</div>
+                      <div style="font-size:11.5px; color:#6b7280;">{{ v.bed }} · last reading {{ v.lastReading }}</div>
+                    </div>
+                    <button onClick="{{ v.onRecord }}" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; font-size:11.5px; font-weight:600; border:1.5px solid #bfdbfe; background:#EBF3FF; color:#0075ff; cursor:pointer; white-space:nowrap; font-family:'Inter',sans-serif;">Record vitals</button>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ noVitalsDue }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center; padding:28px; font-size:12.5px; color:#6b7280;">All readings are up to date.</div>
+                </sc-if>
+              </div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+              <div style="font-size:13.5px; font-weight:700; color:#000825; margin-bottom:14px;">Ward Snapshot</div>
+              <div style="display:flex; flex-direction:column; gap:14px;">
+                <sc-for list="{{ wardSnapshot }}" as="w" hint-placeholder-count="4">
+                  <div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+                      <span style="font-size:12.5px; font-weight:600; color:#374151;">{{ w.name }}</span>
+                      <span style="font-size:11.5px; font-weight:600; color: {{ w.fg }};">{{ w.occLabel }}</span>
+                    </div>
+                    <div style="height:6px; background:#f0f4fb; border-radius:4px; overflow:hidden;">
+                      <div style="height:100%; border-radius:4px; width: {{ w.pct }}; background: {{ w.barColor }};"></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPatients }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="My Patients">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">My Patients</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Patients currently admitted to your wards</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5;">
+              <select value="{{ patientWard }}" onChange="{{ setPatientWard }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                <option value="">All Wards</option>
+                <option value="General Ward A">General Ward A</option>
+                <option value="Maternity">Maternity</option>
+                <option value="Pediatrics">Pediatrics</option>
+                <option value="ICU">ICU</option>
+              </select>
+              <span style="margin-left:auto; font-size:12px; color:#6b7280; font-weight:500;">{{ patientCountLabel }}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Bed</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Age</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Blood</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Allergies</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Chief Complaint</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Days</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ patientRows }}" as="p" hint-placeholder-count="6">
+                    <tr>
+                      <td style="padding:13px 20px; font-size:12px; font-weight:700; color:#0075ff; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace; white-space:nowrap;">{{ p.bed }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ p.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ p.name }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ p.hclId }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ p.age }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; background:#fee2e2; color:#dc2626;">{{ p.blood }}</span></td>
+                      <td style="padding:13px 20px; font-size:12.5px; color: {{ p.allergyColor }}; font-weight: {{ p.allergyWeight }}; border-bottom:1px solid #f3f6fb;">{{ p.allergies }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; max-width:220px;">{{ p.complaint }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ p.days }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <button onClick="{{ p.onRecord }}" style="background:#EBF3FF; border:1px solid #bfdbfe; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#0075ff; white-space:nowrap; font-family:'Inter',sans-serif;">Record vitals</button>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ patientEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No admitted patients</div>
+                  <div style="font-size:12.5px;">Patients admitted to your wards will appear here.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isVitals }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Vitals">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Vitals</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Review the latest reading and record a new one</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1.35fr; gap:16px; align-items:start;">
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+                <label style="font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:8px;">Patient</label>
+                <select value="{{ vitalsPatientId }}" onChange="{{ setVitalsPatient }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+                  <option value="1">Chinwe Eze — GA-03</option>
+                  <option value="2">Babatunde Ogun — GA-07</option>
+                  <option value="3">Fatima Aliyu — M-02</option>
+                  <option value="4">Samuel Okonkwo — GA-09</option>
+                  <option value="5">Adaeze Nwankwo — P-04</option>
+                  <option value="6">Oluwaseun Adebisi — ICU-02</option>
+                </select>
+                <div style="display:flex; align-items:center; gap:12px; margin-top:16px;">
+                  <div style="width:44px; height:44px; border-radius:50%; background: {{ vPat.avatarBg }}; color:#ffffff; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ vPat.initials }}</div>
+                  <div>
+                    <div style="font-size:14px; font-weight:700; color:#000825;">{{ vPat.name }}</div>
+                    <div style="font-size:11.5px; color:#6b7280; margin-top:1px;">{{ vPat.meta }}</div>
+                  </div>
+                </div>
+                <sc-if value="{{ vPat.hasAllergies }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; gap:8px; align-items:center; background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; padding:8px 12px; margin-top:12px;">
+                    <svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:#dc2626; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <span style="font-size:12px; font-weight:600; color:#991b1b;">Allergies: {{ vPat.allergies }}</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+                <div style="padding:14px 22px; border-bottom:1px solid #e8edf5; display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:13px; font-weight:700; color:#000825;">Latest Reading</span>
+                  <span style="font-size:11px; color:#6b7280;">{{ vPat.readingWhen }}</span>
+                </div>
+                <sc-if value="{{ vPat.hasReading }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#f3f6fb;">
+                    <div style="background:#ffffff; padding:14px 18px;"><div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Blood Pressure</div><div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825; margin-top:3px;">{{ vPat.bp }} <span style="font-size:11px; font-weight:600; color:#6b7280;">mmHg</span></div></div>
+                    <div style="background:#ffffff; padding:14px 18px;"><div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Temperature</div><div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color: {{ vPat.tempColor }}; margin-top:3px;">{{ vPat.temp }} <span style="font-size:11px; font-weight:600; color:#6b7280;">°C</span></div></div>
+                    <div style="background:#ffffff; padding:14px 18px;"><div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Pulse</div><div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825; margin-top:3px;">{{ vPat.pulse }} <span style="font-size:11px; font-weight:600; color:#6b7280;">bpm</span></div></div>
+                    <div style="background:#ffffff; padding:14px 18px;"><div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Respiratory</div><div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825; margin-top:3px;">{{ vPat.resp }} <span style="font-size:11px; font-weight:600; color:#6b7280;">/min</span></div></div>
+                    <div style="background:#ffffff; padding:14px 18px;"><div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">O₂ Saturation</div><div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color: {{ vPat.spo2Color }}; margin-top:3px;">{{ vPat.spo2 }} <span style="font-size:11px; font-weight:600; color:#6b7280;">%</span></div></div>
+                    <div style="background:#ffffff; padding:14px 18px;"><div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.06em;">Weight</div><div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825; margin-top:3px;">{{ vPat.weight }} <span style="font-size:11px; font-weight:600; color:#6b7280;">kg</span></div></div>
+                  </div>
+                  <div style="padding:10px 22px; border-top:1px solid #f3f6fb; font-size:11px; color:#6b7280;">Recorded by {{ vPat.readingBy }}</div>
+                </sc-if>
+                <sc-if value="{{ vPat.noReading }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center; padding:32px 24px; color:#6b7280;">
+                    <div style="font-size:13px; font-weight:600; color:#374151; margin-bottom:3px;">No vitals recorded yet</div>
+                    <div style="font-size:12px;">Record the first reading for this admission.</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+              <div style="padding:16px 22px; border-bottom:1px solid #e8edf5; font-size:13.5px; font-weight:700; color:#000825;">Record New Reading</div>
+              <div style="padding:22px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 14px;">
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">BP Systolic <span style="color:#b0bcc8; font-weight:500;">mmHg · 50–300</span></label>
+                    <input type="number" placeholder="e.g. 120" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">BP Diastolic <span style="color:#b0bcc8; font-weight:500;">mmHg · 20–200</span></label>
+                    <input type="number" placeholder="e.g. 80" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">Temperature <span style="color:#b0bcc8; font-weight:500;">°C · 30–45</span></label>
+                    <input type="number" step="0.1" placeholder="e.g. 36.8" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">Pulse Rate <span style="color:#b0bcc8; font-weight:500;">bpm · 20–250</span></label>
+                    <input type="number" placeholder="e.g. 78" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">Respiratory Rate <span style="color:#b0bcc8; font-weight:500;">/min · 5–60</span></label>
+                    <input type="number" placeholder="e.g. 16" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">O₂ Saturation <span style="color:#b0bcc8; font-weight:500;">% · 50–100</span></label>
+                    <input type="number" placeholder="e.g. 98" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">Weight <span style="color:#b0bcc8; font-weight:500;">kg · 0.5–500</span></label>
+                    <input type="number" step="0.1" placeholder="e.g. 68" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <label style="font-size:12px; font-weight:600; color:#374151;">Height <span style="color:#b0bcc8; font-weight:500;">cm · 20–300</span></label>
+                    <input type="number" step="0.1" placeholder="e.g. 165" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; margin-top:14px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151;">Notes</label>
+                  <textarea rows="2" maxLength="500" placeholder="Additional observations…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:18px;">
+                  <button onClick="{{ saveVitals }}" style="padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Save Vitals</button>
+                  <span style="font-size:11.5px; color:#6b7280;">At least one measurement is required.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isWards }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Ward and Beds">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Ward &amp; Bed Management</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Manage wards, beds, and their availability</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button onClick="{{ openAddBed }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">+ Add Bed</button>
+              <button onClick="{{ openAddWard }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">+ Add Ward</button>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:16px; font-size:12px; color:#6b7280; font-weight:500; margin-bottom:16px;">
+            <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; border-radius:4px; background:#0075ff;"></span> Occupied</span>
+            <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; border-radius:4px; background:#ffffff; border:1.5px solid #c9d4e5;"></span> Available</span>
+            <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; border-radius:4px; background:#fef3c7; border:1.5px solid #fde68a;"></span> Maintenance</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px;">
+            <sc-for list="{{ wardCards }}" as="w" hint-placeholder-count="4">
+              <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="font-size:14.5px; font-weight:700; color:#000825;">{{ w.name }}</div>
+                    <span style="display:inline-flex; padding:2px 9px; border-radius:999px; font-size:10px; font-weight:700; background:#f3f6fb; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">{{ w.category }}</span>
+                  </div>
+                  <span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ w.badgeBg }}; color: {{ w.badgeFg }};">{{ w.badgeLabel }}</span>
+                </div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom:12px;">{{ w.occLabel }}</div>
+                <div style="height:7px; background:#f0f4fb; border-radius:4px; overflow:hidden; margin-bottom:16px;">
+                  <div style="height:100%; border-radius:4px; width: {{ w.pct }}; background: {{ w.barColor }};"></div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                  <sc-for list="{{ w.beds }}" as="b" hint-placeholder-count="8">
+                    <div title="{{ b.title }}" style="width:52px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; font-family:ui-monospace,'SF Mono',Menlo,monospace; background: {{ b.bg }}; color: {{ b.fg }}; border:1.5px solid {{ b.border }};">{{ b.no }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAdmissions }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Admissions">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Admissions</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Manage patient admissions, discharges, and transfers</div>
+            </div>
+            <button onClick="{{ openAdmit }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">+ Admit Patient</button>
+          </div>
+          <div style="display:flex; gap:4px; border-bottom:2px solid #e8edf5; margin-bottom:16px;">
+            <button onClick="{{ tabActive }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ tabActiveFg }}; background:none; border:none; border-bottom:2px solid {{ tabActiveBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Active</button>
+            <button onClick="{{ tabDischarged }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ tabDischargedFg }}; background:none; border:none; border-bottom:2px solid {{ tabDischargedBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Discharged</button>
+            <button onClick="{{ tabTransferred }}" style="padding:9px 16px; font-size:13px; font-weight:600; color: {{ tabTransferredFg }}; background:none; border:none; border-bottom:2px solid {{ tabTransferredBorder }}; margin-bottom:-2px; cursor:pointer; font-family:'Inter',sans-serif;">Transferred</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5;">
+              <select value="{{ admWard }}" onChange="{{ setAdmWard }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                <option value="">All Wards</option>
+                <option value="General Ward A">General Ward A</option>
+                <option value="Maternity">Maternity</option>
+                <option value="Pediatrics">Pediatrics</option>
+                <option value="ICU">ICU</option>
+              </select>
+              <span style="margin-left:auto; font-size:12px; color:#6b7280; font-weight:500;">{{ admCountLabel }}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Ward / Bed</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Admitted</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Days</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Reason</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ admRows }}" as="a" hint-placeholder-count="5">
+                    <tr>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ a.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ a.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ a.name }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px; font-family:ui-monospace,'SF Mono',Menlo,monospace;">{{ a.hclId }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ a.wardBed }}</td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ a.admitted }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ a.days }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; max-width:240px;">{{ a.reason }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ a.badgeBg }}; color: {{ a.badgeFg }};">{{ a.statusLabel }}</span></td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <sc-if value="{{ a.isActive }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex; gap:6px;">
+                            <button onClick="{{ a.onTransfer }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#374151; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Transfer</button>
+                            <button onClick="{{ a.onDischarge }}" style="background:none; border:1px solid #fde68a; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#d97706; font-family:'Inter',sans-serif;">Discharge</button>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ a.notActive }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:12px; color:#b0bcc8;">—</span>
+                        </sc-if>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ admEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">{{ admEmptyTitle }}</div>
+                  <div style="font-size:12.5px;">Try a different ward or tab.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCarePlans }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Care Plans (coming soon)" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:14px; text-align:center;">
+          <div style="width:64px; height:64px; border-radius:16px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 24 24" style="width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z"></path><path d="M12 8v6M9 11h6"></path></svg>
+          </div>
+          <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825;">Care Plans are coming soon</div>
+          <div style="font-size:13.5px; color:#6b7280; max-width:380px; line-height:1.6;">Structured nursing care plans — goals, interventions and progress notes per admission — are on the roadmap. Until then, keep using vitals notes for observations.</div>
+          <span style="display:inline-flex; padding:5px 14px; border-radius:999px; font-size:11.5px; font-weight:700; background:#fef3c7; color:#d97706; margin-top:4px;">On the roadmap</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNotifications }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Notifications">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Notifications</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Stay updated on your tasks and alerts</div>
+            </div>
+            <button onClick="{{ markAllRead }}" style="padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Mark all as read</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <sc-for list="{{ notifItems }}" as="n" hint-placeholder-count="4">
+              <div style="display:flex; gap:14px; padding:16px 22px; border-bottom:1px solid #f3f6fb; background: {{ n.bg }}; align-items:flex-start;">
+                <div style="width:36px; height:36px; border-radius:50%; background: {{ n.chipBg }}; color: {{ n.chipFg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="{{ n.iconPath }}"></path></svg>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13px; font-weight:600; color:#000825; line-height:1.4;">{{ n.title }}</div>
+                  <div style="font-size:12px; color:#6b7280; line-height:1.4; margin-top:2px;">{{ n.desc }}</div>
+                </div>
+                <div style="font-size:11px; color:#b0bcc8; white-space:nowrap; flex-shrink:0;">{{ n.time }}</div>
+                <sc-if value="{{ n.unread }}" hint-placeholder-val="{{ false }}">
+                  <span style="width:8px; height:8px; border-radius:50%; background:#0075ff; flex-shrink:0; margin-top:6px;"></span>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">You're all caught up</div>
+                <div style="font-size:12.5px;">New notifications will appear here.</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ anyOverlayOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAll }}" style="position:fixed; inset:0; background:rgba(0,8,37,0.35); backdrop-filter:blur(2px); z-index:300; animation:hcFadeIn 0.2s ease;"></div>
+  </sc-if>
+
+  <sc-if value="{{ showWardForm }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Ward form" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Add Ward</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Create a new ward and its beds</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Ward Name *</label>
+          <input type="text" placeholder="e.g. Medical Ward B" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Category *</label>
+            <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif;">
+              <option value="">Select…</option>
+              <option value="MEDICAL">Medical</option>
+              <option value="SURGICAL">Surgical</option>
+              <option value="EMERGENCY">Emergency</option>
+              <option value="GYNAECOLOGY">Gynaecology</option>
+              <option value="PAEDIATRIC">Paediatric</option>
+              <option value="ICU">ICU</option>
+              <option value="MATERNITY">Maternity</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:12px; font-weight:600; color:#374151;">Gender</label>
+            <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif;">
+              <option value="BOTH">Both</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Total Beds *</label>
+          <input type="number" min="1" placeholder="e.g. 20" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitWard }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Create Ward</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showBedForm }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Bed form" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Add Bed</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Add a bed to an existing ward</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Ward *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select ward…</option>
+            <option value="ga">General Ward A</option>
+            <option value="m">Maternity</option>
+            <option value="p">Pediatrics</option>
+            <option value="icu">ICU</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Bed Number *</label>
+          <input type="text" placeholder="e.g. GA-13" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Status</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="AVAILABLE">Available</option>
+            <option value="MAINTENANCE">Maintenance</option>
+            <option value="RESERVED">Reserved</option>
+          </select>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitBed }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Create Bed</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showAdmitForm }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Admit patient" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Admit Patient</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Assign a patient with an active episode to a bed</div>
+        </div>
+        <button onClick="{{ closeAll }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select patient…</option>
+            <option value="1">Aisha Bello — HCL-2026-01566 (active episode)</option>
+            <option value="2">Mary Nwachukwu — HCL-2024-09215 (active episode)</option>
+            <option value="3">Ibrahim Danjuma — HCL-2025-04083 (active episode)</option>
+          </select>
+          <div style="font-size:11px; color:#6b7280; line-height:1.5;">Only patients with an active episode can be admitted.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Ward *</label>
+          <select value="{{ admitWard }}" onChange="{{ setAdmitWard }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select ward…</option>
+            <option value="General Ward A">General Ward A</option>
+            <option value="Maternity">Maternity</option>
+            <option value="Pediatrics">Pediatrics</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Bed *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">{{ admitBedPlaceholder }}</option>
+            <sc-for list="{{ admitBedOptions }}" as="b">
+              <option value="{{ b.no }}">{{ b.no }} — available</option>
+            </sc-for>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Admission Reason *</label>
+          <textarea rows="3" placeholder="Reason for admission…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitAdmit }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Admit Patient</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showDischarge }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Modal: Discharge" style="position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; padding:16px;">
+      <div style="background:#ffffff; border-radius:14px; padding:28px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,8,37,0.2); animation:hcModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1); position:relative;">
+        <div style="width:52px; height:52px; border-radius:50%; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+          <svg viewBox="0 0 24 24" style="width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16,17 21,12 16,7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </div>
+        <div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; text-align:center; margin-bottom:6px;">Discharge Patient</div>
+        <div style="font-size:12.5px; color:#6b7280; text-align:center; margin-bottom:18px;">Discharging <b style="color:#000825;">{{ modalPatientName }}</b> from {{ modalWardBed }}</div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Discharge Summary</label>
+          <textarea rows="3" placeholder="Patient recovery summary…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Discharge Instructions</label>
+          <textarea rows="3" placeholder="Follow-up instructions…" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+          <button onClick="{{ confirmDischarge }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#d97706; color:#ffffff; border:none; cursor:pointer; font-family:'Inter',sans-serif;">Discharge Patient</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showTransfer }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Modal: Transfer" style="position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; padding:16px;">
+      <div style="background:#ffffff; border-radius:14px; padding:28px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,8,37,0.2); animation:hcModalIn 0.25s cubic-bezier(0.34,1.56,0.64,1); position:relative;">
+        <div style="width:52px; height:52px; border-radius:50%; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
+          <svg viewBox="0 0 24 24" style="width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><polyline points="15 3 21 3 21 9"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><polyline points="9 21 3 21 3 15"></polyline><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        </div>
+        <div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; text-align:center; margin-bottom:6px;">Transfer Patient</div>
+        <div style="font-size:12.5px; color:#6b7280; text-align:center; margin-bottom:18px;">Moving <b style="color:#000825;">{{ modalPatientName }}</b> from {{ modalWardBed }} to a new bed</div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:14px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Ward</label>
+          <select value="{{ transferWard }}" onChange="{{ setTransferWard }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select ward…</option>
+            <option value="General Ward A">General Ward A</option>
+            <option value="Maternity">Maternity</option>
+            <option value="Pediatrics">Pediatrics</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">New Bed *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">{{ transferBedPlaceholder }}</option>
+            <sc-for list="{{ transferBedOptions }}" as="b">
+              <option value="{{ b.no }}">{{ b.no }} — available</option>
+            </sc-for>
+          </select>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button onClick="{{ closeAll }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+          <button onClick="{{ confirmTransfer }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Transfer</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; background: {{ toastBg }}; color:#ffffff; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; display:flex; align-items:center; gap:8px; box-shadow:0 4px 20px rgba(0,8,37,0.2); animation:hcToastIn 0.25s cubic-bezier(0.4,0,0.2,1);">
+      <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      {{ toastMsg }}
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;emptyStates&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;Show all tables, wards and lists in their empty states&quot;}, &quot;offDuty&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;(Design aid) The duty pill is also directly clickable in the prototype&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      page: 'dashboard', panel: null, modal: null, selAdm: null,
+      duty: !(props.offDuty ?? false), admTab: 'ACTIVE', admWard: '', patientWard: '',
+      vitalsPatientId: '1', admitWard: '', transferWard: '',
+      toast: null,
+      notifs: [
+        { id: 1, kind: 'warning', title: 'Vitals overdue', desc: 'Samuel Okonkwo (GA-09) has no reading in the last 8 hours', time: '15 min ago', read: false },
+        { id: 2, kind: 'info', title: 'New admission to your ward', desc: 'Adaeze Nwankwo admitted to Pediatrics P-04 by Yemi Alade', time: '1 hour ago', read: false },
+        { id: 3, kind: 'warning', title: 'ICU at full capacity', desc: 'All 6 ICU beds are occupied', time: '2 hours ago', read: false },
+        { id: 4, kind: 'success', title: 'Discharge completed', desc: 'Blessing Nwosu discharged from GA-11', time: 'Today, 07:20', read: true },
+        { id: 5, kind: 'info', title: 'Shift note', desc: 'Dr. Emeka Obi updated care plan for Chinwe Eze', time: 'Yesterday, 22:10', read: true },
+      ],
+      patients: [
+        { id: 1, name: 'Chinwe Eze', hclId: 'HCL-2025-08841', bed: 'GA-03', ward: 'General Ward A', age: 34, blood: 'O+', allergies: 'Penicillin', complaint: 'Chest pain, shortness of breath', days: 2, vit: { bp: '128/84', temp: 37.1, pulse: 82, resp: 16, spo2: 97, weight: 68, when: 'Today, 06:45', by: 'Ngozi Eze' }, due: false },
+        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', bed: 'GA-07', ward: 'General Ward A', age: 58, blood: 'A+', allergies: 'None', complaint: 'Post-surgical recovery — appendectomy', days: 4, vit: { bp: '135/88', temp: 36.9, pulse: 76, resp: 15, spo2: 98, weight: 81, when: 'Today, 06:30', by: 'Ngozi Eze' }, due: false },
+        { id: 3, name: 'Fatima Aliyu', hclId: 'HCL-2025-11302', bed: 'M-02', ward: 'Maternity', age: 27, blood: 'B+', allergies: 'Sulfa drugs', complaint: 'Pre-eclampsia monitoring', days: 3, vit: { bp: '146/94', temp: 37.0, pulse: 90, resp: 18, spo2: 97, weight: 74, when: 'Today, 05:50', by: 'Halima Suleiman' }, due: false },
+        { id: 4, name: 'Samuel Okonkwo', hclId: 'HCL-2023-00958', bed: 'GA-09', ward: 'General Ward A', age: 45, blood: 'O-', allergies: 'None', complaint: 'Malaria with dehydration', days: 1, vit: { bp: '118/76', temp: 38.6, pulse: 96, resp: 19, spo2: 96, weight: 77, when: 'Yesterday, 22:15', by: 'Night shift' }, due: true },
+        { id: 5, name: 'Adaeze Nwankwo', hclId: 'HCL-2026-02311', bed: 'P-04', ward: 'Pediatrics', age: 8, blood: 'AB+', allergies: 'Peanuts', complaint: 'Severe asthma exacerbation', days: 0, vit: null, due: true },
+        { id: 6, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', bed: 'ICU-02', ward: 'ICU', age: 61, blood: 'A-', allergies: 'None', complaint: 'Septic shock — stabilising', days: 5, vit: { bp: '102/64', temp: 37.8, pulse: 104, resp: 22, spo2: 93, weight: 70, when: 'Today, 07:00', by: 'Ngozi Eze' }, due: false },
+      ],
+      admissions: [
+        { id: 1, pid: 1, admitted: 'Jul 27, 2026', reason: 'Chest pain, shortness of breath', status: 'ACTIVE' },
+        { id: 2, pid: 2, admitted: 'Jul 25, 2026', reason: 'Post-surgical recovery — appendectomy', status: 'ACTIVE' },
+        { id: 3, pid: 3, admitted: 'Jul 26, 2026', reason: 'Pre-eclampsia monitoring', status: 'ACTIVE' },
+        { id: 4, pid: 4, admitted: 'Jul 28, 2026', reason: 'Malaria with dehydration', status: 'ACTIVE' },
+        { id: 5, pid: 5, admitted: 'Jul 29, 2026', reason: 'Severe asthma exacerbation', status: 'ACTIVE' },
+        { id: 6, pid: 6, admitted: 'Jul 24, 2026', reason: 'Septic shock — stabilising', status: 'ACTIVE' },
+        { id: 7, name: 'Blessing Nwosu', hclId: 'HCL-2024-05512', wardBed: 'General Ward A · GA-11', admitted: 'Jul 22, 2026', days: 7, reason: 'Typhoid fever treatment', status: 'DISCHARGED' },
+        { id: 8, name: 'Musa Ibrahim', hclId: 'HCL-2025-09148', wardBed: 'General Ward A · GA-05', admitted: 'Jul 20, 2026', days: 6, reason: 'Diabetic ketoacidosis', status: 'DISCHARGED' },
+        { id: 9, name: 'Kelechi Obi', hclId: 'HCL-2026-00877', wardBed: 'Pediatrics · P-08 → ICU-04', admitted: 'Jul 26, 2026', days: 3, reason: 'Deteriorating pneumonia — moved to ICU', status: 'TRANSFERRED' },
+      ],
+      wards: [
+        { name: 'General Ward A', prefix: 'GA', category: 'Medical', beds: ['O','O','O','A','O','M','O','A','O','O','O','O'] },
+        { name: 'Maternity', prefix: 'M', category: 'Maternity', beds: ['O','O','A','O','A','O','A','O'] },
+        { name: 'Pediatrics', prefix: 'P', category: 'Paediatric', beds: ['O','A','A','O','A','O','A','A','O','A'] },
+        { name: 'ICU', prefix: 'ICU', category: 'ICU', beds: ['O','O','O','O','O','O'] },
+      ],
+    };
+    this._avatarColors = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#dc2626'];
+  }
+  initials(name) { return name.replace(/^Dr\.\s*/, '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
+  color(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; return this._avatarColors[h % this._avatarColors.length]; }
+  fireToast(msg, bg) {
+    clearTimeout(this._toastT);
+    this.setState({ toast: { msg, bg: bg || '#16a34a' } });
+    this._toastT = setTimeout(() => this.setState({ toast: null }), 2600);
+  }
+  bedsOf(wardName) {
+    const w = this.state.wards.find(w => w.name === wardName);
+    if (!w) return [];
+    return w.beds.map((s, i) => ({ no: w.prefix + '-' + String(i + 1).padStart(2, '0'), s })).filter(b => b.s === 'A');
+  }
+  renderVals() {
+    const s = this.state;
+    const emptyAll = this.props.emptyStates ?? false;
+    const pages = ['dashboard', 'patients', 'vitals', 'wards', 'admissions', 'careplans', 'notifications'];
+    const nav = {}, navBg = {}, navFg = {};
+    pages.forEach(p => {
+      nav[p] = () => this.setState({ page: p });
+      navBg[p] = s.page === p ? '#EBF3FF' : 'transparent';
+      navFg[p] = s.page === p ? '#0075ff' : '#6b7280';
+    });
+    const pats = emptyAll ? [] : s.patients;
+    const patFiltered = pats.filter(p => !s.patientWard || p.ward === s.patientWard);
+    const decorate = p => ({
+      ...p, initials: this.initials(p.name), avatarBg: this.color(p.name),
+      allergyColor: p.allergies === 'None' ? '#6b7280' : '#dc2626',
+      allergyWeight: p.allergies === 'None' ? '400' : '600',
+      onRecord: () => this.setState({ page: 'vitals', vitalsPatientId: String(p.id) }),
+    });
+    const due = pats.filter(p => p.due).map(p => ({
+      ...decorate(p),
+      lastReading: p.vit ? p.vit.when.toLowerCase() : 'never',
+    }));
+    const vp = s.patients.find(p => String(p.id) === s.vitalsPatientId) || s.patients[0];
+    const vPat = {
+      ...vp, initials: this.initials(vp.name), avatarBg: this.color(vp.name),
+      meta: vp.hclId + ' · ' + vp.ward + ' · ' + vp.bed + ' · ' + vp.age + ' yrs · ' + vp.blood,
+      hasAllergies: vp.allergies !== 'None',
+      hasReading: !!vp.vit, noReading: !vp.vit,
+      bp: vp.vit ? vp.vit.bp : '—', temp: vp.vit ? vp.vit.temp.toFixed(1) : '—',
+      tempColor: vp.vit && vp.vit.temp >= 38 ? '#dc2626' : '#000825',
+      pulse: vp.vit ? vp.vit.pulse : '—', resp: vp.vit ? vp.vit.resp : '—',
+      spo2: vp.vit ? vp.vit.spo2 : '—',
+      spo2Color: vp.vit && vp.vit.spo2 < 95 ? '#dc2626' : '#000825',
+      weight: vp.vit ? vp.vit.weight : '—',
+      readingWhen: vp.vit ? vp.vit.when : 'No reading yet',
+      readingBy: vp.vit ? vp.vit.by : '—',
+    };
+    const wardCards = (emptyAll ? [] : s.wards).map(w => {
+      const occ = w.beds.filter(b => b === 'O').length;
+      const total = w.beds.length;
+      const pct = Math.round((occ / total) * 100);
+      const full = occ >= total, high = pct >= 75 && !full;
+      return {
+        ...w,
+        beds: w.beds.map((st, i) => ({
+          no: w.prefix + '-' + String(i + 1).padStart(2, '0'),
+          title: st === 'O' ? 'Occupied' : st === 'M' ? 'Maintenance' : 'Available',
+          bg: st === 'O' ? '#0075ff' : st === 'M' ? '#fef3c7' : '#ffffff',
+          fg: st === 'O' ? '#ffffff' : st === 'M' ? '#d97706' : '#6b7280',
+          border: st === 'O' ? '#0075ff' : st === 'M' ? '#fde68a' : '#c9d4e5',
+        })),
+        pct: pct + '%', occLabel: occ + ' of ' + total + ' beds occupied',
+        barColor: full ? '#dc2626' : high ? '#d97706' : '#0075ff',
+        badgeLabel: full ? 'Full' : high ? 'Near capacity' : 'Available',
+        badgeBg: full ? '#fee2e2' : high ? '#fef3c7' : '#dcfce7',
+        badgeFg: full ? '#dc2626' : high ? '#d97706' : '#16a34a',
+      };
+    });
+    const wardSnapshot = s.wards.map(w => {
+      const occ = w.beds.filter(b => b === 'O').length, total = w.beds.length;
+      const pct = Math.round((occ / total) * 100), full = occ >= total;
+      return { name: w.name, pct: pct + '%', occLabel: occ + '/' + total, fg: full ? '#dc2626' : '#6b7280', barColor: full ? '#dc2626' : pct >= 75 ? '#d97706' : '#0075ff' };
+    });
+    const totalBeds = s.wards.reduce((n, w) => n + w.beds.length, 0);
+    const occBeds = s.wards.reduce((n, w) => n + w.beds.filter(b => b === 'O').length, 0);
+    const maintBeds = s.wards.reduce((n, w) => n + w.beds.filter(b => b === 'M').length, 0);
+    const adms = (emptyAll ? [] : s.admissions).map(a => {
+      const p = a.pid ? s.patients.find(p => p.id === a.pid) : null;
+      const name = p ? p.name : a.name;
+      return {
+        ...a, name, hclId: p ? p.hclId : a.hclId,
+        wardBed: p ? p.ward + ' · ' + p.bed : a.wardBed,
+        ward: p ? p.ward : (a.wardBed || '').split(' · ')[0],
+        days: p ? p.days : a.days,
+        initials: this.initials(name), avatarBg: this.color(name),
+        isActive: a.status === 'ACTIVE', notActive: a.status !== 'ACTIVE',
+        statusLabel: a.status === 'ACTIVE' ? 'Active' : a.status === 'DISCHARGED' ? 'Discharged' : 'Transferred',
+        badgeBg: a.status === 'ACTIVE' ? '#dcfce7' : a.status === 'DISCHARGED' ? '#f3f4f6' : '#EBF3FF',
+        badgeFg: a.status === 'ACTIVE' ? '#16a34a' : a.status === 'DISCHARGED' ? '#374151' : '#0075ff',
+        onDischarge: () => this.setState({ modal: 'discharge', selAdm: a.id }),
+        onTransfer: () => this.setState({ modal: 'transfer', selAdm: a.id, transferWard: '' }),
+      };
+    });
+    const admRows = adms.filter(a => a.status === s.admTab && (!s.admWard || a.ward === s.admWard));
+    const selAdm = adms.find(a => a.id === s.selAdm) || adms[0] || { name: '—', wardBed: '—' };
+    const unread = s.notifs.filter(n => !n.read).length;
+    const notifItems = (emptyAll ? [] : s.notifs).map(n => ({
+      ...n, unread: !n.read,
+      bg: n.read ? 'transparent' : '#f0f6ff',
+      chipBg: n.kind === 'success' ? '#dcfce7' : n.kind === 'warning' ? '#fef3c7' : '#EBF3FF',
+      chipFg: n.kind === 'success' ? '#16a34a' : n.kind === 'warning' ? '#d97706' : '#0075ff',
+      iconPath: n.kind === 'success' ? 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3' : n.kind === 'warning' ? 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01' : 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9',
+    }));
+    const tab = (t) => ({ fg: s.admTab === t ? '#0075ff' : '#6b7280', border: s.admTab === t ? '#0075ff' : 'transparent' });
+    return {
+      nav, navBg, navFg,
+      isDashboard: s.page === 'dashboard', isPatients: s.page === 'patients', isVitals: s.page === 'vitals',
+      isWards: s.page === 'wards', isAdmissions: s.page === 'admissions', isNotifications: s.page === 'notifications',
+      isCarePlans: s.page === 'careplans',
+      duty: s.duty,
+      dutyLabel: s.duty ? 'On Duty' : 'Off Duty',
+      dutyBg: s.duty ? '#dcfce7' : '#f3f4f6', dutyFg: s.duty ? '#16a34a' : '#6b7280',
+      dutyBorder: s.duty ? '#bbf7d0' : '#e8edf5', dutyDot: s.duty ? '#16a34a' : '#b0bcc8',
+      toggleDuty: () => { const d = !s.duty; this.setState({ duty: d }); this.fireToast(d ? 'You are now on duty' : 'You are now off duty', d ? '#16a34a' : '#374151'); },
+      statMyPatients: pats.length,
+      vitalsDueLabel: due.length ? due.length + ' vitals reading' + (due.length > 1 ? 's' : '') + ' due' : 'All readings up to date',
+      vitalsDueColor: due.length ? '#d97706' : '#16a34a',
+      occupancyPct: Math.round((occBeds / totalBeds) * 100) + '%',
+      occupancyLabel: occBeds + ' of ' + totalBeds + ' beds occupied',
+      availableBeds: totalBeds - occBeds - maintBeds,
+      maintenanceLabel: maintBeds + ' bed under maintenance',
+      vitalsDueList: due, noVitalsDue: due.length === 0,
+      wardSnapshot,
+      patientRows: patFiltered.map(decorate),
+      patientEmpty: patFiltered.length === 0,
+      patientCountLabel: 'Showing ' + patFiltered.length + ' of ' + pats.length + ' patients',
+      patientWard: s.patientWard,
+      setPatientWard: e => this.setState({ patientWard: e.target.value }),
+      vitalsPatientId: s.vitalsPatientId, vPat,
+      setVitalsPatient: e => this.setState({ vitalsPatientId: e.target.value }),
+      saveVitals: () => this.fireToast('Vitals saved for ' + vp.name),
+      wardCards,
+      admTab: s.admTab,
+      tabActive: () => this.setState({ admTab: 'ACTIVE' }),
+      tabDischarged: () => this.setState({ admTab: 'DISCHARGED' }),
+      tabTransferred: () => this.setState({ admTab: 'TRANSFERRED' }),
+      tabActiveFg: tab('ACTIVE').fg, tabActiveBorder: tab('ACTIVE').border,
+      tabDischargedFg: tab('DISCHARGED').fg, tabDischargedBorder: tab('DISCHARGED').border,
+      tabTransferredFg: tab('TRANSFERRED').fg, tabTransferredBorder: tab('TRANSFERRED').border,
+      admWard: s.admWard,
+      setAdmWard: e => this.setState({ admWard: e.target.value }),
+      admRows, admEmpty: admRows.length === 0,
+      admEmptyTitle: s.admTab === 'ACTIVE' ? 'No active admissions' : s.admTab === 'DISCHARGED' ? 'No discharged patients' : 'No transfers',
+      admCountLabel: admRows.length + ' admission' + (admRows.length !== 1 ? 's' : ''),
+      notifItems, notifEmpty: notifItems.length === 0,
+      hasUnread: unread > 0, unreadCount: unread,
+      markAllRead: () => this.setState(p => ({ notifs: p.notifs.map(n => ({ ...n, read: true })) })),
+      anyOverlayOpen: !!s.panel || !!s.modal,
+      showWardForm: s.panel === 'addWard', showBedForm: s.panel === 'addBed', showAdmitForm: s.panel === 'admit',
+      showDischarge: s.modal === 'discharge', showTransfer: s.modal === 'transfer',
+      openAddWard: () => this.setState({ panel: 'addWard' }),
+      openAddBed: () => this.setState({ panel: 'addBed' }),
+      openAdmit: () => this.setState({ panel: 'admit', admitWard: '' }),
+      submitWard: () => { this.setState({ panel: null }); this.fireToast('Ward created'); },
+      submitBed: () => { this.setState({ panel: null }); this.fireToast('Bed added'); },
+      submitAdmit: () => { this.setState({ panel: null }); this.fireToast('Patient admitted'); },
+      admitWard: s.admitWard,
+      setAdmitWard: e => this.setState({ admitWard: e.target.value }),
+      admitBedOptions: this.bedsOf(s.admitWard),
+      admitBedPlaceholder: s.admitWard ? 'Select bed…' : 'Select ward first…',
+      transferWard: s.transferWard,
+      setTransferWard: e => this.setState({ transferWard: e.target.value }),
+      transferBedOptions: this.bedsOf(s.transferWard),
+      transferBedPlaceholder: s.transferWard ? 'Select bed…' : 'Select ward first…',
+      modalPatientName: selAdm.name, modalWardBed: selAdm.wardBed,
+      confirmDischarge: () => {
+        this.setState(p => ({ modal: null, admissions: p.admissions.map(a => a.id === s.selAdm ? { ...a, status: 'DISCHARGED' } : a) }));
+        this.fireToast(selAdm.name + ' discharged', '#d97706');
+      },
+      confirmTransfer: () => { this.setState({ modal: null }); this.fireToast(selAdm.name + ' transferred'); },
+      closeAll: () => this.setState({ panel: null, modal: null }),
+      toastVisible: !!s.toast, toastMsg: s.toast ? s.toast.msg : '', toastBg: s.toast ? s.toast.bg : '#16a34a',
+    };
+  }
+}
+</script>
+</body>
+</html>
