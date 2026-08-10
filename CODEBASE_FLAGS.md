@@ -205,10 +205,26 @@ reader at a gitignored file.
 
 ---
 
+### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
+**Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-10, first `npm install` this session
+
+Fresh `npm install` (461 packages) reports 7 high severity advisories via `npm audit`. Not yet
+triaged — could be transitive/dev-only with low real risk, or something that matters before PHI
+lands. Ties into the supply-chain concern Bastoh raised for `SECURITY_BASELINE.md` ("every npm
+dep runs with full DOM access").
+
+**Done when:** `npm audit` output triaged advisory-by-advisory (transitive/dev-only vs.
+runtime-reachable), fixes applied via `npm audit fix` or explicit version bumps in their own PR,
+and any remaining accepted risk is documented here or in `SECURITY_BASELINE.md`.
+
+---
+
 ## Resolved flags
 
 *(none yet — move entries here with their PR number and resolution date)*
 
 ---
 
-*Last updated 2026-08-09. Flags 001–009 raised from the 2026-08-08 codebase survey.*
+*Last updated 2026-08-10. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
+2026-08-10 (Qeeyat's first session).*

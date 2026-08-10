@@ -60,12 +60,45 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
-### (no entries yet)
+### 2026-08-10 — First session: onboarding + env setup (branch: none — no code branch cut)
 
-Your first entry goes here. A reasonable first one is just getting the project running:
-what you set up, what didn't work first time, and what you had to ask about. That's genuinely
-useful — setup friction you hit is friction the next person hits, and writing it down is how
-`ONBOARDING.md` gets better.
+**Goal:** Get the three verify commands green locally, per the Mon 10 Aug row in
+`docs/FRONTEND_SPRINT_PLAN.md` ("Onboarding: `ONBOARDING.md` end to end, env against `api-dev`,
+three verify commands green").
+
+**What I did:**
+- Read `ONBOARDING.md` in full, `HANDOFF.md`, `HANDOFF-Bastoh.md`, `ARCHITECTURE.md`,
+  `CODEBASE_FLAGS.md`, `docs/FRONTEND_SPRINT_PLAN.md`, `design_handoff_dashboards/README.md`.
+- Created `.env.local` with `NEXT_PUBLIC_API_URL=https://api-dev.healthclouda.com/api/v1` — the
+  shared `api-dev` backend per the sprint plan's decision table (no local Docker setup for me
+  this sprint).
+- `npm install` (461 packages).
+- Ran the three verify commands: `tsc --noEmit` clean, `npm test` **63/63** green (matches the
+  sprint plan's stated baseline), `npm run build` green (27 routes).
+
+**What I found:**
+- Node.js was **not on PATH** at session start, despite the registry showing Node.js 24.19.0 as
+  "installed". Root cause: `node.exe`/`npm`/`npm.cmd`/`node_modules` were sitting loose at `C:\`
+  (drive root) instead of a normal install location — looks like a zip extraction rather than the
+  official installer, and nothing had ever added it to PATH. Fixed by adding `C:\` to the User
+  `PATH` env var. **If a fresh clone on this machine hits "node is not recognized," check
+  `C:\node.exe` before assuming Node isn't installed at all** — cost real time to find.
+- `npm install` reported **7 high severity vulnerabilities** (`npm audit`). Didn't run
+  `npm audit fix` — that's a dependency-version change and belongs in its own deliberate PR, not
+  silently during onboarding. Logged as **FLAG-200**.
+
+**Decisions:**
+- Left `.env.example`'s stale Railway URL alone — that's **A2** in the sprint plan (Bastoh's
+  infra item), not mine to touch today.
+
+**Verified:** tsc clean, vitest 63/63, `next build` green (27 routes) — all against a fresh
+`npm install`, confirming the sprint plan's stated baseline still holds.
+
+**Left undone / next:**
+- [ ] **D1 — shared dashboard shell**, pairing with @Bastoh (kickoff today, continuing Tue 11 Aug
+  per the plan): `DashboardShell`, `StatCard`, `DataTable`, `Badge`, then `SlidePanel`/`Modal`/
+  `Toast`/`EmptyState`/`SmallScreenGate` Wed. Hard checkpoint Fri 14.
+- [ ] **FLAG-200** (npm audit, 7 high severity) — not triaged yet, just logged.
 
 ---
 
