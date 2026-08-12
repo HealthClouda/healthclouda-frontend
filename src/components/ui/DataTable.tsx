@@ -73,28 +73,37 @@ export function DataTable<T>({
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`px-5 py-2.5 text-left bg-page border-b border-border whitespace-nowrap ${col.className ?? ''}`}
-                  >
-                    {col.sortable ? (
-                      <button
-                        onClick={() => onSort?.(col.key)}
-                        className="flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wider text-text-soft hover:text-primary"
-                      >
-                        {col.header}
-                        {sortKey === col.key && (
-                          <span className="text-[10px]">{sortDirection === 'desc' ? '↓' : '↑'}</span>
-                        )}
-                      </button>
-                    ) : (
-                      <span className="text-[10.5px] font-bold uppercase tracking-wider text-text-soft">
-                        {col.header}
-                      </span>
-                    )}
-                  </th>
-                ))}
+                {columns.map((col) => {
+                  // A sortable column with no onSort would render a button that
+                  // does nothing on click — treat it as non-sortable instead of
+                  // shipping an affordance that lies.
+                  const sortable = col.sortable && !!onSort;
+                  const sorted = sortable && sortKey === col.key;
+                  return (
+                    <th
+                      key={col.key}
+                      scope="col"
+                      aria-sort={sortable ? (sorted ? (sortDirection === 'desc' ? 'descending' : 'ascending') : 'none') : undefined}
+                      className={`px-5 py-2.5 text-left bg-page border-b border-border whitespace-nowrap ${col.className ?? ''}`}
+                    >
+                      {sortable ? (
+                        <button
+                          onClick={() => onSort(col.key)}
+                          className="flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wider text-text-soft hover:text-primary"
+                        >
+                          {col.header}
+                          {sorted && (
+                            <span className="text-[10px]">{sortDirection === 'desc' ? '↓' : '↑'}</span>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-text-soft">
+                          {col.header}
+                        </span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>

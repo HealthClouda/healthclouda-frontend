@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Avatar } from '@/components/ui/Avatar';
 import { signinPath } from '@/lib/router';
@@ -60,7 +61,7 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
       >
         {/* Brand */}
         <div className="flex h-16 items-center gap-2.5 px-5 border-b border-border flex-shrink-0">
-          <img src="/assets/images/HealthClouda-icon-tight.png" alt="" className="w-11 h-[22px] object-contain" />
+          <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={44} height={22} className="w-11 h-[22px] object-contain" />
           <span className="font-body font-black text-base text-ink">HealthClouda</span>
         </div>
 
@@ -123,14 +124,13 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
 
           <button
             onClick={handleLogout}
-            title="Logout"
-            aria-label="Sign out"
-            className="flex-shrink-0 p-1.5 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 min-h-11 px-2.5 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
             </svg>
+            <span className="text-[11px] font-semibold">Sign out</span>
           </button>
         </div>
       </aside>
