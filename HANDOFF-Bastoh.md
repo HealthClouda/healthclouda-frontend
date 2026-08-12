@@ -97,13 +97,29 @@ the 12th revealed the trivial-pass problem above and was rewritten). `npx tsc --
   fails loudly, no localhost fallback").
 - **`grep -ril railway .next/` → 0 hits**, the plan's other tier check, now true at the source too.
 
+**Later the same day — PR #65 merged (Qeeyat reviewed), then A8 filed:**
+- **Backend issue [#107](https://github.com/HealthClouda/healthclouda-backend/issues/107) filed**
+  (`api-request` — I had to **create that label**, it didn't exist on the backend repo despite
+  `CLAUDE.md` mandating it).
+- **Read their code before writing the ask**, which changed it substantially. `FRONTEND_URL` is
+  already env-driven (`settings/base.py:338`) with no override in `dev.py`/`staging.py`/`prod.py`,
+  so tiering needs **no code change from them** — just the env var per deployment. Much smaller ask
+  than the sprint plan assumed. But two things are *worse* than assumed: the default is
+  `http://localhost:3000` (an unset tier emails patients links to their own machine — our A4 failure
+  mode, except it reaches patients by email), and `patients/receptionist_views.py:287` carries a
+  **second** hardcoded localhost default on the consent link, the worst-case flow. Also verified
+  every path they build matches a real route of ours, so only the host is at risk — put that table
+  in the issue so they don't have to ask.
+- **FLAG-010 raised** for a separate find: `_get_redirect_url` (`accounts/views.py:217`) takes
+  `org_slug` and ignores it, so login's `redirect_to` is `/doctor/` rather than `/<slug>/doctor`.
+  Zero impact — we consume `redirect_url` from the 400 response, not this — which is precisely why
+  it's worth logging. Kept **out** of #107 on purpose: different concern, and #107 is time-critical.
+
 **Left undone / next:**
-- [ ] **B1/B3 — Vercel domains + per-env vars.** Needs dashboard access; I can't do it from here.
-  `dev.healthclouda.com → api-dev` was today's 🎯 target and has NOT happened.
+- [ ] 🎯 **B1/B3 — Vercel domains + per-env vars. Today's actual scheduled row, still not done.**
+  Needs dashboard access; I can't do it from here. `dev.healthclouda.com → api-dev` has NOT happened.
 - [ ] ⚠️ **`NEXT_PUBLIC_SITE_URL` is new and unset in Vercel.** Until B3, deployed builds fall back
   to the apex in OpenGraph/canonical URLs — cosmetic, but wrong on dev/beta shares.
-- [ ] ❗ **A8 — the backend `FRONTEND_URL` tiering issue is STILL NOT FILED.** It was due day one and
-  it is *their* work blocking *us*. Tier separation only works if both sides tier.
 - [ ] Fri 14: C2 Cloudflare spike writeup, E1 (FLAG-004), and the 🔴 D1 checkpoint.
 
 ---

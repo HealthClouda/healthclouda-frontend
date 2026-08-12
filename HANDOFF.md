@@ -18,8 +18,10 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **A2, A3, A4, A6** — Tier-1 infra batch | `fix/tier1-infra-batch` | `next.config.ts`, `.env.example`, `src/lib/config.ts`, `src/app/layout.tsx`, `OrgAdminDashboard.tsx` (access-requests only), `HANDOFF.md` | 2026-08-12 | **PR open — awaiting @Qeeyat** |
+| @Bastoh | **FLAG-010** — log the `redirect_to` finding | `docs/flag-010-redirect-to` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-08-12 | docs only |
 | @Qeeyat | **D1** — DASH-1 shared shell + Superadmin | *(unclaimed — add your branch)* | `src/components/ui/*`, `src/components/dashboard/superadmin/*` | 2026-08-10 | in progress — 🔴 hard checkpoint **Fri 14 Aug** |
+
+*Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65, merged 2026-08-12.*
 
 ⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.
 A design PR built on the wrong data shape is a rewrite — if that order slips, say so in this table.
@@ -34,7 +36,8 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 | Date | Note | Status |
 |---|---|---|
 | 2026-08-10 | **API host moved to `https://api-dev.healthclouda.com`.** The old Railway host returns HTTP 400 `DisallowedHost` on every path — removed from `ALLOWED_HOSTS` deliberately (it bypassed Cloudflare, sidestepping edge rate limiting + the audit-logging security header). **It will not be restored.** | ✅ purged from the codebase 2026-08-12 (A2) |
-| 2026-08-10 | **A8 — backend must tier its `FRONTEND_URL` too.** It emails links built from that value (set-password for staff *and* patient invites, org landing, cross-org consent approve/deny). If tiers cross, a beta patient's invite lands on the wrong frontend calling the wrong API, and presents as *"the invite is broken"*. | ❗ cross-repo `api-request` issue — **still to file** |
+| 2026-08-12 | **A8 — backend must tier its `FRONTEND_URL`.** It emails links built from that value (set-password for staff *and* patient invites, org landing, cross-org consent approve/deny). If tiers cross, a beta patient's invite lands on the wrong frontend calling the wrong API, and presents as *"the invite is broken"*. **Researched in their code before filing:** it is already env-driven (`settings/base.py:338`) with **no** per-tier override, so this needs **no code change on their side** — only the env var set per deployment. Two hazards raised with it: the default is `http://localhost:3000` (an unset tier emails localhost links to patients), and `patients/receptionist_views.py:287` carries a second hardcoded localhost default on the **consent** link specifically. Every path they build was verified against our routes — only the host is at risk. | ✅ **filed: backend [#107](https://github.com/HealthClouda/healthclouda-backend/issues/107)** — needed before `api-beta` exists (~31 Aug) |
+| 2026-08-12 | **Login `redirect_to` drops the org slug** — built from `FRONTEND_ROLE_PATHS` (`settings/base.py:406`), so a doctor gets `/doctor/`, not `/<slug>/doctor`. We don't consume it (we use `redirect_url` from the 400 staff-portal response), so impact is zero today. **Do not wire `redirect_to` without checking `router.ts`.** | logged as **FLAG-010**, not filed upstream |
 | 2026-08-10 | **Org-admin access-request review was removed by the backend as a security fix** — it let an org admin approve access to a patient's records *bypassing patient consent* (audit ORGADMIN-1). Read-only list stays. | ✅ frontend caller removed 2026-08-12 (A6) |
 | 2026-08-10 | Referral workflow becomes **ORG_ADMIN-managed ~20 Aug** — re-read Swagger before D5 Doctor; don't build deep against today's shape. | ⏳ pending |
 | 2026-08-08 | Contract claims in our docs are **July-sourced, not re-verified** against the live schema (FLAG-003). | ❗ open |
