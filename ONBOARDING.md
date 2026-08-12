@@ -92,10 +92,17 @@ npm install
 cp .env.example .env.local
 ```
 
-Open `.env.local` and set `NEXT_PUBLIC_API_URL` to the backend base URL.
+Open `.env.local` and set `NEXT_PUBLIC_API_URL`. Unless you're running the backend in Docker
+locally, use the shared dev tier:
 
-> ⚠️ **Confirm the current backend URL with the team before you start.** It has changed, and
-> `.env.example` may still carry the old value. Tracked in `CODEBASE_FLAGS.md`.
+```
+NEXT_PUBLIC_API_URL=https://api-dev.healthclouda.com/api/v1
+```
+
+> **One build serves exactly one backend tier** — the value is baked in at build time. If it's
+> unset, the build now **fails loudly** rather than falling back to localhost: a deployed build
+> quietly pointing at localhost looks like "the backend is down" instead of a config mistake.
+> The old Railway URL is dead (HTTP 400 `DisallowedHost`) and will not be restored.
 
 ```bash
 npm run dev     # http://localhost:3000

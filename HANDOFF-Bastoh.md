@@ -39,6 +39,75 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-08-12 — In Flight table + Tier-1 infra batch A2/A3/A4/A6 (branch: fix/tier1-infra-batch)
+
+**Goal:** clear the infra lane's Mon 10 + Tue 11 backlog before Friday's D1 checkpoint, and finally
+put the 🚧 In Flight table into `HANDOFF.md`.
+
+**What I found first (checked the code, not the docs):** every infra item from Mon 10 and Tue 11 was
+still open — A2, A3, A4 and A6 were all untouched in source. Only docs had been committed since the
+sprint plan landed. Worth knowing that the plan's own status column was ahead of reality.
+
+**What I did:**
+- **🚧 In Flight table + 📡 Backend Contract Notes banner** added to the top of `HANDOFF.md`. This
+  was sprint item F and had never existed, despite `CLAUDE.md` treating it as the collision-avoidance
+  mechanism. Pushed as its own commit *first* so Qeeyat's agent could see the claim before any code
+  landed. Claimed my batch; recorded her D1 row as unclaimed-but-in-progress for her to fill in.
+- **A2 — stale host purge.** `next.config.ts` CSP `connect-src` is now `'self'` only, with a comment
+  explaining it should never name a backend origin at all (the browser only ever calls our
+  same-origin proxies, and the value would be wrong per-tier anyway). `.env.example` rewritten around
+  the per-tier map; `layout.tsx` `metadataBase` reads `NEXT_PUBLIC_SITE_URL`;
+  `design_handoff_prelogin/README.md` docs URL updated.
+- **A3 — cookie-domain footgun deleted.** The commented `COOKIE_DOMAIN=.healthclouda.ng` is gone,
+  replaced by an explicit "do not set this, and here's why" block. A dot-prefixed parent shares the
+  session cookie across every subdomain, so a dev JWT would be sent to beta and production. It was
+  never read in code — the risk was purely that it read as a knob someone should turn.
+- **A4 — fail loudly on missing config.** New exported `resolveApiBaseUrl(configured, nodeEnv)` in
+  `config.ts`; throws outside development/test instead of falling back to `localhost:8000`.
+  ⚠️ **Design note for whoever touches this next:** it takes plain arguments rather than reading
+  `process.env` internally, because Next only inlines `process.env.NEXT_PUBLIC_*` where it appears
+  as a *literal*. Passing the env object into a function would compile fine and silently break the
+  client bundle. The literal read stays at module scope.
+- **A6 — org-admin consent bypass removed.** Deleted the `ORG_ADMIN_ACCESS_REVIEW` endpoint
+  constant, the Approve/Deny buttons, the Actions column and the confirm dialog from
+  `OrgAdminDashboard`. The list stays read-only with a line of copy saying why. The endpoint 404s
+  today, so this wasn't *working* — but the UI still presented the decision as an admin's to make,
+  which is exactly the model the backend deleted for security. A broken control is not a safe one.
+
+**Decisions:**
+- **Docs that say "backend deploys to Railway" were left alone.** Only the dead *URL* is purged. The
+  host was removed from `ALLOWED_HOSTS` because it bypassed Cloudflare — that strongly implies
+  Railway is still the origin, now fronted properly. I have not verified the platform, so I did not
+  assert a change to it. `ARCHITECTURE.md` likewise untouched: it is stale wholesale (ARCH-7) and
+  patching one line would make it look maintained.
+- **FLAG-002 marked PARTIALLY FIXED, not closed.** The codebase half is done; the Vercel env vars
+  and a verified request from a deployed build (B1/B3) are not. Closing it would have been a lie.
+- **Dropped one of my own tests.** I wrote "never issues a write to /review/" and it passed *before*
+  the fix — nothing in it clicks anything, so it was trivially true. Replaced with an assertion that
+  the pending row contains no interactive element at all. Left the reasoning in a comment because
+  it's an easy trap to re-introduce.
+- Left `TOKEN_KEYS` / `SESSION_TIMEOUT_MS` in place — that's FLAG-008 and needs its idle-timeout
+  decision recorded, not a silent deletion riding along in an unrelated PR.
+
+**Verified:** 16 new tests, all confirmed RED against pre-fix code first (11 red on the first run;
+the 12th revealed the trivial-pass problem above and was rewritten). `npx tsc --noEmit` clean ·
+`npm test` **79/79** (was 63) · `npm run build` green. Two extra proofs beyond the standard three:
+- **A4 proven by building with the var unset** → build aborts with our error message and produces no
+  artifact. This is the sprint plan's stated tier check ("building with `NEXT_PUBLIC_API_URL` unset
+  fails loudly, no localhost fallback").
+- **`grep -ril railway .next/` → 0 hits**, the plan's other tier check, now true at the source too.
+
+**Left undone / next:**
+- [ ] **B1/B3 — Vercel domains + per-env vars.** Needs dashboard access; I can't do it from here.
+  `dev.healthclouda.com → api-dev` was today's 🎯 target and has NOT happened.
+- [ ] ⚠️ **`NEXT_PUBLIC_SITE_URL` is new and unset in Vercel.** Until B3, deployed builds fall back
+  to the apex in OpenGraph/canonical URLs — cosmetic, but wrong on dev/beta shares.
+- [ ] ❗ **A8 — the backend `FRONTEND_URL` tiering issue is STILL NOT FILED.** It was due day one and
+  it is *their* work blocking *us*. Tier separation only works if both sides tier.
+- [ ] Fri 14: C2 Cloudflare spike writeup, E1 (FLAG-004), and the 🔴 D1 checkpoint.
+
+---
+
 ### 2026-08-09 — Multi-dev doc discipline: onboarding set + flags (branch: develop, uncommitted)
 
 **Goal:** bring this repo up to the same doc discipline as `healthclouda-backend`, so two devs each

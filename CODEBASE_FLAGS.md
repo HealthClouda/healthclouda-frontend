@@ -66,7 +66,10 @@ cookie cannot render another role's or another org's dashboard.
 ---
 
 ### FLAG-002 — Backend base URL is stale in three committed places
-**Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** ⚠️ **PARTIALLY FIXED**
+— codebase purged in PR `fix/tier1-infra-batch` (2026-08-12, sprint item A2). **Still open on the
+infra half:** Vercel per-environment env vars are not yet set and no deployed build has been
+verified against the new backend. Closes when B1/B3 land.
 **Found:** 2026-08-08
 
 The backend URL changed. The old Railway URL is still hardcoded in:

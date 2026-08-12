@@ -18,7 +18,7 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **A2, A3, A4, A6** — Tier-1 infra batch | `fix/tier1-infra-batch` | `next.config.ts`, `.env.example`, `src/lib/config.ts`, `src/app/layout.tsx`, `OrgAdminDashboard.tsx` (access-requests only), `HANDOFF.md` | 2026-08-12 | in progress |
+| @Bastoh | **A2, A3, A4, A6** — Tier-1 infra batch | `fix/tier1-infra-batch` | `next.config.ts`, `.env.example`, `src/lib/config.ts`, `src/app/layout.tsx`, `OrgAdminDashboard.tsx` (access-requests only), `HANDOFF.md` | 2026-08-12 | **PR open — awaiting @Qeeyat** |
 | @Qeeyat | **D1** — DASH-1 shared shell + Superadmin | *(unclaimed — add your branch)* | `src/components/ui/*`, `src/components/dashboard/superadmin/*` | 2026-08-10 | in progress — 🔴 hard checkpoint **Fri 14 Aug** |
 
 ⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.

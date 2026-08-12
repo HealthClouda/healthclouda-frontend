@@ -9,7 +9,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const lato = Lato({ subsets: ['latin'], weight: ['300', '400', '700'], variable: '--font-lato' });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://healthclouda.vercel.app'),
+  // A2: per-tier, not a hardcoded host. Only affects canonical/OpenGraph URLs,
+  // so a wrong value mislabels shared links rather than breaking the app — the
+  // apex marketing domain is the right default when the var is unset.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://healthclouda.com'),
   title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
   description:
     'HealthClouda links hospitals and clinics across Africa so records and referrals move with the patient — securely, instantly. No repeated tests. No paper files.',

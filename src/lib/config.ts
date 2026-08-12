@@ -11,10 +11,40 @@
 
 // ── API base URL ───────────────────────────────────────────────
 // Set NEXT_PUBLIC_API_URL in .env.local for local dev.
-// Set it in the Vercel dashboard for staging and production.
-// No more window.location.hostname detection — env vars handle this.
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+// Set it in the Vercel dashboard PER ENVIRONMENT — one deployment cannot serve
+// more than one backend tier, because this value is baked in at build time.
+//
+// A4: a missing value must FAIL THE BUILD, not fall back. A deployed build that
+// silently pointed at localhost would render fine and then fail every request,
+// presenting as "the backend is down" rather than as the config error it is.
+/**
+ * Resolves the API base URL, throwing when it is missing outside development.
+ *
+ * Takes plain arguments rather than reading `process.env` itself: Next inlines
+ * `process.env.NEXT_PUBLIC_*` only where it appears as a literal in the source,
+ * so the literal read has to stay at module scope below. Passing the env object
+ * into a function would break the client bundle silently.
+ */
+export function resolveApiBaseUrl(
+  configured: string | undefined,
+  nodeEnv: string | undefined,
+): string {
+  if (configured) return configured;
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') {
+    throw new Error(
+      'NEXT_PUBLIC_API_URL is not set. Every deployed environment must set it ' +
+        'explicitly — dev → https://api-dev.healthclouda.com/api/v1, ' +
+        'beta → https://api-beta.healthclouda.com/api/v1. There is no fallback ' +
+        'outside local development: one build serves exactly one backend tier.',
+    );
+  }
+  return 'http://localhost:8000/api/v1';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_URL,
+  process.env.NODE_ENV,
+);
 
 // ── Token / cookie keys ────────────────────────────────────────
 // NOTE: Phase 1 (auth migration) will move these to httpOnly cookies.
@@ -132,7 +162,11 @@ export const ENDPOINTS = {
   ORG_ADMIN_WARDS_OVERVIEW: '/org-admin/wards/overview/',
   ORG_ADMIN_BEDS: '/org-admin/beds/',
   ORG_ADMIN_ACCESS_REQUESTS: '/org-admin/access-requests/',
-  ORG_ADMIN_ACCESS_REVIEW: (id: string) => `/org-admin/access-requests/${id}/review/`,
+  // A6/ORGADMIN-1: `/org-admin/access-requests/<id>/review/` was REMOVED by the
+  // backend as a security fix — it let an org admin approve access to a
+  // patient's records while bypassing that patient's consent. Do not re-add it.
+  // The list above is read-only oversight; approving is the patient's decision,
+  // made via the emailed consent link or in-app (DASH-6).
   ORG_ADMIN_SETTINGS: '/org-admin/settings/',
 
   // ── Superadmin ─────────────────────────────────────────────
