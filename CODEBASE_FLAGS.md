@@ -243,6 +243,43 @@ future use of `redirect_to` must be checked against `src/lib/router.ts` first.
 
 ---
 
+### FLAG-011 — Dashboard design tokens fail WCAG AA contrast
+**Severity:** P2 · **Area:** Accessibility · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-12, reviewing PR #67 (DASH-1 shared shell)
+
+The dashboard token block added to `src/app/globals.css` fails AA at the sizes it is used. Measured,
+not eyeballed:
+
+| Token | Used for | Ratio | AA needs |
+|---|---|---|---|
+| `--color-nav-muted: #c0c8d8` | sidebar section labels, 10.5px bold | **1.68:1** | 4.5:1 |
+| `--color-placeholder: #b0bcc8` | input placeholders | **1.93:1** | 4.5:1 |
+| `--color-warning` on `--color-warning-bg` | status badges, 11px bold | **2.86:1** | 4.5:1 |
+| `--color-success` on `--color-success-bg` | status badges | **3.00:1** | 4.5:1 |
+| `--color-danger` on `--color-danger-bg` | status badges | **3.95:1** | 4.5:1 |
+| `--color-info` on `--color-info-bg` | status badges | **4.24:1** | 4.5:1 |
+
+`--color-text-soft` (4.83:1) and `--color-text-mid` (10.31:1) pass. Badge text is 11px **bold**,
+which does **not** qualify as WCAG "large text" (that needs 18.66px bold / 24px regular), so 4.5:1
+is the bar for all of the above.
+
+**These come from `design_handoff_dashboards/README.md` — PR #67 implemented them faithfully.** This
+is a flaw in the spec, not in that PR, which is why it is logged here rather than raised as a change
+request against it. Precedent: the 2:1 favicon squashed into a square slot (`fix/brand-assets`,
+2026-07-13) was also inherited from a design file.
+
+**Why it matters beyond compliance:** status badges are how staff scan a list — an occupied bed, a
+suspended org, a denied access request. Low-contrast state colour on a ward monitor at an angle, or
+for a colour-vision-deficient clinician, is a misread rather than an annoyance. Fixing it at the
+token level is one change; fixing it after DASH-2…6 inherit it is six.
+
+**Done when:** every token pair used for text meets 4.5:1 at its rendered size (or the size is
+raised to qualify as large text), the fix is made in `globals.css` **once** rather than per
+component, the design source is updated or the deviation recorded, and a contrast check is part of
+the T8 accessibility pass.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
@@ -265,4 +302,5 @@ and any remaining accepted risk is documented here or in `SECURITY_BASELINE.md`.
 ---
 
 *Last updated 2026-08-12. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
-2026-08-10 (Qeeyat's first session). FLAG-010 raised 2026-08-12; FLAG-002 partially fixed by PR #65.*
+2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
+fixed by PR #65.*
