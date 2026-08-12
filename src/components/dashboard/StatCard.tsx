@@ -12,14 +12,14 @@ interface StatCardProps {
 }
 
 const C = {
-  blue:   { bg: 'bg-blue-50',   text: 'text-blue-600',   ring: 'ring-blue-100' },
-  green:  { bg: 'bg-emerald-50',text: 'text-emerald-600',ring: 'ring-emerald-100' },
-  amber:  { bg: 'bg-amber-50',  text: 'text-amber-600',  ring: 'ring-amber-100' },
-  red:    { bg: 'bg-red-50',    text: 'text-red-600',    ring: 'ring-red-100' },
-  purple: { bg: 'bg-purple-50', text: 'text-purple-600', ring: 'ring-purple-100' },
-  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', ring: 'ring-indigo-100' },
-  teal:   { bg: 'bg-teal-50',   text: 'text-teal-600',   ring: 'ring-teal-100' },
-  slate:  { bg: 'bg-slate-50',  text: 'text-slate-600',  ring: 'ring-slate-100' },
+  blue:   { bg: 'bg-chip',        text: 'text-primary' },
+  green:  { bg: 'bg-success-bg',  text: 'text-success' },
+  amber:  { bg: 'bg-warning-bg',  text: 'text-warning' },
+  red:    { bg: 'bg-danger-bg',   text: 'text-danger' },
+  purple: { bg: 'bg-purple-bg',   text: 'text-purple' },
+  indigo: { bg: 'bg-purple-bg',   text: 'text-purple' },
+  teal:   { bg: 'bg-info-bg',     text: 'text-info' },
+  slate:  { bg: 'bg-row-hairline',text: 'text-text-soft' },
 } as const;
 
 export function StatCard({
@@ -29,14 +29,14 @@ export function StatCard({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3 animate-pulse">
+      <div className="bg-white rounded-card border border-border p-5 space-y-3 animate-pulse">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2 flex-1">
-            <div className="h-3 bg-gray-200 rounded w-24" />
-            <div className="h-8 bg-gray-200 rounded w-16" />
-            {delta && <div className="h-3 bg-gray-200 rounded w-20" />}
+            <div className="h-3 bg-row-hairline rounded w-24" />
+            <div className="h-7 bg-row-hairline rounded w-16" />
+            {delta && <div className="h-3 bg-row-hairline rounded w-20" />}
           </div>
-          <div className="w-11 h-11 bg-gray-200 rounded-xl flex-shrink-0" />
+          <div className="w-[38px] h-[38px] bg-row-hairline rounded-lg flex-shrink-0" />
         </div>
       </div>
     );
@@ -46,31 +46,34 @@ export function StatCard({
   return (
     <Tag
       onClick={onClick}
-      className={`bg-white rounded-xl border border-gray-100 p-5 text-left w-full transition-all
-        ${onClick ? 'hover:border-gray-200 hover:shadow-md cursor-pointer active:scale-[0.98]' : 'hover:shadow-sm'}`}
+      className={`bg-white rounded-card border border-border p-5 text-left w-full shadow-dash-card transition-all
+        ${onClick ? 'hover:border-primary/30 hover:shadow-md cursor-pointer active:scale-[0.98]' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1 tabular-nums leading-none">
-            {value ?? '—'}
-          </p>
-          {delta && (
-            <p className={`text-xs mt-2 font-medium ${
-              deltaPositive === true
-                ? 'text-emerald-600'
-                : deltaPositive === false
-                  ? 'text-red-500'
-                  : 'text-gray-400'
-            }`}>
-              {delta}
-            </p>
-          )}
-        </div>
-        <div className={`w-11 h-11 ${c.bg} rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ${c.ring}`}>
-          <span className={`${c.text} [&>svg]:w-5 [&>svg]:h-5 [&>svg]:stroke-current`}>{icon}</span>
-        </div>
+        <span className="text-[11.5px] font-semibold text-text-soft uppercase tracking-wide">{label}</span>
+        <span className={`w-[38px] h-[38px] ${c.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
+          <span className={`${c.text} [&>svg]:w-[19px] [&>svg]:h-[19px] [&>svg]:stroke-current`}>{icon}</span>
+        </span>
       </div>
+      <p className="font-body font-black text-[29px] text-ink mt-2.5 tracking-[-0.02em] leading-none tabular-nums">
+        {value ?? '—'}
+      </p>
+      {delta && (
+        <p className={`text-xs mt-2.5 font-semibold flex items-center gap-1 ${
+          deltaPositive === true
+            ? 'text-success'
+            : deltaPositive === false
+              ? 'text-danger'
+              : 'text-text-soft font-medium'
+        }`}>
+          {deltaPositive === true && (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 11l-5-5-5 5M12 6v12" />
+            </svg>
+          )}
+          {delta}
+        </p>
+      )}
     </Tag>
   );
 }

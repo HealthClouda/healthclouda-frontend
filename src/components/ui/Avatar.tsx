@@ -9,17 +9,9 @@ const SIZE: Record<AvatarSize, { wrapper: string; text: string }> = {
   xl: { wrapper: 'w-14 h-14', text: 'text-lg' },
 };
 
-// Deterministic colour from a string — same name always gets same colour
-const COLOURS = [
-  'bg-blue-500',
-  'bg-violet-500',
-  'bg-emerald-500',
-  'bg-rose-500',
-  'bg-amber-500',
-  'bg-cyan-500',
-  'bg-pink-500',
-  'bg-indigo-500',
-];
+// Deterministic colour from a string — same name always gets same colour.
+// Exact palette per design_handoff_dashboards/README.md.
+const COLOURS = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#dc2626'];
 
 function colourFor(seed: string): string {
   let hash = 0;
@@ -52,7 +44,8 @@ export function Avatar({ firstName, lastName, src, size = 'md', className = '' }
 
   return (
     <div
-      className={`${wrapper} ${colour} rounded-full flex items-center justify-center text-white font-semibold ${text} flex-shrink-0 ${className}`}
+      style={{ backgroundColor: colour }}
+      className={`${wrapper} rounded-full flex items-center justify-center text-white font-semibold ${text} flex-shrink-0 ${className}`}
     >
       {abbr}
     </div>

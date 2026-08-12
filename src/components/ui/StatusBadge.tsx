@@ -1,43 +1,43 @@
 type BadgeColor = { bg: string; text: string };
 
 const COLORS: Record<string, BadgeColor> = {
-  // Green — positive / active
-  ACTIVE:       { bg: 'bg-green-100', text: 'text-green-700' },
-  COMPLETED:    { bg: 'bg-green-100', text: 'text-green-700' },
-  APPROVED:     { bg: 'bg-green-100', text: 'text-green-700' },
-  DISPENSED:    { bg: 'bg-green-100', text: 'text-green-700' },
-  ON_DUTY:      { bg: 'bg-green-100', text: 'text-green-700' },
-  AVAILABLE:    { bg: 'bg-green-100', text: 'text-green-700' },
-  VERIFIED:     { bg: 'bg-green-100', text: 'text-green-700' },
-  GRANTED:      { bg: 'bg-green-100', text: 'text-green-700' },
+  // Success — positive / active
+  ACTIVE:       { bg: 'bg-success-bg', text: 'text-success' },
+  COMPLETED:    { bg: 'bg-success-bg', text: 'text-success' },
+  APPROVED:     { bg: 'bg-success-bg', text: 'text-success' },
+  DISPENSED:    { bg: 'bg-success-bg', text: 'text-success' },
+  ON_DUTY:      { bg: 'bg-success-bg', text: 'text-success' },
+  AVAILABLE:    { bg: 'bg-success-bg', text: 'text-success' },
+  VERIFIED:     { bg: 'bg-success-bg', text: 'text-success' },
+  GRANTED:      { bg: 'bg-success-bg', text: 'text-success' },
 
-  // Blue — scheduled / informational
-  SCHEDULED:    { bg: 'bg-blue-100',   text: 'text-blue-700' },
-  ADMITTED:     { bg: 'bg-blue-100',   text: 'text-blue-700' },
+  // Info — scheduled / informational
+  SCHEDULED:    { bg: 'bg-info-bg', text: 'text-info' },
+  ADMITTED:     { bg: 'bg-info-bg', text: 'text-info' },
 
-  // Yellow — pending / awaiting
-  PENDING:      { bg: 'bg-yellow-100', text: 'text-yellow-700' },
-  AWAITING:     { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+  // Warning — pending / awaiting
+  PENDING:      { bg: 'bg-warning-bg', text: 'text-warning' },
+  AWAITING:     { bg: 'bg-warning-bg', text: 'text-warning' },
 
-  // Orange — warnings
-  NO_SHOW:      { bg: 'bg-orange-100', text: 'text-orange-700' },
-  MAINTENANCE:  { bg: 'bg-orange-100', text: 'text-orange-700' },
-  OCCUPIED:     { bg: 'bg-orange-100', text: 'text-orange-700' },
-  SUSPENDED:    { bg: 'bg-orange-100', text: 'text-orange-700' },
+  // Warning (stronger) — needs attention but not yet a failure
+  NO_SHOW:      { bg: 'bg-warning-bg', text: 'text-warning' },
+  MAINTENANCE:  { bg: 'bg-warning-bg', text: 'text-warning' },
+  OCCUPIED:     { bg: 'bg-warning-bg', text: 'text-warning' },
+  SUSPENDED:    { bg: 'bg-warning-bg', text: 'text-warning' },
 
-  // Red — negative / cancelled
-  CANCELLED:    { bg: 'bg-red-100',    text: 'text-red-700' },
-  DENIED:       { bg: 'bg-red-100',    text: 'text-red-700' },
-  REVOKED:      { bg: 'bg-red-100',    text: 'text-red-700' },
-  INACTIVE:     { bg: 'bg-red-100',    text: 'text-red-700' },
+  // Danger — negative / cancelled
+  CANCELLED:    { bg: 'bg-danger-bg', text: 'text-danger' },
+  DENIED:       { bg: 'bg-danger-bg', text: 'text-danger' },
+  REVOKED:      { bg: 'bg-danger-bg', text: 'text-danger' },
+  INACTIVE:     { bg: 'bg-danger-bg', text: 'text-danger' },
 
-  // Gray — closed / neutral / off
-  CLOSED:       { bg: 'bg-gray-100',   text: 'text-gray-600' },
-  OFF_DUTY:     { bg: 'bg-gray-100',   text: 'text-gray-600' },
-  DISCHARGED:   { bg: 'bg-gray-100',   text: 'text-gray-600' },
+  // Neutral — closed / off
+  CLOSED:       { bg: 'bg-row-hairline', text: 'text-text-mid' },
+  OFF_DUTY:     { bg: 'bg-row-hairline', text: 'text-text-mid' },
+  DISCHARGED:   { bg: 'bg-row-hairline', text: 'text-text-mid' },
 };
 
-const FALLBACK: BadgeColor = { bg: 'bg-gray-100', text: 'text-gray-600' };
+const FALLBACK: BadgeColor = { bg: 'bg-row-hairline', text: 'text-text-mid' };
 
 function labelFor(status: string): string {
   return status
@@ -54,7 +54,7 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, label }: StatusBadgeProps) {
   const { bg, text } = COLORS[status.toUpperCase()] ?? FALLBACK;
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bg} ${text}`}>
+    <span className={`inline-flex items-center px-[11px] py-[3px] rounded-full text-[11px] font-bold ${bg} ${text}`}>
       {label ?? labelFor(status)}
     </span>
   );
