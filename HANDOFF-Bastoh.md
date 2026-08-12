@@ -115,7 +115,28 @@ the 12th revealed the trivial-pass problem above and was rewritten). `npx tsc --
   Zero impact — we consume `redirect_url` from the 400 response, not this — which is precisely why
   it's worth logging. Kept **out** of #107 on purpose: different concern, and #107 is time-critical.
 
+**Reviewed PR #67 (Qeeyat, DASH-1 shared shell) — CHANGES_REQUESTED:**
+- **Good work structurally**, and worth saying so: `DataTable` *composes* `ErrorState`/`EmptyState`/
+  `Pagination` instead of reimplementing them, which keeps PR 2's UX-ERR-1/PERF-1 fixes from being
+  forked six ways across DASH-2…6. `NavItem` stayed backward compatible, she rebased rather than
+  merging `develop` in, and she cleared my merged In Flight row unprompted.
+- **Three change requests:** (1) status badges collapsed `NO_SHOW`/`MAINTENANCE`/`OCCUPIED`/
+  `SUSPENDED` into the same token as `PENDING`/`AWAITING` — suspended and pending now look identical
+  in a list, which is a clinical-scanning regression, not styling; (2) sign-out became an unlabelled
+  ~28px icon with `title`/`aria-label` disagreeing, and the header dropped the identity block — on
+  shared clinic machines with PHI arriving, sign-out discoverability is a control, not a preference;
+  (3) `DataTable` has five render branches and zero tests, and is the component all five remaining
+  dashboard PRs sit on.
+- **Contrast logged as FLAG-011 instead of requested as a change** — the failing tokens come from
+  `design_handoff_dashboards/README.md`, so she implemented the spec faithfully. Measured, not
+  eyeballed: `nav-muted` **1.68:1**, `placeholder` **1.93:1**, badges **2.86–4.24:1**, all against
+  AA's 4.5:1 (11px bold does not qualify as "large text"). Same class as the 2:1 favicon inherited
+  from a design file in July. Fix belongs at the token level, once, before six dashboards inherit it.
+
 **Left undone / next:**
+- [ ] ❗ **api-dev demo credentials are owed to Qeeyat — by me.** `CLAUDE.md` §7 puts this on the
+  existing team. It's why #67 has no visual verification and it blocks the T5 screenshot harness due
+  at Friday's checkpoint. Committed to it in the review.
 - [ ] 🎯 **B1/B3 — Vercel domains + per-env vars. Today's actual scheduled row, still not done.**
   Needs dashboard access; I can't do it from here. `dev.healthclouda.com → api-dev` has NOT happened.
 - [ ] ⚠️ **`NEXT_PUBLIC_SITE_URL` is new and unset in Vercel.** Until B3, deployed builds fall back
