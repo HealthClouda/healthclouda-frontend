@@ -43,8 +43,10 @@ not a doc committed here, not what a component currently assumes, and not this f
 - Backend changes we must consume are tracked in the **BACKEND CONTRACT NOTES** banner in
   `HANDOFF.md`.
 
-> ⚠️ The backend base URL has changed. Confirm the current value with the team before trusting
-> `.env.example`, `next.config.ts`, or any URL written in these docs.
+> **Backend base URL (confirmed 2026-08-12):** `https://api-dev.healthclouda.com` for the dev tier —
+> `.env.example` now carries the full per-tier map. The old Railway host is dead (HTTP 400
+> `DisallowedHost`) and will not be restored. **One build serves exactly one backend tier**, so the
+> URL is per-environment and never hardcoded; a missing value fails the build deliberately.
 
 ---
 

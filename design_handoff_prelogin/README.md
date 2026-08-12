@@ -2,7 +2,9 @@
 
 Target codebase: `HealthClouda/healthclouda-frontend` @ `develop` (Next.js App Router, Vercel).
 Backend contract: `HealthClouda/healthclouda-backend` — `FRONTEND_HANDOFF.md` + live API docs at
-`https://healthclouda-backend-production.up.railway.app/api/v1/docs/`.
+`https://api-dev.healthclouda.com/api/v1/docs/`.
+*(Updated 2026-08-12: the old Railway host is dead — HTTP 400 `DisallowedHost` — and will not be
+restored. See the Backend Contract Notes in `HANDOFF.md`.)*
 
 ## Overview
 

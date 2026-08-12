@@ -3,14 +3,12 @@
 import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
-import { useToast } from '@/store/toast';
+import { useApi, usePaginatedList } from '@/hooks/use-api';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, roleLabel, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
@@ -246,33 +244,25 @@ function WardsPage() {
 
 // ─── Access Requests page ─────────────────────────────────────────
 
+// READ-ONLY BY DESIGN (A6 / audit ORGADMIN-1). The backend removed
+// `POST /org-admin/access-requests/<id>/review/` as a security fix: it let an
+// org admin approve another organisation's access to a patient's records while
+// bypassing the patient's own consent. An org admin may SEE requests — that is
+// legitimate oversight — but the decision belongs to the patient, made through
+// the emailed consent link or in-app (DASH-6). Do not re-add Approve/Deny here.
 function AccessRequestsPage() {
   const { items: list, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<AccessRequest>(ENDPOINTS.ORG_ADMIN_ACCESS_REQUESTS);
-  const { toast } = useToast();
-  const [confirm, setConfirm] = useState<{ req: AccessRequest; action: 'approve' | 'deny' } | null>(null);
-  const [working, setWorking] = useState(false);
-
-  async function handleReview() {
-    if (!confirm) return;
-    setWorking(true);
-    try {
-      await apiAction(ENDPOINTS.ORG_ADMIN_ACCESS_REVIEW(confirm.req.id), 'POST', { decision: confirm.action === 'approve' ? 'approved' : 'denied' });
-      toast.success(`Access request ${confirm.action}d`);
-      refetch();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed');
-    } finally {
-      setWorking(false);
-      setConfirm(null);
-    }
-  }
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Access Requests</h2>
         {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
+        <p className="text-xs text-gray-400 mt-1">
+          Read-only. Patients approve or deny access to their own records — an
+          administrator cannot decide on their behalf.
+        </p>
       </div>
       {loading ? <ShimmerRows count={6} /> : error ? (
         <ErrorState message={error} onRetry={refetch} />
@@ -281,7 +271,7 @@ function AccessRequestsPage() {
       ) : (
         <TableWrap>
           <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Requested By</Th><Th>Reason</Th><Th>Date</Th><Th>Status</Th><Th>Actions</Th></tr>
+            <tr><Th>Patient</Th><Th>Requested By</Th><Th>Reason</Th><Th>Date</Th><Th>Status</Th></tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {list.map(ar => (
@@ -291,30 +281,12 @@ function AccessRequestsPage() {
                 <Td className="text-xs text-gray-500 max-w-xs">{truncate(ar.reason ?? '—', 50)}</Td>
                 <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ar.created_at)}</Td>
                 <Td><StatusBadge status={ar.status} /></Td>
-                <Td>
-                  {ar.status === 'PENDING' && (
-                    <div className="flex gap-3">
-                      <button onClick={() => setConfirm({ req: ar, action: 'approve' })} className="text-xs font-medium text-emerald-600 hover:text-emerald-800">Approve</button>
-                      <button onClick={() => setConfirm({ req: ar, action: 'deny' })} className="text-xs font-medium text-red-600 hover:text-red-800">Deny</button>
-                    </div>
-                  )}
-                </Td>
               </tr>
             ))}
           </tbody>
         </TableWrap>
       )}
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
-      <ConfirmDialog
-        open={!!confirm}
-        onClose={() => setConfirm(null)}
-        onConfirm={handleReview}
-        loading={working}
-        title={`${confirm?.action === 'approve' ? 'Approve' : 'Deny'} Access Request`}
-        description={`Are you sure you want to ${confirm?.action} this access request?`}
-        confirmLabel={confirm?.action === 'approve' ? 'Approve' : 'Deny'}
-        confirmVariant={confirm?.action === 'deny' ? 'danger' : 'primary'}
-      />
     </div>
   );
 }
