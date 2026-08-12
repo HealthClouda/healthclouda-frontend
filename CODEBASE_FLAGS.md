@@ -208,6 +208,41 @@ reader at a gitignored file.
 
 ---
 
+### FLAG-010 — Backend's login `redirect_to` drops the org slug (unused today, loaded gun)
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-12, while researching A8 in the backend repo
+
+`healthclouda-backend` builds the login response's `redirect_to` from `FRONTEND_ROLE_PATHS`
+(`healthclouda/settings/base.py:406`), which has **no org slug in it**:
+
+```python
+FRONTEND_ROLE_PATHS = {'DOCTOR': '/doctor/', 'NURSE': '/nurse/', ...}
+
+# apps/accounts/views.py:217 — takes org_slug, then ignores it
+def _get_redirect_url(self, user, org_slug):
+    role_paths = getattr(settings, 'FRONTEND_ROLE_PATHS', {})
+    return role_paths.get(user.role, '/signin')
+```
+
+Our staff routes are `/[slug]/doctor`, so `/doctor/` would be resolved as an **org slug named
+"doctor"**, hit `notFound()`, and 404.
+
+**Impact today is zero, and that's exactly the risk.** We never read `redirect_to` — the only
+redirect we consume is `redirect_url` from the **400** staff-on-general-portal response
+(`src/types/auth.ts:72`), which is correctly built. So nothing is broken, nothing will go red, and
+the field sits there looking usable. The next person to wire "redirect after login" from the
+response they're already parsing gets a 404 for every staff role, in a codebase where invented and
+half-wired contract fields are a known recurring bug class.
+
+Deliberately **not** bundled into backend issue #107 (A8 / `FRONTEND_URL` tiering) — different
+concern, and #107 is time-critical for the beta tiers.
+
+**Done when:** either the backend prefixes the org slug (`/<org_slug>/doctor/`) and we consume
+`redirect_to`, **or** we record that we ignore the field by design and the backend drops it. Any
+future use of `redirect_to` must be checked against `src/lib/router.ts` first.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
@@ -229,5 +264,5 @@ and any remaining accepted risk is documented here or in `SECURITY_BASELINE.md`.
 
 ---
 
-*Last updated 2026-08-10. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
-2026-08-10 (Qeeyat's first session).*
+*Last updated 2026-08-12. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
+2026-08-10 (Qeeyat's first session). FLAG-010 raised 2026-08-12; FLAG-002 partially fixed by PR #65.*
