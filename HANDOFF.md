@@ -18,10 +18,11 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **D1** — DASH-1 shared shell + Superadmin | `feat/dash-1-shared-shell` | `src/components/ui/*`, `src/components/layout/*`, `src/components/dashboard/StatCard.tsx`, `src/app/globals.css`, `src/app/layout.tsx` | 2026-08-10 | **PR #67 — CHANGES REQUESTED (@Bastoh), addressing now.** Shell components only (Tue 11 row); SlidePanel/Modal/Toast/EmptyState/SmallScreenGate + Superadmin pages still to come — 🔴 hard checkpoint **Fri 14 Aug** |
+| @Qeeyat | **D1** — DASH-1 overlays (SlidePanel, Modal, Toast, EmptyState) + SmallScreenGate | `feat/dash-1-overlays` | `src/components/ui/SlidePanel.tsx`, `Modal.tsx`, `ConfirmDialog.tsx`, `Toaster.tsx`, `EmptyState.tsx`, new `SmallScreenGate.tsx`, `src/app/globals.css` | 2026-08-12 | in progress — Wed 12 Aug row. Superadmin pages (Thu row) still to come — 🔴 hard checkpoint **Fri 14 Aug** |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011**
-token contrast — PR #68. All merged 2026-08-12.*
+token contrast — PR #68 · **D1 shared shell** (DashboardShell/StatCard/DataTable/Badge) — PR #67. All
+merged 2026-08-12.*
 
 ⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.
 A design PR built on the wrong data shape is a rewrite — if that order slips, say so in this table.

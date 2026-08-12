@@ -2,23 +2,35 @@
 
 import { useEffect, useRef } from 'react';
 
+type IconColor = 'primary' | 'success' | 'warning' | 'danger' | 'purple';
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  description?: string;
+  icon?: React.ReactNode;
+  iconColor?: IconColor;
+  children?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
   footer?: React.ReactNode;
 }
 
 const SIZE = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-2xl',
+  sm: 'max-w-[380px]',
+  md: 'max-w-[420px]',
+  lg: 'max-w-[460px]',
 };
 
-export function Modal({ open, onClose, title, children, size = 'md', footer }: ModalProps) {
+const ICON_COLOR: Record<IconColor, string> = {
+  primary: 'bg-chip text-primary',
+  success: 'bg-success-bg text-success',
+  warning: 'bg-warning-bg text-warning',
+  danger: 'bg-danger-bg text-danger',
+  purple: 'bg-purple-bg text-purple',
+};
+
+export function Modal({ open, onClose, title, description, icon, iconColor = 'primary', children, size = 'md', footer }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape
@@ -40,7 +52,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-[rgba(0,8,37,0.35)] backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden
       />
@@ -51,29 +63,24 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         role="dialog"
         aria-modal
         aria-labelledby="modal-title"
+        aria-describedby={description ? 'modal-description' : undefined}
         tabIndex={-1}
-        className={`relative w-full ${SIZE[size]} bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] focus:outline-none`}
+        className={`hc-modal-in relative w-full ${SIZE[size]} bg-white rounded-card shadow-modal p-7 max-h-[90vh] overflow-y-auto focus:outline-none`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 id="modal-title" className="text-base font-semibold text-gray-900">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        {icon && (
+          <div className={`w-[52px] h-[52px] rounded-full flex items-center justify-center mx-auto mb-3.5 [&>svg]:w-6 [&>svg]:h-6 ${ICON_COLOR[iconColor]}`}>
+            {icon}
+          </div>
+        )}
+        <h2 id="modal-title" className="font-body font-black text-base text-ink text-center">{title}</h2>
+        {description && (
+          <p id="modal-description" className="text-[12.5px] text-text-soft text-center mt-1.5">{description}</p>
+        )}
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        {children && <div className="mt-[18px]">{children}</div>}
 
-        {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <div className="flex gap-2.5 mt-5">
             {footer}
           </div>
         )}

@@ -4,18 +4,17 @@ import { useEffect } from 'react';
 import { useToastStore } from '@/store/toast';
 import type { ToastItem, ToastType } from '@/store/toast';
 
-const COLOURS: Record<ToastType, { bar: string; icon: string; bg: string }> = {
-  success: { bar: 'bg-green-500',  icon: 'text-green-500',  bg: 'bg-white' },
-  error:   { bar: 'bg-red-500',    icon: 'text-red-500',    bg: 'bg-white' },
-  warning: { bar: 'bg-yellow-400', icon: 'text-yellow-500', bg: 'bg-white' },
-  info:    { bar: 'bg-blue-500',   icon: 'text-blue-500',   bg: 'bg-white' },
+const COLOURS: Record<ToastType, string> = {
+  success: 'bg-success',
+  error: 'bg-danger',
+  warning: 'bg-warning',
+  info: 'bg-info',
 };
 
-const AUTO_DISMISS_MS = 4500;
+const AUTO_DISMISS_MS = 2600;
 
 function ToastItem({ toast }: { toast: ToastItem }) {
   const remove = useToastStore((s) => s.remove);
-  const { bar, icon, bg } = COLOURS[toast.type];
 
   useEffect(() => {
     const t = setTimeout(() => remove(toast.id), AUTO_DISMISS_MS);
@@ -24,25 +23,21 @@ function ToastItem({ toast }: { toast: ToastItem }) {
 
   return (
     <div
-      className={`relative flex items-start gap-3 ${bg} rounded-xl shadow-lg border border-gray-100 p-4 pr-10 w-80 overflow-hidden`}
+      className={`hc-toast-in flex items-center gap-2 ${COLOURS[toast.type]} text-white rounded-lg shadow-toast pl-4 pr-3 py-3 text-[13px] font-semibold`}
       role="alert"
     >
-      {/* Colour bar */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1 ${bar} rounded-l-xl`} />
-
-      {/* Icon */}
-      <div className={`mt-0.5 flex-shrink-0 ${icon}`}>
+      <span className="flex-shrink-0 [&>svg]:w-[15px] [&>svg]:h-[15px]">
         {toast.type === 'success' && <CheckIcon />}
         {toast.type === 'error' && <XCircleIcon />}
         {toast.type === 'warning' && <WarnIcon />}
         {toast.type === 'info' && <InfoIcon />}
-      </div>
+      </span>
 
-      <p className="text-sm text-gray-800 leading-snug">{toast.message}</p>
+      <p className="leading-snug">{toast.message}</p>
 
       <button
         onClick={() => remove(toast.id)}
-        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+        className="flex-shrink-0 text-white/70 hover:text-white transition-colors ml-1"
         aria-label="Dismiss"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +53,7 @@ export function Toaster() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div key={t.id} className="pointer-events-auto">
           <ToastItem toast={t} />
@@ -70,29 +65,29 @@ export function Toaster() {
 
 function CheckIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
 function XCircleIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
     </svg>
   );
 }
 function WarnIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
   );
 }
 function InfoIcon() {
   return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
     </svg>
   );
 }

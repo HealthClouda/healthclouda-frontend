@@ -9,16 +9,9 @@ interface SlidePanelProps {
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  width?: 'md' | 'lg' | 'xl';
 }
 
-const WIDTH = {
-  md: 'w-full max-w-md',
-  lg: 'w-full max-w-lg',
-  xl: 'w-full max-w-2xl',
-};
-
-export function SlidePanel({ open, onClose, title, subtitle, children, footer, width = 'md' }: SlidePanelProps) {
+export function SlidePanel({ open, onClose, title, subtitle, children, footer }: SlidePanelProps) {
   useEffect(() => {
     if (!open) return;
     function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
@@ -26,13 +19,13 @@ export function SlidePanel({ open, onClose, title, subtitle, children, footer, w
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
+  if (!open) return null;
+
   return (
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${
-          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className="fixed inset-0 z-30 bg-[rgba(0,8,37,0.35)] backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden
       />
@@ -42,33 +35,31 @@ export function SlidePanel({ open, onClose, title, subtitle, children, footer, w
         role="dialog"
         aria-modal
         aria-label={title}
-        className={`fixed right-0 top-0 bottom-0 z-30 ${WIDTH[width]} bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
-          open ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className="hc-panel-in fixed right-0 top-0 bottom-0 z-30 w-full max-w-[440px] bg-white shadow-panel flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+        <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-border flex-shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-            {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+            <h2 className="text-[15px] font-bold text-ink">{title}</h2>
+            {subtitle && <p className="text-xs text-text-soft mt-0.5">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5"
+            className="text-text-soft hover:text-danger hover:bg-danger-bg rounded-md p-1 transition-colors"
             aria-label="Close panel"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <div className="flex gap-2.5 px-6 py-[18px] border-t border-border flex-shrink-0">
             {footer}
           </div>
         )}
