@@ -19,11 +19,12 @@ const COLORS: Record<string, BadgeColor> = {
   PENDING:      { bg: 'bg-warning-bg', text: 'text-warning' },
   AWAITING:     { bg: 'bg-warning-bg', text: 'text-warning' },
 
-  // Warning (stronger) — needs attention but not yet a failure
-  NO_SHOW:      { bg: 'bg-warning-bg', text: 'text-warning' },
-  MAINTENANCE:  { bg: 'bg-warning-bg', text: 'text-warning' },
-  OCCUPIED:     { bg: 'bg-warning-bg', text: 'text-warning' },
-  SUSPENDED:    { bg: 'bg-warning-bg', text: 'text-warning' },
+  // Warning (stronger) — needs attention but not yet a failure. Distinct hue
+  // from PENDING/AWAITING so the two don't read as the same status at a glance.
+  NO_SHOW:      { bg: 'bg-warning-strong-bg', text: 'text-warning-strong' },
+  MAINTENANCE:  { bg: 'bg-warning-strong-bg', text: 'text-warning-strong' },
+  OCCUPIED:     { bg: 'bg-warning-strong-bg', text: 'text-warning-strong' },
+  SUSPENDED:    { bg: 'bg-warning-strong-bg', text: 'text-warning-strong' },
 
   // Danger — negative / cancelled
   CANCELLED:    { bg: 'bg-danger-bg', text: 'text-danger' },
