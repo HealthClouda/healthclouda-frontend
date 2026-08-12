@@ -24,6 +24,38 @@
   --shadow-btn-primary: 0 3px 14px rgba(0, 117, 255, 0.28);
 }
 
+/*
+ * Dashboard design tokens — design_handoff_dashboards/README.md (DASH-1 shared shell).
+ * Utilities: bg-page / text-text-mid / text-text-soft / border-border /
+ * border-row-hairline / text-placeholder / bg-success / bg-success-bg / etc.
+ */
+@theme inline {
+  --color-text-mid: #374151;
+  --color-text-soft: #6b7280;
+  --color-border: #e8edf5;
+  --color-row-hairline: #f3f6fb;
+  --color-placeholder: #b0bcc8;
+  --color-nav-muted: #c0c8d8;
+
+  --color-success: #16a34a;
+  --color-success-bg: #dcfce7;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
+  --color-warning: #d97706;
+  --color-warning-bg: #fef3c7;
+  /* Distinct from warning — badges that need the pre-existing yellow/orange split
+     (PENDING vs. e.g. SUSPENDED) rather than collapsing onto one hue. */
+  --color-warning-strong: #c2410c;
+  --color-warning-strong-bg: #ffedd5;
+  --color-info: #2563eb;
+  --color-info-bg: #dbeafe;
+  --color-purple: #7c3aed;
+  --color-purple-bg: #ede9fe;
+
+  --radius-card: 14px;
+  --shadow-dash-card: 0 1px 4px rgba(0, 8, 37, 0.05);
+}
+
 /* Carousel infinite scroll */
 @keyframes carousel-scroll {
   0%   { transform: translateX(0); }

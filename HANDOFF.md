@@ -18,14 +18,10 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **FLAG-011** — log the token contrast finding from the #67 review | `docs/flag-011-token-contrast` | `CODEBASE_FLAGS.md`, `HANDOFF.md`, `HANDOFF-Bastoh.md` | 2026-08-12 | docs only |
-| @Qeeyat | **D1** — DASH-1 shared shell + Superadmin | *(unclaimed — add your branch)* | `src/components/ui/*`, `src/components/dashboard/superadmin/*` | 2026-08-10 | in progress — 🔴 hard checkpoint **Fri 14 Aug** |
+| @Qeeyat | **D1** — DASH-1 shared shell + Superadmin | `feat/dash-1-shared-shell` | `src/components/ui/*`, `src/components/layout/*`, `src/components/dashboard/StatCard.tsx`, `src/app/globals.css`, `src/app/layout.tsx` | 2026-08-10 | **PR #67 — CHANGES REQUESTED (@Bastoh), addressing now.** Shell components only (Tue 11 row); SlidePanel/Modal/Toast/EmptyState/SmallScreenGate + Superadmin pages still to come — 🔴 hard checkpoint **Fri 14 Aug** |
 
-*Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66. Both merged
-2026-08-12.*
-
-⚠️ **PR #67 (D1) conflicts with `develop`** on this table — it branched before #66. @Qeeyat rebases
-and keeps both rows. **Rebase after FLAG-011 (#68) lands** so it's one rebase, not two.
+*Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011**
+token contrast — PR #68. All merged 2026-08-12.*
 
 ⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.
 A design PR built on the wrong data shape is a rewrite — if that order slips, say so in this table.

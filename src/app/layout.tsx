@@ -4,9 +4,11 @@ import { Toaster } from '@/components/ui/Toaster';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-// Design system (design_handoff_prelogin): Inter = headings/labels/buttons,
-// Lato = body copy on pre-login pages. Dashboards stay on Inter.
-const lato = Lato({ subsets: ['latin'], weight: ['300', '400', '700'], variable: '--font-lato' });
+// Pre-login (design_handoff_prelogin): Inter = headings/labels/buttons, Lato = body copy.
+// Dashboards (design_handoff_dashboards): Inter = UI/body, Lato 700/900 = page titles,
+// stat values, modal titles. Lato ships no 800 cut — components asking for 800 fall back
+// to the nearest loaded weight.
+const lato = Lato({ subsets: ['latin'], weight: ['300', '400', '700', '900'], variable: '--font-lato' });
 
 export const metadata: Metadata = {
   // A2: per-tier, not a hardcoded host. Only affects canonical/OpenGraph URLs,
