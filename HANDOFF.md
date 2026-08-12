@@ -4,6 +4,43 @@
 
 ---
 
+## 🚧 In Flight
+
+> **This table is how two developers — each driving their own AI assistant that cannot see the
+> other's memory — avoid working the same files from two directions.**
+>
+> **Rules:** claim your row **before cutting the branch**, not at PR time · clear it on merge ·
+> read it at session start, every session · if you abandon the work, **clear the row** — a stale
+> claim is worse than no claim.
+>
+> Taking an item outside your default lane (`[INFRA]` @Bastoh · `[DESIGN]` @Qeeyat) matters *more*
+> here, not less — claim it loudly.
+
+| Who | Item(s) | Branch | Touches | Since | State |
+|---|---|---|---|---|---|
+| @Bastoh | **A2, A3, A4, A6** — Tier-1 infra batch | `fix/tier1-infra-batch` | `next.config.ts`, `.env.example`, `src/lib/config.ts`, `src/app/layout.tsx`, `OrgAdminDashboard.tsx` (access-requests only), `HANDOFF.md` | 2026-08-12 | in progress |
+| @Qeeyat | **D1** — DASH-1 shared shell + Superadmin | *(unclaimed — add your branch)* | `src/components/ui/*`, `src/components/dashboard/superadmin/*` | 2026-08-10 | in progress — 🔴 hard checkpoint **Fri 14 Aug** |
+
+⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.
+A design PR built on the wrong data shape is a rewrite — if that order slips, say so in this table.
+
+---
+
+## 📡 Backend Contract Notes
+
+> Backend changes we must consume. The live `/api/v1/schema/` is the single source of truth —
+> **not** this table, and not `API-doc.md` (which is gitignored, see FLAG-009).
+
+| Date | Note | Status |
+|---|---|---|
+| 2026-08-10 | **API host moved to `https://api-dev.healthclouda.com`.** The old Railway host returns HTTP 400 `DisallowedHost` on every path — removed from `ALLOWED_HOSTS` deliberately (it bypassed Cloudflare, sidestepping edge rate limiting + the audit-logging security header). **It will not be restored.** | ✅ purged from the codebase 2026-08-12 (A2) |
+| 2026-08-10 | **A8 — backend must tier its `FRONTEND_URL` too.** It emails links built from that value (set-password for staff *and* patient invites, org landing, cross-org consent approve/deny). If tiers cross, a beta patient's invite lands on the wrong frontend calling the wrong API, and presents as *"the invite is broken"*. | ❗ cross-repo `api-request` issue — **still to file** |
+| 2026-08-10 | **Org-admin access-request review was removed by the backend as a security fix** — it let an org admin approve access to a patient's records *bypassing patient consent* (audit ORGADMIN-1). Read-only list stays. | ✅ frontend caller removed 2026-08-12 (A6) |
+| 2026-08-10 | Referral workflow becomes **ORG_ADMIN-managed ~20 Aug** — re-read Swagger before D5 Doctor; don't build deep against today's shape. | ⏳ pending |
+| 2026-08-08 | Contract claims in our docs are **July-sourced, not re-verified** against the live schema (FLAG-003). | ❗ open |
+
+---
+
 ## Project Snapshot
 
 - **Stack (current):** Next.js (App Router) on `develop` — React rewrite merged via PRs #45/#46
