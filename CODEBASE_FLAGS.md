@@ -210,7 +210,10 @@ reader at a gitignored file.
 
 ### FLAG-010 — Backend's login `redirect_to` drops the org slug (unused today, loaded gun)
 **Severity:** P3 · **Area:** Backend contract · **Owner:** @Bastoh · **Status:** OPEN
-**Found:** 2026-08-12, while researching A8 in the backend repo
+**Found:** 2026-08-12, while researching A8 in the backend repo ·
+**Reproduced live 2026-08-13** on the newly seeded `api-dev`: `POST /auth/login/demo-clinic/` as
+`doctor@demo.test` returned `redirect_to: "/doctor/"`. Previously this was read out of their source
+only — it is now confirmed in the deployed build, so the field is live and wrong, not theoretical.
 
 `healthclouda-backend` builds the login response's `redirect_to` from `FRONTEND_ROLE_PATHS`
 (`healthclouda/settings/base.py:406`), which has **no org slug in it**:

@@ -154,10 +154,20 @@ Slack, not a doc in this repo, not an assumption in code.
    ⚠️ Reading only your own **fails silently.** Nothing errors; you simply miss what the other dev
    did, duplicate their work, or contradict a decision they already made. This is the single
    easiest way to break the multi-dev workflow.
-4. **Read `ARCHITECTURE.md`** — what actually exists.
-5. **Read `TARGET_ARCHITECTURE_CHECKLIST.md`** — where we're heading and in what order.
-6. **Read `BETA_READINESS.md`** — what's blocking beta.
+4. **Read `ARCHITECTURE.md`** — what actually exists. ⚠️ Currently **stale wholesale** (ARCH-7): it
+   still describes the vanilla-JS app that was deleted in July. Read it for history, not for truth,
+   until it is rewritten.
+5. **Read `docs/FRONTEND_SPRINT_PLAN.md`** — the dated plan to the 3 Sep beta onboarding, and the
+   nearest thing this repo has to a live backlog. Read the current week's row.
+6. **Read `CODEBASE_FLAGS.md`** — open issues and logged shortcuts, including anyone else's range.
 7. **Then ask the user what they want to work on.** Not before.
+
+> ⚠️ **`TARGET_ARCHITECTURE_CHECKLIST.md` and `BETA_READINESS.md` do not exist yet.** They were
+> listed here as required reading from the day this file was written, so every session since has
+> silently skipped two steps — nothing errors, you just read nothing. They are still owed (sprint
+> plan section F; `BETA_READINESS.md` is also where A7's Tier-1 list is meant to land). Steps 5–6
+> above name what actually exists today. **When those two files are written, restore them here and
+> delete this note.**
 
 **If the dev is new to this repo, also read `ONBOARDING.md` in full** — and point them at it.
 It is written for both of you.
