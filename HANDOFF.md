@@ -18,7 +18,7 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| *(none — claim before cutting your next branch)* | | | | | |
+| @Bastoh | **Docs** — `api-dev` seeded contract note, FLAG-010 verified live, `CLAUDE.md` §4 fix, remove migrated narrative from `HANDOFF.md` | `docs/handoff-seeded-contract-notes` | `HANDOFF.md`, `CLAUDE.md`, `CODEBASE_FLAGS.md` | 2026-08-13 | in progress — docs only, no source changes |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011**
 token contrast — PR #68 · **D1 shared shell** (DashboardShell/StatCard/DataTable/Badge) — PR #67 ·
