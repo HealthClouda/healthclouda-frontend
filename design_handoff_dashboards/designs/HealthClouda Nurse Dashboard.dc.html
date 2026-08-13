@@ -266,12 +266,12 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
               <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
                 <label style="font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:8px;">Patient</label>
                 <select value="{{ vitalsPatientId }}" onChange="{{ setVitalsPatient }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
-                  <option value="1">Chinwe Eze — GA-03</option>
-                  <option value="2">Babatunde Ogun — GA-07</option>
-                  <option value="3">Fatima Aliyu — M-02</option>
-                  <option value="4">Samuel Okonkwo — GA-09</option>
-                  <option value="5">Adaeze Nwankwo — P-04</option>
-                  <option value="6">Oluwaseun Adebisi — ICU-02</option>
+                  <option value="1">Chinwe Eze · GA-03</option>
+                  <option value="2">Babatunde Ogun · GA-07</option>
+                  <option value="3">Fatima Aliyu · M-02</option>
+                  <option value="4">Samuel Okonkwo · GA-09</option>
+                  <option value="5">Adaeze Nwankwo · P-04</option>
+                  <option value="6">Oluwaseun Adebisi · ICU-02</option>
                 </select>
                 <div style="display:flex; align-items:center; gap:12px; margin-top:16px;">
                   <div style="width:44px; height:44px; border-radius:50%; background: {{ vPat.avatarBg }}; color:#ffffff; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ vPat.initials }}</div>
@@ -490,7 +490,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
             <svg viewBox="0 0 24 24" style="width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z"></path><path d="M12 8v6M9 11h6"></path></svg>
           </div>
           <div style="font-family:'Lato',sans-serif; font-size:19px; font-weight:800; color:#000825;">Care Plans are coming soon</div>
-          <div style="font-size:13.5px; color:#6b7280; max-width:380px; line-height:1.6;">Structured nursing care plans — goals, interventions and progress notes per admission — are on the roadmap. Until then, keep using vitals notes for observations.</div>
+          <div style="font-size:13.5px; color:#6b7280; max-width:380px; line-height:1.6;">Structured nursing care plans (goals, interventions and progress notes per admission) are on the roadmap. Until then, keep using vitals notes for observations.</div>
           <span style="display:inline-flex; padding:5px 14px; border-radius:999px; font-size:11.5px; font-weight:700; background:#fef3c7; color:#d97706; margin-top:4px;">On the roadmap</span>
         </div>
       </sc-if>
@@ -648,9 +648,9 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select patient…</option>
-            <option value="1">Aisha Bello — HCL-2026-01566 (active episode)</option>
-            <option value="2">Mary Nwachukwu — HCL-2024-09215 (active episode)</option>
-            <option value="3">Ibrahim Danjuma — HCL-2025-04083 (active episode)</option>
+            <option value="1">Aisha Bello · HCL-2026-01566 (active episode)</option>
+            <option value="2">Mary Nwachukwu · HCL-2024-09215 (active episode)</option>
+            <option value="3">Ibrahim Danjuma · HCL-2025-04083 (active episode)</option>
           </select>
           <div style="font-size:11px; color:#6b7280; line-height:1.5;">Only patients with an active episode can be admitted.</div>
         </div>
@@ -668,7 +668,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">{{ admitBedPlaceholder }}</option>
             <sc-for list="{{ admitBedOptions }}" as="b">
-              <option value="{{ b.no }}">{{ b.no }} — available</option>
+              <option value="{{ b.no }}">{{ b.no }}: available</option>
             </sc-for>
           </select>
         </div>
@@ -730,7 +730,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">{{ transferBedPlaceholder }}</option>
             <sc-for list="{{ transferBedOptions }}" as="b">
-              <option value="{{ b.no }}">{{ b.no }} — available</option>
+              <option value="{{ b.no }}">{{ b.no }}: available</option>
             </sc-for>
           </select>
         </div>
@@ -769,22 +769,22 @@ class Component extends DCLogic {
       ],
       patients: [
         { id: 1, name: 'Chinwe Eze', hclId: 'HCL-2025-08841', bed: 'GA-03', ward: 'General Ward A', age: 34, blood: 'O+', allergies: 'Penicillin', complaint: 'Chest pain, shortness of breath', days: 2, vit: { bp: '128/84', temp: 37.1, pulse: 82, resp: 16, spo2: 97, weight: 68, when: 'Today, 06:45', by: 'Ngozi Eze' }, due: false },
-        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', bed: 'GA-07', ward: 'General Ward A', age: 58, blood: 'A+', allergies: 'None', complaint: 'Post-surgical recovery — appendectomy', days: 4, vit: { bp: '135/88', temp: 36.9, pulse: 76, resp: 15, spo2: 98, weight: 81, when: 'Today, 06:30', by: 'Ngozi Eze' }, due: false },
+        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', bed: 'GA-07', ward: 'General Ward A', age: 58, blood: 'A+', allergies: 'None', complaint: 'Post-surgical recovery: appendectomy', days: 4, vit: { bp: '135/88', temp: 36.9, pulse: 76, resp: 15, spo2: 98, weight: 81, when: 'Today, 06:30', by: 'Ngozi Eze' }, due: false },
         { id: 3, name: 'Fatima Aliyu', hclId: 'HCL-2025-11302', bed: 'M-02', ward: 'Maternity', age: 27, blood: 'B+', allergies: 'Sulfa drugs', complaint: 'Pre-eclampsia monitoring', days: 3, vit: { bp: '146/94', temp: 37.0, pulse: 90, resp: 18, spo2: 97, weight: 74, when: 'Today, 05:50', by: 'Halima Suleiman' }, due: false },
         { id: 4, name: 'Samuel Okonkwo', hclId: 'HCL-2023-00958', bed: 'GA-09', ward: 'General Ward A', age: 45, blood: 'O-', allergies: 'None', complaint: 'Malaria with dehydration', days: 1, vit: { bp: '118/76', temp: 38.6, pulse: 96, resp: 19, spo2: 96, weight: 77, when: 'Yesterday, 22:15', by: 'Night shift' }, due: true },
         { id: 5, name: 'Adaeze Nwankwo', hclId: 'HCL-2026-02311', bed: 'P-04', ward: 'Pediatrics', age: 8, blood: 'AB+', allergies: 'Peanuts', complaint: 'Severe asthma exacerbation', days: 0, vit: null, due: true },
-        { id: 6, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', bed: 'ICU-02', ward: 'ICU', age: 61, blood: 'A-', allergies: 'None', complaint: 'Septic shock — stabilising', days: 5, vit: { bp: '102/64', temp: 37.8, pulse: 104, resp: 22, spo2: 93, weight: 70, when: 'Today, 07:00', by: 'Ngozi Eze' }, due: false },
+        { id: 6, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', bed: 'ICU-02', ward: 'ICU', age: 61, blood: 'A-', allergies: 'None', complaint: 'Septic shock: stabilising', days: 5, vit: { bp: '102/64', temp: 37.8, pulse: 104, resp: 22, spo2: 93, weight: 70, when: 'Today, 07:00', by: 'Ngozi Eze' }, due: false },
       ],
       admissions: [
         { id: 1, pid: 1, admitted: 'Jul 27, 2026', reason: 'Chest pain, shortness of breath', status: 'ACTIVE' },
-        { id: 2, pid: 2, admitted: 'Jul 25, 2026', reason: 'Post-surgical recovery — appendectomy', status: 'ACTIVE' },
+        { id: 2, pid: 2, admitted: 'Jul 25, 2026', reason: 'Post-surgical recovery: appendectomy', status: 'ACTIVE' },
         { id: 3, pid: 3, admitted: 'Jul 26, 2026', reason: 'Pre-eclampsia monitoring', status: 'ACTIVE' },
         { id: 4, pid: 4, admitted: 'Jul 28, 2026', reason: 'Malaria with dehydration', status: 'ACTIVE' },
         { id: 5, pid: 5, admitted: 'Jul 29, 2026', reason: 'Severe asthma exacerbation', status: 'ACTIVE' },
-        { id: 6, pid: 6, admitted: 'Jul 24, 2026', reason: 'Septic shock — stabilising', status: 'ACTIVE' },
+        { id: 6, pid: 6, admitted: 'Jul 24, 2026', reason: 'Septic shock: stabilising', status: 'ACTIVE' },
         { id: 7, name: 'Blessing Nwosu', hclId: 'HCL-2024-05512', wardBed: 'General Ward A · GA-11', admitted: 'Jul 22, 2026', days: 7, reason: 'Typhoid fever treatment', status: 'DISCHARGED' },
         { id: 8, name: 'Musa Ibrahim', hclId: 'HCL-2025-09148', wardBed: 'General Ward A · GA-05', admitted: 'Jul 20, 2026', days: 6, reason: 'Diabetic ketoacidosis', status: 'DISCHARGED' },
-        { id: 9, name: 'Kelechi Obi', hclId: 'HCL-2026-00877', wardBed: 'Pediatrics · P-08 → ICU-04', admitted: 'Jul 26, 2026', days: 3, reason: 'Deteriorating pneumonia — moved to ICU', status: 'TRANSFERRED' },
+        { id: 9, name: 'Kelechi Obi', hclId: 'HCL-2026-00877', wardBed: 'Pediatrics · P-08 → ICU-04', admitted: 'Jul 26, 2026', days: 3, reason: 'Deteriorating pneumonia: moved to ICU', status: 'TRANSFERRED' },
       ],
       wards: [
         { name: 'General Ward A', prefix: 'GA', category: 'Medical', beds: ['O','O','O','A','O','M','O','A','O','O','O','O'] },

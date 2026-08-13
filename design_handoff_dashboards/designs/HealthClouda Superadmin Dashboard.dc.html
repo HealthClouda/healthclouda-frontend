@@ -223,7 +223,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
                   </div>
                 </sc-for>
                 <sc-if value="{{ noPending }}" hint-placeholder-val="{{ false }}">
-                  <div style="text-align:center; padding:24px; font-size:12.5px; color:#6b7280;">No pending invitations — everyone's set up.</div>
+                  <div style="text-align:center; padding:24px; font-size:12.5px; color:#6b7280;">No pending invitations: everyone's set up.</div>
                 </sc-if>
               </div>
             </div>
@@ -789,7 +789,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
       <div style="flex:1; overflow-y:auto; padding:24px;">
         <div style="display:flex; gap:10px; align-items:flex-start; background:#ebf3ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px 14px; margin-bottom:20px;">
           <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          <div style="font-size:12px; color:#1e40af; line-height:1.5;">No password needed — they'll receive an email with a secure link to set their own password.</div>
+          <div style="font-size:12px; color:#1e40af; line-height:1.5;">No password needed: they'll receive an email with a secure link to set their own password.</div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
           <div style="display:flex; flex-direction:column; gap:6px;">
@@ -873,7 +873,7 @@ class Component extends DCLogic {
       notifs: [
         { id: 1, kind: 'info', title: 'New organisation registered', desc: 'GreenLeaf Clinic completed registration', time: '25 min ago', read: false },
         { id: 2, kind: 'success', title: 'Invite accepted', desc: 'Halima Abubakar set up her account at Kano Teaching Hospital', time: '2 hours ago', read: false },
-        { id: 3, kind: 'warning', title: 'Backup completed with warnings', desc: 'Nightly backup finished — 1 table skipped, retried OK', time: 'Today, 04:02', read: true },
+        { id: 3, kind: 'warning', title: 'Backup completed with warnings', desc: 'Nightly backup finished: 1 table skipped, retried OK', time: 'Today, 04:02', read: true },
       ],
       orgs: [
         { id: 1, name: 'Lagos General Hospital', type: 'HOSPITAL', slug: 'lagos-general', active: true, date: 'Nov 3, 2025', ts: 20251103, admin: 'Dr. Amina Yusuf', email: 'admin@lagosgeneral.ng', phone: '0803 221 4410', address: '14 Marina Road, Lagos Island', license: 'HFL-LA-04412', verified: 'Yes', staff: 84, patients: 3210, episodes: 412 },
@@ -1058,7 +1058,7 @@ class Component extends DCLogic {
       records: ['Records', 'Cross-organisation patient record oversight is on the roadmap. Records stay inside each organisation until then.'],
       billing: ['Billing', 'Subscription plans, revenue tracking and invoices will live here once billing launches on the platform.'],
       messages: ['Messages', 'Direct messaging between Super Admin and organisation admins is planned for a future release.'],
-      settings: ['Settings', 'Platform-wide configuration — profile, security policy and maintenance mode — is coming soon.'],
+      settings: ['Settings', 'Platform-wide configuration (profile, security policy and maintenance mode) is coming soon.'],
     };
     const isSoon = !!soonMeta[s.page];
     const sortIcon = (key, curKey, dir) => key !== curKey ? '↕' : (dir === 'asc' ? '↑' : '↓');
@@ -1121,7 +1121,7 @@ class Component extends DCLogic {
       inviteNeedsOrg: s.inviteRole !== 'SUPERADMIN',
       setInviteRole: e => this.setState({ inviteRole: e.target.value }),
       openInviteUser: () => this.setState({ panel: 'inviteUser', inviteRole: '' }),
-      submitInvite: () => { this.setState({ panel: null }); this.fireToast(s.inviteRole === 'SUPERADMIN' ? 'Super Admin invitation sent — logged to audit trail' : 'Invitation sent — set-password link emailed'); },
+      submitInvite: () => { this.setState({ panel: null }); this.fireToast(s.inviteRole === 'SUPERADMIN' ? 'Super Admin invitation sent: logged to audit trail' : 'Invitation sent: set-password link emailed'); },
       closePanels: () => this.setState({ panel: null }),
       exportToast: () => this.fireToast('CSV export started'),
       notifOpen: s.notifOpen, notifItems, notifEmpty: notifItems.length === 0,

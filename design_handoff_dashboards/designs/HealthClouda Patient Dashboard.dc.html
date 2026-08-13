@@ -117,7 +117,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <div id="pt-welcome" style="background:linear-gradient(120deg, #0075ff, #005FCC); border-radius:16px; padding:26px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; color:#ffffff;">
             <div>
               <div style="font-family:'Lato',sans-serif; font-size:21px; font-weight:800; text-wrap:pretty;">Welcome back, Blessing</div>
-              <div style="font-size:13px; opacity:0.85; margin-top:4px; line-height:1.5;">Your health records, prescriptions and visit history — all in one place.</div>
+              <div style="font-size:13px; opacity:0.85; margin-top:4px; line-height:1.5;">Your health records, prescriptions and visit history: all in one place.</div>
             </div>
             <div style="background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.35); border-radius:10px; padding:10px 16px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:14px; font-weight:700; white-space:nowrap;">HCL-2024-05512</div>
           </div>
@@ -378,7 +378,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
               </div>
               <div style="display:flex; gap:10px; align-items:flex-start; background:#f8faff; border:1.5px solid #e8edf5; border-radius:10px; padding:13px 16px;">
                 <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#6b7280; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                <div style="font-size:12px; color:#6b7280; line-height:1.5;">To correct personal or medical details, visit the reception desk at any facility you attend — staff will verify and update your record.</div>
+                <div style="font-size:12px; color:#6b7280; line-height:1.5;">To correct personal or medical details, visit the reception desk at any facility you attend; staff will verify and update your record.</div>
               </div>
             </div>
           </div>
@@ -490,24 +490,24 @@ class Component extends DCLogic {
         { text: 'Avoid dusty environments; use the antihistamine before bedtime if itching persists.', from: 'Dr. Emeka Obi · Lagos General Hospital · Jul 10' },
       ],
       appts: [
-        { id: 1, month: 'Aug', day: '2', time: '10:30', duration: '30 min', doctor: 'Dr. Emeka Obi', org: 'Lagos General Hospital', reason: 'Follow-up — respiratory infection', status: 'SCHEDULED' },
+        { id: 1, month: 'Aug', day: '2', time: '10:30', duration: '30 min', doctor: 'Dr. Emeka Obi', org: 'Lagos General Hospital', reason: 'Follow-up: respiratory infection', status: 'SCHEDULED' },
         { id: 2, month: 'Aug', day: '14', time: '09:00', duration: '20 min', doctor: 'Dr. Chidi Okafor', org: 'Demo Clinic', reason: 'Allergy review', status: 'SCHEDULED' },
         { id: 3, month: 'Jul', day: '22', time: '11:00', duration: '30 min', doctor: 'Dr. Chidi Okafor', org: 'Demo Clinic', reason: 'Chest congestion and cough', status: 'COMPLETED' },
         { id: 4, month: 'Jul', day: '10', time: '14:30', duration: '30 min', doctor: 'Dr. Emeka Obi', org: 'Lagos General Hospital', reason: 'Allergy consultation', status: 'COMPLETED' },
         { id: 5, month: 'Jun', day: '30', time: '10:00', duration: '30 min', doctor: 'Dr. Kemi Balogun', org: 'Lagos General Hospital', reason: 'General check-up', status: 'CANCELLED' },
       ],
       visits: [
-        { id: 1, org: 'Demo Clinic', doctor: 'Dr. Chidi Okafor', complaint: 'Chest congestion and cough', type: 'OUTPATIENT', date: 'Jul 22, 2026', status: 'ACTIVE', diagnosis: 'Acute bronchitis — responding to antibiotics. Follow-up scheduled to confirm resolution.', rx: [ { medication: 'Amoxicillin', detail: '500mg · Twice daily · 10 days' } ] },
+        { id: 1, org: 'Demo Clinic', doctor: 'Dr. Chidi Okafor', complaint: 'Chest congestion and cough', type: 'OUTPATIENT', date: 'Jul 22, 2026', status: 'ACTIVE', diagnosis: 'Acute bronchitis: responding to antibiotics. Follow-up scheduled to confirm resolution.', rx: [ { medication: 'Amoxicillin', detail: '500mg · Twice daily · 10 days' } ] },
         { id: 2, org: 'Lagos General Hospital', doctor: 'Dr. Emeka Obi', complaint: 'Allergy consultation', type: 'OUTPATIENT', date: 'Jul 10, 2026', status: 'COMPLETED', diagnosis: 'Seasonal allergic rhinitis. Antihistamine prescribed, avoid known triggers.', rx: [ { medication: 'Loratadine', detail: '10mg · Once daily · 30 days' } ] },
-        { id: 3, org: 'Lagos General Hospital', doctor: 'Dr. Kemi Balogun', complaint: 'Typhoid fever treatment', type: 'INPATIENT', date: 'Jul 15 – 22, 2026', status: 'COMPLETED', diagnosis: 'Typhoid fever — treated with IV then oral antibiotics. Full recovery, discharged with instructions.', rx: [ { medication: 'Ciprofloxacin', detail: '500mg · Twice daily · 10 days' } ] },
+        { id: 3, org: 'Lagos General Hospital', doctor: 'Dr. Kemi Balogun', complaint: 'Typhoid fever treatment', type: 'INPATIENT', date: 'Jul 15 – 22, 2026', status: 'COMPLETED', diagnosis: 'Typhoid fever: treated with IV then oral antibiotics. Full recovery, discharged with instructions.', rx: [ { medication: 'Ciprofloxacin', detail: '500mg · Twice daily · 10 days' } ] },
         { id: 4, org: 'GreenLeaf Clinic', doctor: 'Dr. Tunde Bakare', complaint: 'Routine health screening', type: 'OUTPATIENT', date: 'May 4, 2026', status: 'COMPLETED', diagnosis: 'All screening parameters within normal range.', rx: [] },
       ],
       referrals: [
-        { id: 1, title: 'Cardiology consult — Lagos General Hospital', detail: 'From Dr. Chidi Okafor (Demo Clinic) · Jul 23, 2026 · for specialist chest evaluation', status: 'ACCEPTED' },
-        { id: 2, title: 'Dermatology review — Kano Teaching Hospital', detail: 'From Dr. Emeka Obi (Lagos General Hospital) · Jun 12, 2026', status: 'COMPLETED' },
+        { id: 1, title: 'Cardiology consult: Lagos General Hospital', detail: 'From Dr. Chidi Okafor (Demo Clinic) · Jul 23, 2026 · for specialist chest evaluation', status: 'ACCEPTED' },
+        { id: 2, title: 'Dermatology review: Kano Teaching Hospital', detail: 'From Dr. Emeka Obi (Lagos General Hospital) · Jun 12, 2026', status: 'COMPLETED' },
       ],
       access: [
-        { id: 1, org: 'Abuja Medical Centre', requestedBy: 'Yemi Adeola (Receptionist)', reason: 'You have an upcoming referral appointment — we need your medical history to prepare for your visit.', date: 'Today, 09:40', status: 'PENDING' },
+        { id: 1, org: 'Abuja Medical Centre', requestedBy: 'Yemi Adeola (Receptionist)', reason: 'You have an upcoming referral appointment; we need your medical history to prepare for your visit.', date: 'Today, 09:40', status: 'PENDING' },
         { id: 2, org: 'Demo Clinic', requestedBy: 'Dr. Chidi Okafor', reason: 'Review of prior respiratory treatment records for your current episode.', date: 'Jul 21, 2026', status: 'APPROVED' },
         { id: 3, org: 'GreenLeaf Clinic', requestedBy: 'Front desk', reason: 'Routine screening registration.', date: 'May 3, 2026', status: 'APPROVED' },
         { id: 4, org: 'Sunrise Family Clinic', requestedBy: 'Front desk', reason: 'Marketing follow-up on wellness programs.', date: 'Apr 18, 2026', status: 'DENIED' },
@@ -577,7 +577,7 @@ class Component extends DCLogic {
         cardBorder: a.status === 'PENDING' ? '#fde68a' : '#e8edf5',
         isPending: a.status === 'PENDING',
         onApprove: () => { this.setState(p => ({ access: p.access.map(x => x.id === a.id ? { ...x, status: 'APPROVED' } : x) })); this.fireToast(a.org + ' can now view your records'); },
-        onDeny: () => { this.setState(p => ({ access: p.access.map(x => x.id === a.id ? { ...x, status: 'DENIED' } : x) })); this.fireToast('Request denied — ' + a.org, '#dc2626'); },
+        onDeny: () => { this.setState(p => ({ access: p.access.map(x => x.id === a.id ? { ...x, status: 'DENIED' } : x) })); this.fireToast('Request denied: ' + a.org, '#dc2626'); },
       };
     });
     const unread = s.notifs.filter(n => !n.read).length;
