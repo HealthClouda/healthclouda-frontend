@@ -5,21 +5,28 @@ import { useToastStore } from '@/store/toast';
 import type { ToastItem, ToastType } from '@/store/toast';
 
 const COLOURS: Record<ToastType, string> = {
-  success: 'bg-success',
+  // success/warning use dedicated on-fill tokens — the badge-strength
+  // success/warning tokens fail AA (3.30:1 / 3.19:1) under white text.
+  success: 'bg-success-fill',
   error: 'bg-danger',
-  warning: 'bg-warning',
+  warning: 'bg-warning-fill',
   info: 'bg-info',
 };
 
 const AUTO_DISMISS_MS = 2600;
+// Error/warning toasts persist until manually dismissed — 2.6s is enough to
+// read "Saved", not enough to read a failure and reach Dismiss on a keyboard
+// (WCAG 2.2.1 Timing Adjustable).
+const PERSISTENT: ToastType[] = ['error', 'warning'];
 
 function ToastItem({ toast }: { toast: ToastItem }) {
   const remove = useToastStore((s) => s.remove);
 
   useEffect(() => {
+    if (PERSISTENT.includes(toast.type)) return;
     const t = setTimeout(() => remove(toast.id), AUTO_DISMISS_MS);
     return () => clearTimeout(t);
-  }, [toast.id, remove]);
+  }, [toast.id, toast.type, remove]);
 
   return (
     <div

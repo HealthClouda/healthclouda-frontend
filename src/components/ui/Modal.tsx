@@ -41,7 +41,9 @@ export function Modal({ open, onClose, title, description, icon, iconColor = 'pr
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // Trap focus
+  // Focuses the panel once on open — not a real focus trap (Tab still walks
+  // out into the page behind) and doesn't restore focus to the trigger on
+  // close. Pre-existing gap, logged as FLAG-201.
   useEffect(() => {
     if (open) panelRef.current?.focus();
   }, [open]);
@@ -67,6 +69,18 @@ export function Modal({ open, onClose, title, description, icon, iconColor = 'pr
         tabIndex={-1}
         className={`hc-modal-in relative w-full ${SIZE[size]} bg-white rounded-card shadow-modal p-7 max-h-[90vh] overflow-y-auto focus:outline-none`}
       >
+        {/* Always present — a form body with no footer must still have a
+            discoverable dismiss affordance beyond Escape/backdrop-tap. */}
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-4 right-4 text-text-soft hover:text-danger hover:bg-danger-bg rounded-md p-1 transition-colors"
+        >
+          <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         {icon && (
           <div className={`w-[52px] h-[52px] rounded-full flex items-center justify-center mx-auto mb-3.5 [&>svg]:w-6 [&>svg]:h-6 ${ICON_COLOR[iconColor]}`}>
             {icon}
