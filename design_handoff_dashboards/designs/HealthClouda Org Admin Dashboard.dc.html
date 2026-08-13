@@ -382,7 +382,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           </div>
           <div style="display:flex; gap:10px; align-items:flex-start; background:#ebf3ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:13px 16px; margin-bottom:16px;">
             <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-            <div style="font-size:12.5px; color:#1e40af; line-height:1.5;"><b>Consent stays with the patient.</b> Patients approve or deny record access requests from their own portal — this list is your organisation's read-only audit view.</div>
+            <div style="font-size:12.5px; color:#1e40af; line-height:1.5;"><b>Consent stays with the patient.</b> Patients approve or deny record access requests from their own portal; this list is your organisation's read-only audit view.</div>
           </div>
           <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
             <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5;">
@@ -538,7 +538,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
       <div style="flex:1; overflow-y:auto; padding:24px;">
         <div style="display:flex; gap:10px; align-items:flex-start; background:#ebf3ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px 14px; margin-bottom:20px;">
           <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          <div style="font-size:12px; color:#1e40af; line-height:1.5;">No password needed — they'll receive an email with a secure link to set their own password.</div>
+          <div style="font-size:12px; color:#1e40af; line-height:1.5;">No password needed: they'll receive an email with a secure link to set their own password.</div>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
           <label style="font-size:12px; font-weight:600; color:#374151;">Full Name *</label>
@@ -648,7 +648,7 @@ class Component extends DCLogic {
       patientSearch: '', accessStatus: '',
       resent: {}, toast: null,
       notifs: [
-        { id: 1, kind: 'warning', title: 'ICU ward at full capacity', desc: 'All 6 ICU beds are occupied — consider transfer arrangements', time: '20 min ago', read: false },
+        { id: 1, kind: 'warning', title: 'ICU ward at full capacity', desc: 'All 6 ICU beds are occupied: consider transfer arrangements', time: '20 min ago', read: false },
         { id: 2, kind: 'info', title: 'New access request', desc: 'Dr. Emeka Obi requested access to Chinwe Eze\u2019s records', time: '1 hour ago', read: false },
         { id: 3, kind: 'success', title: 'Invite accepted', desc: 'Ngozi Eze completed account setup as Nurse', time: '3 hours ago', read: false },
         { id: 4, kind: 'info', title: 'Ward update', desc: 'Maternity ward bed M-06 marked available after discharge', time: 'Yesterday, 18:40', read: true },
@@ -677,7 +677,7 @@ class Component extends DCLogic {
       ],
       access: [
         { id: 1, patient: 'Chinwe Eze', requestedBy: 'Dr. Emeka Obi', reason: 'Review prior cardiology results before consultation', status: 'PENDING', created: 'Jul 29, 2026' },
-        { id: 2, patient: 'Fatima Aliyu', requestedBy: 'Dr. Kemi Balogun', reason: 'Continuity of care — referred from Abuja Medical Centre', status: 'PENDING', created: 'Jul 28, 2026' },
+        { id: 2, patient: 'Fatima Aliyu', requestedBy: 'Dr. Kemi Balogun', reason: 'Continuity of care: referred from Abuja Medical Centre', status: 'PENDING', created: 'Jul 28, 2026' },
         { id: 3, patient: 'Babatunde Ogun', requestedBy: 'Dr. Emeka Obi', reason: 'Follow-up on prescription history', status: 'APPROVED', created: 'Jul 26, 2026' },
         { id: 4, patient: 'Samuel Okonkwo', requestedBy: 'Ngozi Eze', reason: 'Vitals history needed for admission assessment', status: 'APPROVED', created: 'Jul 24, 2026' },
         { id: 5, patient: 'Aisha Bello', requestedBy: 'Dr. Kemi Balogun', reason: 'Second-opinion consult on lab results', status: 'DENIED', created: 'Jul 21, 2026' },
@@ -862,7 +862,7 @@ class Component extends DCLogic {
       showAddStaff: s.panel === 'addStaff',
       showStaffDetail: s.panel === 'staffDetail', vStaff: this.decorateStaff(selStaff),
       openAddStaff: () => this.setState({ panel: 'addStaff' }),
-      submitInvite: () => { this.setState({ panel: null }); this.fireToast('Invitation sent — set-password link emailed'); },
+      submitInvite: () => { this.setState({ panel: null }); this.fireToast('Invitation sent: set-password link emailed'); },
       closePanels: () => this.setState({ panel: null }),
       saveSettings: () => this.fireToast('Settings saved'),
       savePassword: () => this.fireToast('Password updated'),

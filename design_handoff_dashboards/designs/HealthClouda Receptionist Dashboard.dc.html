@@ -269,7 +269,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
         <div data-screen-label="Queue">
           <div style="margin-bottom:22px;">
             <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Queue Overview</div>
-            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Today's check-in queue (read-only) — use it to balance doctor load before assigning</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Today's check-in queue (read-only): use it to balance doctor load before assigning</div>
           </div>
           <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
             <sc-for list="{{ doctorLoad }}" as="d" hint-placeholder-count="3">
@@ -702,9 +702,9 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Doctor *</label>
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select doctor…</option>
-            <option value="1">Dr. Emeka Obi — 3 in queue (on duty)</option>
-            <option value="2">Dr. Kemi Balogun — 1 in queue (on duty)</option>
-            <option value="3">Dr. Tunde Bello — 4 in queue (on duty)</option>
+            <option value="1">Dr. Emeka Obi · 3 in queue (on duty)</option>
+            <option value="2">Dr. Kemi Balogun · 1 in queue (on duty)</option>
+            <option value="3">Dr. Tunde Bello · 4 in queue (on duty)</option>
           </select>
           <div style="font-size:11px; color:#6b7280; line-height:1.5;">Only on-duty doctors are listed. Queue counts help you balance the load.</div>
         </div>
@@ -746,11 +746,11 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
           <select defaultValue="{{ selPatientId }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select patient…</option>
-            <option value="1">Chinwe Eze — HCL-2025-08841</option>
-            <option value="2">Babatunde Ogun — HCL-2024-03127</option>
-            <option value="3">Aisha Bello — HCL-2026-01566</option>
-            <option value="4">Samuel Okonkwo — HCL-2023-00958</option>
-            <option value="5">Mary Nwachukwu — HCL-2024-09215</option>
+            <option value="1">Chinwe Eze · HCL-2025-08841</option>
+            <option value="2">Babatunde Ogun · HCL-2024-03127</option>
+            <option value="3">Aisha Bello · HCL-2026-01566</option>
+            <option value="4">Samuel Okonkwo · HCL-2023-00958</option>
+            <option value="5">Mary Nwachukwu · HCL-2024-09215</option>
           </select>
           <div style="font-size:11px; color:#6b7280; line-height:1.5;">Search on the Patients page first if they're not listed here.</div>
         </div>
@@ -758,9 +758,9 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Doctor *</label>
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select doctor…</option>
-            <option value="1">Dr. Emeka Obi — General Medicine</option>
-            <option value="2">Dr. Kemi Balogun — Cardiology</option>
-            <option value="3">Dr. Tunde Bello — Pediatrics</option>
+            <option value="1">Dr. Emeka Obi · General Medicine</option>
+            <option value="2">Dr. Kemi Balogun · Cardiology</option>
+            <option value="3">Dr. Tunde Bello · Pediatrics</option>
           </select>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
@@ -841,7 +841,7 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <svg viewBox="0 0 24 24" style="width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
         </div>
         <div style="font-family:'Lato',sans-serif; font-size:16px; font-weight:800; color:#000825; text-align:center; margin-bottom:6px;">Request Patient Access</div>
-        <div style="font-size:12.5px; color:#6b7280; text-align:center; margin-bottom:18px;">A consent request will be sent to <b style="color:#000825;">{{ selPatientName }}</b> — they approve or deny it from their own portal.</div>
+        <div style="font-size:12.5px; color:#6b7280; text-align:center; margin-bottom:18px;">A consent request will be sent to <b style="color:#000825;">{{ selPatientName }}</b>; they approve or deny it from their own portal.</div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;">
           <label style="font-size:12px; font-weight:600; color:#374151;">Reason for access *</label>
           <textarea rows="3" placeholder="Why does your organisation need access to this patient's records?" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
@@ -861,13 +861,13 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
         <div style="font-size:12.5px; color:#6b7280; margin-bottom:16px;">Alert doctors and nurses about the accepted referral.</div>
         <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:8px;">Doctors</div>
         <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
-          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" defaultChecked="{{ true }}" style="width:15px; height:15px; accent-color:#0075ff;"> Dr. Emeka Obi — General Medicine</label>
-          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" style="width:15px; height:15px; accent-color:#0075ff;"> Dr. Kemi Balogun — Cardiology</label>
+          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" defaultChecked="{{ true }}" style="width:15px; height:15px; accent-color:#0075ff;"> Dr. Emeka Obi · General Medicine</label>
+          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" style="width:15px; height:15px; accent-color:#0075ff;"> Dr. Kemi Balogun · Cardiology</label>
         </div>
         <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:8px;">Nurses</div>
         <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
-          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" defaultChecked="{{ true }}" style="width:15px; height:15px; accent-color:#0075ff;"> Ngozi Eze — General Ward A</label>
-          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" style="width:15px; height:15px; accent-color:#0075ff;"> Halima Suleiman — Maternity</label>
+          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" defaultChecked="{{ true }}" style="width:15px; height:15px; accent-color:#0075ff;"> Ngozi Eze · General Ward A</label>
+          <label style="display:flex; align-items:center; gap:9px; font-size:13px; color:#000825; cursor:pointer;"><input type="checkbox" style="width:15px; height:15px; accent-color:#0075ff;"> Halima Suleiman · Maternity</label>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;">
           <label style="font-size:12px; font-weight:600; color:#374151;">Message (optional)</label>
@@ -931,27 +931,27 @@ class Component extends DCLogic {
         { id: 6, pid: 6, patient: 'Ibrahim Danjuma', hclId: 'HCL-2025-04083', doctor: 'Dr. Tunde Bello', when: 'Yesterday, 10:00', reason: 'General consultation', status: 'CANCELLED' },
       ],
       referrals: [
-        { id: 1, patient: 'Ngozi Adichie', fromOrg: 'Abuja Medical Centre', referredBy: 'Dr. Ibrahim Musa', reason: 'Cardiology consult — abnormal ECG, needs specialist review within 48 hours.', date: 'Today, 08:20', status: 'PENDING', urgent: true },
+        { id: 1, patient: 'Ngozi Adichie', fromOrg: 'Abuja Medical Centre', referredBy: 'Dr. Ibrahim Musa', reason: 'Cardiology consult: abnormal ECG, needs specialist review within 48 hours.', date: 'Today, 08:20', status: 'PENDING', urgent: true },
         { id: 2, patient: 'Kofi Mensah', fromOrg: 'Demo Clinic', referredBy: 'Dr. Chidi Okafor', reason: 'Orthopaedic assessment for suspected femur fracture after fall.', date: 'Yesterday, 16:40', status: 'PENDING', urgent: false },
-        { id: 3, patient: 'Amara Nwosu', fromOrg: 'GreenLeaf Clinic', referredBy: 'Dr. Tunde Bakare', reason: 'Maternity transfer — high-risk pregnancy, 34 weeks.', date: 'Jul 27, 2026', status: 'ACCEPTED', urgent: false },
+        { id: 3, patient: 'Amara Nwosu', fromOrg: 'GreenLeaf Clinic', referredBy: 'Dr. Tunde Bakare', reason: 'Maternity transfer: high-risk pregnancy, 34 weeks.', date: 'Jul 27, 2026', status: 'ACCEPTED', urgent: false },
         { id: 4, patient: 'Yusuf Garba', fromOrg: 'Kano Teaching Hospital', referredBy: 'Dr. Fatima Sani', reason: 'Second opinion on oncology scan.', date: 'Jul 25, 2026', status: 'DECLINED', urgent: false },
       ],
       access: [
-        { id: 1, patient: 'Samuel Okonkwo', requestedBy: 'Yemi Alade', reason: 'Registration — records held at previous facility', status: 'PENDING', sent: 'Today, 09:10', responded: '—' },
+        { id: 1, patient: 'Samuel Okonkwo', requestedBy: 'Yemi Alade', reason: 'Registration: records held at previous facility', status: 'PENDING', sent: 'Today, 09:10', responded: '—' },
         { id: 2, patient: 'Chinwe Eze', requestedBy: 'Dr. Emeka Obi', reason: 'Review prior cardiology results', status: 'APPROVED', sent: 'Jul 28, 2026', responded: 'Jul 28, 2026' },
         { id: 3, patient: 'Aisha Bello', requestedBy: 'Yemi Alade', reason: 'Referral intake from Abuja Medical Centre', status: 'APPROVED', sent: 'Jul 26, 2026', responded: 'Jul 27, 2026' },
         { id: 4, patient: 'Ibrahim Danjuma', requestedBy: 'Yemi Alade', reason: 'Walk-in registration', status: 'DENIED', sent: 'Jul 24, 2026', responded: 'Jul 25, 2026' },
         { id: 5, patient: 'Mary Nwachukwu', requestedBy: 'Dr. Tunde Bello', reason: 'Pre-surgery record review', status: 'APPROVED', sent: 'Jul 18, 2026', responded: 'Jul 18, 2026' },
       ],
       messages: [
-        { id: 1, dir: 'inbox', org: 'Abuja Medical Centre', type: 'EMERGENCY', subject: 'Incoming referral — urgent cardiology case', preview: 'Please confirm bed availability for Ngozi Adichie, arriving via ambulance…', time: '08:25', read: false },
+        { id: 1, dir: 'inbox', org: 'Abuja Medical Centre', type: 'EMERGENCY', subject: 'Incoming referral: urgent cardiology case', preview: 'Please confirm bed availability for Ngozi Adichie, arriving via ambulance…', time: '08:25', read: false },
         { id: 2, dir: 'inbox', org: 'Demo Clinic', type: 'GENERAL', subject: 'Referral paperwork for Kofi Mensah', preview: 'Attached imaging reports were sent with the patient. Let us know if anything…', time: 'Yesterday', read: false },
-        { id: 3, dir: 'inbox', org: 'Kano Teaching Hospital', type: 'GENERAL', subject: 'Thank you — transfer completed', preview: 'Patient arrived safely and has been admitted to our surgical ward…', time: 'Jul 26', read: true },
-        { id: 4, dir: 'sent', org: 'GreenLeaf Clinic', type: 'GENERAL', subject: 'Re: Maternity transfer — bed confirmed', preview: 'We have reserved bed M-03 in our maternity ward for Amara Nwosu…', time: 'Jul 27', read: true },
-        { id: 5, dir: 'sent', org: 'Abuja Medical Centre', type: 'EMERGENCY', subject: 'Bed confirmed — send patient', preview: 'ICU bed reserved. Our emergency team has been notified and is on standby…', time: '08:31', read: true },
+        { id: 3, dir: 'inbox', org: 'Kano Teaching Hospital', type: 'GENERAL', subject: 'Thank you: transfer completed', preview: 'Patient arrived safely and has been admitted to our surgical ward…', time: 'Jul 26', read: true },
+        { id: 4, dir: 'sent', org: 'GreenLeaf Clinic', type: 'GENERAL', subject: 'Re: Maternity transfer: bed confirmed', preview: 'We have reserved bed M-03 in our maternity ward for Amara Nwosu…', time: 'Jul 27', read: true },
+        { id: 5, dir: 'sent', org: 'Abuja Medical Centre', type: 'EMERGENCY', subject: 'Bed confirmed: send patient', preview: 'ICU bed reserved. Our emergency team has been notified and is on standby…', time: '08:31', read: true },
       ],
       notifs: [
-        { id: 1, kind: 'warning', title: 'Urgent referral awaiting response', desc: 'Abuja Medical Centre referred Ngozi Adichie — marked urgent', time: '10 min ago', read: false },
+        { id: 1, kind: 'warning', title: 'Urgent referral awaiting response', desc: 'Abuja Medical Centre referred Ngozi Adichie (marked urgent)', time: '10 min ago', read: false },
         { id: 2, kind: 'success', title: 'Access approved', desc: 'Chinwe Eze approved your organisation\u2019s record access request', time: '1 hour ago', read: false },
         { id: 3, kind: 'info', title: 'Appointment reminder', desc: '3 appointments scheduled in the next 2 hours', time: 'Today, 08:00', read: true },
         { id: 4, kind: 'info', title: 'New message', desc: 'Demo Clinic sent referral paperwork for Kofi Mensah', time: 'Yesterday, 16:45', read: true },
@@ -1024,7 +1024,7 @@ class Component extends DCLogic {
         ...a, initials: this.initials(a.patient), avatarBg: this.color(a.patient),
         statusLabel: l, badgeBg: b, badgeFg: f,
         isScheduled: a.status === 'SCHEDULED', notScheduled: a.status !== 'SCHEDULED',
-        onCheckIn: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'COMPLETED' } : x) })); this.fireToast(a.patient + ' checked in — added to queue'); },
+        onCheckIn: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'COMPLETED' } : x) })); this.fireToast(a.patient + ' checked in; added to queue'); },
         onCancel: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'CANCELLED' } : x) })); this.fireToast('Appointment cancelled', '#dc2626'); },
       };
     });
@@ -1036,7 +1036,7 @@ class Component extends DCLogic {
         statusLabel: l, badgeBg: b, badgeFg: f,
         cardBorder: r.urgent && r.status === 'PENDING' ? '#fca5a5' : '#e8edf5',
         isPending: r.status === 'PENDING', isAccepted: r.status === 'ACCEPTED',
-        onAccept: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'ACCEPTED' } : x) })); this.fireToast('Referral accepted — ' + r.patient); },
+        onAccept: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'ACCEPTED' } : x) })); this.fireToast('Referral accepted: ' + r.patient); },
         onDecline: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'DECLINED' } : x) })); this.fireToast('Referral declined', '#dc2626'); },
         onNotify: () => this.setState({ modal: 'notify' }),
       };
@@ -1112,7 +1112,7 @@ class Component extends DCLogic {
       openRegister: () => this.setState({ panel: 'register' }),
       openBook: () => this.setState({ panel: 'book', selPatient: null }),
       openCompose: () => this.setState({ panel: 'compose' }),
-      submitRegister: () => { this.setState({ panel: null }); this.fireToast('Patient registered — HCL-ID issued'); },
+      submitRegister: () => { this.setState({ panel: null }); this.fireToast('Patient registered: HCL-ID issued'); },
       submitAssign: () => { this.setState({ panel: null }); this.fireToast(selPat.name + ' checked in and assigned'); },
       submitBook: () => { this.setState({ panel: null }); this.fireToast('Appointment booked'); },
       submitMessage: () => { this.setState({ panel: null }); this.fireToast('Message sent'); },

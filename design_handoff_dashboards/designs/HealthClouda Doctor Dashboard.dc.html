@@ -609,10 +609,10 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select patient…</option>
-            <option value="1">Chinwe Eze — HCL-2025-08841</option>
-            <option value="2">Babatunde Ogun — HCL-2024-03127</option>
-            <option value="3">Aisha Bello — HCL-2026-01566</option>
-            <option value="4">Samuel Okonkwo — HCL-2023-00958</option>
+            <option value="1">Chinwe Eze · HCL-2025-08841</option>
+            <option value="2">Babatunde Ogun · HCL-2024-03127</option>
+            <option value="3">Aisha Bello · HCL-2026-01566</option>
+            <option value="4">Samuel Okonkwo · HCL-2023-00958</option>
           </select>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
@@ -689,9 +689,9 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Episode *</label>
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select active episode…</option>
-            <option value="1">Chinwe Eze — Chest pain (Inpatient)</option>
-            <option value="2">Babatunde Ogun — Post-surgical recovery (Inpatient)</option>
-            <option value="3">Aisha Bello — Lab results review (Outpatient)</option>
+            <option value="1">Chinwe Eze · Chest pain (Inpatient)</option>
+            <option value="2">Babatunde Ogun · Post-surgical recovery (Inpatient)</option>
+            <option value="3">Aisha Bello · Lab results review (Outpatient)</option>
           </select>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
@@ -747,9 +747,9 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
           <label style="font-size:12px; font-weight:600; color:#374151;">Patient *</label>
           <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
             <option value="">Select patient…</option>
-            <option value="1">Chinwe Eze — HCL-2025-08841</option>
-            <option value="2">Babatunde Ogun — HCL-2024-03127</option>
-            <option value="3">Aisha Bello — HCL-2026-01566</option>
+            <option value="1">Chinwe Eze · HCL-2025-08841</option>
+            <option value="2">Babatunde Ogun · HCL-2024-03127</option>
+            <option value="3">Aisha Bello · HCL-2026-01566</option>
           </select>
           <div style="font-size:11px; color:#6b7280; line-height:1.5;">The active episode travels with the referral automatically.</div>
         </div>
@@ -758,9 +758,9 @@ input::placeholder, textarea::placeholder { color:#b0bcc8; }
             <label style="font-size:12px; font-weight:600; color:#374151;">Refer To (Doctor) *</label>
             <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
               <option value="">Select doctor…</option>
-              <option value="1">Dr. Kemi Balogun — Cardiology</option>
-              <option value="2">Dr. Tunde Bello — Pediatrics</option>
-              <option value="3">Dr. Sarah Bello — Obstetrics</option>
+              <option value="1">Dr. Kemi Balogun · Cardiology</option>
+              <option value="2">Dr. Tunde Bello · Pediatrics</option>
+              <option value="3">Dr. Sarah Bello · Obstetrics</option>
             </select>
           </div>
         </sc-if>
@@ -866,16 +866,16 @@ class Component extends DCLogic {
       duty: !(props.offDuty ?? false), epTab: 'ACTIVE', rxTab: 'ACTIVE', refTab: 'incoming', apTab: 'SCHEDULED',
       mpSearch: '', refType: 'internal_department', toast: null,
       notifs: [
-        { id: 1, kind: 'warning', title: 'Critical referral received', desc: 'Abuja Medical Centre referred Ngozi Adichie — abnormal ECG', time: '12 min ago', read: false },
+        { id: 1, kind: 'warning', title: 'Critical referral received', desc: 'Abuja Medical Centre referred Ngozi Adichie: abnormal ECG', time: '12 min ago', read: false },
         { id: 2, kind: 'info', title: 'New vitals recorded', desc: 'Ngozi Eze recorded vitals for Chinwe Eze (GA-03)', time: '45 min ago', read: false },
         { id: 3, kind: 'info', title: 'Patient checked in', desc: 'Babatunde Ogun is waiting in your queue', time: 'Today, 09:05', read: true },
         { id: 4, kind: 'success', title: 'Referral accepted', desc: 'Kano Teaching Hospital accepted your referral for Yusuf Garba', time: 'Yesterday, 17:20', read: true },
       ],
       myPatients: [
         { id: 1, name: 'Chinwe Eze', hclId: 'HCL-2025-08841', ageSex: '34 / F', blood: 'O+', complaint: 'Chest pain, shortness of breath', type: 'INPATIENT', wardBed: 'GA-03', vit: { bp: '128/84', temp: 37.1, pulse: 82, resp: 16, spo2: 97, weight: 68, when: 'Today, 06:45', by: 'Ngozi Eze' } },
-        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', ageSex: '58 / M', blood: 'A+', complaint: 'Post-surgical recovery — appendectomy', type: 'INPATIENT', wardBed: 'GA-07', vit: { bp: '135/88', temp: 36.9, pulse: 76, resp: 15, spo2: 98, weight: 81, when: 'Today, 06:30', by: 'Ngozi Eze' } },
+        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', ageSex: '58 / M', blood: 'A+', complaint: 'Post-surgical recovery: appendectomy', type: 'INPATIENT', wardBed: 'GA-07', vit: { bp: '135/88', temp: 36.9, pulse: 76, resp: 15, spo2: 98, weight: 81, when: 'Today, 06:30', by: 'Ngozi Eze' } },
         { id: 3, name: 'Aisha Bello', hclId: 'HCL-2026-01566', ageSex: '41 / F', blood: 'B+', complaint: 'Recurring migraines, lab review', type: 'OUTPATIENT', wardBed: '—', vit: { bp: '118/76', temp: 36.7, pulse: 71, resp: 14, spo2: 99, weight: 63, when: 'Jul 22, 2026', by: 'Halima Suleiman' } },
-        { id: 4, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', ageSex: '61 / M', blood: 'A-', complaint: 'Septic shock — stabilising', type: 'EMERGENCY', wardBed: 'ICU-02', vit: { bp: '102/64', temp: 37.8, pulse: 104, resp: 22, spo2: 93, weight: 70, when: 'Today, 07:00', by: 'Ngozi Eze' } },
+        { id: 4, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', ageSex: '61 / M', blood: 'A-', complaint: 'Septic shock: stabilising', type: 'EMERGENCY', wardBed: 'ICU-02', vit: { bp: '102/64', temp: 37.8, pulse: 104, resp: 22, spo2: 93, weight: 70, when: 'Today, 07:00', by: 'Ngozi Eze' } },
         { id: 5, name: 'Samuel Okonkwo', hclId: 'HCL-2023-00958', ageSex: '45 / M', blood: 'O-', complaint: 'Malaria with dehydration', type: 'INPATIENT', wardBed: 'GA-09', vit: { bp: '118/76', temp: 38.6, pulse: 96, resp: 19, spo2: 96, weight: 77, when: 'Yesterday, 22:15', by: 'Night shift' } },
       ],
       episodes: [
@@ -886,7 +886,7 @@ class Component extends DCLogic {
             { type: 'GENERAL', when: 'Jul 27, 14:20', by: 'Dr. Emeka Obi', content: 'Admitted for cardiac workup. Started on aspirin and monitoring. Cardiology consult requested.' },
           ],
           rx: [ { medication: 'Aspirin', dosage: '75mg', frequency: 'Once daily', duration: '30 days', status: 'ACTIVE' } ] },
-        { id: 2, pid: 2, patient: 'Babatunde Ogun', hclId: 'HCL-2024-03127', type: 'INPATIENT', complaint: 'Post-surgical recovery — appendectomy', started: 'Jul 25, 2026', days: 4, status: 'ACTIVE',
+        { id: 2, pid: 2, patient: 'Babatunde Ogun', hclId: 'HCL-2024-03127', type: 'INPATIENT', complaint: 'Post-surgical recovery: appendectomy', started: 'Jul 25, 2026', days: 4, status: 'ACTIVE',
           notes: [
             { type: 'PROCEDURE', when: 'Jul 25, 11:00', by: 'Dr. Emeka Obi', content: 'Laparoscopic appendectomy completed without complications. Estimated blood loss minimal.' },
             { type: 'FOLLOW_UP', when: 'Today, 08:30', by: 'Dr. Emeka Obi', content: 'Wound healing well, no signs of infection. Ambulating independently. Plan discharge in 24–48h.' },
@@ -911,11 +911,11 @@ class Component extends DCLogic {
         { id: 6, patient: 'Aisha Bello', medication: 'Sumatriptan', dosage: '50mg', frequency: 'At onset PRN', duration: '30 days', status: 'CANCELLED' },
       ],
       referrals: [
-        { id: 1, dir: 'incoming', patient: 'Ngozi Adichie', org: 'Abuja Medical Centre', reason: 'Cardiology consult — abnormal ECG, needs specialist review within 48 hours.', urgency: 'CRITICAL', date: 'Today, 08:20', status: 'PENDING' },
+        { id: 1, dir: 'incoming', patient: 'Ngozi Adichie', org: 'Abuja Medical Centre', reason: 'Cardiology consult: abnormal ECG, needs specialist review within 48 hours.', urgency: 'CRITICAL', date: 'Today, 08:20', status: 'PENDING' },
         { id: 2, dir: 'incoming', patient: 'Kofi Mensah', org: 'Demo Clinic', reason: 'Orthopaedic assessment for suspected femur fracture after fall.', urgency: 'HIGH', date: 'Yesterday, 16:40', status: 'PENDING' },
-        { id: 3, dir: 'incoming', patient: 'Amara Nwosu', org: 'GreenLeaf Clinic', reason: 'Maternity transfer — high-risk pregnancy, 34 weeks.', urgency: 'MEDIUM', date: 'Jul 27, 2026', status: 'ACCEPTED' },
+        { id: 3, dir: 'incoming', patient: 'Amara Nwosu', org: 'GreenLeaf Clinic', reason: 'Maternity transfer: high-risk pregnancy, 34 weeks.', urgency: 'MEDIUM', date: 'Jul 27, 2026', status: 'ACCEPTED' },
         { id: 4, dir: 'outgoing', patient: 'Yusuf Garba', org: 'Kano Teaching Hospital', reason: 'Second opinion on oncology scan.', urgency: 'MEDIUM', date: 'Jul 25, 2026', status: 'ACCEPTED' },
-        { id: 5, dir: 'outgoing', patient: 'Chinwe Eze', org: 'Dr. Kemi Balogun (Cardiology)', reason: 'Internal referral — cardiac workup continuation.', urgency: 'HIGH', date: 'Jul 27, 2026', status: 'PENDING' },
+        { id: 5, dir: 'outgoing', patient: 'Chinwe Eze', org: 'Dr. Kemi Balogun (Cardiology)', reason: 'Internal referral: cardiac workup continuation.', urgency: 'HIGH', date: 'Jul 27, 2026', status: 'PENDING' },
       ],
       appts: [
         { id: 1, pid: 1, patient: 'Chinwe Eze', when: 'Today, 11:30', reason: 'Cardiology follow-up', duration: '30 min', status: 'SCHEDULED' },
@@ -1024,7 +1024,7 @@ class Component extends DCLogic {
         cardBorder: (r.urgency === 'CRITICAL' && r.status === 'PENDING') ? '#fca5a5' : '#e8edf5',
         canRespond: r.dir === 'incoming' && r.status === 'PENDING',
         canDownload: r.dir === 'outgoing',
-        onAccept: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'ACCEPTED' } : x) })); this.fireToast('Referral accepted — ' + r.patient); },
+        onAccept: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'ACCEPTED' } : x) })); this.fireToast('Referral accepted: ' + r.patient); },
         onReject: () => { this.setState(p => ({ referrals: p.referrals.map(x => x.id === r.id ? { ...x, status: 'DECLINED' } : x) })); this.fireToast('Referral rejected', '#dc2626'); },
         onDownload: () => this.fireToast('Referral letter (PDF) download started'),
       };
@@ -1036,7 +1036,7 @@ class Component extends DCLogic {
         ...a, initials: this.initials(a.patient), avatarBg: this.color(a.patient),
         statusLabel: l, badgeBg: b, badgeFg: f,
         isScheduled: a.status === 'SCHEDULED', notScheduled: a.status !== 'SCHEDULED',
-        onComplete: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'COMPLETED' } : x) })); this.fireToast(a.patient + ' — appointment completed'); },
+        onComplete: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'COMPLETED' } : x) })); this.fireToast(a.patient + ': appointment completed'); },
         onNoShow: () => { this.setState(p => ({ appts: p.appts.map(x => x.id === a.id ? { ...x, status: 'NO_SHOW' } : x) })); this.fireToast('Marked as no-show', '#6b7280'); },
       };
     });
@@ -1124,7 +1124,7 @@ class Component extends DCLogic {
       submitRef: () => { this.setState({ panel: null }); this.fireToast('Referral created'); },
       confirmComplete: () => {
         this.setState(p => ({ modal: null, epDetail: null, episodes: p.episodes.map(e => e.id === selEp.id ? { ...e, status: 'COMPLETED' } : e) }));
-        this.fireToast('Episode completed — ' + selEp.patient);
+        this.fireToast('Episode completed: ' + selEp.patient);
       },
       closeAll: () => this.setState({ panel: null, modal: null }),
       toastVisible: !!s.toast, toastMsg: s.toast ? s.toast.msg : '', toastBg: s.toast ? s.toast.bg : '#16a34a',
