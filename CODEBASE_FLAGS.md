@@ -295,12 +295,93 @@ and any remaining accepted risk is documented here or in `SECURITY_BASELINE.md`.
 
 ---
 
+### FLAG-201 — `Modal` focus handling is nominal, not a real trap
+**Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
+
+`src/components/ui/Modal.tsx` focuses the panel once on open, but that's the extent of it:
+
+- Tab walks straight out of the dialog into the page behind it — no containment.
+- Focus isn't restored to the trigger element on close.
+- No body-scroll lock — the page behind the modal still scrolls.
+- `id="modal-title"` (and `modal-description`) are hardcoded, so two `Modal`s open at once would
+  duplicate IDs and break `aria-labelledby`/`aria-describedby` for both.
+
+Pre-existing before PR #69, but that PR promotes `Modal` to the shared base every DASH-2…6 confirm
+dialog and form modal sits on, which changes the blast radius from "one dashboard" to "five."
+
+**Done when:** Tab/Shift+Tab stay contained inside the open dialog, focus returns to the trigger on
+close, body scroll is locked while open, and the title/description IDs are generated per-instance
+(e.g. `useId()`).
+
+---
+
+### FLAG-202 — New entrance animations have no `prefers-reduced-motion` guard
+**Severity:** P3 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
+
+`hc-panel-in`, `hc-modal-in`, `hc-toast-in` (`src/app/globals.css`) run unconditionally. Same gap
+as the pre-existing `hc-blink`/`hc-pop` on the auth screens — repo-wide, not introduced by this PR,
+but the dashboard set adds three more instances of it.
+
+**Done when:** a single `@media (prefers-reduced-motion: reduce)` block disables/shortens all five
+keyframes (or swaps to opacity-only), fixed once rather than per animation.
+
+---
+
+### FLAG-203 — `SmallScreenGate` hides the dashboard visually, not functionally
+**Severity:** P1 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
+
+`DashboardShell`'s `smallScreenGateFor` prop hides the shell below 768px with `hidden md:flex`
+(pure CSS, no JS breakpoint check). The dashboard's children still mount, still call `/api/data`,
+and the fetched PHI still lands in that device's DOM and memory — it's `display: none`, not absent.
+The notice text ("This dashboard needs a bigger screen") reads as a guarantee the implementation
+doesn't make.
+
+**Chosen deliberately, not a bug found late:** a JS breakpoint check would avoid the fetch but costs
+an SSR/hydration flash (server can't know the client's viewport), and server-side UA sniffing is a
+bigger change than this PR's scope. CSS-only was the right call for a first pass — this flag exists
+so the tradeoff is a recorded decision instead of a silent side effect, per the reviewer's ask.
+
+**Why P1 and not P2/P3 like the others above:** this is a live PHI leakage channel once beta data
+is real (3 Sep) — it belongs in the PHI-leakage-channels section of the still-unwritten
+`SECURITY_BASELINE.md`, alongside bfcache/URL-history/screenshot channels, not just as a frontend
+polish item.
+
+**Done when:** either (a) the dashboard genuinely doesn't fetch below 768px — a JS check that
+accepts a brief flash, or a server-side device hint — or (b) the risk is explicitly accepted in
+`SECURITY_BASELINE.md` with a stated reason (e.g. "no PHI-bearing dashboard is realistically opened
+on a sub-768px device in a clinic" — a claim that should be verified, not assumed).
+
+---
+
+### FLAG-204 — Persistent toasts have no cap, dedupe, or dismiss-all
+**Severity:** P3 · **Area:** UX · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
+
+Error/warning toasts now persist until manually dismissed (fix for the auto-dismiss timing gap
+above). `add()` in `src/store/toast.ts` appends to the list unconditionally — no cap, no
+deduplication of an identical repeated message, no "dismiss all."
+
+**Checked before raising, not just theorised:** all six current `toast.error` call sites are
+user-initiated actions, not per-keystroke, so today's usage is bounded — a user has to click
+something five times to get five stacked toasts. Not urgent, but DASH-2…6 add a lot more write
+actions onto this same surface, and a retried failing action (e.g. a flaky save) now stacks
+permanent toasts off the top of a fixed-position container with no way to clear them at once.
+
+**Done when:** `useToastStore` either caps the visible list (oldest auto-removed or a "+N more"
+summary), deduplicates an identical consecutive message, or a "Clear all" affordance exists —
+whichever fits the actual DASH-2…6 usage once it's written, rather than guessed now.
+
+---
+
 ## Resolved flags
 
 *(none yet — move entries here with their PR number and resolution date)*
 
 ---
 
-*Last updated 2026-08-12. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
+*Last updated 2026-08-13. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
-fixed by PR #65.*
+fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69.*

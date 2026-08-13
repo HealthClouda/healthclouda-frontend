@@ -2,23 +2,35 @@
 
 import { useEffect, useRef } from 'react';
 
+type IconColor = 'primary' | 'success' | 'warning' | 'danger' | 'purple';
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  description?: string;
+  icon?: React.ReactNode;
+  iconColor?: IconColor;
+  children?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
   footer?: React.ReactNode;
 }
 
 const SIZE = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-2xl',
+  sm: 'max-w-[380px]',
+  md: 'max-w-[420px]',
+  lg: 'max-w-[460px]',
 };
 
-export function Modal({ open, onClose, title, children, size = 'md', footer }: ModalProps) {
+const ICON_COLOR: Record<IconColor, string> = {
+  primary: 'bg-chip text-primary',
+  success: 'bg-success-bg text-success',
+  warning: 'bg-warning-bg text-warning',
+  danger: 'bg-danger-bg text-danger',
+  purple: 'bg-purple-bg text-purple',
+};
+
+export function Modal({ open, onClose, title, description, icon, iconColor = 'primary', children, size = 'md', footer }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape
@@ -29,7 +41,9 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // Trap focus
+  // Focuses the panel once on open — not a real focus trap (Tab still walks
+  // out into the page behind) and doesn't restore focus to the trigger on
+  // close. Pre-existing gap, logged as FLAG-201.
   useEffect(() => {
     if (open) panelRef.current?.focus();
   }, [open]);
@@ -40,43 +54,54 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-[rgba(0,8,37,0.35)] backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden
       />
 
-      {/* Panel */}
+      {/* Panel — the outer box does NOT scroll, so the close button (positioned
+          against it) can't scroll away with tall content. Only the inner body
+          scrolls. */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal
         aria-labelledby="modal-title"
+        aria-describedby={description ? 'modal-description' : undefined}
         tabIndex={-1}
-        className={`relative w-full ${SIZE[size]} bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] focus:outline-none`}
+        className={`hc-modal-in relative w-full ${SIZE[size]} bg-white rounded-card shadow-modal max-h-[90vh] flex flex-col focus:outline-none`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 id="modal-title" className="text-base font-semibold text-gray-900">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        {/* Always present — a form body with no footer must still have a
+            discoverable dismiss affordance beyond Escape/backdrop-tap. */}
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-4 right-4 z-10 text-text-soft hover:text-danger hover:bg-danger-bg rounded-md p-1 transition-colors"
+        >
+          <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div className="overflow-y-auto p-7">
+          {icon && (
+            <div className={`w-[52px] h-[52px] rounded-full flex items-center justify-center mx-auto mb-3.5 [&>svg]:w-6 [&>svg]:h-6 ${ICON_COLOR[iconColor]}`}>
+              {icon}
+            </div>
+          )}
+          <h2 id="modal-title" className="font-body font-black text-base text-ink text-center">{title}</h2>
+          {description && (
+            <p id="modal-description" className="text-[12.5px] text-text-soft text-center mt-1.5">{description}</p>
+          )}
+
+          {children && <div className="mt-[18px]">{children}</div>}
+
+          {footer && (
+            <div className="flex gap-2.5 mt-5">
+              {footer}
+            </div>
+          )}
         </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-
-        {/* Footer */}
-        {footer && (
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-            {footer}
-          </div>
-        )}
       </div>
     </div>
   );

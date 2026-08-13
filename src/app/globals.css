@@ -44,16 +44,34 @@
   --color-warning: #d97706;
   --color-warning-bg: #fef3c7;
   /* Distinct from warning — badges that need the pre-existing yellow/orange split
-     (PENDING vs. e.g. SUSPENDED) rather than collapsing onto one hue. */
+     (PENDING vs. e.g. SUSPENDED) rather than collapsing onto one hue.
+     NOTE: currently byte-identical to --color-warning-fill below, but answers
+     a different contrast question (text ON a light tint, not white ON this
+     as a solid fill) — coincidence of value, not a shared meaning. Kept as
+     two tokens on purpose; if you retune one, re-check the other's ratio
+     rather than assuming they should move together. */
   --color-warning-strong: #c2410c;
   --color-warning-strong-bg: #ffedd5;
   --color-info: #2563eb;
   --color-info-bg: #dbeafe;
   --color-purple: #7c3aed;
   --color-purple-bg: #ede9fe;
+  /* Solid-fill pairs for white text ON the color (toasts) — success/warning
+     at badge strength fail AA under white text (measured 3.30:1 / 3.19:1).
+     danger/info already clear 4.5:1 as fills, reused as-is.
+     NOTE: --color-warning-fill is currently byte-identical to
+     --color-warning-strong above (badge text-on-tint) — see that comment. */
+  --color-success-fill: #15803d;
+  --color-warning-fill: #c2410c;
+  /* Empty-state stroke icons only — deliberately not text (never passes AA
+     as text; FLAG-011). */
+  --color-icon-muted: #c0ccd8;
 
   --radius-card: 14px;
   --shadow-dash-card: 0 1px 4px rgba(0, 8, 37, 0.05);
+  --shadow-panel: -8px 0 40px rgba(0, 8, 37, 0.12);
+  --shadow-modal: 0 20px 60px rgba(0, 8, 37, 0.2);
+  --shadow-toast: 0 4px 20px rgba(0, 8, 37, 0.2);
 }
 
 /* Carousel infinite scroll */
@@ -65,6 +83,14 @@
 /* Auth screens (design_handoff_prelogin): OTP caret blink + success check pop-in */
 @keyframes hc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes hc-pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+/* Dashboard overlays (design_handoff_dashboards): panel slide-in, modal spring-in, toast rise-in */
+@keyframes hc-panel-in { from { transform: translateX(480px); } to { transform: translateX(0); } }
+@keyframes hc-modal-in { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes hc-toast-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.hc-panel-in { animation: hc-panel-in 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+.hc-modal-in { animation: hc-modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.hc-toast-in { animation: hc-toast-in 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
 
 /* Smooth scrolling for anchor nav */
 html {
