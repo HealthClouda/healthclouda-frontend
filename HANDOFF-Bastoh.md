@@ -39,6 +39,88 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-08-13 — Review day: #69/#71/#73 reviewed + merged, api-dev seeding verified, doc debt paid (branches: docs/handoff-seeded-contract-notes, docs/creds-handover, docs/session-log-bastoh-2026-08-13)
+
+**Goal:** started as a review of PR #69; became a review-and-unblock day. **No application code
+changed by me this session** — all five PRs I touched were docs, design source, or Qeeyat's.
+
+**Reviews (all four verified by re-running the three commands myself, never from the PR body):**
+- **#69 D1 overlays — CHANGES_REQUESTED, then APPROVED.** Round 1 found a real regression she'd
+  introduced: white toast text on solid `success`/`warning` fills measured **3.30:1 / 3.19:1**
+  against AA's 4.5. Distinct from FLAG-011 — there the failing values came from the design README,
+  so the fault was upstream; here the README specifies no hex and no white text, so the pairing was
+  an implementation choice and correctly a change request. Also: `Modal` had silently lost its close
+  button when `footer` became optional, and `SmallScreenGate` turned out to be **CSS-only** — the
+  dashboard still mounts, still fetches, and the PHI still lands in the DOM below 768px. Round 2
+  verified her fixes at **5.02:1 / 5.18:1** and approved with two fold-ins.
+- **#70, #71, #73 reviewed and merged.** #73's claims I checked individually rather than trusting
+  the summary: 24 em dashes remain across the six design files and **all 24 are the `'—'`
+  empty-value placeholder** — correctly untouched.
+
+**What I found:**
+- 🎯 **The Vercel preview builds have been failing since #65 merged, and it is mine.** The red check
+  on #69 was **not her code**: `NEXT_PUBLIC_API_URL` is unset on Vercel, so A4's fail-loud config
+  throws at build time exactly as designed. Reproduced locally with the var removed. **This means
+  her visual verification was never only blocked on credentials — there was no preview URL either.**
+  Two PRs went through review unverified visually because of B1/B3 sitting undone.
+- ❗ **I told Claude I had working `api-dev` credentials and a real org slug. That was wrong.** The
+  backend checked the database directly: 112 migrations, **zero rows**. No credential could have
+  worked. Probing `/org/by-slug/demo-clinic/` before sending anything caught it — the 5 July
+  HANDOFF line ("dev tier is NOT seeded") was the accurate one and the sprint plan's "real seeded
+  data" was aspirational. **Lesson worth keeping: probe before handing someone credentials**, or
+  they verify against empty dashboards and call it verified.
+- `api-dev` is now seeded and I verified it **through the proxy path**, not by report: both orgs
+  200, staff-on-general-portal **400** (not 401) carrying `redirect_url`, org login 200. Login's
+  `user` object has no organization/duty fields — but `api/auth/login/route.ts:96-117` already
+  enriches from `/auth/me/`, so **no code change was needed**.
+- **FLAG-010 reproduced live** — `redirect_to` came back `/doctor/`, confirming the dropped org slug
+  in the deployed build rather than only in their source.
+- **`CLAUDE.md` §4 required reading two files that have never existed** (`TARGET_ARCHITECTURE_CHECKLIST.md`,
+  `BETA_READINESS.md`), so every session since the file was written has silently skipped two steps.
+- **`HANDOFF.md` still held all 15 migrated session-log entries** — the 2026-08-09 restructure copied
+  them into this file but never deleted the originals, so two copies drifted for four days in a file
+  whose own header says "no session narrative". Removed (603 lines). They are **condensed, not
+  verbatim** copies: substance survives, granular detail doesn't. Original text is at
+  `25f3189:HANDOFF.md`.
+
+**Decisions:**
+- **Did not fold the toast-stack finding into my own FLAG range.** It was my finding, but Qeeyat was
+  already in `CODEBASE_FLAGS.md` and ranges follow the person, not the finding — so it went to her
+  as FLAG-204, consistent with FLAG-201/202/203 which were also my findings in her range.
+- **Approved #69 rather than demanding a third round** for a one-line CSS fix the day before a hard
+  checkpoint. Bad economics, and nothing in it was unsafe to merge.
+- **FLAG-012 raised rather than fixed** — PR #73's punctuation convention exists in one place while
+  the shipped landing page still contradicts it. Review discipline: a decision that was made but not
+  written down is invisible to the other agent.
+
+**Mistakes I made, for the record:** wrote the seeding contract note as though Qeeyat already had
+the credentials when she didn't (caught before commit — the cell now says so plainly); corrupted
+`HANDOFF.md` with a PowerShell `Get-Content`/`Set-Content` round-trip that double-encoded every em
+dash and emoji (reverted, redone with .NET UTF-8 I/O — **PowerShell console output is unreliable for
+judging encoding in both directions; check via `git diff`**); and pushed a commit onto the
+already-merged `docs/handoff-seeded-contract-notes` branch, resurrecting it after auto-delete
+(deleted via the API, work moved to a clean branch).
+
+**Verified:** `npx tsc --noEmit` clean · `npm test` **88/88** · `npm run build` green — run on the
+#69 branch, on the docs branch, and again before this PR.
+
+**Left undone / next:**
+- [ ] 🎯 **B1/B3 — Vercel domains + per-env vars. Now three things at once:** the A1/E5 hard gate,
+  the reason every preview build fails, and the reason the T5 harness has no URL to screenshot.
+  Still needs dashboard access. **The single most overdue item on my list.**
+- [ ] **PR #74 open** — clears my stale In Flight row (#72 merged without clearing it) and flips the
+  credentials cell. Needs Qeeyat.
+- [ ] **Fri 14: FLAG-003 re-verification against live Swagger** — blocked since 8 Aug by the dead
+  host, now genuinely possible and due **ahead of E2/E3**, since a design PR built on the wrong
+  shape is a rewrite.
+- [ ] **E1/FLAG-004 ownership is contradictory** — the sprint plan's E-table marks it "🎓 Qeeyat's
+  first PR", the Fri 14 infra row assigns it to me. Settle before either of us cuts a branch.
+- [ ] **The D1 checkpoint call (Fri 14).** Shell + overlays both merged; Superadmin pages and the T5
+  harness outstanding. My read: not a takeover situation.
+- [ ] C2 Cloudflare spike not started — Thu 13's row. Slips to the Sat 15 float; Gate 1 is 21 Aug.
+
+---
+
 ### 2026-08-12 — In Flight table + Tier-1 infra batch A2/A3/A4/A6 (branch: fix/tier1-infra-batch)
 
 **Goal:** clear the infra lane's Mon 10 + Tue 11 backlog before Friday's D1 checkpoint, and finally
