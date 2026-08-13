@@ -60,6 +60,87 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-12/13 — D1 shared shell + overlays, both PRs through full review cycles (branches: feat/dash-1-shared-shell, feat/dash-1-overlays, docs/clear-in-flight-d1)
+
+**Goal:** Build the DASH-1 shared dashboard shell per `docs/FRONTEND_SPRINT_PLAN.md`'s Tue 11 / Wed
+12 Aug rows — the primitives DASH-2…6 all sit on.
+
+**What I did:**
+- **PR #67** (`feat/dash-1-shared-shell`): restyled `DashboardShell`, `Sidebar`, `DashboardHeader`,
+  `StatCard`, `StatusBadge`, `Avatar` to `design_handoff_dashboards/README.md` spec; new dashboard
+  design tokens in `globals.css`; new `DataTable` primitive composing the existing
+  `ErrorState`/`EmptyState`/`Pagination` rather than reimplementing them.
+  **Review cycle 1 (Bastoh, CHANGES_REQUESTED):** status-badge colour collapse (SUSPENDED/PENDING
+  read identical — new `warning-strong` token), sign-out became an unlabelled ~28px icon (restored
+  visible label + 44px touch target), `DataTable` had zero tests (added 9, locking the 5 render
+  branches + new `aria-sort`/`scope=col` a11y). Also reviewed and merged Bastoh's **PR #68**
+  (FLAG-011, token contrast) along the way — independently recomputed the contrast math by hand
+  before approving rather than trusting the numbers given.
+  **Approved and merged** 2026-08-12.
+- **PR #69** (`feat/dash-1-overlays`, cut fresh off `develop` once #67 merged — never kept building
+  on a merged branch): restyled `SlidePanel`, `Modal` (+ `ConfirmDialog`), `Toaster`, `EmptyState`
+  to spec, pulled from the actual Nurse/Doctor/Receptionist `.dc.html` markup rather than the
+  README summary alone; new `SmallScreenGate` + opt-in `DashboardShell` prop
+  (`smallScreenGateFor`), defaults off so the five dashboards already on the shell are unaffected.
+  **Review cycle 1 (Bastoh, CHANGES_REQUESTED):** a genuine regression I introduced — white toast
+  text on solid success/warning fills failed AA (3.30:1 / 3.19:1) — fixed with dedicated
+  `-fill` tokens; `Modal` had silently lost its close button when `footer` became optional (restored,
+  always rendered); logged **FLAG-201/202/203** for pre-existing/decision-needed items Bastoh
+  explicitly said were "not yours to fix, log them" — FLAG-203 in particular (SmallScreenGate is
+  CSS-only, so the dashboard still mounts and fetches below 768px) as a **documented accepted
+  tradeoff**, not a code fix, per his own offered path; split toast auto-dismiss so errors/warnings
+  persist instead of vanishing at 2.6s.
+  **Review cycle 2 (Bastoh, APPROVED with 2 pre-merge fixes, no re-review needed):** the new Modal
+  close button scrolled away on tall content (moved scroll to an inner body div); the new
+  `warning-fill` token was byte-identical to yesterday's `warning-strong` (cross-referenced in
+  comments both directions rather than collapsed — they answer different contrast questions and
+  collapsing risked exactly the silent-drift Bastoh warned about). Logged **FLAG-204** (persistent
+  toasts have no cap/dedupe).
+  **Approved and merged** 2026-08-13.
+- **PR #70** (`docs/clear-in-flight-d1`): clears the D1 In Flight row now that #69 is merged. Cut as
+  its own tiny branch+PR rather than pushed straight to `develop`, for consistency with how
+  everything else went through review this session — **still open, unreviewed** at session end.
+
+**What I found:**
+- Every single review round this session caught something real — never a rubber-stamp on either
+  side. Worth internalising: my own PRs had genuine regressions (badge colours, sign-out a11y, toast
+  contrast, lost close button) that I did not catch myself before opening the PR, despite running
+  the five review lenses mentally. The five-lens self-review is not a substitute for a second set of
+  eyes, especially on contrast/a11y — those need actual measurement, not eyeballing.
+- Bastoh's review style is worth learning from directly: he re-runs the verify commands himself
+  rather than trusting the PR description, re-measures contrast by hand rather than trusting stated
+  numbers, and is explicit about what's blocking vs. a judgment call vs. "log it, don't fix it
+  here." That last category matters — not everything a reviewer notices should turn into scope
+  creep on the PR being reviewed.
+- `gh pr comment` occasionally silently no-ops when chained with another `gh` command in the same
+  PowerShell block (posted a Vercel-bot-looking comment instead of mine once) — always verify a
+  comment actually landed via `gh pr view --json comments` rather than trusting exit code 0.
+
+**Decisions:**
+- Never kept building on a branch after its PR merged — always synced `develop`, deleted the merged
+  local branch, and cut a fresh one, even mid-flow when it meant stashing in-progress work.
+- FLAG-203 (SmallScreenGate) logged as P1 and pointed explicitly at the still-unwritten
+  `SECURITY_BASELINE.md`'s PHI-leakage-channels section, not left as a generic frontend flag — it's
+  a real PHI channel once beta data is real (3 Sep), not just a polish gap.
+
+**Verified:** every commit this session passed tsc clean / vitest (63→88 over the session, all
+green) / `next build` green before pushing — never pushed on a hunch.
+
+**Left undone / next:**
+- [ ] **PR #70 unreviewed** — clear this first thing next session if still open.
+- [ ] **Thursday's row (per the sprint plan): Superadmin-specific pages** — orgs, users, audit logs
+  — built on top of the now-merged shell.
+- [ ] **FLAG-201/202/203/204** all still open (Modal focus trap, reduced-motion, SmallScreenGate
+  PHI-channel decision, toast accumulation) — none blocking, but FLAG-203 should feed directly into
+  `SECURITY_BASELINE.md` whenever that gets written.
+- [ ] **FLAG-200** (npm audit, 7 high severity) — still not triaged.
+- [ ] Still no visual verification against a live dashboard — `api-dev` demo credentials still owed
+  by Bastoh (his own admission in his log), and B1/B3 (Vercel domains + env vars) are still not
+  done, so preview builds have reportedly been failing since #65 merged (`NEXT_PUBLIC_API_URL` not
+  set on Vercel). Worth checking at session start whether that's unblocked yet.
+
+---
+
 ### 2026-08-10 — First session: onboarding + env setup (branch: none — no code branch cut)
 
 **Goal:** Get the three verify commands green locally, per the Mon 10 Aug row in
