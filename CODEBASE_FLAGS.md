@@ -356,6 +356,26 @@ on a sub-768px device in a clinic" — a claim that should be verified, not assu
 
 ---
 
+### FLAG-204 — Persistent toasts have no cap, dedupe, or dismiss-all
+**Severity:** P3 · **Area:** UX · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
+
+Error/warning toasts now persist until manually dismissed (fix for the auto-dismiss timing gap
+above). `add()` in `src/store/toast.ts` appends to the list unconditionally — no cap, no
+deduplication of an identical repeated message, no "dismiss all."
+
+**Checked before raising, not just theorised:** all six current `toast.error` call sites are
+user-initiated actions, not per-keystroke, so today's usage is bounded — a user has to click
+something five times to get five stacked toasts. Not urgent, but DASH-2…6 add a lot more write
+actions onto this same surface, and a retried failing action (e.g. a flaky save) now stacks
+permanent toasts off the top of a fixed-position container with no way to clear them at once.
+
+**Done when:** `useToastStore` either caps the visible list (oldest auto-removed or a "+N more"
+summary), deduplicates an identical consecutive message, or a "Clear all" affordance exists —
+whichever fits the actual DASH-2…6 usage once it's written, rather than guessed now.
+
+---
+
 ## Resolved flags
 
 *(none yet — move entries here with their PR number and resolution date)*
@@ -364,4 +384,4 @@ on a sub-768px device in a clinic" — a claim that should be verified, not assu
 
 *Last updated 2026-08-13. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
-fixed by PR #65. FLAG-201/202/203 raised 2026-08-13, reviewing PR #69.*
+fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69.*

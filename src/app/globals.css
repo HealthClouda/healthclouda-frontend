@@ -44,7 +44,12 @@
   --color-warning: #d97706;
   --color-warning-bg: #fef3c7;
   /* Distinct from warning — badges that need the pre-existing yellow/orange split
-     (PENDING vs. e.g. SUSPENDED) rather than collapsing onto one hue. */
+     (PENDING vs. e.g. SUSPENDED) rather than collapsing onto one hue.
+     NOTE: currently byte-identical to --color-warning-fill below, but answers
+     a different contrast question (text ON a light tint, not white ON this
+     as a solid fill) — coincidence of value, not a shared meaning. Kept as
+     two tokens on purpose; if you retune one, re-check the other's ratio
+     rather than assuming they should move together. */
   --color-warning-strong: #c2410c;
   --color-warning-strong-bg: #ffedd5;
   --color-info: #2563eb;
@@ -53,7 +58,9 @@
   --color-purple-bg: #ede9fe;
   /* Solid-fill pairs for white text ON the color (toasts) — success/warning
      at badge strength fail AA under white text (measured 3.30:1 / 3.19:1).
-     danger/info already clear 4.5:1 as fills, reused as-is. */
+     danger/info already clear 4.5:1 as fills, reused as-is.
+     NOTE: --color-warning-fill is currently byte-identical to
+     --color-warning-strong above (badge text-on-tint) — see that comment. */
   --color-success-fill: #15803d;
   --color-warning-fill: #c2410c;
   /* Empty-state stroke icons only — deliberately not text (never passes AA

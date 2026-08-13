@@ -59,7 +59,9 @@ export function Modal({ open, onClose, title, description, icon, iconColor = 'pr
         aria-hidden
       />
 
-      {/* Panel */}
+      {/* Panel — the outer box does NOT scroll, so the close button (positioned
+          against it) can't scroll away with tall content. Only the inner body
+          scrolls. */}
       <div
         ref={panelRef}
         role="dialog"
@@ -67,37 +69,39 @@ export function Modal({ open, onClose, title, description, icon, iconColor = 'pr
         aria-labelledby="modal-title"
         aria-describedby={description ? 'modal-description' : undefined}
         tabIndex={-1}
-        className={`hc-modal-in relative w-full ${SIZE[size]} bg-white rounded-card shadow-modal p-7 max-h-[90vh] overflow-y-auto focus:outline-none`}
+        className={`hc-modal-in relative w-full ${SIZE[size]} bg-white rounded-card shadow-modal max-h-[90vh] flex flex-col focus:outline-none`}
       >
         {/* Always present — a form body with no footer must still have a
             discoverable dismiss affordance beyond Escape/backdrop-tap. */}
         <button
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-4 right-4 text-text-soft hover:text-danger hover:bg-danger-bg rounded-md p-1 transition-colors"
+          className="absolute top-4 right-4 z-10 text-text-soft hover:text-danger hover:bg-danger-bg rounded-md p-1 transition-colors"
         >
           <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        {icon && (
-          <div className={`w-[52px] h-[52px] rounded-full flex items-center justify-center mx-auto mb-3.5 [&>svg]:w-6 [&>svg]:h-6 ${ICON_COLOR[iconColor]}`}>
-            {icon}
-          </div>
-        )}
-        <h2 id="modal-title" className="font-body font-black text-base text-ink text-center">{title}</h2>
-        {description && (
-          <p id="modal-description" className="text-[12.5px] text-text-soft text-center mt-1.5">{description}</p>
-        )}
+        <div className="overflow-y-auto p-7">
+          {icon && (
+            <div className={`w-[52px] h-[52px] rounded-full flex items-center justify-center mx-auto mb-3.5 [&>svg]:w-6 [&>svg]:h-6 ${ICON_COLOR[iconColor]}`}>
+              {icon}
+            </div>
+          )}
+          <h2 id="modal-title" className="font-body font-black text-base text-ink text-center">{title}</h2>
+          {description && (
+            <p id="modal-description" className="text-[12.5px] text-text-soft text-center mt-1.5">{description}</p>
+          )}
 
-        {children && <div className="mt-[18px]">{children}</div>}
+          {children && <div className="mt-[18px]">{children}</div>}
 
-        {footer && (
-          <div className="flex gap-2.5 mt-5">
-            {footer}
-          </div>
-        )}
+          {footer && (
+            <div className="flex gap-2.5 mt-5">
+              {footer}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
