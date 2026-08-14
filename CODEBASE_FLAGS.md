@@ -283,6 +283,37 @@ the T8 accessibility pass.
 
 ---
 
+### FLAG-012 — Two contradictory punctuation conventions, and the visible one is the old one
+**Severity:** P3 · **Area:** Copy / Design system · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-13, reviewing PR #73
+
+PR #73 removed em dashes from UI copy across all six `design_handoff_dashboards/*.dc.html` files,
+replacing each with the mark that fits the sentence. Good change, correctly scoped away from the
+`'—'` empty-value placeholders, and landed **before** DASH-2…6 are built from those files.
+
+But the convention now exists in exactly one place. It is **not** applied to:
+
+- `design_handoff_prelogin/` — 16 em dashes in the Auth Pages design, 26 in Landing, 4 in Org Landing.
+- **Shipped application copy**, including the public landing page: `src/app/page.tsx` carries
+  *"your records and referrals move with you — securely"* and *"Patient accounts are created at any
+  registered HealthClouda facility — not online"*, with the same pattern across the org landing and
+  auth screens.
+
+So the repo holds two contradictory conventions and **the one a visitor actually sees is the old
+one.** Nothing in `CLAUDE.md` or either design README states a punctuation rule, so the only record
+of the decision is a PR title. The next person building D4 Receptionist from a `.dc.html` has no way
+to tell which is right, and the likeliest outcome is that em dashes get reintroduced by whoever
+writes the next piece of copy — which is the same failure mode as an undocumented shortcut.
+
+Cosmetic in isolation. Logged because it is a **decision that was made but not written down**, and
+this repo's whole premise is that undocumented decisions are invisible to the other dev's agent.
+
+**Done when:** the intended scope is stated in writing where an agent will read it (`CLAUDE.md` or
+the design READMEs) — either "dashboard design system only, deliberately", or "repo-wide", in which
+case the prelogin designs and shipped copy get the same pass in their own PR.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
