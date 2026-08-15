@@ -673,6 +673,7 @@ export function SuperadminDashboard({ user, initialStats }: Props) {
       onPageChange={setPage}
       user={user}
       pageTitle={PAGE_TITLES[page]}
+      smallScreenGateFor="Super Admin"
     >
       {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} />}
       {page === 'organizations' && <OrgsPage />}
