@@ -67,10 +67,19 @@ export interface PatientDashboardData {
 
 // ─── Entities ────────────────────────────────────────────────
 
+// GET /org/ list item — shape verified live 2026-08-14 against OrganizationList
+// in the live schema. org_type enum: HOSPITAL | CLINIC | SCHOOL_CLINIC.
 export interface OrgSummary {
   id: string;
+  org_id: string;
   name: string;
   slug: string;
+  org_type: string;
+  email: string;
+  phone?: string;
+  city: string;
+  state: string;
+  country_name: string;
   is_active: boolean;
   is_verified?: boolean;
   total_staff?: number;
@@ -78,15 +87,59 @@ export interface OrgSummary {
   created_at: string;
 }
 
+// GET /org/<id>/ — the fuller detail shape (OrganizationOrgAdmin in the
+// schema). is_active/is_verified/license_number/verified_at are read-only
+// via this endpoint — suspend/activate/verify are separate action endpoints.
+export interface OrganizationDetail extends OrgSummary {
+  address: string;
+  country_code: string;
+  license_number: string;
+  verified_at: string | null;
+  total_episodes: number;
+  updated_at: string;
+}
+
+// POST /org/ and PUT /org/<id>/ body — verified against OrganizationOrgAdminRequest
+// live 2026-08-14. All fields required except phone.
+export interface OrganizationInput {
+  name: string;
+  org_type: string;
+  email: string;
+  phone?: string;
+  address: string;
+  city: string;
+  state: string;
+  country_code: string;
+  country_name: string;
+}
+
+// GET /auth/users/ item — shape verified live 2026-08-14 against UserList.
+// last_login is the only signal for "invite still pending" — the backend has
+// no dedicated pending-invite field or filter (FLAG-205).
 export interface StaffMember {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
   role: string;
+  phone?: string;
   is_active: boolean;
   is_on_duty?: boolean;
   date_joined?: string;
+  last_login?: string | null;
+  organization?: { id: string; name: string; org_id: string } | null;
+}
+
+// POST /auth/users/ body — verified against UserCreateRequest live 2026-08-14.
+// password is deliberately omitted (invite flow — backend emails a
+// setup-password link when it's absent); organization omitted for SUPERADMIN.
+export interface UserCreateInput {
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  phone?: string;
+  organization?: string;
 }
 
 export interface PatientSummary {

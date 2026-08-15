@@ -182,6 +182,7 @@ export const ENDPOINTS = {
   SA_USER: (id: string) => `/auth/users/${id}/`,
   SA_USER_ACTIVATE: (id: string) => `/auth/users/${id}/activate/`,
   SA_USER_RESET_PW: (id: string) => `/auth/users/${id}/reset-password/`,
+  SA_USER_RESEND_SETUP: (id: string) => `/auth/users/${id}/resend-setup-email/`,
   SA_AUDIT: '/audit/logs/',
   SA_ACCESS_LOGS: '/audit/access-logs/',
   SA_NOTIFS: '/auth/me/notifications/',

@@ -18,14 +18,14 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **D1** — Superadmin pages + T5 harness (week-end token cleanup) | `feat/dash-1-superadmin-pages` | `SuperadminDashboard.tsx`(+test), `types/dashboard.ts`, `lib/config.ts`, `e2e/design/*`, `playwright.config.ts` | 2026-08-15 | **PR #76 open — awaiting @Bastoh** |
-| @Qeeyat | **Token cleanup** — Button/ErrorState/Pagination onto dashboard tokens | `fix/dashboard-token-cleanup` | `src/components/ui/Button.tsx`, `ErrorState.tsx`, `Pagination.tsx`, `src/app/globals.css` | 2026-08-15 | **PR #77 open — awaiting @Bastoh.** Both this and #76 touch `HANDOFF.md` independently off the same `develop` — whichever merges second will need a rebase keeping both rows |
+| @Qeeyat | **D1** — Superadmin pages + T5 harness | `feat/dash-1-superadmin-pages` | `SuperadminDashboard.tsx`(+test), `types/dashboard.ts`, `lib/config.ts`, `e2e/design/*`, `playwright.config.ts` | 2026-08-15 | **PR #76 — CHANGES_REQUESTED 2026-08-17, addressing** |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011**
 token contrast — PR #68 · **D1 shared shell** (DashboardShell/StatCard/DataTable/Badge) — PR #67 ·
 **D1 overlays** (SlidePanel/Modal/Toaster/EmptyState/SmallScreenGate) — PR #69 · In Flight row cleared —
-PR #70 · **docs: `api-dev` seeding + FLAG-010 live + `CLAUDE.md` ritual fix** — PR #72. All merged
-2026-08-12/13.*
+PR #70 · **docs: `api-dev` seeding + FLAG-010 live + `CLAUDE.md` ritual fix** — PR #72 (all merged
+2026-08-12/13) · **Token cleanup** (Button/ErrorState/Pagination onto dashboard tokens) — PR #77,
+merged 2026-08-17.*
 
 ⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.
 A design PR built on the wrong data shape is a rewrite — if that order slips, say so in this table.
