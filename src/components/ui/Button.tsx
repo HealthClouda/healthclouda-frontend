@@ -11,11 +11,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT: Record<Variant, string> = {
-  primary:   'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400',
-  secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50',
-  danger:    'bg-red-600 hover:bg-red-700 text-white disabled:bg-red-400',
-  ghost:     'hover:bg-gray-100 text-gray-600 disabled:opacity-50',
-  outline:   'border border-gray-300 hover:bg-gray-50 text-gray-700 disabled:opacity-50',
+  primary:   'bg-primary hover:bg-primary-dark text-white shadow-btn disabled:opacity-50',
+  secondary: 'bg-transparent border-[1.5px] border-border text-text-mid hover:border-primary hover:text-primary hover:bg-chip disabled:opacity-50',
+  danger:    'bg-danger hover:bg-danger/90 text-white disabled:opacity-50',
+  ghost:     'hover:bg-page text-text-soft hover:text-ink disabled:opacity-50',
+  outline:   'border border-border hover:border-primary hover:text-primary text-text-mid disabled:opacity-50',
 };
 
 const SIZE: Record<Size, string> = {
@@ -30,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
-        className={`inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${VARIANT[variant]} ${SIZE[size]} ${className}`}
+        className={`inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${VARIANT[variant]} ${SIZE[size]} ${className}`}
         {...props}
       >
         {loading && (

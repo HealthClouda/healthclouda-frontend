@@ -29,7 +29,7 @@ export function Pagination({ page, totalPages, onPageChange, totalCount, pageSiz
   return (
     <div className="flex items-center justify-between px-1 py-3">
       {from && to && totalCount ? (
-        <p className="text-sm text-gray-500">
+        <p className="text-xs text-text-soft font-medium">
           {from}–{to} of {totalCount}
         </p>
       ) : (
@@ -45,7 +45,7 @@ export function Pagination({ page, totalPages, onPageChange, totalCount, pageSiz
 
         {pages.map((p, i) =>
           p === '…' ? (
-            <span key={`ellipsis-${i}`} className="w-8 text-center text-gray-400 text-sm">…</span>
+            <span key={`ellipsis-${i}`} className="w-8 text-center text-text-soft text-xs">…</span>
           ) : (
             <PageBtn
               key={p}
@@ -86,8 +86,8 @@ function PageBtn({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors
-        ${active ? 'bg-blue-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-100'}
+      className={`w-8 h-8 flex items-center justify-center rounded-lg border text-xs font-semibold transition-colors
+        ${active ? 'bg-primary border-primary text-white' : 'bg-white border-border text-text-mid hover:border-primary hover:text-primary'}
         ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     >
       {children}
