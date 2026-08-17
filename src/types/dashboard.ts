@@ -142,6 +142,18 @@ export interface UserCreateInput {
   organization?: string;
 }
 
+// POST /org-admin/staff/ body — the live schema documents no request shape
+// for this endpoint (verified 2026-08-17), so this is carried forward from
+// the 2026-07-11 empirical verification (HANDOFF-Bastoh.md): `full_name`
+// (not first/last, unlike /auth/users/) and a LOWERCASE role — a real
+// casing inconsistency with the rest of the API, not a typo here.
+export interface StaffInviteInput {
+  full_name: string;
+  email: string;
+  role: 'doctor' | 'nurse' | 'receptionist';
+  phone?: string;
+}
+
 export interface PatientSummary {
   id: string;
   first_name: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { OrgAdminDashboard } from './OrgAdminDashboard';
 import type { User } from '@/types/auth';
 
@@ -127,5 +127,61 @@ describe('OrgAdmin access requests (A6 — consent bypass removed)', () => {
     await openAccessRequestsPage();
     const row = screen.getByText('Chidi Nwosu').closest('tr')!;
     expect(row.querySelectorAll('button, a, input, select')).toHaveLength(0);
+  });
+});
+
+/**
+ * D2 Org Admin (sprint plan Mon 17 Aug row) — Staff page rebuilt onto
+ * DataTable/SlidePanel, with the one new write workflow it never had:
+ * staff invite (POST /org-admin/staff/). Body shape (full_name, lowercase
+ * role) is NOT in the live schema — carried forward from the 2026-07-11
+ * empirical verification recorded in HANDOFF-Bastoh.md, not guessed here.
+ */
+describe('OrgAdmin — Staff invite', () => {
+  const staffMember = {
+    id: 's-1', first_name: 'Ngozi', last_name: 'Eze', email: 'ngozi@demo-clinic.test',
+    role: 'NURSE', is_active: true, date_joined: '2026-08-01T00:00:00Z',
+  };
+  const staffEnvelope = { count: 1, next: null, previous: null, results: [staffMember] };
+
+  async function openStaffPage() {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org-admin/staff/')) return staffEnvelope;
+      return envelope;
+    });
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Staff' }));
+    await waitFor(() => expect(screen.getByText('Ngozi Eze')).toBeInTheDocument());
+  }
+
+  it('lists staff from the real /org-admin/staff/ envelope', async () => {
+    await openStaffPage();
+    expect(screen.getByText('ngozi@demo-clinic.test')).toBeInTheDocument();
+  });
+
+  it('sends full_name and a lowercase role, not first/last name or uppercase role', async () => {
+    await openStaffPage();
+    fireEvent.click(screen.getByRole('button', { name: /invite staff/i }));
+    const panel = screen.getByRole('dialog');
+    fireEvent.change(within(panel).getByLabelText(/full name/i), { target: { value: 'Tunde Bakare' } });
+    fireEvent.change(within(panel).getByLabelText(/^email \*/i), { target: { value: 'tunde@demo-clinic.test' } });
+    fireEvent.change(within(panel).getByLabelText(/^role \*/i), { target: { value: 'nurse' } });
+
+    fireEvent.click(within(panel).getByRole('button', { name: /send invitation/i }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        '/org-admin/staff/',
+        'POST',
+        { full_name: 'Tunde Bakare', email: 'tunde@demo-clinic.test', role: 'nurse', phone: '' },
+      );
+    });
+  });
+
+  it('does not submit when required fields are missing', async () => {
+    await openStaffPage();
+    fireEvent.click(screen.getByRole('button', { name: /invite staff/i }));
+    fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
+    expect(dataActionMock).not.toHaveBeenCalledWith('/org-admin/staff/', 'POST', expect.anything());
   });
 });
