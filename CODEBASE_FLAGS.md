@@ -25,6 +25,16 @@ Frontend numbering is **independent** of the backend repo's.
 
 **Always take the next free number in your own range.** Never renumber someone else's flag.
 
+**The number follows who *raised* it; the `Owner:` line says who *fixes* it.** Those are not always
+the same person, and the number must never be taken from the other dev's range — their agent cannot
+see this file mid-session and would pick the same next number. Example: FLAG-013/014/015 were raised
+by @Bastoh (so they sit in 001–199) but are owned by @Qeeyat, who was concurrently adding FLAG-205…209
+in open PRs. Numbering them 210+ would have collided with work already in flight.
+
+⚠️ **Check the live file, not your memory, before taking a number.** FLAG-012 was very nearly issued
+twice on 2026-08-17 for exactly this reason — a stale local `develop` didn't yet contain it.
+`git fetch` first.
+
 ## Legend
 
 **Severity** — `P0` breaks a core workflow or exposes data · `P1` must be fixed before PHI lands ·
@@ -314,6 +324,132 @@ case the prelogin designs and shipped copy get the same pass in their own PR.
 
 ---
 
+### FLAG-013 — The brand blue fails WCAG AA as a background for white text
+**Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-17, reviewing PR #77 (Button/ErrorState/Pagination token cleanup) ·
+**Raised by** @Bastoh, **assigned to** @Qeeyat (design-token lane)
+
+`--color-primary: #0075ff` carries white text in most of the app's primary actions. Measured, not
+eyeballed:
+
+| Pair | Ratio | AA needs |
+|---|---|---|
+| white on `--color-primary` #0075ff | **4.21:1** | 4.5:1 |
+| white on `--color-primary-dark` #005fcc (hover only) | 5.98:1 | ✅ passes |
+| `--color-primary` **as text** on white | **4.21:1** | 4.5:1 |
+
+This is a **brand-token flaw, not a component flaw**, and it is app-wide rather than new: white on
+`bg-primary` is already how the landing CTAs (`src/app/page.tsx:120`, `:290`), the auth submit button
+(`src/components/forms/authStyles.ts:10`), the 404 action (`src/app/not-found.tsx:49`), the org
+landing nav (`src/app/[slug]/page.tsx:63`) and the sidebar badge (`Sidebar.tsx:103`) all work.
+
+**Why it surfaced in PR #77 specifically:** that PR moved `Button` from `bg-blue-600` (#2563eb,
+**5.17:1**, passing) onto `bg-primary` (4.21:1, failing). At those call sites it is a measurable step
+down — but the change was *correct*, because it brought a stray component into line with the system.
+Blocking it would have preserved one accessible button inside an inaccessible system. Same reasoning
+as FLAG-011: the spec is the problem, the implementation is faithful.
+
+Note the resting state fails while the **hover** state passes — so a primary button becomes *more*
+readable when you point at it, which is backwards.
+
+**Done when:** either the brand blue is darkened to clear 4.5:1 under white text (≈#0068e0 or darker
+— re-measure, don't assume), or primary actions use `--color-primary-dark` at rest and
+`--color-primary` is reserved for large text and non-text use, or the deviation is accepted in
+writing in `SECURITY_BASELINE.md` / `BETA_READINESS.md` with a stated reason. Whichever is chosen it
+is **one change in `globals.css`**, not a per-component fix, and it is re-measured afterwards.
+
+---
+
+### FLAG-014 — `?page_size=` is not a supported param on most list endpoints
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN — **confirmed
+live; partially fixed by PR #76**
+**Found:** 2026-08-17, reviewing PR #76 (Superadmin pages) ·
+**Raised by** @Bastoh, **assigned to** @Qeeyat ·
+**Confirmed by measurement** by @Qeeyat 2026-08-17 (PR #76, commit `b6fa74c`)
+
+`usePaginatedList` (`src/hooks/use-api.ts`) appends `?page_size=20` to **every** list request and
+then derives `totalPages` from that same 20. `DataTable` separately renders "1–20 of N" from a
+`pageSize` prop callers pass by hand.
+
+**Verified against the live schema 2026-08-17** (`https://api-dev.healthclouda.com/api/v1/schema/`):
+`page_size` is documented on exactly **two** endpoints in the entire API —
+`/org/{slug}/announcements/` and `/org/contacts/`. It is **not** on `/org/`, `/auth/users/` or
+`/audit/logs/`, which document only `ordering`/`page`/`search` plus the audit filters. DRF's
+`PageNumberPagination` ignores `page_size` unless `page_size_query_param` is configured.
+
+**Settled by measurement against `api-dev` 2026-08-17 — the param is genuinely ignored:**
+
+```
+GET /audit/logs/              count 162, results 20, next ?page=2
+GET /audit/logs/?page_size=5  count 162, results 20   <- ignored
+GET /auth/users/?page_size=1  count 7,   results 7    <- ignored
+```
+
+**The real page size is 20 and `?page=` works.** So `usePaginatedList`'s hardcoded 20 is currently
+correct — **by coincidence, not by contract.** Nothing errors, and the footer happens not to lie
+today. The day the backend changes its `PAGE_SIZE`, every list in the app silently mis-paginates and
+later pages become unreachable (at a real page size of 10 with 57 records the pager would offer 3
+pages and rows 31–57 could not be reached at all). Same silent-ignore class as GLOBAL-2 and FLAG-004,
+**pre-existing and repo-wide** — every list on all six dashboards — not introduced by PR #76.
+
+⚠️ **The trap that hid this since July:** the `next` URL in the response **echoes `page_size` back**
+while ignoring it, so the payload looks like the param was honoured. Anyone re-checking this by
+eyeballing a response will conclude it works. Measure `results.length`, not `next`.
+
+**Already fixed in PR #76** (`b6fa74c`), so don't re-report these:
+- Overview "Recent Organisations" asked for `?page_size=5` and rendered whatever the server returned
+  — a **present-tense bug from the 6th organisation onward**, masked only by a single-org fixture.
+  Now capped client-side with a test that fails without the cap.
+
+**Still open:**
+1. `usePaginatedList` still sends the ignored `?page_size=` on every list request, and still derives
+   `totalPages` from an assumed 20 rather than from what came back.
+2. `SuperadminDashboard`'s invite dropdown is capped at the first 20 organisations, so a superadmin
+   **cannot invite a user into the 21st organisation** — the option simply isn't there, with no
+   error. Documented in-code in #76 and deliberately left; it needs paging or a searchable picker.
+
+**Done when:** `usePaginatedList` stops sending a param the server ignores and derives page size from
+`results.length` rather than assuming it, with a regression test asserting the requested URL; the
+invite dropdown pages properly or uses a searchable picker; and the measured behaviour above is
+recorded in the BACKEND CONTRACT NOTES banner in `HANDOFF.md` with its date, since "the server
+ignores `page_size` but echoes it in `next`" is a contract fact no schema states.
+
+---
+
+### FLAG-015 — Table row-action buttons fail AA contrast and minimum target size
+**Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-17, reviewing PR #76 (Superadmin pages) ·
+**Raised by** @Bastoh, **assigned to** @Qeeyat
+
+The per-row action buttons in `SuperadminDashboard` (Organisations and Users tables) use status
+colour as **text** at 11.5px semibold. Measured against white:
+
+| Button | Token | Ratio | AA needs |
+|---|---|---|---|
+| **Activate** | `text-success` #16a34a | **3.30:1** | 4.5:1 |
+| **Verify** / **Resend** | `text-primary` #0075ff | **4.21:1** | 4.5:1 |
+| Suspend | `text-danger` #dc2626 | 4.83:1 | ✅ passes |
+
+11.5px semibold does not qualify as WCAG "large text" (that needs 18.66px bold / 24px regular), so
+4.5:1 is the bar for all three. They are also roughly **22px tall** (`py-1` plus 11.5px text), under
+the 24×24 CSS px minimum target size (WCAG 2.5.8, AA in 2.2).
+
+**Why this matters beyond compliance, and why it's FLAG-011's argument again:** these are the controls
+that suspend an organisation, verify one, or re-send a staff invite. They are read at a glance, off a
+reception or ward monitor, often at an angle. "Activate" at 3.30:1 is the **lowest measured ratio
+anywhere in the dashboard set** — lower than any badge in FLAG-011 — and it sits on a
+suspend/activate pair where misreading which button is which has a real consequence.
+
+This is FLAG-011's underlying token problem surfacing at **new call sites** (status colour as small
+text on white, rather than badge text on a tint). Fixing FLAG-011 at the token level may or may not
+fix this depending on how it is fixed — check both, and don't close one assuming the other.
+
+**Done when:** every row-action label meets 4.5:1 at its rendered size, each button's hit target is at
+least 24×24 CSS px, and both are confirmed by measurement in the T8 accessibility pass rather than by
+eye. Coordinate with FLAG-011 and FLAG-013 so the tokens move once, not three times.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
@@ -536,7 +672,15 @@ once credentials are usable in a session, or the backend documents the permissio
 
 *Last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
-fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-205/206 raised
-2026-08-14/15, building D1 Superadmin pages (PR #76, merged 2026-08-17) — **FLAG-205 is partly
-disproven, see the correction in its entry**. FLAG-207/208/209 raised 2026-08-17, building D2 Org
-Admin — FLAG-207 fixed same PR.*
+fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-012 raised 2026-08-13
+reviewing PR #73. FLAG-205/206 raised 2026-08-14/15, building D1 Superadmin pages (PR #76, merged
+2026-08-17) — **FLAG-205 is partly disproven, see the correction in its entry**. FLAG-207/208/209
+raised 2026-08-17, building D2 Org Admin — FLAG-207 fixed same PR.
+**FLAG-013/014/015 raised 2026-08-17 reviewing PRs #76/#77 — numbered in @Bastoh's range, owned by
+@Qeeyat** (see the note under the range table).*
+
+> ⚠️ **FLAG-011 is still OPEN — do not read `HANDOFF.md` as saying otherwise.** Its "Cleared on
+> merge" line reads *"FLAG-011 token contrast — PR #68"*, which looks like a fix. PR #68 was
+> **docs-only**: it *logged* this flag. The failing token values are unchanged and still live.
+> FLAG-013 and FLAG-015 are the same underlying problem at other call sites — fix the tokens once,
+> across all three, and re-measure.
