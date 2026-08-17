@@ -60,6 +60,115 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-17 — D2 Org Admin: staff invite + read-only access requests (branch: feat/dash-2-org-admin)
+
+**Goal:** Monday's sprint-plan row — staff invite, read-only access requests.
+
+**What I did:**
+- **PR #78**: rebuilt Overview/Staff/Patients/Wards/Access Requests onto `DataTable`/`SlidePanel`/
+  tokens, same pattern as D1. Staff invite (`POST /org-admin/staff/`) is the one new write workflow
+  — verified the endpoint exists live, but the body shape isn't in the schema (org-admin is
+  under-documented there generally), so `full_name` + lowercase role came from the 2026-07-11
+  empirical finding already in `HANDOFF-Bastoh.md`, not guessed fresh. Access Requests stayed
+  explicitly read-only (A6/ORGADMIN-1) — proved it with the 5 pre-existing guardrail tests passing
+  **unmodified** against the rebuild, plus 3 new invite tests, 8/8.
+- Extracted `useDebouncedValue`, `SearchInput`, `FormField` into shared files instead of
+  copy-pasting Superadmin's inline versions a third time.
+- Found `ORG_ADMIN_STAFF_MEMBER` in `config.ts` — zero consumers, pointed at a URL that doesn't
+  exist in the live schema. Removed, replaced with the real `ORG_ADMIN_STAFF_STATUS` endpoint.
+  Logged as FLAG-207 (already fixed) for the paper trail.
+- Two things deliberately not built: staff activate/deactivate (endpoint real, PATCH body
+  undocumented — FLAG-208) and resend-invite for org-admin staff (endpoint is superadmin's, org-admin
+  permission scope unverified — FLAG-209). A wrong PATCH body fails loudly, unlike a silently-ignored
+  filter param, so I could have guessed and let a 400 catch it — chose not to, since neither was
+  explicitly in today's row.
+
+**What I found:**
+- **PR #76/#77 are both still unreviewed** from over the weekend — three open PRs stacking up by
+  end of today (#76, #77, #78), all independently touching `HANDOFF.md`'s In Flight table and (for
+  #76/this one) `CODEBASE_FLAGS.md`'s tail. Had to explicitly skip FLAG-205/206 (claimed by #76,
+  unmerged) and start this session's flags at 207 rather than colliding once it lands — worth
+  remembering this pattern exists: **an open-but-unmerged PR "reserves" flag numbers and In Flight
+  rows that a fresh branch off `develop` won't see**, so check open PRs, not just `develop`'s
+  current file content, before numbering.
+- Weekend retrospective (asked for explicitly, not something I'd have generated unprompted) surfaced
+  a real, concrete finding I'd otherwise have kept "not today's four components" indefinitely:
+  `Button`/`ErrorState`/`Pagination` never got restyled across four PRs despite being embedded
+  directly inside `DataTable` and every new panel footer — fixed as PR #77.
+
+**Decisions:**
+- Kept `OrgAdminStats`'s existing field names (`total_staff`/`total_patients`/etc.) rather than
+  chasing the design README's different-sounding stat mapping (`active_patients`, `bed_occupancy`,
+  `critical_alerts`) — those aren't verified against the live schema and the current fields already
+  render real data. Same call as Superadmin's stat cards.
+
+**Verified:** tsc clean, vitest 91/91 (88 baseline + 3 new), `next build` green (27 routes) on #78.
+Still no live login exercised in-session — three PRs now merged-pending without visual verification.
+
+**Left undone / next:**
+- [ ] **Three open PRs need review**: #76 (Superadmin + T5 harness), #77 (token cleanup), #78 (Org
+  Admin) — all awaiting @Bastoh.
+- [ ] FLAG-203 (P1, SmallScreenGate PHI channel) still open, still not feeding into a written
+  `SECURITY_BASELINE.md` because that file still doesn't exist.
+- [ ] FLAG-200 (npm audit) still untriaged, now a week old.
+- [ ] Once #76 merges, migrate `SuperadminDashboard.tsx`'s inline `Field`/`SearchInput`/debounce
+  code onto the new shared `FormField`/`SearchInput`/`useDebouncedValue` this PR introduced.
+- [ ] Tue 18 row (if the week continues at this pace): **D3 Nurse** — vitals (already exists from
+  NURSE-1), ward/bed, admission.
+
+---
+
+### 2026-08-14/15 — D1 Superadmin pages + T5 harness, em-dash design cleanup, token cleanup (branches: feat/dash-1-superadmin-pages, fix/design-emdash-copy, fix/dashboard-token-cleanup)
+
+**Goal:** Close out the rest of D1 (Thursday's Superadmin pages + Friday's T5 harness, both slipped),
+then whatever came up.
+
+**What I did:**
+- **PR #76**: rebuilt Superadmin's Organisations/Users/Audit Logs off the old `TableWrap` helpers
+  onto `DataTable`. Two real new write workflows, both schema-verified first: user invite (no
+  password field — backend emails a setup-password link; confirmed `SUPERADMIN` is a legal invite
+  role, which the design README had flagged as unverified) and user suspend/activate (Users page was
+  fully read-only before). **Building the T5 screenshot harness on the same branch caught a real bug
+  in the commit right before it**: `SuperadminDashboard` never actually passed `smallScreenGateFor`
+  to `DashboardShell`, so the prop built for exactly that purpose was dead code and the dashboard had
+  no mobile gate at all. Fixed same PR.
+- **PR #73** (merged Bastoh-reviewed): swept em dashes out of UI copy across all six dashboard
+  `.dc.html` files — colon/semicolon/parentheses/middle-dot depending on what the sentence actually
+  needed, not one blanket substitution. Deliberately left the `'—'` empty-value placeholder
+  convention alone (24 instances, all verified individually — matches the live app's `?? '—'`
+  pattern). Bastoh's review flagged (FLAG-012) that the convention now exists in exactly one place —
+  not `design_handoff_prelogin/` or shipped copy like `src/app/page.tsx` — still an open decision,
+  not mine to resolve.
+- Asked for a weekend retrospective — wrote one grounded in the week's actual PRs rather than
+  generic advice, and it directly produced **PR #77** (Button/ErrorState/Pagination token cleanup).
+
+**What I found:**
+- Every PR through review this week caught something real, never a rubber stamp either direction —
+  worth stating plainly rather than filing away: my own five-lens self-review before opening a PR did
+  not catch the badge-color regression, the sign-out a11y miss, the toast contrast failure, or the
+  missing `SmallScreenGate` wiring. Eyeballing contrast/interaction states isn't reliable as a
+  self-check; I'd trust computed checks and an actual click-through over visual judgment from here.
+- `playwright-report/`/`test-results/` were never gitignored — caught it about to happen to my own
+  commit while building the T5 harness. Fixed in `.gitignore` same PR.
+- api-dev credentials were sent to me out-of-band this stretch (per Bastoh, 2026-08-13), but I still
+  haven't tested them in a session — every PR this week has shipped without visual verification.
+
+**Decisions:**
+- Gave `Button`'s primary variant its own `--shadow-btn` token rather than reusing prelogin's
+  `--shadow-btn-primary` (different value) — same reasoning as the `warning-strong`/`warning-fill`
+  split from Wednesday: two tokens that currently look similar but answer different questions age
+  better than one shared token that quietly drifts when someone retunes it for one use case.
+
+**Verified:** tsc clean on all three PRs; vitest 97/97 on #76, 88/88 on #77 (pre-Superadmin
+baseline, cut from a different branch point); `next build` green throughout.
+
+**Left undone / next:**
+- [ ] All three PRs from this stretch (#76, #77) plus Monday's #78 awaiting review — see above entry.
+- [ ] No baseline T5 screenshots captured — the harness is structurally verified (discovers tests,
+  skips cleanly without credentials) but has never run for real.
+
+---
+
 ### 2026-08-12/13 — D1 shared shell + overlays, both PRs through full review cycles (branches: feat/dash-1-shared-shell, feat/dash-1-overlays, docs/clear-in-flight-d1)
 
 **Goal:** Build the DASH-1 shared dashboard shell per `docs/FRONTEND_SPRINT_PLAN.md`'s Tue 11 / Wed
