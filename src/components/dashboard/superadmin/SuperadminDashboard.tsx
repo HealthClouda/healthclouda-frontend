@@ -123,13 +123,16 @@ function OverviewPage({
 }: { stats: SuperadminStats | null; onNavigate: (p: string) => void }) {
   const { data: activity, loading: actLoading, error: actError, refetch: actRefetch } =
     useApi<{ results?: ActivityItem[] } | ActivityItem[]>(ENDPOINTS.SA_ACTIVITY);
+  // No `?page_size=5`: the server ignores the param and returns its own page of
+  // 20 regardless (measured against api-dev 2026-08-17 — FLAG-013), so the cap
+  // has to be applied here, the same way activityList does it below.
   const { data: orgsData, loading: orgsLoading, error: orgsError, refetch: orgsRefetch } =
-    useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS + '?page_size=5');
+    useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS);
 
   const activityList = Array.isArray(activity)
     ? activity.slice(0, 8)
     : (activity as { results?: ActivityItem[] } | null)?.results?.slice(0, 8) ?? [];
-  const recentOrgs = orgsData?.results ?? [];
+  const recentOrgs = (orgsData?.results ?? []).slice(0, 5);
 
   const activityColumns: DataTableColumn<ActivityItem>[] = [
     { key: 'event', header: 'Event', render: (r) => <span className="text-[12.5px] text-text-mid">{truncate(r.description ?? r.action ?? 'System event', 70)}</span> },
@@ -470,7 +473,11 @@ function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [justResent, setJustResent] = useState<Set<string>>(new Set());
 
-  const { data: orgOptions } = useApi<Paginated<OrgSummary>>(invitePanel ? ENDPOINTS.SA_ORGS + '?page_size=100' : null);
+  // FLAG-013: `?page_size=100` was a no-op — the server ignores it and returns
+  // 20. This dropdown is therefore capped at the first 20 organisations, so a
+  // superadmin cannot yet invite into the 21st. Harmless at 2 orgs; it needs
+  // real paging (or a searchable picker) before the org count reaches 20.
+  const { data: orgOptions } = useApi<Paginated<OrgSummary>>(invitePanel ? ENDPOINTS.SA_ORGS : null);
 
   function openInvite() {
     setForm(EMPTY_USER_FORM);

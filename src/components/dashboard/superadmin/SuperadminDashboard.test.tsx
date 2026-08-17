@@ -85,6 +85,27 @@ async function openPage(name: string, expectText: string) {
   await waitFor(() => expect(screen.getByText(expectText)).toBeInTheDocument());
 }
 
+describe('Superadmin — Overview', () => {
+  // The server ignores `?page_size=` and returns its own page of 20 (measured
+  // against api-dev 2026-08-17, FLAG-013), so "Recent Organisations" has to cap
+  // client-side. The single-org fixture hid this: it only shows above 5.
+  it('caps Recent Organisations at 5 even when the server returns a full page', async () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      ...activeOrg, id: `org-${i + 1}`, name: `Clinic ${i + 1}`, slug: `clinic-${i + 1}`,
+    }));
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org/org-')) return orgDetail;
+      if (path.startsWith('/org/')) return { count: 20, next: null, previous: null, results: many };
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+    await waitFor(() => expect(screen.getByText('Clinic 1')).toBeInTheDocument());
+    expect(screen.getByText('Clinic 5')).toBeInTheDocument();
+    expect(screen.queryByText('Clinic 6')).not.toBeInTheDocument();
+  });
+});
+
 describe('Superadmin — Organisations page', () => {
   it('lists organisations from the real /org/ envelope', async () => {
     await openPage('Organisations', 'Demo Clinic');
