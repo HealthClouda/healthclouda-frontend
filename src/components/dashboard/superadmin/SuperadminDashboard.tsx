@@ -6,6 +6,8 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
+import { dataGet } from '@/lib/client-api';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -15,8 +17,8 @@ import { formatDate, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  SuperadminStats, OrgSummary, OrganizationInput, StaffMember, UserCreateInput,
-  ActivityItem, Paginated,
+  SuperadminStats, OrgSummary, OrganizationDetail, OrganizationInput, StaffMember,
+  UserCreateInput, ActivityItem, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -93,7 +95,10 @@ function useDebouncedValue(value: string, delayMs: number) {
   return debounced;
 }
 
-function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+// `label` is required, not optional: a placeholder is not an accessible name
+// and disappears the moment the user types, so a screen reader would announce
+// a bare text box. Making it required means a new call site cannot omit it.
+function SearchInput({ value, onChange, placeholder, label }: { value: string; onChange: (v: string) => void; placeholder: string; label: string }) {
   return (
     <div className="relative w-[260px]">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-placeholder [&>svg]:w-[14px] [&>svg]:h-[14px]">
@@ -104,6 +109,7 @@ function SearchInput({ value, onChange, placeholder }: { value: string; onChange
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={label}
         className="h-9 w-full bg-white border-[1.5px] border-border rounded-lg pl-8 pr-3 text-[12.5px] text-ink outline-none focus:border-primary"
       />
     </div>
@@ -213,18 +219,51 @@ function OrgsPage() {
   const [working, setWorking] = useState(false);
   const [formPanel, setFormPanel] = useState<{ mode: 'add' } | { mode: 'edit'; org: OrgSummary } | null>(null);
   const [form, setForm] = useState<OrganizationInput>(EMPTY_ORG_FORM);
+  // Baseline the edit form was prefilled from, so submit can send only what
+  // actually changed. Null while the detail fetch is in flight or has failed.
+  const [original, setOriginal] = useState<OrganizationInput | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function openAdd() {
     setForm(EMPTY_ORG_FORM);
+    setOriginal(null);
+    setDetailError(null);
     setFormPanel({ mode: 'add' });
   }
-  function openEdit(org: OrgSummary) {
-    setForm({
-      name: org.name, org_type: org.org_type, email: org.email, phone: org.phone ?? '',
-      address: '', city: org.city, state: org.state, country_code: 'NG', country_name: org.country_name,
-    });
+
+  /**
+   * Prefill from `GET /org/<id>/`, never from the list row: `OrganizationList`
+   * carries neither `address` nor `country_code` (verified live 2026-08-17), so
+   * a row-based prefill shows a blank required Address and saves the admin's
+   * guess over the stored one. `OrganizationOrgAdmin` has both.
+   */
+  async function openEdit(org: OrgSummary) {
     setFormPanel({ mode: 'edit', org });
+    setForm(EMPTY_ORG_FORM);
+    setOriginal(null);
+    setDetailError(null);
+    await loadDetail(org);
+  }
+
+  async function loadDetail(org: OrgSummary) {
+    setLoadingDetail(true);
+    setDetailError(null);
+    try {
+      const detail = await dataGet<OrganizationDetail>(ENDPOINTS.SA_ORG(org.id));
+      const prefilled: OrganizationInput = {
+        name: detail.name, org_type: detail.org_type, email: detail.email,
+        phone: detail.phone ?? '', address: detail.address, city: detail.city,
+        state: detail.state, country_code: detail.country_code, country_name: detail.country_name,
+      };
+      setForm(prefilled);
+      setOriginal(prefilled);
+    } catch (e) {
+      setDetailError(e instanceof Error ? e.message : 'Could not load this organisation');
+    } finally {
+      setLoadingDetail(false);
+    }
   }
 
   async function submitForm() {
@@ -235,7 +274,19 @@ function OrgsPage() {
     setSaving(true);
     try {
       if (formPanel?.mode === 'edit') {
-        await apiAction(ENDPOINTS.SA_ORG(formPanel.org.id), 'PUT', form);
+        // PATCH, not PUT: PUT is a full replace, so any write-serializer field
+        // the form doesn't render would be overwritten with whatever the form
+        // happens to hold. `PatchedOrganizationOrgAdminRequest` requires nothing.
+        const changed: Partial<OrganizationInput> = {};
+        for (const key of Object.keys(form) as (keyof OrganizationInput)[]) {
+          if (!original || form[key] !== original[key]) changed[key] = form[key];
+        }
+        if (Object.keys(changed).length === 0) {
+          toast.success('No changes to save');
+          setFormPanel(null);
+          return;
+        }
+        await apiAction(ENDPOINTS.SA_ORG(formPanel.org.id), 'PATCH', changed);
         toast.success('Organisation updated');
       } else {
         await apiAction(ENDPOINTS.SA_ORGS, 'POST', form);
@@ -319,7 +370,7 @@ function OrgsPage() {
         onRetry={refetch}
         emptyTitle="No organisations found"
         emptyDescription={search ? 'Try adjusting your search.' : 'No organisations have been registered yet.'}
-        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name or slug…" />}
+        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name or slug…" label="Search organisations" />}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -335,10 +386,22 @@ function OrgsPage() {
         footer={
           <>
             <Button variant="secondary" className="flex-1" onClick={() => setFormPanel(null)} disabled={saving}>Cancel</Button>
-            <Button className="flex-1" onClick={submitForm} loading={saving}>{formPanel?.mode === 'edit' ? 'Save Changes' : 'Add Organisation'}</Button>
+            <Button className="flex-1" onClick={submitForm} loading={saving} disabled={loadingDetail || !!detailError}>{formPanel?.mode === 'edit' ? 'Save Changes' : 'Add Organisation'}</Button>
           </>
         }
       >
+        {detailError ? (
+          <ErrorState
+            title="Couldn't load this organisation"
+            message={detailError}
+            onRetry={() => { if (formPanel?.mode === 'edit') void loadDetail(formPanel.org); }}
+          />
+        ) : loadingDetail ? (
+          // Never render the form half-populated: an empty Address field here
+          // reads as "this org has no address" rather than "not loaded yet".
+          <div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading organisation details…</div>
+        ) : (
+        <>
         <Field label="Organisation Name *">
           <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </Field>
@@ -369,6 +432,8 @@ function OrgsPage() {
         <Field label="Country *">
           <input className={inputClass} value={form.country_name} onChange={(e) => setForm({ ...form, country_name: e.target.value })} />
         </Field>
+        </>
+        )}
       </SlidePanel>
 
       <ConfirmDialog
@@ -525,7 +590,7 @@ function UsersPage() {
         onRetry={refetch}
         emptyTitle="No users found"
         emptyDescription={search ? 'Try adjusting your search.' : 'No users registered yet.'}
-        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" />}
+        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" label="Search users" />}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}

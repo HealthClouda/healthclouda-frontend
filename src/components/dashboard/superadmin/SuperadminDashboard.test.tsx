@@ -45,6 +45,19 @@ const activeOrg = {
 };
 const orgsEnvelope = { count: 1, next: null, previous: null, results: [activeOrg] };
 
+// GET /org/<id>/ (OrganizationOrgAdmin). The two fields that matter here are
+// `address` and `country_code`: OrganizationList carries NEITHER, which is why
+// the edit panel must prefill from the detail endpoint and not the list row.
+const orgDetail = {
+  ...activeOrg,
+  address: '12 Awolowo Road, Ikoyi',
+  country_code: 'NG',
+  license_number: 'LIC-001',
+  verified_at: '2026-06-02T00:00:00Z',
+  total_episodes: 16,
+  updated_at: '2026-08-01T00:00:00Z',
+};
+
 const pendingUser = {
   id: 'u-1', first_name: 'Chidi', last_name: 'Okafor', email: 'chidi@demo-clinic.test', role: 'DOCTOR',
   is_active: true, last_login: null, date_joined: '2026-08-10T00:00:00Z', organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'HCL-NG-DEMO-01' },
@@ -58,6 +71,7 @@ const usersEnvelope = { count: 2, next: null, previous: null, results: [pendingU
 beforeEach(() => {
   vi.clearAllMocks();
   dataGetMock.mockImplementation(async (path: string) => {
+    if (path.startsWith('/org/org-')) return orgDetail;
     if (path.startsWith('/org/')) return orgsEnvelope;
     if (path.startsWith('/auth/users/')) return usersEnvelope;
     return { count: 0, next: null, previous: null, results: [] };
@@ -94,6 +108,52 @@ describe('Superadmin — Organisations page', () => {
     });
   });
 
+  it('prefills the edit panel from GET /org/<id>/, so the stored address is visible', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith('/org/org-1/'));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => {
+      expect(within(panel).getByLabelText(/address/i)).toHaveValue('12 Awolowo Road, Ikoyi');
+    });
+  });
+
+  it('edit PATCHes only what changed and never blanks the untouched address', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByLabelText(/address/i)).toHaveValue('12 Awolowo Road, Ikoyi'));
+
+    // Change only the phone — the classic "admin corrects a phone number" edit.
+    fireEvent.change(within(panel).getByLabelText(/phone/i), { target: { value: '+2348000000000' } });
+    fireEvent.click(within(panel).getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith('/org/org-1/', 'PATCH', { phone: '+2348000000000' });
+    });
+    const body = dataActionMock.mock.calls[0][2] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('address');
+    expect(body).not.toHaveProperty('country_code');
+  });
+
+  it('blocks Save while the detail fetch is still in flight', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    let release: (v: unknown) => void = () => {};
+    dataGetMock.mockImplementationOnce(() => new Promise((r) => { release = r; }));
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    const panel = screen.getByRole('dialog');
+    expect(within(panel).getByRole('button', { name: /save changes/i })).toBeDisabled();
+    release(orgDetail);
+    await waitFor(() => expect(within(panel).getByRole('button', { name: /save changes/i })).toBeEnabled());
+  });
+
+  it('gives the organisations search box an accessible name', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    expect(screen.getByRole('textbox', { name: /search organisations/i })).toBeInTheDocument();
+  });
+
   it('suspend action still calls the superadmin suspend endpoint, not generic org DELETE', async () => {
     await openPage('Organisations', 'Demo Clinic');
     fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
@@ -105,6 +165,11 @@ describe('Superadmin — Organisations page', () => {
 });
 
 describe('Superadmin — Users page', () => {
+  it('gives the users search box an accessible name', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    expect(screen.getByRole('textbox', { name: /search users/i })).toBeInTheDocument();
+  });
+
   it('labels a never-logged-in user as invite pending, not Active/Inactive', async () => {
     await openPage('Users', 'Chidi Okafor');
     expect(screen.getByText('Invite pending')).toBeInTheDocument();
