@@ -138,6 +138,19 @@ npx playwright test e2e/design           # capture / compare
 npx playwright test e2e/design --update-snapshots   # accept intentional changes
 ```
 
+**Signs in for real against `api-dev` — no mocked auth.** Credentials come from the environment,
+never this repo. Set in `.env.local` (gitignored) before running, one pair per role you're testing:
+
+```
+E2E_SUPERADMIN_EMAIL=...
+E2E_SUPERADMIN_PASSWORD=...
+E2E_ORG_SLUG=demo-clinic      # used for every staff role except superadmin
+```
+
+Any spec whose role credentials aren't set **skips itself** with a clear message rather than
+failing — see `e2e/design/helpers.ts`. That means `npx playwright test e2e/design` is always safe
+to run, even before you have credentials for every role.
+
 Shape of a spec:
 
 ```ts

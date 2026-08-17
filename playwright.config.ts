@@ -13,7 +13,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 5'] } },
+    // e2e/design sets its own explicit viewports per VIEWPORTS in
+    // e2e/design/helpers.ts (the design system's fixed breakpoints, not a
+    // device emulation) — running it again under Pixel 5 would just double
+    // every screenshot for no signal.
+    { name: 'mobile', use: { ...devices['Pixel 5'] }, testIgnore: /e2e\/design\// },
   ],
   webServer: {
     command: 'npm run dev',

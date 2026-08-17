@@ -410,12 +410,57 @@ whichever fits the actual DASH-2…6 usage once it's written, rather than guesse
 
 ---
 
+### FLAG-205 — Org/User list endpoints don't support the filters the design assumes
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-14/15, building D1 Superadmin pages, verified against the live schema
+
+`design_handoff_dashboards`'s Organisations page has Type + Status filter dropdowns; the Users page
+has Role + Status + Organisation dropdowns. The live schema for both list endpoints
+(`auth_users_list`, `org_list`) documents exactly three query params: `search`, `ordering`, `page`.
+No `type`, `status`, `role`, or `organization` filter param exists on either.
+
+**Dropped rather than invented** — adding `?org_type=` or `?role=` would be exactly the
+invented-query-param bug class this repo has hit before (GLOBAL-2, FLAG-004): DRF would silently
+ignore it and the dropdown would look functional while doing nothing. `src/components/dashboard/
+superadmin/SuperadminDashboard.tsx` ships search + column sort only on both tables.
+
+**Done when:** either the backend adds the filter params (an `api-request` issue, not filed yet —
+low urgency, these are UX conveniences with client-visible workarounds: search covers most of the
+same need) or the filters are implemented as accepted client-side-only filtering of the current
+page (misleading across pages, so not done here without a product decision either way).
+
+---
+
+### FLAG-206 — No backend concept of "pending invite"; inferred from `last_login == null`
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-14/15, building D1 Superadmin pages, verified against the live schema
+
+The design's Users page shows a per-user "Invite pending" state and a Dashboard-level "Pending
+Invites" stat card + list. Neither `UserList` nor `UserDetail` in the live schema has a dedicated
+field for it (no `is_pending`, no `has_set_password`). Implemented the per-row badge as
+`last_login == null` — a reasonable proxy (a user literally cannot have logged in without having
+set a password first), but never confirmed as the backend's own definition.
+
+**Bigger gap, deliberately not built:** the Dashboard-level "Pending Invites" stat card and list
+from the design are **not implemented**. `SuperadminStats` has no `pending_invites` field, and
+there's no filter param (see FLAG-205) to fetch an accurate global count — only a page-restricted
+`last_login == null` count would be available, which undercounts past page 1 and would present a
+wrong number confidently. Overview keeps the four stat cards that already have real values
+(Total Users, Organisations, Active Orgs, Total Patients) instead.
+
+**Done when:** the backend either adds `pending_invites` to the stats response, adds a filter param
+so an accurate count is fetchable, or confirms `last_login == null` is the intended definition and
+documents it — then the stat card and dashboard-level pending-invites list can be built for real.
+
+---
+
 ## Resolved flags
 
 *(none yet — move entries here with their PR number and resolution date)*
 
 ---
 
-*Last updated 2026-08-13. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
+*Last updated 2026-08-15. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
-fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69.*
+fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-205/206 raised
+2026-08-14/15, building D1 Superadmin pages.*
