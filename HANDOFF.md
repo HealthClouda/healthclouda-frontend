@@ -18,7 +18,7 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **FLAG-013/014/015** — logged from reviewing PRs #76/#77/#78. Docs only, no source changes | `docs/flags-013-015` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-08-17 | **PR #79 open — awaiting @Qeeyat**, round 2 |
+| *(none — claim before cutting your next branch)* | | | | | |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -27,7 +27,8 @@ logged** (docs only — see the correction below) — PR #68 · **D1 shared shel
 **docs: `api-dev` seeding + FLAG-010 live + `CLAUDE.md` ritual fix** — PR #72 (all merged
 2026-08-12/13) · **Token cleanup** (Button/ErrorState/Pagination onto dashboard tokens) — PR #77 ·
 **D1 Superadmin pages + T5 harness** — PR #76 (both merged 2026-08-17) · **D2 Org Admin** (staff
-invite + read-only access requests) — PR #78, merged 2026-08-19.*
+invite + read-only access requests) — PR #78 · **FLAG-013/014/015** (logged from reviewing
+#76/#77/#78) — PR #79. Both merged 2026-08-19.*
 
 > ⚠️ **Correction (2026-08-17):** this line previously read *"**FLAG-011** token contrast — PR #68"*,
 > which reads as though the contrast problem was **fixed**. It was not. PR #68 was docs-only and
