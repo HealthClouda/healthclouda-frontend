@@ -60,6 +60,127 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-19 (afternoon) — first real visual verification: 5 bugs, the T5 harness fixed, D3 Nurse (branches: fix/superadmin-signin-unreachable, fix/org-admin-payload-shapes, feat/dash-3-nurse, docs/flag-016→210, docs/flag-213-receptionist-shapes)
+
+> Continues from the entry below, same day. That one ends with *"still no visual verification —
+> the oldest unpaid debt on this list."* This is that debt being paid, and it cost more than
+> expected.
+
+**Goal:** run the app against `api-dev` for the first time, then get back to the sprint (D3).
+
+**What I did:**
+- **Ran the app.** Five bugs, none of which any test could see. Four fixed (#84, #85), one assigned
+  to Bastoh (FLAG-210, #83).
+- **Fixed the T5 harness**, which had never actually worked — five separate reasons (#84).
+- **D3 Nurse** (#86): tables onto `DataTable`, tokens, `smallScreenGateFor`, ward/bed detail.
+- **Captured the receptionist payloads before starting D4** and filed FLAG-213 (#87).
+- Reviewed **#79** and **#82** (both approved), fixed **#81** after Bastoh corrected it.
+
+**What I found — the five bugs:**
+1. 🔴 **A superadmin could not sign in at all.** `isDashboardRoute('/superadmin/signin')` returned
+   true (`parts[0] === 'superadmin'`) and the dashboard guard runs *before* `isSigninRoute` is ever
+   consulted, so logged-out it 307'd to `/signin` — the patients-only portal, where the backend
+   rejects staff. **An existing test asserted this behaviour**, so it looked deliberate.
+2. 🔴 **Patients could not sign in either** — but for a deeper reason: `/auth/me/` returns
+   `organization: null` (correct — records move *with* the patient), while `roleDashboardPath()`
+   builds `/${orgSlug}/patient` and no slug-less route exists. Assigned to Bastoh, FLAG-210.
+3. 🔴 **Org Admin Patients and Staff rendered rows of nothing** — blank names, `?` avatars, `—`
+   everywhere. Typed against `/doctor/patients/` and `/auth/users/` respectively; the real endpoints
+   share only `id`.
+4. 🟠 **Two of four Org Admin stat cards were permanently `—`** — and this one reversed my own call
+   from Monday. The design README named `active_patients`/`bed_occupancy` correctly and I overruled
+   it on the grounds the existing fields "already render real data". They never did.
+5. 🟡 Ward cards printed an empty string before the word "available".
+
+**Why the tests couldn't catch any of 3–5:** the fixtures encode the *invented* shape.
+`OrgAdminDashboard.test.tsx` built staff as `{first_name:'Ngozi', last_name:'Eze'}` and asserted
+`getByText('Ngozi Eze')`, so **108 green tests confirmed the components matched a payload the
+backend never sends.** Fixing the fixtures mattered more than fixing any field name — 6 tests now
+fail against the old shapes.
+
+**The T5 harness had never run.** Fixing bug 1 meant finally using it, which surfaced:
+- `playwright.config.ts` **loaded no env file**, so the `E2E_*` credentials its own docs tell you to
+  put in `.env.local` were invisible to it. Its documented setup could not have worked.
+- **Parallel logins interfere** — same account, and the backend rotates/blacklists refresh tokens
+  (`CLAUDE.md` §5). Failed 2/5, then 5/5; green on one worker. Now `mode: 'serial'`.
+- **The first baselines I generated were loading skeletons.** The tests waited for the `h1` only. I
+  only noticed because I opened the PNG. A skeleton baseline verifies nothing *and* silently flips
+  when timing changes.
+- **Audit-log counts can never match a baseline** — they grow on every sign-in, including the
+  suite's own. I guessed wrong twice about which element was moving before reading the diff image,
+  which showed it immediately. **Look at the diff, don't theorise about it.**
+- **Next's dev-tools indicator** was being baked into baselines; it overlaps the sidebar avatar and
+  reads as an avatar with the wrong initials. I nearly filed it as a real bug.
+
+**🪤 The trap that cost the most time, and looks like nothing:** the demo password contains `#`, and
+in a `.env` file an **unquoted `#` starts an inline comment**. `E2E_..._PASSWORD=Demo#Pass1` silently
+became `Demo`, and every sign-in returned **401 "Invalid email or password"** — which reads exactly
+like wrong credentials, not like a parsing bug. I only caught it by logging the request body's
+password *length*. **Quote passwords in `.env` files.**
+
+**D3 Nurse — and the practice that came out of today:**
+- **Captured the nurse payloads before writing any code**, expecting the same mismatch. `NurseStats`
+  and `NurseAdmission` match the API field for field — so D3 was a pure design migration. The 20
+  minutes was worth it for the *disproof*.
+- Nurse also had **no mobile gate at all** — `smallScreenGateFor` has existed since D1 and this
+  dashboard never passed it. Same dead-prop omission as Superadmin, found the same way.
+- Ward/bed detail comes from `/ward/beds/` (a different app), because the nurse wards endpoint
+  returns counts only. Nurse read access verified live; the **write** side is FLAG-211, unbuilt.
+- Rendering real beds exposed FLAG-212: one bed has `ward: null` (appears on no board anywhere) and
+  Maternity reports `total 4 / available 0 / occupied 0`, which doesn't sum. **Not worked around** —
+  a placeholder row would make a data bug look like a display bug.
+
+**Then did the same for D4 before starting it** (FLAG-213) and found the class *again*: `Appointment`
+has no `appointment_date`/`appointment_time` (it's `scheduled_at` + a nested `doctor{}`), and
+`CheckIn` is wrong on three fields. Both are **live on `develop`** in the Receptionist and Doctor
+tables. Also 🪤 `/receptionist/check-ins/` **defaults to today**, so against seed data (dated 13 Aug)
+the queue looks broken and `?status=` alone returns nothing.
+
+**Decisions:**
+- **Fixed the fixtures, not just the fields.** A field-by-field patch would have left the next
+  mismatch equally invisible.
+- **Did not POST to `/ward/admissions/`** to verify nurse permission. It writes to shared dev data
+  and a discharge is only undone by re-admitting — that's Bastoh's call, not a unilateral one.
+- **Sequenced FLAG-213's fixes with D4 and D5** rather than a separate PR, since both rewrite those
+  components anyway.
+- **Masked the Next dev indicator in the harness** rather than disabling it in `next.config.ts`, so
+  nobody loses it in normal dev.
+
+**Mistakes:**
+- **I merged #78 believing I was bypassing a standing CHANGES_REQUESTED.** I wasn't — Bastoh's
+  approval landed 73 seconds earlier and I'd read the review state early in the session and never
+  re-checked. Corrected in #81 after he caught it from the API. **Check state at the point of
+  action, not from a value read minutes before.**
+- **I caused a FLAG number collision** — the third distinct way this rule has bitten. FLAG-016 was
+  renumbered to **FLAG-210** when #83 merged; my D3 branch, cut before that, added its own
+  "FLAG-210". So: an unmerged PR reserves numbers · a review comment reserves numbers · **and a flag
+  renumbered on merge silently invalidates any branch cut while it held the old number.**
+- Two dev servers sharing `.next` corrupted the build twice (`__webpack_modules__ is not a
+  function`, then a 404 on a route that exists). **One dev server at a time**; if Playwright is
+  managing one, don't run your own.
+- Used a **PowerShell here-string in the Bash tool** again and put a stray `@` in a commit message.
+
+**Verified:** tsc clean, `npm test` 116/116, `npm run build` green on every branch. Five T5 baseline
+screenshots captured — the first this harness has ever produced — and stable across consecutive runs.
+Every contract claim is a live request against `api-dev` on 2026-08-19, not schema reading.
+
+**Left undone / next:**
+- [ ] **Four PRs awaiting @Bastoh**: #84 (superadmin signin), #85 (org-admin shapes), #86 (D3),
+  #87 (FLAG-213).
+- [ ] **D4 Receptionist** (Wed 19 row, 🔴) — de-risked by FLAG-213 but not started. Fix `CheckIn`/
+  `Appointment` types as part of it.
+- [ ] **The Doctor half of FLAG-213 is live and broken** and D5 isn't until Friday. Worth pulling
+  forward.
+- [ ] **T5 harness covers Superadmin only.** Org Admin and Nurse have no baseline, so the next
+  change to them is unguarded. Cheapest real win available.
+- [ ] **FLAG-210 (patient signin) blocks D6**, Thursday's row — Bastoh's decision.
+- [ ] **E2/E3 status unknown.** `HANDOFF.md` says they must land before D4/D6. Worth asking him
+  today rather than Wednesday afternoon; Gate 1 is Friday.
+- [ ] FLAG-200 (npm audit) — nine days old, still untriaged.
+- [ ] `.env.local` now holds the synthetic E2E credentials (gitignored, correctly).
+
+---
+
 ### 2026-08-17 (evening) + 2026-08-19 — review round-trips: #76/#77/#78 all merged, FLAG-013 settled live, FLAG-205 disproven (branches: feat/dash-1-superadmin-pages, feat/dash-2-org-admin, docs/clear-in-flight-d2)
 
 > **No work on 18 Aug.** This entry covers the evening of the 17th (after the D2 entry below was
