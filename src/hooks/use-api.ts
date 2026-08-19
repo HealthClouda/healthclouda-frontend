@@ -62,10 +62,24 @@ export function usePaginatedList<T>(
   pageSize = 20,
 ): PaginatedListState<T> {
   const [page, setPage] = useState(1);
+
+  // Reset to page 1 when the endpoint itself changes (a search term, a filter),
+  // adjusting state during render rather than in an effect. An effect fires
+  // AFTER the render that already built `?…&page=3`, so the stale request goes
+  // out, DRF answers 404 "Invalid page", and whether the user sees the error
+  // state comes down to which response resolves last. This re-renders before
+  // committing, so the bad request is never made at all.
+  const [lastEndpoint, setLastEndpoint] = useState(endpoint);
+  if (endpoint !== lastEndpoint) {
+    setLastEndpoint(endpoint);
+    setPage(1);
+  }
+  const effectivePage = endpoint === lastEndpoint ? page : 1;
+
   let path: string | null = null;
   if (endpoint) {
     const sep = endpoint.includes('?') ? '&' : '?';
-    path = `${endpoint}${sep}page_size=${pageSize}${page > 1 ? `&page=${page}` : ''}`;
+    path = `${endpoint}${sep}page_size=${pageSize}${effectivePage > 1 ? `&page=${effectivePage}` : ''}`;
   }
   const { data, loading, error, refetch } = useApi<Paginated<T> | T[]>(path);
 
@@ -76,7 +90,7 @@ export function usePaginatedList<T>(
   return {
     items,
     count,
-    page,
+    page: effectivePage,
     setPage,
     totalPages: Math.max(1, Math.ceil(count / pageSize)),
     loading,

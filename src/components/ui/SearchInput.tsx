@@ -9,9 +9,17 @@ interface SearchInputProps {
   onChange: (v: string) => void;
   placeholder: string;
   className?: string;
+  /**
+   * Accessible name. A placeholder is NOT one — it is not reliably announced
+   * and it disappears the moment the user types — so this falls back to the
+   * placeholder rather than being optional-and-absent: every call site gets a
+   * name whether or not it thought about it. Pass an explicit value where the
+   * placeholder is too long or too vague to read aloud well.
+   */
+  label?: string;
 }
 
-export function SearchInput({ value, onChange, placeholder, className = 'w-[260px]' }: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder, className = 'w-[260px]', label }: SearchInputProps) {
   return (
     <div className={`relative ${className}`}>
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-placeholder [&>svg]:w-[14px] [&>svg]:h-[14px]">
@@ -22,6 +30,7 @@ export function SearchInput({ value, onChange, placeholder, className = 'w-[260p
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={label ?? placeholder}
         className="h-9 w-full bg-white border-[1.5px] border-border rounded-lg pl-8 pr-3 text-[12.5px] text-ink outline-none focus:border-primary"
       />
     </div>

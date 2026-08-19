@@ -118,7 +118,13 @@ function StaffPage() {
     }
     setSaving(true);
     try {
-      await apiAction(ENDPOINTS.ORG_ADMIN_STAFF, 'POST', form);
+      // Omit `phone` rather than sending '' when untouched — same as the
+      // Superadmin invite. The body shape is undocumented (FLAG-207), so an
+      // empty string could fail phone-format validation and 400 the whole
+      // invite for a field the admin never filled in.
+      const body = { ...form };
+      if (!body.phone) delete body.phone;
+      await apiAction(ENDPOINTS.ORG_ADMIN_STAFF, 'POST', body);
       toast.success('Invitation sent');
       setInvitePanel(false);
       setForm(EMPTY_INVITE);
@@ -232,6 +238,8 @@ function PatientsPage() {
   const endpoint = ENDPOINTS.ORG_ADMIN_PATIENTS + (debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '');
   const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<PatientSummary>(endpoint);
+  // No page-reset effect needed: `usePaginatedList` resets to page 1 itself
+  // when the endpoint changes, during render rather than after it.
 
   const columns: DataTableColumn<PatientSummary>[] = [
     { key: 'patient', header: 'Patient', render: (p) => (
@@ -263,7 +271,7 @@ function PatientsPage() {
         onRetry={refetch}
         emptyTitle="No patients found"
         emptyDescription={search ? 'Try adjusting your search.' : 'No patients have been registered under this organisation.'}
-        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name, email or HCL-ID…" />}
+        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name, email or HCL-ID…" label="Search patients" />}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -368,7 +376,7 @@ function AccessRequestsPage() {
         emptyTitle="No access requests"
         emptyDescription="Patient data access requests will appear here."
         toolbar={
-          <select className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select aria-label="Filter by request status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>

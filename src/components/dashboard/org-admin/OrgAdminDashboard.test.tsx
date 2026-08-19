@@ -137,6 +137,48 @@ describe('OrgAdmin access requests (A6 — consent bypass removed)', () => {
  * role) is NOT in the live schema — carried forward from the 2026-07-11
  * empirical verification recorded in HANDOFF-Bastoh.md, not guessed here.
  */
+describe('OrgAdmin — filtering resets pagination', () => {
+  // Regression: `usePaginatedList` keeps `page` across endpoint changes, so
+  // filtering from page 2 asked for page 2 of a shorter filtered list. DRF
+  // answers 404 "Invalid page" and the table shows the error state instead of
+  // the results. Needs >1 page of data to reproduce, which is why it survived.
+  const many = Array.from({ length: 20 }, (_, i) => ({ ...pendingRequest, id: `ar-${i}`, patient_name: `Patient ${i}` }));
+  const bigEnvelope = { count: 45, next: 'x', previous: null, results: many };
+
+  it('drops back to page 1 when the status filter changes', async () => {
+    dataGetMock.mockResolvedValue(bigEnvelope);
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Access Requests' }));
+    await waitFor(() => expect(screen.getByText('Patient 0')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => {
+      expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('page=2'));
+    });
+
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/filter by request status/i), { target: { value: 'PENDING' } });
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+    for (const [path] of dataGetMock.mock.calls) {
+      expect(path).not.toContain('page=2');
+    }
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('status=PENDING'));
+  });
+
+  it('labels the status filter and the patient search for screen readers', async () => {
+    dataGetMock.mockResolvedValue(envelope);
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Access Requests' }));
+    await waitFor(() => expect(screen.getByLabelText(/filter by request status/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: /search patients/i })).toBeInTheDocument();
+    });
+  });
+});
+
 describe('OrgAdmin — Staff invite', () => {
   const staffMember = {
     id: 's-1', first_name: 'Ngozi', last_name: 'Eze', email: 'ngozi@demo-clinic.test',
@@ -170,10 +212,13 @@ describe('OrgAdmin — Staff invite', () => {
     fireEvent.click(within(panel).getByRole('button', { name: /send invitation/i }));
 
     await waitFor(() => {
+      // `phone` is absent, not ''. The body shape is undocumented (FLAG-207),
+      // so an empty string risks failing phone-format validation and 400ing an
+      // invite over a field the admin never filled in.
       expect(dataActionMock).toHaveBeenCalledWith(
         '/org-admin/staff/',
         'POST',
-        { full_name: 'Tunde Bakare', email: 'tunde@demo-clinic.test', role: 'nurse', phone: '' },
+        { full_name: 'Tunde Bakare', email: 'tunde@demo-clinic.test', role: 'nurse' },
       );
     });
   });
