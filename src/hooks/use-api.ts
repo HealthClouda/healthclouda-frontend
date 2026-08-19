@@ -52,10 +52,28 @@ export interface PaginatedListState<T> {
 }
 
 /**
- * Paginated DRF list — owns the page state and builds the query string with
- * the REAL DRF params (`?page_size=` / `?page=`; `?limit=` is silently
- * ignored by PageNumberPagination — audit GLOBAL-1). Pair with
- * `<Pagination />` + `<ErrorState />` on every list page (PERF-1, UX-ERR-1).
+ * Paginated DRF list — owns the page state and builds the query string.
+ * Pair with `<Pagination />` + `<ErrorState />` on every list page
+ * (PERF-1, UX-ERR-1).
+ *
+ * ⚠️ `?page=` is real. **`?page_size=` is NOT** — this comment used to call
+ * both "the REAL DRF params", which is wrong and was the most copied-from
+ * statement of it in the codebase. Measured against `api-dev` 2026-08-19
+ * (FLAG-013): the server ignores `page_size` and returns its own page of 20.
+ * `?limit=` is likewise ignored (audit GLOBAL-1).
+ *
+ * The `pageSize` default of 20 therefore happens to MATCH the server rather
+ * than control it. Footers and page counts are correct by coincidence, not by
+ * contract — if the backend retunes `PAGE_SIZE`, every list in the app starts
+ * mis-paginating with nothing failing loudly.
+ *
+ * 🪤 The response hides this: the `next` URL echoes `page_size` back while
+ * ignoring it (`?page=2&page_size=5`), so eyeballing a response concludes the
+ * param works. Check `results.length`, never `next`.
+ *
+ * Removing the dead param and deriving the page count from `next`/`previous`
+ * is tracked in FLAG-013. Do NOT derive it from the current page's
+ * `results.length` — a partial last page yields phantom pages.
  */
 export function usePaginatedList<T>(
   endpoint: string | null,
