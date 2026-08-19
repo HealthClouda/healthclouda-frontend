@@ -88,6 +88,21 @@ export function fullName(firstName?: string, lastName?: string): string {
   return [firstName, lastName].filter(Boolean).join(' ') || 'Unknown';
 }
 
+/**
+ * Split a single `full_name` into the { firstName, lastName } pair `Avatar`
+ * and `initials` expect. Several org-admin endpoints return one combined name
+ * rather than the two fields `/auth/users/` gives, so without this the avatar
+ * received `undefined` and fell back to '?'.
+ *
+ * Everything after the first space is the surname, so "Ada Grace Bello" →
+ * A + G. Imperfect for multi-part names but stable and never wrong about the
+ * first initial, which is what a 28px circle actually shows.
+ */
+export function splitName(name?: string): { firstName?: string; lastName?: string } {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  return { firstName: parts[0], lastName: parts[1] };
+}
+
 export function truncate(str: string, max: number): string {
   return str.length > max ? `${str.slice(0, max)}…` : str;
 }

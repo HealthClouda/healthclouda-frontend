@@ -61,11 +61,18 @@ const user = {
   organization_slug: 'demo-clinic',
 } as unknown as User;
 
+// CAPTURED from GET /org-admin/dashboard/stats/ against api-dev 2026-08-19,
+// values changed but keys verbatim. The previous fixture invented
+// `total_patients` and `active_episodes`, which the endpoint does not return —
+// so these tests passed while two stat cards rendered '—' against real data.
+// Fixtures here must mirror a real payload; that is the whole point of them.
 const stats = {
   total_staff: 12,
-  total_patients: 340,
-  active_episodes: 8,
+  active_patients: 340,
+  todays_appointments: 3,
+  bed_occupancy: '5/20',
   pending_access_requests: 1,
+  critical_alerts: 0,
 };
 
 // A PENDING request — the only status that ever rendered the action buttons.
@@ -180,15 +187,23 @@ describe('OrgAdmin — filtering resets pagination', () => {
 });
 
 describe('OrgAdmin — Staff invite', () => {
+  // CAPTURED from GET /org-admin/staff/ against api-dev 2026-08-19. Two things
+  // the old fixture got wrong, both of which hid a rendering bug:
+  //   1. the endpoint returns `full_name`, not first_name/last_name — the old
+  //      shape came from /auth/users/, so every row rendered a blank name;
+  //   2. it returns a BARE ARRAY, not a DRF envelope, so there is no pagination
+  //      here at all. The fixture wrapped it in {count,results}, which
+  //      `usePaginatedList` tolerates — hiding the difference.
+  //   3. `role` is lowercase ("nurse"), not uppercase ("NURSE").
   const staffMember = {
-    id: 's-1', first_name: 'Ngozi', last_name: 'Eze', email: 'ngozi@demo-clinic.test',
-    role: 'NURSE', is_active: true, date_joined: '2026-08-01T00:00:00Z',
+    id: 's-1', full_name: 'Ngozi Eze', role: 'nurse',
+    email: 'ngozi@demo-clinic.test', phone: null, is_active: true,
   };
-  const staffEnvelope = { count: 1, next: null, previous: null, results: [staffMember] };
+  const staffList = [staffMember];
 
   async function openStaffPage() {
     dataGetMock.mockImplementation(async (path: string) => {
-      if (path.startsWith('/org-admin/staff/')) return staffEnvelope;
+      if (path.startsWith('/org-admin/staff/')) return staffList;
       return envelope;
     });
     render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
@@ -196,9 +211,21 @@ describe('OrgAdmin — Staff invite', () => {
     await waitFor(() => expect(screen.getByText('Ngozi Eze')).toBeInTheDocument());
   }
 
-  it('lists staff from the real /org-admin/staff/ envelope', async () => {
+  it('lists staff from the real /org-admin/staff/ payload', async () => {
     await openStaffPage();
     expect(screen.getByText('ngozi@demo-clinic.test')).toBeInTheDocument();
+  });
+
+  // The bug these fixtures used to hide: rows rendered, so the table "worked",
+  // but every human-readable cell was blank because the field names were from
+  // a different endpoint. Assert the NAME, not just row presence.
+  it('renders the staff name, not a blank cell', async () => {
+    await openStaffPage();
+    const row = screen.getByText('Ngozi Eze').closest('tr');
+    expect(row).not.toBeNull();
+    expect(row!.textContent).toContain('Ngozi Eze');
+    // '—' is the empty-value placeholder; a row of them is the failure mode.
+    expect(row!.textContent?.match(/—/g)?.length ?? 0).toBeLessThan(2);
   });
 
   it('sends full_name and a lowercase role, not first/last name or uppercase role', async () => {
@@ -228,5 +255,59 @@ describe('OrgAdmin — Staff invite', () => {
     fireEvent.click(screen.getByRole('button', { name: /invite staff/i }));
     fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
     expect(dataActionMock).not.toHaveBeenCalledWith('/org-admin/staff/', 'POST', expect.anything());
+  });
+});
+
+/**
+ * Patients had NO list test before 2026-08-19 — only an accessible-name check.
+ * The page shipped rendering 14 rows of blank names and '—' columns, because
+ * it was typed as `PatientSummary` (the /doctor/patients/ shape) and every
+ * field it read was absent from the payload.
+ */
+describe('OrgAdmin — Patients list', () => {
+  // CAPTURED from GET /org-admin/patients/ against api-dev 2026-08-19.
+  const patient = {
+    id: 'p-1',
+    full_name: 'Bola Adeyemi',
+    healthclouda_id: 'HCL-CCBV02',
+    gender: 'Female',
+    phone: '08096197808',
+    last_visit: '2026-08-13',
+    status: 'ACTIVE',
+  };
+  const patientsEnvelope = { count: 1, next: null, previous: null, results: [patient] };
+
+  async function openPatientsPage() {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org-admin/patients/')) return patientsEnvelope;
+      return envelope;
+    });
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
+    await waitFor(() => expect(screen.getByText('Bola Adeyemi')).toBeInTheDocument());
+  }
+
+  it('renders the patient name and HCL-ID, not blank cells', async () => {
+    await openPatientsPage();
+    const row = screen.getByText('Bola Adeyemi').closest('tr');
+    expect(row).not.toBeNull();
+    // The HCL-ID was returned by the API and never displayed, while the search
+    // box invited searching by it.
+    expect(row!.textContent).toContain('HCL-CCBV02');
+    expect(row!.textContent).toContain('08096197808');
+    expect(row!.textContent?.match(/—/g)?.length ?? 0).toBeLessThan(2);
+  });
+});
+
+describe('OrgAdmin — Overview stat cards', () => {
+  it('renders every stat card from the real payload, with no empty placeholders', async () => {
+    dataGetMock.mockResolvedValue(envelope);
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+    // `total_patients` / `active_episodes` did not exist on the payload, so
+    // these two cards rendered '—' for every org until 2026-08-19.
+    expect(await screen.findByText('340')).toBeInTheDocument();   // active_patients
+    expect(screen.getByText('5/20')).toBeInTheDocument();          // bed_occupancy (a STRING)
+    expect(screen.getByText('12')).toBeInTheDocument();            // total_staff
   });
 });
