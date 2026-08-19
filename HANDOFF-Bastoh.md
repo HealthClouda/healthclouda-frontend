@@ -39,6 +39,92 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-08-17/19 — Review week: #76/#77/#78 merged, three flags logged, and two of my own review calls were wrong (branches: docs/flags-013-015, fix/restore-role-filter)
+
+**Goal:** clear Qeeyat's review backlog. Three PRs were open when I started; all three are merged.
+
+**What I did:**
+- **Reviewed #77** (token cleanup) → approved. Measured the swap rather than eyeballing it:
+  `bg-blue-600` (5.17:1, passing) → `bg-primary` (4.21:1, failing). Grepped before concluding, found
+  white-on-`bg-primary` is already app-wide (landing CTAs, auth submit, 404, sidebar badge), so it
+  was bringing a stray component **into line** with an inaccessible system rather than introducing a
+  failure. Logged as FLAG-014, didn't block.
+- **Reviewed #76** (Superadmin) → CHANGES_REQUESTED on two: Edit Organisation silently destroyed the
+  stored address (prefilled from a list row that carries neither `address` nor `country_code`, then
+  **PUT** — a full replace), and both search inputs had no accessible name. Verified every contract
+  claim in the PR against the live schema myself; all held.
+- **Reviewed #78** (Org Admin) → CHANGES_REQUESTED, then approved after her round 2.
+- **Merged #76** (merge commit, per the stacking rule) over a **failing Vercel check** — confirmed
+  first that the failure is our own A4 guard throwing on unset `NEXT_PUBLIC_API_URL`, i.e. **my**
+  outstanding B1/B3, not her code.
+- **Reviewed #80** (approved) and **#81** (her session log — CHANGES_REQUESTED on one factual point).
+- **PR #79** — FLAG-013/014/015 written up. **PR #82** — this branch: restores the `?role=` filter and
+  corrects the `usePaginatedList` doc comment.
+
+**What I got wrong — worth recording, because both were caught by review, not by me:**
+1. **I reviewed #76 and #77 against a stale local `develop`,** four commits behind, because I fetched
+   two feature branches by name instead of fetching everything. Consequences: I told Qeeyat she was
+   owed credentials that PR #74 had recorded as delivered on 13 Aug, and I nearly issued a FLAG-012
+   that already existed. Renumbering after that is what caused the 013/014 collision below.
+   **Lesson: `git fetch --prune` at session start, before reading anything.**
+2. **I recommended a fix that doesn't work.** I told her to copy `useEffect(() => setPage(1), [search])`
+   from #76 to fix pagination-on-filter. She wrote the test first and it caught the effect running
+   *after* the render that had already requested the stale page — a narrower race, not a fix. She
+   moved the reset into `usePaginatedList` during render instead. I'd recommended a pattern that was
+   already in the codebase without checking that it held.
+3. **FLAG-015's target-size claim was false.** I asserted the row buttons were "~22px, under the 24px
+   minimum" — measured off the content box. Border box is 27.25px (11.5 × 1.5 line-height + 8 padding
+   + 2 border) and clears WCAG 2.5.8. She recomputed it. Retracted in place, contrast half kept.
+4. **FLAG-013's prescribed fix was worse than the bug.** I wrote "derive page size from
+   `results.length`" — on a partial last page, 57 records at 20/page gives page 3 = 17 rows and
+   `ceil(57/17)` = 4 phantom pages. She caught it. Now prescribes `next`/`previous`.
+
+**What I found:**
+- **`?page_size=` is ignored** on `/org/`, `/auth/users/`, `/audit/logs/` — raised by me, **settled by
+  her measurement**. Real page size is 20, which is exactly what `usePaginatedList` hardcodes, so it's
+  correct *by coincidence, not contract*. The trap that hid it since July: **the `next` URL echoes
+  `page_size` back while ignoring it.**
+- **FLAG-205 is half wrong** (her finding): `?role=` on `/auth/users/` works despite being
+  undocumented, so #76 dropped a working dropdown — under my approval. The generalisation is the
+  keeper and belongs next to the invented-param rule: **absence from the schema is not evidence of
+  non-support on this backend.** Schema absence justifies verifying, never concluding.
+- **`HANDOFF.md` PR #68 line misled a review.** "Cleared on merge: FLAG-011 token contrast — PR #68"
+  reads as though the contrast bug was fixed; #68 was docs-only and merely logged it. It misled her
+  too. Corrected, with a standing note that "cleared on merge" refers to the **In Flight row**.
+
+**Decisions:**
+- **Flag numbers follow who *raised* them; `Owner:` says who fixes them.** FLAG-013/014/015 sit in my
+  range but are owned by @Qeeyat. Taking numbers from her range would have collided with the 205–209
+  she was adding in open PRs.
+- **Swapped 013/014 rather than editing merged source.** Three merged comments cite FLAG-013 for
+  `page_size`; changing the unmerged docs was cheaper than changing merged code. Her rule is sharper
+  than the one I'd written: *an unmerged PR reserves flag numbers, but so does a review comment.*
+- **Restored the `?role=` dropdown on her evidence, not mine.** I have no `api-dev` credentials in
+  this environment, so I could not re-run her measurement. The tests here prove only that we *send*
+  the param; that it's *honoured* rests on her live check. Said so in the PR rather than implying I
+  verified it.
+
+**Verified:** every review re-ran the three commands myself rather than trusting the PR body —
+#76 97/97 then 103/103, #77 88/88, #78 91/91 then 108/108, all with tsc clean and build green. Live
+schema re-fetched from `api-dev` and used to check `OrganizationList` / `OrganizationOrgAdminRequest`
+/ `UserCreateRequest` / `RoleEnum` / every `org-admin` path. On this branch: 4 new tests confirmed
+**RED before the fix**, then green.
+
+**Left undone / next:**
+- [ ] 🔴 **B1/B3 — Vercel domains + per-env vars. Mine, and now the oldest blocker on the board.**
+  Preview deploys have failed since #65; **four PRs have merged with no visual verification of a
+  running dashboard**, which Qeeyat correctly calls the oldest unpaid debt. Needs dashboard access.
+- [ ] 🔴 **A5/FLAG-001** — role gating off the client-writable cookie. This was Mon 17's row and has
+  not been started; the whole week went to review.
+- [ ] **FLAG-013 proper fix** — stop sending the ignored param, derive page count from
+  `next`/`previous`. Repo-wide, its own PR.
+- [ ] Superadmin invite dropdown is capped at 20 orgs — can't invite into the 21st.
+- [ ] **A7 `SECURITY_BASELINE.md`** — still unwritten, and FLAG-203 has nowhere to land.
+- [ ] Migrate `SuperadminDashboard`'s inline `Field`/`inputClass`/`SearchInput` onto the shared
+  `ui/` versions #78 introduced.
+
+---
+
 ### 2026-08-13 — Review day: #69/#71/#73 reviewed + merged, api-dev seeding verified, doc debt paid (branches: docs/handoff-seeded-contract-notes, docs/creds-handover, docs/session-log-bastoh-2026-08-13)
 
 **Goal:** started as a review of PR #69; became a review-and-unblock day. **No application code

@@ -185,6 +185,75 @@ describe('Superadmin — Organisations page', () => {
   });
 });
 
+/**
+ * FLAG-205 correction. The Role dropdown was dropped from this page while
+ * building D1, on the reasoning that `?role=` was absent from the live schema
+ * and would therefore be silently ignored (the GLOBAL-2 / FLAG-004 class).
+ *
+ * That reasoning was wrong. @Qeeyat measured it against `api-dev` 2026-08-19:
+ * `/auth/users/?role=DOCTOR` narrows 7 → 2, while `?is_active=true` on the same
+ * endpoint returns all 7 — so an unknown param IS silently ignored here, which
+ * is what makes the `?role=` result real filtering rather than coincidence.
+ *
+ * These tests can only prove we send the param; that it is HONOURED rests on
+ * that live measurement, recorded in FLAG-205 and HANDOFF.md.
+ */
+describe('Superadmin — Users page: role filter (FLAG-205)', () => {
+  it('sends ?role= when a role is chosen', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    dataGetMock.mockClear();
+
+    fireEvent.change(screen.getByLabelText(/filter by role/i), { target: { value: 'DOCTOR' } });
+
+    await waitFor(() => {
+      expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('role=DOCTOR'));
+    });
+  });
+
+  it('combines the role filter with an active search rather than replacing it', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    fireEvent.change(screen.getByRole('textbox', { name: /search users/i }), { target: { value: 'chidi' } });
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('search=chidi')));
+
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/filter by role/i), { target: { value: 'NURSE' } });
+
+    await waitFor(() => {
+      const paths = dataGetMock.mock.calls.map(([p]) => p as string);
+      expect(paths.some((p) => p.includes('role=NURSE') && p.includes('search=chidi'))).toBe(true);
+    });
+  });
+
+  it('clearing the role filter drops the param entirely', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    fireEvent.change(screen.getByLabelText(/filter by role/i), { target: { value: 'DOCTOR' } });
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('role=DOCTOR')));
+
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/filter by role/i), { target: { value: '' } });
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+    for (const [path] of dataGetMock.mock.calls) {
+      expect(path).not.toContain('role=');
+    }
+  });
+
+  it('changing the role filter never requests a stale page number', async () => {
+    // usePaginatedList resets to page 1 during render when the endpoint changes
+    // (#78). Asserting across EVERY recorded call, not just the last, is what
+    // catches an effect-based reset that fires after the bad request goes out.
+    await openPage('Users', 'Chidi Okafor');
+    dataGetMock.mockClear();
+
+    fireEvent.change(screen.getByLabelText(/filter by role/i), { target: { value: 'DOCTOR' } });
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+    for (const [path] of dataGetMock.mock.calls) {
+      expect(path).not.toContain('page=2');
+    }
+  });
+});
+
 describe('Superadmin — Users page', () => {
   it('gives the users search box an accessible name', async () => {
     await openPage('Users', 'Chidi Okafor');

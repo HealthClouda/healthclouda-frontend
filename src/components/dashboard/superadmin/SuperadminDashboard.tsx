@@ -457,13 +457,39 @@ function OrgsPage() {
 
 const EMPTY_USER_FORM: UserCreateInput = { email: '', first_name: '', last_name: '', role: '', phone: '', organization: '' };
 
+// Roles offered by the filter. Matches RoleEnum in the live schema; PATIENT is
+// included because /auth/users/ lists patients too, not just staff.
+const ROLE_FILTERS = [
+  { value: 'SUPERADMIN', label: 'Super Admin' },
+  { value: 'ORGANIZATION_ADMIN', label: 'Org Admin' },
+  { value: 'DOCTOR', label: 'Doctor' },
+  { value: 'NURSE', label: 'Nurse' },
+  { value: 'RECEPTIONIST', label: 'Receptionist' },
+  { value: 'PATIENT', label: 'Patient' },
+] as const;
+
 function UsersPage() {
   const [search, setSearch] = useState('');
+  const [role, setRole] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
-  const endpoint = ENDPOINTS.SA_USERS + (debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '');
+
+  // FLAG-205 correction: `?role=` IS honoured, despite being absent from the
+  // schema — measured against api-dev 2026-08-19 (/auth/users/?role=DOCTOR
+  // narrows 7 → 2, while ?is_active=true on the same endpoint returns all 7,
+  // proving unknown params really are ignored here and this one isn't).
+  // It was dropped during D1 on the assumption that schema absence meant
+  // non-support; on this backend it does not. Verify, don't infer.
+  const params = new URLSearchParams();
+  if (debouncedSearch) params.set('search', debouncedSearch);
+  if (role) params.set('role', role);
+  const query = params.toString();
+  const endpoint = ENDPOINTS.SA_USERS + (query ? `?${query}` : '');
+
   const { items: users, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<StaffMember>(endpoint);
-  useEffect(() => { setPage(1); }, [debouncedSearch, setPage]);
+  // No page-reset effect: usePaginatedList resets during render when the
+  // endpoint changes (#78). The effect that used to be here fired AFTER the
+  // render that had already requested the stale page.
 
   const { toast } = useToast();
   const [confirm, setConfirm] = useState<{ user: StaffMember; action: 'suspend' | 'activate' } | null>(null);
@@ -597,7 +623,20 @@ function UsersPage() {
         onRetry={refetch}
         emptyTitle="No users found"
         emptyDescription={search ? 'Try adjusting your search.' : 'No users registered yet.'}
-        toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" label="Search users" />}
+        toolbar={
+          <div className="flex items-center gap-2.5">
+            <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" label="Search users" />
+            <select
+              aria-label="Filter by role"
+              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="">All roles</option>
+              {ROLE_FILTERS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          </div>
+        }
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
