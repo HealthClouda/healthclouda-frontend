@@ -18,14 +18,14 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **D1** — Superadmin pages + T5 harness | `feat/dash-1-superadmin-pages` | `SuperadminDashboard.tsx`(+test), `types/dashboard.ts`, `lib/config.ts`, `e2e/design/*`, `playwright.config.ts` | 2026-08-15 | **PR #76 — CHANGES_REQUESTED 2026-08-17, addressing** |
+| @Qeeyat | **D2 Org Admin** — staff invite, read-only access requests (Mon 17 row) | `feat/dash-2-org-admin` | `OrgAdminDashboard.tsx`(+test), `types/dashboard.ts`, `lib/config.ts`, new `ui/SearchInput.tsx`/`ui/FormField.tsx`/`hooks/use-debounced-value.ts` | 2026-08-17 | **PR #78 — CHANGES_REQUESTED 2026-08-17, addressed 2026-08-19** |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011**
 token contrast — PR #68 · **D1 shared shell** (DashboardShell/StatCard/DataTable/Badge) — PR #67 ·
 **D1 overlays** (SlidePanel/Modal/Toaster/EmptyState/SmallScreenGate) — PR #69 · In Flight row cleared —
 PR #70 · **docs: `api-dev` seeding + FLAG-010 live + `CLAUDE.md` ritual fix** — PR #72 (all merged
-2026-08-12/13) · **Token cleanup** (Button/ErrorState/Pagination onto dashboard tokens) — PR #77,
-merged 2026-08-17.*
+2026-08-12/13) · **Token cleanup** (Button/ErrorState/Pagination onto dashboard tokens) — PR #77 ·
+**D1 Superadmin pages + T5 harness** — PR #76. Both merged 2026-08-17.*
 
 ⚠️ **Contract-first ordering (sprint plan Part 3):** E2/E3 must land **before** D4/D6 style them.
 A design PR built on the wrong data shape is a rewrite — if that order slips, say so in this table.

@@ -429,6 +429,31 @@ low urgency, these are UX conveniences with client-visible workarounds: search c
 same need) or the filters are implemented as accepted client-side-only filtering of the current
 page (misleading across pages, so not done here without a product decision either way).
 
+> ⚠️ **Correction (2026-08-19) — this flag was half wrong, and the reasoning behind it was wrong.**
+> Tested live against `api-dev` with a superadmin token instead of read off the schema:
+>
+> ```
+> /auth/users/?role=DOCTOR      7 → 2   ["DOCTOR","DOCTOR"]   ← WORKS
+> /auth/users/?is_active=true   7 → 7   ignored
+> /org/?org_type=CLINIC         2 → 2   ignored
+> /org/?is_active=true          2 → 2   ignored
+> ```
+>
+> **`?role=` works despite being undocumented**, so the Users page's Role dropdown was dropped for a
+> reason that isn't true. The `/org/` Type and Status dropdowns *were* correctly dropped — those are
+> genuinely ignored. Control: `?bogus=xyz` returns all rows, so the `?role=` narrowing is real
+> server-side filtering and not coincidence.
+>
+> **The generalisable lesson, which is bigger than this flag:** on this backend, *absence from the
+> schema is not evidence of non-support.* Several apps are hand-rolled `APIView`s that document no
+> parameters at all — not even the pagination they demonstrably have. Schema absence justifies
+> **verifying**, never **concluding**. This is the mirror image of the invented-param bug class
+> (GLOBAL-2, FLAG-004): that one ships a param that does nothing, this one drops a param that works.
+> Both come from trusting a document over a request.
+>
+> **Restoring the Role dropdown is a change to already-merged code (PR #76) and is not done here** —
+> it needs its own branch and @Bastoh's call, since he owns the review that removed it.
+
 ---
 
 ### FLAG-206 — No backend concept of "pending invite"; inferred from `last_login == null`
@@ -451,6 +476,55 @@ wrong number confidently. Overview keeps the four stat cards that already have r
 **Done when:** the backend either adds `pending_invites` to the stats response, adds a filter param
 so an accurate count is fetchable, or confirms `last_login == null` is the intended definition and
 documents it — then the stat card and dashboard-level pending-invites list can be built for real.
+---
+
+### FLAG-207 — Dead `ORG_ADMIN_STAFF_MEMBER` endpoint constant, removed
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ FIXED (this PR)
+**Found:** 2026-08-17, building D2 Org Admin, verified against the live schema
+
+`ORG_ADMIN_STAFF_MEMBER: (id) => '/org-admin/staff/${id}/'` had zero consumers anywhere in `src/`
+and pointed at a URL that doesn't exist in the live schema — only `/org-admin/staff/` (list+create)
+and `/org-admin/staff/<id>/status/` (the activate/deactivate endpoint) do. Removed rather than
+fixed to a guess; `ORG_ADMIN_STAFF_STATUS` added in its place for the endpoint that's actually real.
+
+**Done when:** N/A — already done. Logged for the paper trail, since the removal is referenced by
+name (`FLAG-207`) in the `config.ts` comment.
+
+---
+
+### FLAG-208 — Staff activate/deactivate endpoint exists; body shape doesn't, so it isn't built
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-17, building D2 Org Admin
+
+`PATCH /org-admin/staff/<id>/status/` is real (confirmed in the live schema), but the schema
+documents no request body for it — same under-documentation as the rest of the `org-admin` app.
+Unlike a read-only filter param (silently ignored, wrong data with no error — FLAG-205's class),
+a wrong PATCH body fails **loudly** with a 400, so the risk of guessing is different in kind. Still
+chose not to guess: today's row was "staff invite, read-only access requests" specifically, and
+Staff stayed read-only-for-status exactly as before this PR — no regression, just no new capability
+here. (Also noted in passing: `/org-admin/staff/` documents no search/filter params either, same
+pattern as FLAG-205 on a different endpoint — one `api-request` covering the `org-admin` app's
+missing param docs generally would probably be more useful than filing each endpoint separately.)
+
+**Done when:** the backend documents (or confirms via a quick empirical test once someone has
+working `api-dev` credentials in-session) the PATCH body shape — most likely `{is_active: boolean}`
+matching the field name used everywhere else in this API — then Staff gets the same
+activate/deactivate row action Superadmin's Users page has.
+
+---
+
+### FLAG-209 — Resend-invite for org-admin-created staff: endpoint exists, permission scope doesn't
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-17, building D2 Org Admin
+
+The design's Staff page wants a per-row "Resend invite." The only resend endpoint in the schema is
+`POST /auth/users/<id>/resend-setup-email/` (superadmin's — confirmed working there). The OpenAPI
+`security` block just says `jwtAuth`, generically, for every endpoint — it doesn't expose which
+**roles** DRF's permission classes actually allow, so whether an org admin can call this for their
+own staff is unknown, not just unbuilt. Not built today rather than guessed.
+
+**Done when:** either confirmed empirically (org-admin token, real staff id, watch for 200 vs 403)
+once credentials are usable in a session, or the backend documents the permission explicitly.
 
 ---
 
@@ -460,7 +534,9 @@ documents it — then the stat card and dashboard-level pending-invites list can
 
 ---
 
-*Last updated 2026-08-15. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
+*Last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
 fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-205/206 raised
-2026-08-14/15, building D1 Superadmin pages.*
+2026-08-14/15, building D1 Superadmin pages (PR #76, merged 2026-08-17) — **FLAG-205 is partly
+disproven, see the correction in its entry**. FLAG-207/208/209 raised 2026-08-17, building D2 Org
+Admin — FLAG-207 fixed same PR.*

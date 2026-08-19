@@ -157,7 +157,11 @@ export const ENDPOINTS = {
   ORG_ADMIN_STATS: '/org-admin/dashboard/stats/',
   ORG_ADMIN_ACTIVITY: '/org-admin/activity/',
   ORG_ADMIN_STAFF: '/org-admin/staff/',
-  ORG_ADMIN_STAFF_MEMBER: (id: string) => `/org-admin/staff/${id}/`,
+  // FLAG-207: ORG_ADMIN_STAFF_MEMBER used to point at `/org-admin/staff/<id>/`,
+  // which does not exist in the live schema (verified 2026-08-17) and had zero
+  // consumers — removed rather than fixed to a guess. The only staff-detail
+  // mutation the schema documents is the status endpoint below.
+  ORG_ADMIN_STAFF_STATUS: (id: string) => `/org-admin/staff/${id}/status/`,
   ORG_ADMIN_PATIENTS: '/org-admin/patients/',
   ORG_ADMIN_WARDS_OVERVIEW: '/org-admin/wards/overview/',
   ORG_ADMIN_BEDS: '/org-admin/beds/',
