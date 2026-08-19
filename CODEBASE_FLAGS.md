@@ -347,6 +347,12 @@ then derives `totalPages` from that same 20. `DataTable` separately renders "1�
 `/audit/logs/`, which document only `ordering`/`page`/`search` plus the audit filters. DRF's
 `PageNumberPagination` ignores `page_size` unless `page_size_query_param` is configured.
 
+🔬 **That schema reasoning is NOT what settled this — copy the method, not the inference.** Absence
+from the schema is *not* evidence of non-support on this backend: several apps are hand-rolled
+`APIView`s documenting no params at all, not even the pagination they demonstrably have. FLAG-205 was
+partly disproven exactly this way (`?role=` works despite being undocumented). The schema reading
+justified *going and measuring*; only the measurement below is evidence.
+
 **Settled by measurement against `api-dev` 2026-08-17 — the param is genuinely ignored:**
 
 ```
@@ -378,8 +384,16 @@ eyeballing a response will conclude it works. Measure `results.length`, not `nex
    **cannot invite a user into the 21st organisation** — the option simply isn't there, with no
    error. Documented in-code in #76 and deliberately left; it needs paging or a searchable picker.
 
-**Done when:** `usePaginatedList` stops sending a param the server ignores and derives page size from
-`results.length` rather than assuming it, with a regression test asserting the requested URL; the
+⚠️ **Do not "fix" this by deriving page size from `results.length`.** That was this flag's original
+prescription and it is **worse than the current assumption** — @Qeeyat caught it in review. On a
+partial last page it poisons the total: 57 records at 20/page means page 3 returns 17 rows, and
+`ceil(57 / 17)` = **4 phantom pages**, two of which 404. The safe signals are the presence of
+`next`/`previous`, or `results.length` **from the first page only** — never from whichever page
+happens to be loaded.
+
+**Done when:** `usePaginatedList` stops sending a param the server ignores and derives page count
+from `next`/`previous` (or first-page length), not from an assumed 20 nor from the current page's
+length, with a regression test asserting the requested URL; the
 invite dropdown pages properly or uses a searchable picker; and the measured behaviour above is
 recorded in the BACKEND CONTRACT NOTES banner in `HANDOFF.md` with its date, since "the server
 ignores `page_size` but echoes it in `next`" is a contract fact no schema states.
@@ -414,15 +428,24 @@ as FLAG-011: the spec is the problem, the implementation is faithful.
 Note the resting state fails while the **hover** state passes — so a primary button becomes *more*
 readable when you point at it, which is backwards.
 
-**Done when:** either the brand blue is darkened to clear 4.5:1 under white text (≈#0068e0 or darker
-— re-measure, don't assume), or primary actions use `--color-primary-dark` at rest and
-`--color-primary` is reserved for large text and non-text use, or the deviation is accepted in
-writing in `SECURITY_BASELINE.md` / `BETA_READINESS.md` with a stated reason. Whichever is chosen it
-is **one change in `globals.css`**, not a per-component fix, and it is re-measured afterwards.
+**Done when:** one of these, re-measured afterwards rather than assumed —
+
+1. the brand blue is darkened to clear 4.5:1 under white text (≈#0068e0 or darker), **or**
+2. primary actions use `--color-primary-dark` at rest, reserving `--color-primary` for large text and
+   non-text use, **or**
+3. the deviation is accepted in writing **in this entry**, with a stated reason and a named decider.
+
+Options 1 and 2 are both a single change in `globals.css`, not a per-component fix.
+
+⚠️ **Option 3 says "in this entry" deliberately.** It previously routed the write-up to
+`SECURITY_BASELINE.md` / `BETA_READINESS.md` — **neither file exists.** That is the silent-skip trap
+`CLAUDE.md` §4 already warns about: a step pointing at nothing reads as satisfied, because nothing
+errors. If those files are written later, move the acceptance there and update this line; until then
+the acceptance has a real home.
 
 ---
 
-### FLAG-015 — Table row-action buttons fail AA contrast and minimum target size
+### FLAG-015 — Table row-action buttons fail AA contrast
 **Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-17, reviewing PR #76 (Superadmin pages) ·
 **Raised by** @Bastoh, **assigned to** @Qeeyat
@@ -437,8 +460,22 @@ colour as **text** at 11.5px semibold. Measured against white:
 | Suspend | `text-danger` #dc2626 | 4.83:1 | ✅ passes |
 
 11.5px semibold does not qualify as WCAG "large text" (that needs 18.66px bold / 24px regular), so
-4.5:1 is the bar for all three. They are also roughly **22px tall** (`py-1` plus 11.5px text), under
-the 24×24 CSS px minimum target size (WCAG 2.5.8, AA in 2.2).
+4.5:1 is the bar for all three.
+
+✅ **Target size is NOT a problem — an earlier version of this flag claimed it was, and was wrong.**
+It asserted "~22px tall, under the 24×24 minimum (WCAG 2.5.8)", measured off the content box.
+@Qeeyat recomputed it from the actual classes in review, and the border box clears the bar:
+
+```
+11.5px × 1.5 (Tailwind preflight line-height, not overridden) = 17.25   content
++ 4px + 4px   py-1                                            =  8
++ 1px + 1px   border                                          =  2
+                                                              = 27.25px
+```
+
+The claim is retracted rather than deleted, so nobody re-derives it from the same content-box
+mistake. **The contrast half stands and is the whole point of this flag** — the two were raised
+together and only one of them was real.
 
 **Why this matters beyond compliance, and why it's FLAG-011's argument again:** these are the controls
 that suspend an organisation, verify one, or re-send a staff invite. They are read at a glance, off a
@@ -450,9 +487,9 @@ This is FLAG-011's underlying token problem surfacing at **new call sites** (sta
 text on white, rather than badge text on a tint). Fixing FLAG-011 at the token level may or may not
 fix this depending on how it is fixed — check both, and don't close one assuming the other.
 
-**Done when:** every row-action label meets 4.5:1 at its rendered size, each button's hit target is at
-least 24×24 CSS px, and both are confirmed by measurement in the T8 accessibility pass rather than by
-eye. Coordinate with FLAG-011 and FLAG-014 so the tokens move once, not three times.
+**Done when:** every row-action label meets 4.5:1 at its rendered size, confirmed by measurement in
+the T8 accessibility pass rather than by eye (compute from the border box, per the retraction above).
+Coordinate with FLAG-011 and FLAG-014 so the tokens move once, not three times.
 
 ---
 
