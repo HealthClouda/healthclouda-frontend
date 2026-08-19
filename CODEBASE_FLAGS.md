@@ -324,48 +324,18 @@ case the prelogin designs and shipped copy get the same pass in their own PR.
 
 ---
 
-### FLAG-013 — The brand blue fails WCAG AA as a background for white text
-**Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
-**Found:** 2026-08-17, reviewing PR #77 (Button/ErrorState/Pagination token cleanup) ·
-**Raised by** @Bastoh, **assigned to** @Qeeyat (design-token lane)
-
-`--color-primary: #0075ff` carries white text in most of the app's primary actions. Measured, not
-eyeballed:
-
-| Pair | Ratio | AA needs |
-|---|---|---|
-| white on `--color-primary` #0075ff | **4.21:1** | 4.5:1 |
-| white on `--color-primary-dark` #005fcc (hover only) | 5.98:1 | ✅ passes |
-| `--color-primary` **as text** on white | **4.21:1** | 4.5:1 |
-
-This is a **brand-token flaw, not a component flaw**, and it is app-wide rather than new: white on
-`bg-primary` is already how the landing CTAs (`src/app/page.tsx:120`, `:290`), the auth submit button
-(`src/components/forms/authStyles.ts:10`), the 404 action (`src/app/not-found.tsx:49`), the org
-landing nav (`src/app/[slug]/page.tsx:63`) and the sidebar badge (`Sidebar.tsx:103`) all work.
-
-**Why it surfaced in PR #77 specifically:** that PR moved `Button` from `bg-blue-600` (#2563eb,
-**5.17:1**, passing) onto `bg-primary` (4.21:1, failing). At those call sites it is a measurable step
-down — but the change was *correct*, because it brought a stray component into line with the system.
-Blocking it would have preserved one accessible button inside an inaccessible system. Same reasoning
-as FLAG-011: the spec is the problem, the implementation is faithful.
-
-Note the resting state fails while the **hover** state passes — so a primary button becomes *more*
-readable when you point at it, which is backwards.
-
-**Done when:** either the brand blue is darkened to clear 4.5:1 under white text (≈#0068e0 or darker
-— re-measure, don't assume), or primary actions use `--color-primary-dark` at rest and
-`--color-primary` is reserved for large text and non-text use, or the deviation is accepted in
-writing in `SECURITY_BASELINE.md` / `BETA_READINESS.md` with a stated reason. Whichever is chosen it
-is **one change in `globals.css`**, not a per-component fix, and it is re-measured afterwards.
-
----
-
-### FLAG-014 — `?page_size=` is not a supported param on most list endpoints
+### FLAG-013 — `?page_size=` is not a supported param on most list endpoints
 **Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN — **confirmed
 live; partially fixed by PR #76**
 **Found:** 2026-08-17, reviewing PR #76 (Superadmin pages) ·
 **Raised by** @Bastoh, **assigned to** @Qeeyat ·
 **Confirmed by measurement** by @Qeeyat 2026-08-17 (PR #76, commit `b6fa74c`)
+
+> **Numbering note:** this is **013** deliberately, matching the three in-code comments already merged
+> on `develop` (`SuperadminDashboard.tsx:127`, `:476`, `SuperadminDashboard.test.tsx:90`). The
+> reviewer's first pass called it 013, renumbered it to 014 mid-review after finding FLAG-012 already
+> taken, then settled back on 013 so merged source did not have to be edited to match a docs file.
+> **Do not "tidy" this back to 014** without changing those three comments in the same PR.
 
 `usePaginatedList` (`src/hooks/use-api.ts`) appends `?page_size=20` to **every** list request and
 then derives `totalPages` from that same 20. `DataTable` separately renders "1–20 of N" from a
@@ -416,6 +386,42 @@ ignores `page_size` but echoes it in `next`" is a contract fact no schema states
 
 ---
 
+### FLAG-014 — The brand blue fails WCAG AA as a background for white text
+**Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-17, reviewing PR #77 (Button/ErrorState/Pagination token cleanup) ·
+**Raised by** @Bastoh, **assigned to** @Qeeyat (design-token lane)
+
+`--color-primary: #0075ff` carries white text in most of the app's primary actions. Measured, not
+eyeballed:
+
+| Pair | Ratio | AA needs |
+|---|---|---|
+| white on `--color-primary` #0075ff | **4.21:1** | 4.5:1 |
+| white on `--color-primary-dark` #005fcc (hover only) | 5.98:1 | ✅ passes |
+| `--color-primary` **as text** on white | **4.21:1** | 4.5:1 |
+
+This is a **brand-token flaw, not a component flaw**, and it is app-wide rather than new: white on
+`bg-primary` is already how the landing CTAs (`src/app/page.tsx:120`, `:290`), the auth submit button
+(`src/components/forms/authStyles.ts:10`), the 404 action (`src/app/not-found.tsx:49`), the org
+landing nav (`src/app/[slug]/page.tsx:63`) and the sidebar badge (`Sidebar.tsx:103`) all work.
+
+**Why it surfaced in PR #77 specifically:** that PR moved `Button` from `bg-blue-600` (#2563eb,
+**5.17:1**, passing) onto `bg-primary` (4.21:1, failing). At those call sites it is a measurable step
+down — but the change was *correct*, because it brought a stray component into line with the system.
+Blocking it would have preserved one accessible button inside an inaccessible system. Same reasoning
+as FLAG-011: the spec is the problem, the implementation is faithful.
+
+Note the resting state fails while the **hover** state passes — so a primary button becomes *more*
+readable when you point at it, which is backwards.
+
+**Done when:** either the brand blue is darkened to clear 4.5:1 under white text (≈#0068e0 or darker
+— re-measure, don't assume), or primary actions use `--color-primary-dark` at rest and
+`--color-primary` is reserved for large text and non-text use, or the deviation is accepted in
+writing in `SECURITY_BASELINE.md` / `BETA_READINESS.md` with a stated reason. Whichever is chosen it
+is **one change in `globals.css`**, not a per-component fix, and it is re-measured afterwards.
+
+---
+
 ### FLAG-015 — Table row-action buttons fail AA contrast and minimum target size
 **Severity:** P2 · **Area:** Accessibility · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-17, reviewing PR #76 (Superadmin pages) ·
@@ -446,7 +452,7 @@ fix this depending on how it is fixed — check both, and don't close one assumi
 
 **Done when:** every row-action label meets 4.5:1 at its rendered size, each button's hit target is at
 least 24×24 CSS px, and both are confirmed by measurement in the T8 accessibility pass rather than by
-eye. Coordinate with FLAG-011 and FLAG-013 so the tokens move once, not three times.
+eye. Coordinate with FLAG-011 and FLAG-014 so the tokens move once, not three times.
 
 ---
 
@@ -675,12 +681,14 @@ once credentials are usable in a session, or the backend documents the permissio
 fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-012 raised 2026-08-13
 reviewing PR #73. FLAG-205/206 raised 2026-08-14/15, building D1 Superadmin pages (PR #76, merged
 2026-08-17) — **FLAG-205 is partly disproven, see the correction in its entry**. FLAG-207/208/209
-raised 2026-08-17, building D2 Org Admin — FLAG-207 fixed same PR.
-**FLAG-013/014/015 raised 2026-08-17 reviewing PRs #76/#77 — numbered in @Bastoh's range, owned by
-@Qeeyat** (see the note under the range table).*
+raised 2026-08-17, building D2 Org Admin (PR #78, merged 2026-08-19) — FLAG-207 fixed same PR.
+**FLAG-013/014/015 raised 2026-08-17 reviewing PRs #76/#77/#78 — numbered in @Bastoh's range, owned
+by @Qeeyat** (see the note under the range table). FLAG-013 and FLAG-014 were **swapped on
+2026-08-19** so that `page_size` is 013, matching three in-code comments already merged on `develop`
+— see the numbering note on FLAG-013.*
 
 > ⚠️ **FLAG-011 is still OPEN — do not read `HANDOFF.md` as saying otherwise.** Its "Cleared on
 > merge" line reads *"FLAG-011 token contrast — PR #68"*, which looks like a fix. PR #68 was
 > **docs-only**: it *logged* this flag. The failing token values are unchanged and still live.
-> FLAG-013 and FLAG-015 are the same underlying problem at other call sites — fix the tokens once,
+> FLAG-014 and FLAG-015 are the same underlying problem at other call sites — fix the tokens once,
 > across all three, and re-measure.
