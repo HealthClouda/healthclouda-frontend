@@ -19,6 +19,13 @@ const ROLE_PATHS: Record<Role, string> = {
 const DASHBOARD_SEGMENTS = new Set(['doctor', 'nurse', 'receptionist', 'patient', 'org-admin', 'superadmin']);
 
 function isDashboardRoute(pathname: string): boolean {
+  // A signin page is never a dashboard. This has to be checked first because
+  // `/superadmin/signin` sits UNDER the `/superadmin` dashboard prefix — without
+  // it, the guard below redirected the superadmin portal to `/signin` whenever
+  // there was no session, i.e. exactly when someone needs to sign in. The
+  // superadmin portal was unreachable and superadmins could not log in at all.
+  if (isSigninRoute(pathname)) return false;
+
   const parts = pathname.split('/').filter(Boolean);
   if (parts.length === 0) return false;
   // /superadmin or /superadmin/*
@@ -56,9 +63,15 @@ export function middleware(request: NextRequest) {
   if (isDashboardRoute(pathname) && !hasSession) {
     const parts = pathname.split('/').filter(Boolean);
     const isOrgScoped = parts.length >= 2 && !DASHBOARD_SEGMENTS.has(parts[0]) && parts[0] !== 'superadmin';
-    const signinUrl = isOrgScoped
-      ? new URL(`/${parts[0]}/signin`, request.url)
-      : new URL('/signin', request.url);
+    // Send each portal to its OWN signin. A superadmin used to be bounced to
+    // the general portal, which is patients-only — the backend rejects staff
+    // there, so an expired session stranded them on a page that cannot log
+    // them in.
+    const signinUrl = parts[0] === 'superadmin'
+      ? new URL('/superadmin/signin', request.url)
+      : isOrgScoped
+        ? new URL(`/${parts[0]}/signin`, request.url)
+        : new URL('/signin', request.url);
     return NextResponse.redirect(signinUrl);
   }
 

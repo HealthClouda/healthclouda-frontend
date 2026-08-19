@@ -45,5 +45,8 @@ export async function signInAs(page: Page, role: E2ERole): Promise<void> {
   await page.getByPlaceholder(/enter your email/i).fill(email);
   await page.getByPlaceholder(/enter your password/i).fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL((url) => !url.pathname.includes('signin'), { timeout: 15_000 });
+  // 45s, not 15s: against `next dev` each route compiles on first request
+  // (~11s observed), and the parallel workers all hit cold routes at once. The
+  // old 15s was fine against a warm server and flaked on a cold one.
+  await page.waitForURL((url) => !url.pathname.includes('signin'), { timeout: 45_000 });
 }
