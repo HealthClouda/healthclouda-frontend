@@ -714,6 +714,73 @@ own staff is unknown, not just unbuilt. Not built today rather than guessed.
 **Done when:** either confirmed empirically (org-admin token, real staff id, watch for 200 vs 403)
 once credentials are usable in a session, or the backend documents the permission explicitly.
 
+
+---
+
+### FLAG-210 — A patient cannot sign in: they have no organization, but every patient route needs one
+**Severity:** P1 · **Area:** Auth / Routing / Multi-tenancy · **Owner:** @Bastoh · **Status:** OPEN —
+**needs an architecture decision, not a one-line fix**
+**Found:** 2026-08-19, first live click-through of the app against `api-dev` ·
+**Raised by** @Qeeyat, **assigned to** @Bastoh (auth/routing is the `[INFRA]` lane, and the fix
+changes the route tree and `RESERVED_PATHS`)
+
+> **Numbering:** opened as FLAG-016 and renumbered to **210** on merge — @Qeeyat raised it, so it
+> takes a number from her range; the `Owner:` line is what assigns the work. 016 was not free: once
+> PR #79 merged it became the next number @Bastoh's own agent would take, which is precisely the
+> collision the ranges exist to prevent. Renumbered by @Bastoh at merge time rather than waiting a
+> round-trip, since nothing referenced 016 outside this entry. **Severity is @Qeeyat's P1; see the
+> review on #83 for the argument that it is closer to P0.**
+
+**A patient authenticates successfully and is then refused by our own frontend.** Reproduced in a
+real browser against `api-dev` on 2026-08-19 with `patient@demo.test` on the general portal:
+
+```
+POST /auth/login/          → 200, role PATIENT, redirect_to "/patient/"
+UI shows: "Signed in, but your organization could not be determined.
+           Please use your organization portal."
+```
+
+The advice in that message is itself impossible to follow — the general portal **is** the patient
+portal (`CLAUDE.md` §8); there is no other one for them.
+
+**Three things that don't agree:**
+
+```
+GET /auth/me/ (patient)  →  "organization": null      correct — patients aren't org staff
+roleDashboardPath()      →  `/${orgSlug}/patient`     requires a slug (src/lib/router.ts:16-17)
+src/app/                 →  only /[slug]/patient      no slug-less patient route exists
+```
+
+`src/components/forms/SigninForm.tsx:87` exempts `SUPERADMIN` from the "no slug" guard but not
+`PATIENT`, so every patient is blocked. **The guard is not the bug** — without it,
+`roleDashboardPath(PATIENT, undefined)` builds the literal string **`/undefined/patient`**. It is
+papering over the real mismatch.
+
+**The real mismatch: patients are org-scoped in our routing but org-less in the data model.**
+`organization: null` is correct backend behaviour and follows directly from the product premise in
+`CLAUDE.md` §1 — records move *with the patient* between facilities, so a patient belongs to no
+single org.
+
+⚠️ **This also nuances FLAG-010.** That flag records the backend's `redirect_to` "dropping the org
+slug" as a loaded gun. For **patients specifically, `/patient/` is the correct answer, not a
+defect** — the backend is right and our router is wrong. FLAG-010's blanket framing hides that.
+
+**Two ways out, and the choice is the actual work:**
+
+1. **Add a slug-less `/patient` route.** Consistent with `organization: null` and with the backend's
+   own `redirect_to`. Requires: a new route tree, `'patient'` added to `RESERVED_PATHS` in
+   `src/lib/config.ts` (or an org whose slug is literally `patient` shadows it), and a revisit of
+   `DASHBOARD_SEGMENTS`/`isDashboardRoute` in `src/middleware.ts`, which currently assume
+   `/[slug]/patient`.
+2. **Ask the backend to give patients a home organisation** (an `api-request`). Contradicts the
+   multi-facility premise, so this is the weaker option — noted for completeness, not recommended.
+
+**Blocking:** **D6 Patient is Thu 20 Aug's row.** Whichever way this goes, it is the foundation D6
+sits on, so it wants deciding before that branch is cut rather than during it.
+
+**Done when:** a patient can sign in at `/signin` and land on a working dashboard URL that contains
+no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.md`, and a
+regression test covering a `PATIENT` whose `organization` is `null`.
 ---
 
 ## Resolved flags
