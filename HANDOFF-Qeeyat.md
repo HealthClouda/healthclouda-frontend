@@ -60,6 +60,114 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-17 (evening) + 2026-08-19 — review round-trips: #76/#77/#78 all merged, FLAG-013 settled live, FLAG-205 disproven (branches: feat/dash-1-superadmin-pages, feat/dash-2-org-admin, docs/clear-in-flight-d2)
+
+> **No work on 18 Aug.** This entry covers the evening of the 17th (after the D2 entry below was
+> written) and the 19th. The Tue 18 row — **D3 Nurse** — has not been started.
+
+**Goal:** clear the review backlog. Three PRs were open and stacking up; by the end all three were
+merged and I'd reviewed Bastoh's.
+
+**What I did:**
+- **#77 merged** — approved, nothing blocking it but my own attention.
+- **#76 round 2** (both of Bastoh's blockers). The real one: Edit Organisation destroyed the stored
+  address. `openEdit` prefilled from the list row, but `OrganizationList` carries neither `address`
+  nor `country_code`, and the write was a **PUT** — so an admin correcting a phone number saw a blank
+  required Address, and whatever they typed replaced the real one. **Fixed both ways** rather than
+  picking one: prefill from `GET /org/<id>/` (which is what the `OrganizationDetail` type I'd already
+  written and never used was *for*), and switch the write to **PATCH** with only changed fields.
+  The prefill makes the admin able to *see* the value; the PATCH removes the whole full-replace class.
+  Plus `aria-label` on both search inputs, with `label` a **required** prop so a new call site can't
+  omit it silently. Bastoh approved and merged it.
+- **#78 round 2** after a rebase (both #76 and #77 had landed under it). Fixed the missing pagination
+  reset and the accessible names, folded in the `phone: ''` → omitted change, corrected the PR
+  description's contract claim, then merged it. **I believed I was merging past a standing
+  CHANGES_REQUESTED and disclosed it on that basis here and in #80 — that was wrong.** Bastoh's
+  approval had landed 73 seconds earlier (`APPROVED 08:04:30Z`, `merged 08:05:43Z`); I checked the
+  review state early in the session and never re-checked it at the moment of merging. **Check state
+  at the point of action, not from a value read minutes before.** The `usePaginatedList` change did
+  get review — per his approval it was the part he spent longest on.
+- **Reviewed #79** (his FLAG-013/014/015 write-up) — CHANGES_REQUESTED.
+- **#80** opened to clear the D2 In Flight row.
+
+**What I found:**
+- 🎯 **FLAG-013 answered by measurement, and the answer is "correct by luck".** `?page_size=` is
+  **ignored** on `/org/`, `/auth/users/` and `/audit/logs/`; the real page size is **20**, which is
+  exactly what `usePaginatedList` hardcodes. So footers don't lie and later pages *are* reachable —
+  but nothing enforces that match, and if the backend retunes `PAGE_SIZE` every footer in the app
+  starts lying with nothing failing loudly. **The trap worth remembering: the `next` URL echoes
+  `page_size` back while ignoring it** (`?page=2&page_size=5`), so a spot-check of the response
+  concludes the param works. Only `/audit/logs/` (162 rows) was big enough to see truncation at all —
+  users (7) and patients (14 for demo-clinic, not 21; the 21 span both orgs) never exceed one page.
+- 🎯 **FLAG-205 is half wrong, and the reasoning behind it was wrong.** `?role=DOCTOR` on
+  `/auth/users/` narrows 7→2 **despite being undocumented**. I dropped that dropdown in #76 *because*
+  the schema didn't list it. The `/org/` Type and Status filters genuinely are ignored, so those were
+  correctly dropped. **The generalisable lesson: on this backend, absence from the schema is not
+  evidence of non-support** — several apps are hand-rolled `APIView`s documenting no params at all,
+  not even the pagination they demonstrably have. Schema absence justifies *verifying*, never
+  *concluding*. It's the mirror image of the invented-param class (GLOBAL-2, FLAG-004): that one
+  ships a param that does nothing, this one drops a param that works. Both come from trusting a
+  document over a request. Written into FLAG-205 as a correction; **restoring the dropdown is a
+  change to merged code and is Bastoh's call.**
+- **`?status=` and `?search=` on org-admin are real** — `?status=` filters 4→2/1/1 *and* returns
+  **400** on an invalid value, which is the opposite of the silent-ignore class. Control: a bogus
+  param returns all 14 unchanged, which is what makes the search result conclusive rather than
+  coincidental. So the "Pending Access Requests" heading is honest.
+- **The suggested `useEffect(() => setPage(1), [search])` fix is incomplete, and my test caught it.**
+  An effect runs *after* the render that already built `?status=PENDING&page=2`, so the 404 request
+  still goes out and is merely corrected afterwards — whether the user sees the error state comes
+  down to which response resolves last. Moved the reset **into `usePaginatedList`, during render**,
+  so the bad request is never made. This also removes the same latent race from #76's pages, which
+  carry the effect-based version.
+- **A present-tense bug in #76 that neither of us had spotted**: the Overview "Recent Organisations"
+  panel asked for `?page_size=5` and would render all 20 the server returns — `activityList` two
+  lines above already caps with `.slice(0, 8)` and this one had no cap at all. Invisible only because
+  the fixture had a single org.
+- **My credentials work** and always did. Three PR descriptions said "no working credentials tested
+  end-to-end this session," and Bastoh offered to re-issue them on that basis — nothing was wrong
+  with them, I'd just never used them in a session.
+
+**Decisions:**
+- **Did both fixes on the org edit rather than the cheaper one.** PATCH alone would have stopped the
+  data loss but left the admin unable to see the address they're editing; the GET alone would have
+  left PUT's full-replace fragility. They answer different halves and the second is cheap once the
+  first is in.
+- **`SearchInput`'s accessible name: required prop in `SuperadminDashboard`, defaulting to the
+  placeholder in the shared `ui/SearchInput`.** Different answers on purpose — the local one has two
+  known call sites, so requiring it is free; the shared one will be adopted by D3–D6, where a
+  default guarantees nobody ends up unlabelled by omission.
+- **Did not write FLAG-013/014 into `CODEBASE_FLAGS.md` myself.** They're in Bastoh's range and
+  existed only in a PR comment; I gave him the evidence instead. Ranges follow the person.
+- **Verified each new regression test fails without its fix** before trusting it. The cap test passed
+  vacuously would have been easy to miss.
+
+**Verified:** tsc clean, vitest **108/108**, `next build` green (27 routes) — on every push, not just
+at the end. All API claims above are live requests against `api-dev` on 2026-08-19, not schema
+reading. **Still no visual verification of a running dashboard** — four PRs have now merged without
+one, and that is now the oldest unpaid debt on this list.
+
+**Mistakes / friction worth recording:**
+- Used a **PowerShell here-string in a bash context** and put a stray `@` as the first line of a
+  commit message. Amended. The two shells are not interchangeable even though both are available.
+- The FLAG numbering collided in a way the convention doesn't cover: Bastoh's #76 review named
+  `page_size` **FLAG-013**, I wrote that number into three code comments now on `develop`, and his
+  #79 assigns 013 to something else. **An unmerged PR reserves flag numbers, but so does a review
+  comment** — and only the file is checked for collisions.
+
+**Left undone / next:**
+- [ ] **D3 Nurse** — Tue 18's row, not started. Vitals already exist from NURSE-1; ward/bed and
+  admission are new.
+- [ ] **Visual verification against `api-dev`** via `npm run dev` — Vercel previews stay down until
+  B1/B3. This should come before D3, not after.
+- [ ] **#79 and #80** both open and awaiting Bastoh.
+- [ ] **FLAG-205's Role dropdown** — proven to work, still absent from merged code. Bastoh's call.
+- [ ] `usePaginatedList` still sends the ignored `page_size` param repo-wide, and its comment at
+  `use-api.ts:56` still calls it "the REAL DRF param". Wants its own PR.
+- [ ] **FLAG-203** (SmallScreenGate PHI channel) and **FLAG-200** (npm audit) still open, both now
+  over a week old. FLAG-203 still has no `SECURITY_BASELINE.md` to feed into.
+
+---
+
 ### 2026-08-17 — D2 Org Admin: staff invite + read-only access requests (branch: feat/dash-2-org-admin)
 
 **Goal:** Monday's sprint-plan row — staff invite, read-only access requests.
