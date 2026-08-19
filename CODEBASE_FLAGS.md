@@ -31,6 +31,13 @@ see this file mid-session and would pick the same next number. Example: FLAG-013
 by @Bastoh (so they sit in 001–199) but are owned by @Qeeyat, who was concurrently adding FLAG-205…209
 in open PRs. Numbering them 210+ would have collided with work already in flight.
 
+🔑 **An unmerged PR reserves a flag number — but so does a *review comment*, and only the file is
+checked for collisions.** (@Qeeyat's formulation, 2026-08-19, after it bit us.) A number quoted in a
+review is already load-bearing: the author may write it into code before it is ever written into this
+file. That is exactly how FLAG-013 ended up in three merged source comments meaning one thing while
+this file meant another. **Before renumbering anything you have already named in a review, grep the
+codebase for the old number** — and if it has landed, change the docs, not the code.
+
 ⚠️ **Check the live file, not your memory, before taking a number.** FLAG-012 was very nearly issued
 twice on 2026-08-17 for exactly this reason — a stale local `develop` didn't yet contain it.
 `git fetch` first.
@@ -590,7 +597,9 @@ whichever fits the actual DASH-2…6 usage once it's written, rather than guesse
 ---
 
 ### FLAG-205 — Org/User list endpoints don't support the filters the design assumes
-**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ⚠️ **PARTLY
+DISPROVEN** — the `?role=` half is wrong and is being fixed in **PR #82**; the `/org/` half stands.
+See the correction inside this entry.
 **Found:** 2026-08-14/15, building D1 Superadmin pages, verified against the live schema
 
 `design_handoff_dashboards`'s Organisations page has Type + Status filter dropdowns; the Users page
