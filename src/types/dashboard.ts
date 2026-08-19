@@ -287,6 +287,30 @@ export interface Ward {
   category?: string;
 }
 
+// GET /ward/beds/ — CAPTURED LIVE 2026-08-19 as nurse@demo.test (200, 7 beds):
+//   {id, bed_number, status, ward, room, current_patient, assigned_at, created_at}
+// A nurse can READ this. Whether a nurse may POST to /ward/admissions/ or
+// /ward/admissions/<id>/discharge/ is NOT established — see FLAG-211.
+// `ward` and `current_patient` are nested OBJECTS, not ids — confirmed on a
+// real OCCUPIED bed rather than assumed from the key names. `status` observed:
+// OCCUPIED | AVAILABLE (the ward serialisers also mention MAINTENANCE and
+// RESERVED, which the seed data does not currently exercise).
+export interface WardBed {
+  id: string;
+  bed_number: string;
+  status: string;
+  ward: { id: string; name: string; category?: string } | null;
+  room: { id: string; name?: string } | null;
+  current_patient: {
+    id: string;
+    healthclouda_id: string;
+    first_name: string;
+    last_name: string;
+  } | null;
+  assigned_at: string | null;
+  created_at?: string;
+}
+
 export interface Prescription {
   id: string;
   patient?: { first_name: string; last_name: string };

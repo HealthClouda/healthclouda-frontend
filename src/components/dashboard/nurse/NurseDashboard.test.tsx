@@ -296,3 +296,109 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     expect(await screen.findByText(/no vitals recorded/i)).toBeInTheDocument();
   });
 });
+
+/**
+ * D3 (sprint plan Tue 18 row) — ward/bed detail.
+ *
+ * The nurse wards-overview endpoint returns COUNTS ONLY: total/available/
+ * occupied per ward, with no per-bed information. Which bed a given patient is
+ * in — the actual question at a ward board — lives on GET /ward/beds/, a
+ * different app. Read access for a nurse token was verified live 2026-08-19
+ * (200, 7 beds). Fixtures below are captured from that response.
+ */
+describe('D3 — ward overview shows per-bed detail', () => {
+  // CAPTURED from GET /nurse/wards/overview/ (DRF envelope, unlike the
+  // org-admin equivalent which returns a bare array).
+  const wardsResponse = {
+    count: 1,
+    results: [{
+      id: 'ward-1',
+      name: 'General Ward',
+      category: 'MEDICAL',
+      category_other: '',
+      gender: 'O',
+      total_beds: 2,
+      available_beds: 1,
+      occupied_beds: 1,
+      maintenance_beds: 0,
+      reserved_beds: 0,
+      occupancy_rate: 50,
+      active_admissions: 1,
+    }],
+  };
+
+  // CAPTURED from GET /ward/beds/ — `ward` and `current_patient` are nested
+  // OBJECTS, not ids.
+  const bedsResponse = {
+    count: 2,
+    results: [
+      {
+        id: 'bed-2', bed_number: 'GW-02', status: 'AVAILABLE',
+        ward: { id: 'ward-1', name: 'General Ward', category: 'MEDICAL' },
+        room: null, current_patient: null, assigned_at: null,
+      },
+      {
+        id: 'bed-1', bed_number: 'GW-01', status: 'OCCUPIED',
+        ward: { id: 'ward-1', name: 'General Ward', category: 'MEDICAL' },
+        room: null,
+        current_patient: {
+          id: 'p-1', healthclouda_id: 'HCL-05CS2Q',
+          first_name: 'Chidi', last_name: 'Nwosu',
+        },
+        assigned_at: '2026-08-13T13:34:04Z',
+      },
+    ],
+  };
+
+  function mockWards() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.WARD_BEDS)) return Promise.resolve(bedsResponse);
+      if (path.startsWith(ENDPOINTS.NURSE_WARDS_OVERVIEW)) return Promise.resolve(wardsResponse);
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  async function openWards() {
+    mockWards();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ward Overview' }));
+    await waitFor(() => expect(screen.getByText('General Ward')).toBeInTheDocument());
+  }
+
+  it('lists each bed with its number and status', async () => {
+    await openWards();
+    expect(await screen.findByText('GW-01')).toBeInTheDocument();
+    expect(screen.getByText('GW-02')).toBeInTheDocument();
+    expect(screen.getByText('Occupied')).toBeInTheDocument();
+    expect(screen.getByText('Available')).toBeInTheDocument();
+  });
+
+  it('names the patient occupying a bed', async () => {
+    await openWards();
+    expect(await screen.findByText('Chidi Nwosu')).toBeInTheDocument();
+  });
+
+  it('sorts beds by number rather than trusting API order', async () => {
+    // The fixture deliberately returns GW-02 before GW-01.
+    await openWards();
+    await screen.findByText('GW-01');
+    const numbers = screen.getAllByText(/^GW-\d+$/).map((el) => el.textContent);
+    expect(numbers).toEqual(['GW-01', 'GW-02']);
+  });
+});
+
+describe('D3 — the nurse dashboard has a small-screen gate', () => {
+  // DashboardShell has had `smallScreenGateFor` since D1, but Nurse never
+  // passed it — the same dead-prop omission the T5 harness caught on
+  // Superadmin. Without it this dashboard renders a full table layout on a
+  // phone, which is where PHI is most likely to be shoulder-surfed.
+  it('passes smallScreenGateFor, naming this dashboard', async () => {
+    mockBackend();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    // The gate is CSS-only (FLAG-203) — assert it is RENDERED, which is what
+    // the prop controls; the md: breakpoint is a media query JSDOM cannot
+    // evaluate, so visibility is not assertable here.
+    expect(await screen.findByText('This dashboard needs a bigger screen')).toBeInTheDocument();
+    expect(screen.getByText(/the Nurse dashboard is designed for/i)).toBeInTheDocument();
+  });
+});
