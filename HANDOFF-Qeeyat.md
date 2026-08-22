@@ -60,6 +60,71 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-22 — Gate 1 run late: NO-GO, and two roles cannot sign in (branch: docs/gate-1-assessment, PR #89)
+
+**Goal:** I was away Thu 20 and Fri 21. Work out what those two days actually cost and get the board
+honest before the backend's UAT week opens Mon 24.
+
+**What I did:**
+- Measured `develop` @ `8eb5f23` instead of assuming: **tsc clean · 112 tests / 17 files green ·
+  build green.**
+- Ran **Gate 1** a day late and wrote the assessment into `HANDOFF.md`. **Verdict: 🔴 NO-GO.**
+- Claimed my five open PRs in In Flight **retroactively — and labelled them as retroactive**, because
+  quietly backfilling them would make the table lie a second time.
+- Escalated FLAG-210's blocking scope in the contract notes.
+
+**What I found:**
+- **The missed days cost less than the unmerged PRs did.** D5/D6 not being started is the visible
+  problem. The real one: **#84–#88 have sat unreviewed for three days**, so `develop` still carries
+  bugs I fixed on Wednesday. Two days off cost two dashboards; three days of review latency cost two
+  *roles*. I did set @Bastoh as reviewer on all five at open time — the latency isn't a rule breach,
+  but the effect on the gate is the same either way.
+- 🚨 **Two of six roles cannot sign in on `develop` at all** — Superadmin (`middleware.ts:25`; I
+  re-read the code rather than trusting Wednesday's memory) and Patient (FLAG-210). Org Admin signs
+  in but renders blanks. **Three of six roles are not meaningfully testable Monday**, and the fixes
+  for two of them are already written.
+- 🚨 **Monday's first UAT item is impossible.** The Mon 24 receptionist journey ends in *"patient logs
+  in"* — that is FLAG-210 exactly. No amount of D4 work makes it complete. I'd been carrying 210 in
+  my head as "blocks D6"; it actually blocks the backend team's opening test. **Widening the blast
+  radius of a known flag counts as a finding — I nearly didn't write it down because the flag already
+  existed.**
+- **E1 / FLAG-004 was never done.** Fri 14's row, scoped as my first PR. `?status=OPEN` is still in
+  the doctor dashboard and the enum is `ACTIVE`, so that panel is permanently empty — and Tue 25 is
+  the doctor journey.
+- **The C2 Cloudflare spike never ran**, so Gate 1's C4 decision doesn't exist. `[INFRA]`, not mine,
+  but it's an unmet gate criterion and it belongs in the assessment.
+- ⚠️ **"Suite green" is worth less than it looks.** Those 112 passes include 6 tests asserting payload
+  shapes the backend never sends — Wednesday's lesson, now sitting on `develop` as a *green* signal.
+  Green means the code matches the fixtures. Nothing more.
+
+**Decisions:**
+- **Wrote the NO-GO instead of trying to build my way out of it.** Two dashboards don't fit in one
+  float day, and discovering that Monday morning with the backend team waiting is exactly what the
+  gate exists to prevent.
+- **Didn't descope anything myself.** What UAT drops is @Bastoh's and the backend team's call — it's
+  their test week. I ranked the options; I didn't pick one.
+- **Left FLAG-210 with @Bastoh.** Auth/routing is `[INFRA]` and the fix changes the route tree and
+  `RESERVED_PATHS`. Escalated its urgency rather than taking it across lanes on a Saturday.
+- **Ranked the asks by unblocking power, not by effort.** Merging #84/#85 is the cheapest action on
+  the board and moves more than a full day of my building would.
+- **Split this entry from the Gate 1 PR.** Gate 1 touches only `HANDOFF.md` and went out as #89 off
+  `develop` so it can merge fast; this entry goes on #88's branch, where the 19 Aug entry already
+  lives. Both PRs inserting at the top of this file would have collided.
+
+**Verified:** `npx tsc --noEmit` exit 0 · `npm test` 112 passed (17 files) · `npm run build` green —
+all on `develop` @ `8eb5f23` after `git fetch --prune`. Middleware bug re-confirmed by reading
+`src/middleware.ts:21-63`. **Nothing re-verified against live Swagger this session** — docs only.
+
+**Left undone / next:**
+- [ ] 🔴 **@Bastoh: review #84 and #85** — highest-leverage thing available before Monday.
+- [ ] 🔴 **@Bastoh: FLAG-210 decision** — now on the UAT critical path, not just blocking D6.
+- [ ] 🟠 **E1 / FLAG-004** — small, unclaimed, would make Doctor real before Tue 25.
+- [ ] 🟠 **D4 Receptionist** — FLAG-213 already captured the shapes, so it's ready to start.
+- [ ] D5 Doctor (re-read Swagger first — referrals changed ~20 Aug) · D6 Patient (blocked on 210).
+- [ ] Gate 1's C4 Cloudflare decision still missing.
+
+---
+
 ### 2026-08-19 (afternoon) — first real visual verification: 5 bugs, the T5 harness fixed, D3 Nurse (branches: fix/superadmin-signin-unreachable, fix/org-admin-payload-shapes, feat/dash-3-nurse, docs/flag-016→210, docs/flag-213-receptionist-shapes)
 
 > Continues from the entry below, same day. That one ends with *"still no visual verification —
