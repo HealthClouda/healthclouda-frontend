@@ -143,6 +143,16 @@ move to Resolved then*
 > should confirm whether `?status=` is honoured — if it is, the client-side narrowing becomes
 > belt-and-braces rather than load-bearing. The new pagination-window limitation this introduces is
 > **FLAG-214**.
+>
+> 🔍 **This flag had a THIRD site it never named, and it was the worst one.** The entry quotes only
+> the two overview lines (`:56`, `:58`). The **Episodes page** carried the same invented enum: filter
+> tabs labelled *Open* / *Closed* sending `?status=OPEN` / `?status=CLOSED`, and — the real damage —
+> the row action gated on `ep.status === 'OPEN'`. **No episode can ever be `OPEN`, so the Complete
+> Episode button never rendered for anybody.** That is one of the handful of write workflows that
+> exist at all in this app (sprint plan Part 1 §3), unreachable through the UI, with nothing failing
+> and nothing logged. Found while starting the D5 design migration and fixed in the same PR.
+> **Lesson: a flag that quotes line numbers invites fixing exactly those lines. Grep the whole file
+> for the bad value before calling a flag closed.**
 
 ```ts
 // src/components/dashboard/doctor/DoctorDashboard.tsx:56

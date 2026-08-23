@@ -204,7 +204,11 @@ function MyPatientsPage() {
 // ─── Episodes ─────────────────────────────────────────────────────
 
 function EpisodesPage() {
-  const [filter, setFilter] = useState<'OPEN' | 'CLOSED' | ''>('OPEN');
+  // FLAG-004, second site. This page carried the same invented enum as the
+  // overview panel: OPEN/CLOSED do not exist — the values are ACTIVE/COMPLETED
+  // (live schema, 2026-08-22). The filter tabs were therefore meaningless AND
+  // the row action below was gated on a status no episode can ever have.
+  const [filter, setFilter] = useState<'ACTIVE' | 'COMPLETED' | ''>('ACTIVE');
   const path = ENDPOINTS.DOC_EPISODES + (filter ? `?status=${filter}` : '');
   const { items: episodes, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<Episode>(path);
@@ -235,7 +239,7 @@ function EpisodesPage() {
           {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} {filter.toLowerCase() || 'total'}</p>}
         </div>
         <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
-          {(['OPEN', 'CLOSED', ''] as const).map(f => (
+          {(['ACTIVE', 'COMPLETED', ''] as const).map(f => (
             <button
               key={f}
               onClick={() => { setFilter(f); setPage(1); }}
@@ -264,7 +268,7 @@ function EpisodesPage() {
                 <Td><StatusBadge status={ep.status} /></Td>
                 <Td className="text-xs text-gray-400 whitespace-nowrap">{timeAgo(ep.created_at)}</Td>
                 <Td>
-                  {ep.status === 'OPEN' && (
+                  {ep.status === 'ACTIVE' && (
                     <button onClick={() => setCompleting(ep)} className="text-xs font-medium text-blue-600 hover:text-blue-800">
                       Complete
                     </button>

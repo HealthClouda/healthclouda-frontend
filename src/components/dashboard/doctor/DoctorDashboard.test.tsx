@@ -179,6 +179,37 @@ describe('FLAG-004 / E1 — the doctor overview stops sending params the backend
   });
 });
 
+describe('FLAG-004 — the Episodes PAGE had the same bug as the overview panel', () => {
+  it('defaults to ?status=ACTIVE, never ?status=OPEN', async () => {
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+
+    await waitFor(() => expect(urlsFor(ENDPOINTS.DOC_EPISODES).length).toBeGreaterThan(0));
+    const urls = urlsFor(ENDPOINTS.DOC_EPISODES);
+    expect(urls.filter(u => /[?&]status=(OPEN|CLOSED)\b/.test(u))).toHaveLength(0);
+    expect(urls.some(u => /[?&]status=ACTIVE\b/.test(u))).toBe(true);
+  });
+
+  it('offers Completed as a filter, not the non-existent Closed', async () => {
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+
+    expect(await screen.findByRole('button', { name: 'Completed' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Closed' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open' })).not.toBeInTheDocument();
+  });
+
+  it('renders the Complete action on an ACTIVE episode — it never rendered before', async () => {
+    // The row action was gated on `ep.status === 'OPEN'`. No episode is ever
+    // OPEN (the enum is ACTIVE | COMPLETED), so complete-episode — one of the
+    // few write workflows that exist at all — was unreachable in the UI.
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+
+    expect(await screen.findByRole('button', { name: /Complete/i })).toBeInTheDocument();
+  });
+});
+
 describe('FLAG-213 (doctor half) — appointments render the real payload', () => {
   it('renders a real date from scheduled_at rather than a blank appointment_date', async () => {
     render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
