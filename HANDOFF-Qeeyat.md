@@ -60,7 +60,7 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
-### 2026-08-22 — Gate 1 run late: NO-GO, and two roles cannot sign in (branch: docs/gate-1-assessment, PR #89)
+### 2026-08-22/23 — Gate 1 run late (NO-GO), then the doctor contract fixed (branches: docs/gate-1-assessment #89, feat/dash-5-doctor #90)
 
 **Goal:** I was away Thu 20 and Fri 21. Work out what those two days actually cost and get the board
 honest before the backend's UAT week opens Mon 24.
@@ -115,13 +115,75 @@ honest before the backend's UAT week opens Mon 24.
 all on `develop` @ `8eb5f23` after `git fetch --prune`. Middleware bug re-confirmed by reading
 `src/middleware.ts:21-63`. **Nothing re-verified against live Swagger this session** — docs only.
 
+---
+
+#### Part 2, same session (ran past midnight into 23 Aug) — E1/FLAG-004 + FLAG-213 doctor half (PR #90)
+
+**Goal:** having written the NO-GO, actually move something. Picked the doctor lane over D4.
+
+**Why D5 and not D4, since D4 was the older missed row:** Monday's UAT covers both, but the
+receptionist journey **dead-ends at "patient logs in" (FLAG-210) no matter what I build**, while the
+doctor journey becomes completable. Also `send-portal-invite` has no `ENDPOINTS` constant, so part of
+E2 (Bastoh's) isn't landed and D4 would have meant doing some of it inline.
+
+**What I did:** verified the contract live, wrote 6 RED tests (5 failed pre-fix), fixed both flags,
+opened #90. tsc clean · **118 tests** (112 + 6) · build green.
+
+**What I found:**
+- 🎯 **The schema settles half of FLAG-004 and cannot settle the other half.**
+  `EpisodeListStatusEnum = ["ACTIVE","COMPLETED"]` — no `OPEN`, so that panel was provably always
+  empty. But **neither doctor endpoint documents a single query parameter, not even `page`**, and
+  `/doctor/appointments/` is literally `"200: No response body"`. So I could not confirm `?status=`
+  is honoured, and **there is no doctor account in `.env.local`** (only superadmin + org-admin), so I
+  couldn't test it empirically either.
+- **Resolved that by doing both**: send the correct value *and* filter client-side. Correct whether
+  or not the server participates. That is a deliberate trade, so **I logged what it costs as
+  FLAG-214** — the client filter only sees page 1 (~20 rows), so a busy doctor could have today's
+  appointment on page 2 and be told "No appointments scheduled for today". Not reachable on seed data
+  (7 appointments), so UAT won't see it; it becomes real with PHI.
+- **I nearly guessed an ordering param to fix that.** Stopped, because guessing an undocumented param
+  is *the exact bug class this PR removes* — and a wrong guess would fail silently too, only harder
+  to spot. Bounded and written down beats unbounded and assumed.
+- 🪤 **My own `Td` component silently swallowed `data-testid`.** It only accepts `children` and
+  `className`, so the attribute vanished and three tests failed with "unable to find". I assumed my
+  *test* was wrong and nearly rewrote it. It was the component. **Dump the DOM before rewriting the
+  assertion** — same lesson as "look at the diff image, don't theorise about it" from Wednesday.
+- 🪤 **"Found multiple elements: Chidi Nwosu"** — I'd given the episode fixture and the appointment
+  fixture the same patient, and the Overview renders both panels side by side. Reads like a component
+  bug; is a fixture bug. Episodes fixture now uses a different name deliberately, with a comment.
+- **A real pre-existing bug fell out**: `AppointmentsPage` destructured `page`/`setPage`/`totalPages`
+  and **never rendered `<Pagination>`**, so page 2+ was unreachable. Nothing was failing.
+- **The receptionist appointments table has no fixtures at all** — so it's *uncovered*, not falsely
+  green. Different problem from D2's, worth not confusing. D4 should cover it.
+- **`status` on the staff appointment serializer is unverified**, so I typed it **optional** and made
+  call sites render a fallback rather than assume. It wasn't in the 19 Aug capture; `PatientAppointment`
+  has it, but that's a *different serializer* and FLAG-213 says so explicitly.
+
+**Decisions:**
+- **Retyping the shared `Appointment` forced touching the receptionist file**, so I fixed its field
+  references too — correction only, D4's redesign untouched. Leaving it broken to "stay in scope"
+  would have meant knowingly shipping blank cells.
+- **Split #90 from the rest of D5.** It's UAT-critical for Tue 25 and shouldn't queue behind the
+  design migration.
+- **Moved `personName` into `lib/utils.ts`** rather than duplicating it in both dashboards.
+
+**Verified (part 2):** live schema re-fetched from `api-dev` **2026-08-22** and read directly for the
+episode enum, both doctor endpoints' params, and the referral method shapes. `tsc` clean · 118 tests ·
+build green.
+
 **Left undone / next:**
-- [ ] 🔴 **@Bastoh: review #84 and #85** — highest-leverage thing available before Monday.
-- [ ] 🔴 **@Bastoh: FLAG-210 decision** — now on the UAT critical path, not just blocking D6.
-- [ ] 🟠 **E1 / FLAG-004** — small, unclaimed, would make Doctor real before Tue 25.
-- [ ] 🟠 **D4 Receptionist** — FLAG-213 already captured the shapes, so it's ready to start.
-- [ ] D5 Doctor (re-read Swagger first — referrals changed ~20 Aug) · D6 Patient (blocked on 210).
-- [ ] Gate 1's C4 Cloudflare decision still missing.
+- [ ] 🔴 **@Bastoh: review #84 and #85** — highest-leverage thing available before Monday. **Seven
+      PRs are now queued on him**, five of them from 19 Aug. The queue is the bottleneck now, not typing.
+- [ ] 🔴 **@Bastoh: FLAG-210 decision** — on the UAT critical path, not just blocking D6.
+- [ ] 🟠 **D5 remainder** — design migration onto `DataTable`/tokens + write workflows (episode create,
+      prescription create, referral accept/decline). ⚠️ **Referral methods re-read 2026-08-22:**
+      `/doctor/referrals/` is **POST-only** (no GET — lists are `incoming/`/`outgoing/`) and
+      accept/decline are **PATCH**, not POST.
+- [ ] 🟠 **D4 Receptionist** — shapes captured (FLAG-213); note `send-portal-invite` still has no
+      `ENDPOINTS` constant.
+- [ ] D6 Patient — blocked on 210. · Gate 1's C4 Cloudflare decision still missing.
+- [ ] **Get a doctor/receptionist account into `.env.local`** — two flags this session (FLAG-004's
+      `?status=`, FLAG-213's `status` field) are stuck on "unverifiable without a token".
 
 ---
 
