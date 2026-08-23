@@ -171,14 +171,65 @@ opened #90. tsc clean · **118 tests** (112 + 6) · build green.
 episode enum, both doctor endpoints' params, and the referral method shapes. `tsc` clean · 118 tests ·
 build green.
 
+---
+
+#### Part 3 — FLAG-004 had a third site, then the D5 design migration (PRs #90, #91)
+
+**🚨 The find of the night, and it came from *reading* rather than fixing.** I opened the file to start
+the design migration and found **FLAG-004's third site**, which the flag never named. The Episodes page
+carried the same invented enum: tabs *Open* / *Closed* sending `?status=OPEN` / `?status=CLOSED`, and
+the row action gated on `ep.status === 'OPEN'`.
+
+**No episode can ever be `OPEN`, so the Complete Episode button never rendered for anybody.** That is
+one of the handful of write workflows this app has at all, unreachable through the UI, silent. It
+would have surfaced Tue 25 as *"the doctor can't complete an episode"*.
+
+- **I had already written "Closes FLAG-004" on #90 before finding it.** The flag quoted two line
+  numbers and I fixed exactly those two lines. **Lesson, written into the flag: a flag that quotes
+  line numbers invites fixing exactly those lines — grep the whole file for the bad value before
+  calling it closed.**
+- Pushed to #90 rather than the design branch, because it's FLAG-004's scope and UAT-critical; leaving
+  it would have made #90's own claim false.
+
+**Then D5's design half (#91, stacked on #90):** five tables onto `DataTable`, shared `FilterTabs` and
+`PageHeading`, tokens, and `smallScreenGateFor="Doctor"` — which this dashboard **never had**.
+
+- 🎯 **The obvious token swap would have been an accessibility regression, and I nearly did it.**
+  `bg-blue-600` → `bg-primary` is the "consistency" move. Measured first: white on `primary` is
+  **4.21:1 (fails AA)**, on `blue-600` **5.17:1 (passes)**, on `primary-dark` **5.98:1 (passes best)**.
+  So the active pill is `bg-primary-dark`. **This is Bastoh's #77 finding pointing the other way** —
+  there, a stray component was brought *into line* with an inaccessible system; here the component was
+  already fine and lining it up would have broken it. **Tokens are not automatically accessible.**
+- Gave `FilterTabs` `role="group"` + `aria-label` + `aria-pressed`. Previously the only signal of the
+  applied filter was the pill's background colour — nothing for a screen reader.
+- **All 9 tests from #90 passed unchanged through a ~500-line restructure**, because they assert
+  behaviour not markup. That's what made the rewrite safe to do at this hour.
+
+**Decisions:**
+- **Stacked #91 on #90** rather than branching off `develop` — it rewrites the rows #90 retyped, which
+  is the one case the stacking rule allows. Flagged in the PR and In Flight that **#90 must merge as a
+  merge commit, not a squash**, or the retargeted child breaks.
+- **Stopped before the write workflows.** Episode create / prescription create / referral
+  accept-decline each need their own contract verification, and I'd be guessing request bodies at 2am.
+
+**Verified (part 3):** `tsc` clean · **122 tests** green (112 at session start → +10) · build green.
+
 **Left undone / next:**
-- [ ] 🔴 **@Bastoh: review #84 and #85** — highest-leverage thing available before Monday. **Seven
-      PRs are now queued on him**, five of them from 19 Aug. The queue is the bottleneck now, not typing.
+- [ ] 🔴 **@Bastoh: review #84 and #85** — highest-leverage thing available before Monday. **Eight PRs
+      are now queued on him**, five from 19 Aug. The queue is the bottleneck, not typing. I should not
+      open more until some land.
 - [ ] 🔴 **@Bastoh: FLAG-210 decision** — on the UAT critical path, not just blocking D6.
-- [ ] 🟠 **D5 remainder** — design migration onto `DataTable`/tokens + write workflows (episode create,
-      prescription create, referral accept/decline). ⚠️ **Referral methods re-read 2026-08-22:**
+- [ ] 🔴 **Get a doctor + receptionist account into `.env.local`.** This blocked *three* things
+      tonight: verifying `?status=`, confirming `status` exists on the staff appointment payload, and
+      **any screenshot or T5 baseline for D5** — so #91 ships design-verified only by tests, which
+      Wednesday proved is not enough. This is now the single biggest thing slowing me down.
+- [ ] 🟠 **D5 write workflows** — episode create, prescription create, referral accept/decline, plus
+      the episode detail workspace from the DASH-5 spec. ⚠️ **Re-read 2026-08-22:**
       `/doctor/referrals/` is **POST-only** (no GET — lists are `incoming/`/`outgoing/`) and
       accept/decline are **PATCH**, not POST.
+- [ ] 🟠 **The FLAG-213 treatment for the other three list endpoints.** `Episode`, `Referral` and
+      `Prescription` still hedge `patient_name ?? patient{}` because nobody has captured them live.
+      Given `Appointment` was wrong and `CheckIn` was wrong, assume these are too until checked.
 - [ ] 🟠 **D4 Receptionist** — shapes captured (FLAG-213); note `send-portal-invite` still has no
       `ENDPOINTS` constant.
 - [ ] D6 Patient — blocked on 210. · Gate 1's C4 Cloudflare decision still missing.
