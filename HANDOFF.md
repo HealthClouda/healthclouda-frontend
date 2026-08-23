@@ -25,6 +25,13 @@
 | @Qeeyat | **#87** FLAG-213 receptionist shapes | `docs/flag-213-receptionist-shapes` | `CODEBASE_FLAGS.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
 | @Qeeyat | **#88** session log 19 Aug | `docs/session-log-qeeyat-2026-08-19b` | `HANDOFF-Qeeyat.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
 | @Qeeyat | **E1/FLAG-004** + **FLAG-213 doctor half** (the *contract* half of D5 — **not** the design migration or the write workflows) | `feat/dash-5-doctor` | `doctor/*`, `receptionist/*` (fields only), `types/dashboard.ts`, `lib/utils.ts` | 2026-08-22 | 🔄 open — PR #90 |
+| @Qeeyat | **D5 design migration** — tables onto `DataTable`, tokens, `SmallScreenGate` | `feat/dash-5-doctor-design` ⬆️ **stacked on `feat/dash-5-doctor`** | `src/components/dashboard/doctor/*` | 2026-08-23 | 🔄 open |
+
+> ⛓️ **Stacking note (#90 → the design branch).** Stacked deliberately, per the rule that stacking is
+> only for work that *needs* code from the unmerged parent: the design migration rewrites the very
+> rows #90 retyped, so off `develop` it would be an instant conflict. **#90 must merge via a merge
+> commit, not a squash** — a squash breaks the retargeted child with phantom conflicts
+> (`HANDOFF.md` § Branch Strategy). Reviewer: confirm the child's base shows `develop` before merging it.
 
 > ⚠️ **These five rows were added retroactively on 2026-08-22, which is itself a rule violation worth
 > recording:** the branches were cut and the PRs opened on 19 Aug with the table left empty, so for
