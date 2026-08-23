@@ -24,11 +24,21 @@
 | @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
 | @Qeeyat | **#87** FLAG-213 receptionist shapes | `docs/flag-213-receptionist-shapes` | `CODEBASE_FLAGS.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
 | @Qeeyat | **#88** session log 19 Aug | `docs/session-log-qeeyat-2026-08-19b` | `HANDOFF-Qeeyat.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
+| @Qeeyat | **E1/FLAG-004** + **FLAG-213 doctor half** (the *contract* half of D5 — **not** the design migration or the write workflows) | `feat/dash-5-doctor` | `doctor/*`, `receptionist/*` (fields only), `types/dashboard.ts`, `lib/utils.ts` | 2026-08-22 | 🔄 open — PR #90 |
 
 > ⚠️ **These five rows were added retroactively on 2026-08-22, which is itself a rule violation worth
 > recording:** the branches were cut and the PRs opened on 19 Aug with the table left empty, so for
 > three days five live branches were invisible to the other dev. Reviewers were correctly set on all
 > five at open time — the gap is the In Flight claim, not the reviewer rule.
+
+> ⚠️ **@Bastoh — E1/FLAG-004 is a contract item in your lane and FLAG-004 lists you as owner.** I'm
+> taking it because the sprint plan scopes E1 as mine ("🎓 Qeeyat's first PR") and because **it lives
+> in the same two lines D5 rewrites** — FLAG-213 says explicitly that fixing the doctor types in
+> isolation means touching the same file twice. Claiming it loudly rather than quietly. If you'd
+> rather own it, say so and I'll drop it from this branch.
+>
+> 🔀 **This row will conflict with PR #89**, which restructures this same table. #89 should merge
+> first; I'll rebase this branch onto it.
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**

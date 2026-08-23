@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
-import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
+import { formatDate, formatTime, personName, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
@@ -204,11 +204,15 @@ function AppointmentsPage() {
           <tbody className="divide-y divide-gray-50">
             {list.map(a => (
               <tr key={a.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td><span className="font-medium text-gray-900">{a.patient_name ?? (a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : '—')}</span></Td>
-                <Td className="text-xs">{a.doctor_name ?? '—'}</Td>
-                <Td className="text-xs text-gray-500 whitespace-nowrap">{formatDate(a.appointment_date)}</Td>
-                <Td className="text-xs text-gray-400">{a.appointment_time ? formatTime(a.appointment_time) : '—'}</Td>
-                <Td><StatusBadge status={a.status} /></Td>
+                {/* FLAG-213: nested patient/doctor objects, and one scheduled_at
+                    datetime — not patient_name/doctor_name/appointment_date. The
+                    full D4 redesign of this page is still outstanding; this is the
+                    field correction only, so the table stops rendering blanks. */}
+                <Td><span className="font-medium text-gray-900">{personName(a.patient)}</span></Td>
+                <Td className="text-xs">{personName(a.doctor)}</Td>
+                <Td className="text-xs text-gray-500 whitespace-nowrap">{formatDate(a.scheduled_at)}</Td>
+                <Td className="text-xs text-gray-400">{formatTime(a.scheduled_at)}</Td>
+                <Td>{a.status ? <StatusBadge status={a.status} /> : <span className="text-xs text-gray-400">—</span>}</Td>
               </tr>
             ))}
           </tbody>
