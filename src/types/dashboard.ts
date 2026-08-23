@@ -212,15 +212,47 @@ export interface PatientAppointment {
   created_at: string;
 }
 
+/** A person as embedded in an appointment payload — never a flat `*_name` string. */
+export interface AppointmentParty {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
+/**
+ * The staff-facing appointment, as returned by `/doctor/appointments/` and
+ * `/receptionist/appointments/`. Captured live 2026-08-19 (FLAG-213).
+ *
+ * ⚠️ This is NOT the same serializer as `PatientAppointment` below, and the two
+ * genuinely disagree: the patient one carries a flat `doctor_name` string, this
+ * one nests `doctor`. Only `PatientAppointment` is documented in the schema
+ * (verified 2026-08-22) — this shape comes from a live capture, so treat the
+ * capture as the source of truth for it and re-capture rather than infer.
+ *
+ * The previous version of this type invented `appointment_date`,
+ * `appointment_time` and `doctor_name`. None of them exist, so every date and
+ * doctor cell rendered blank against real data while the rows still drew.
+ */
 export interface Appointment {
   id: string;
-  patient?: { first_name: string; last_name: string };
-  patient_name?: string;
-  doctor_name?: string;
-  appointment_date: string;
-  appointment_time?: string;
-  status: string;
+  scheduled_at: string;
+  duration_minutes?: number;
+  patient?: AppointmentParty;
+  doctor?: AppointmentParty;
+  booked_by?: AppointmentParty;
+  reason?: string;
   notes?: string;
+  cancelled_at?: string | null;
+  cancellation_reason?: string | null;
+  created_at?: string;
+  /**
+   * ⚠️ Optional deliberately: `status` was NOT in the 2026-08-19 capture and
+   * this serializer is undocumented, so its presence is unverified. It is very
+   * likely there (`PatientAppointment` has it, and `cancelled_at` implies it),
+   * but callers must render a fallback rather than assume. Make it required
+   * once someone confirms it with a doctor or receptionist token.
+   */
+  status?: string;
 }
 
 export interface Referral {

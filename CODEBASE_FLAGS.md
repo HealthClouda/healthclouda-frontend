@@ -125,8 +125,24 @@ and the BACKEND CONTRACT NOTES banner in `HANDOFF.md` reflects verified findings
 ---
 
 ### FLAG-004 — Doctor dashboard uses two query params the backend ignores
-**Severity:** P2 · **Area:** Backend contract · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Bastoh ·
+**Status:** ✅ **FIXED in PR #90** (2026-08-22, by @Qeeyat) — *stays here until that PR merges;
+move to Resolved then*
 **Found:** 2026-08-08 (originally logged in `CONTRACT-AUDIT.md` as GLOBAL-2, never fixed)
+
+> **How it was fixed, and the part that could not be verified.** `?status=OPEN` → `?status=ACTIVE`:
+> settled against the live schema 2026-08-22, `EpisodeListStatusEnum = ["ACTIVE","COMPLETED"]`, so
+> `OPEN` could never match. `?today=true` was dropped and today-ness is now filtered **client-side**,
+> which the "Done when" below explicitly allows.
+>
+> ⚠️ **Neither `/doctor/episodes/` nor `/doctor/appointments/` documents a single query parameter —
+> not even `page`.** On this backend that is not evidence of non-support (see the correction in
+> FLAG-205), but it is not evidence of support either, and **no doctor account exists in
+> `.env.local`**, so `?status=` could not be confirmed empirically. The fix therefore sends the
+> correct value *and* narrows client-side, which is right either way. Anyone who gets a doctor token
+> should confirm whether `?status=` is honoured — if it is, the client-side narrowing becomes
+> belt-and-braces rather than load-bearing. The new pagination-window limitation this introduces is
+> **FLAG-214**.
 
 ```ts
 // src/components/dashboard/doctor/DoctorDashboard.tsx:56
@@ -848,6 +864,45 @@ derived from them (not hand-written), the Receptionist and Doctor tables render 
 doctors, and the check-ins date default is handled explicitly rather than discovered. **Sequencing:**
 the receptionist half rides with **D4** and the doctor half with **D5**, since both rewrite those
 components anyway — fixing the types in isolation first would mean touching the same files twice.
+### FLAG-214 — Client-side "today" and "active" filters only see the first page
+**Severity:** P2 · **Area:** Correctness / Pagination · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-22, introduced deliberately by the FLAG-004 fix in PR #90
+
+> 📎 **Forward reference:** FLAG-213 is referenced here and in several code comments from PR #90, but
+> its entry lands with **PR #87**, which is still open. If you are reading this on `develop` and
+> cannot find FLAG-213, that is why — not a numbering mistake.
+
+The doctor Overview now filters today's appointments and active episodes **client-side**, because
+`?today=true` was invented and `?status=` cannot be confirmed as supported (FLAG-004). That is
+correct whether or not the server participates — but it filters **only the rows the server chose to
+return on page 1**, which is ~20 (`?page_size=` is ignored, FLAG-013).
+
+```
+GET /doctor/appointments/     → 20 rows, ordering undocumented
+  .filter(isToday)            → correct for those 20, blind to the rest
+```
+
+So **a doctor with more than a page of appointments can have today's appointment fall on page 2 and
+not appear on their Overview at all.** The panel would say "No appointments scheduled for today"
+while one exists — a silent wrong answer, which is the same failure mode FLAG-004 was about.
+
+**Why it was shipped this way anyway:** the alternative is guessing an ordering or filter param that
+isn't in the schema, which is precisely the invented-param bug class being removed. A wrong guess
+here fails silently too, and would be *harder* to spot. Bounded and written down beats unbounded and
+assumed.
+
+**Not currently reachable on seed data** — `demo-clinic` has 7 appointments total, well inside one
+page — so this cannot be demonstrated today and will not appear in UAT. It becomes real with a busy
+real-world doctor, i.e. after PHI arrives.
+
+**Done when:** one of —
+1. the backend confirms a supported filter (`?date=`, `?status=`) and the panels use it — note
+   `/receptionist/check-ins/` **already defaults to today** (FLAG-213), so the capability probably
+   exists and just isn't documented; **or**
+2. the backend documents ordering, and the panel is proven to only need the first page; **or**
+3. the Overview fetches with an explicit bound and shows an honest "showing first N" affordance.
+
+Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 

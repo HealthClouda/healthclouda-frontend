@@ -13,7 +13,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
+import { formatDate, formatTime, isToday, personName, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
@@ -43,8 +43,8 @@ function TableWrap({ children }: { children: React.ReactNode }) {
 function Th({ children }: { children: React.ReactNode }) {
   return <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{children}</th>;
 }
-function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3.5 text-gray-700 ${className}`}>{children}</td>;
+function Td({ children, className = '', testId }: { children: React.ReactNode; className?: string; testId?: string }) {
+  return <td className={`px-4 py-3.5 text-gray-700 ${className}`} data-testid={testId}>{children}</td>;
 }
 
 // ─── Overview ─────────────────────────────────────────────────────
@@ -53,11 +53,27 @@ function OverviewPage({
   stats, onNavigate, isOnDuty,
 }: { stats: DoctorStats | null; onNavigate: (p: string) => void; isOnDuty: boolean }) {
   const { data: apptData, loading: apptLoading, error: apptError, refetch: apptRefetch } =
-    useApi<Paginated<Appointment>>(ENDPOINTS.DOC_APPOINTMENTS + '?today=true&page_size=6');
+    useApi<Paginated<Appointment>>(ENDPOINTS.DOC_APPOINTMENTS);
+  // ?status=ACTIVE is the real enum value (ACTIVE | COMPLETED, verified against
+  // the live schema 2026-08-22). The old ?status=OPEN could never match a row.
   const { data: epData, loading: epLoading, error: epError, refetch: epRefetch } =
-    useApi<Paginated<Episode>>(ENDPOINTS.DOC_EPISODES + '?status=OPEN&page_size=5');
-  const todayAppts = apptData?.results ?? [];
-  const recentEps = epData?.results ?? [];
+    useApi<Paginated<Episode>>(ENDPOINTS.DOC_EPISODES + '?status=ACTIVE');
+
+  // FLAG-004: both of these panels used to hand the server a filter it ignores
+  // (?today=true) or one that matched nothing (?status=OPEN), and rendered
+  // whatever came back. Neither endpoint documents ANY query parameter, so we
+  // cannot claim ?status= is honoured either — on this backend, absence from
+  // the schema is not evidence of non-support (FLAG-205), but it is not
+  // evidence of support either. So we send the correct value AND narrow
+  // client-side: right whether or not the server participates.
+  //
+  // ⚠️ Both filters only see the first page the server returns (~20 rows —
+  // ?page_size= is ignored, FLAG-013). A doctor with more than a page of
+  // appointments could have today's row fall on page 2 and not appear here.
+  // Tracked as FLAG-214 rather than guessed at with an undocumented ordering
+  // param, which is the exact bug class this change removes.
+  const todayAppts = (apptData?.results ?? []).filter(a => isToday(a.scheduled_at)).slice(0, 6);
+  const recentEps = (epData?.results ?? []).filter(ep => ep.status === 'ACTIVE').slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -95,12 +111,10 @@ function OverviewPage({
                 <div key={a.id} className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 hover:border-blue-200 hover:shadow-sm transition-all">
                   <Avatar firstName={a.patient?.first_name ?? '?'} lastName={a.patient?.last_name ?? ''} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {a.patient_name ?? (a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : '—')}
-                    </p>
-                    <p className="text-xs text-gray-400">{a.appointment_time ? formatTime(a.appointment_time) : formatDate(a.appointment_date)}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{personName(a.patient)}</p>
+                    <p className="text-xs text-gray-400">{formatTime(a.scheduled_at)}</p>
                   </div>
-                  <StatusBadge status={a.status} />
+                  {a.status ? <StatusBadge status={a.status} /> : null}
                 </div>
               ))}
             </div>
@@ -296,7 +310,7 @@ function AppointmentsPage() {
       ) : (
         <TableWrap>
           <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Date</Th><Th>Time</Th><Th>Notes</Th><Th>Status</Th></tr>
+            <tr><Th>Patient</Th><Th>Doctor</Th><Th>Date</Th><Th>Time</Th><Th>Reason</Th><Th>Status</Th></tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {list.map(a => (
@@ -304,18 +318,21 @@ function AppointmentsPage() {
                 <Td>
                   <div className="flex items-center gap-2.5">
                     <Avatar firstName={a.patient?.first_name ?? '?'} lastName={a.patient?.last_name ?? ''} size="sm" />
-                    <span className="font-medium text-gray-900">{a.patient_name ?? (a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : '—')}</span>
+                    <span className="font-medium text-gray-900">{personName(a.patient)}</span>
                   </div>
                 </Td>
-                <Td className="text-xs whitespace-nowrap">{formatDate(a.appointment_date)}</Td>
-                <Td className="text-xs text-gray-400">{a.appointment_time ? formatTime(a.appointment_time) : '—'}</Td>
-                <Td className="text-xs text-gray-500 max-w-xs">{truncate(a.notes ?? '—', 40)}</Td>
-                <Td><StatusBadge status={a.status} /></Td>
+                <Td className="text-xs" testId={`appt-doctor-${a.id}`}>{personName(a.doctor)}</Td>
+                <Td className="text-xs whitespace-nowrap" testId={`appt-when-${a.id}`}>{formatDate(a.scheduled_at)}</Td>
+                <Td className="text-xs text-gray-400">{formatTime(a.scheduled_at)}</Td>
+                <Td className="text-xs text-gray-500 max-w-xs">{truncate(a.reason ?? a.notes ?? '—', 40)}</Td>
+                <Td>{a.status ? <StatusBadge status={a.status} /> : <span className="text-xs text-gray-400">—</span>}</Td>
               </tr>
             ))}
           </tbody>
         </TableWrap>
       )}
+      {/* Was destructured and never rendered, so page 2+ was unreachable. */}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
     </div>
   );
 }
