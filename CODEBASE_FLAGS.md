@@ -783,6 +783,74 @@ no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.
 regression test covering a `PATIENT` whose `organization` is `null`.
 ---
 
+### FLAG-213 — `Appointment` and `CheckIn` describe shapes the API does not return
+**Severity:** P1 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-19, capturing the receptionist payloads **before** starting D4 — deliberately,
+after the same bug class shipped in D2 (see the correction inside FLAG-205 and PR #85)
+
+Captured live as `reception@demo.test`, 2026-08-19.
+
+**✅ Already correct, no action:** `ReceptionistStats`, `OnDutyDoctor` and `PatientSearchResult` all
+match their endpoints field for field.
+
+#### `Appointment` — wrong, and shipped
+
+```
+type:  appointment_date, appointment_time?, doctor_name?, patient_name?
+live:  scheduled_at, duration_minutes, doctor{}, patient{}, booked_by{},
+       reason, notes, cancelled_at, cancellation_reason, created_at
+```
+
+`appointment_date` and `appointment_time` **do not exist**, and `doctor` is a nested object, not a
+`doctor_name` string. Consumers rendering the missing fields **on `develop` right now**:
+
+- `src/components/dashboard/receptionist/ReceptionistDashboard.tsx:208-210`
+- `src/components/dashboard/doctor/DoctorDashboard.tsx:101, 310-311`
+
+So both appointment tables currently show a blank/invalid date and `—` for the doctor against real
+data. Same failure mode as the Org Admin tables: rows render, so the table looks fine, and every
+human-readable cell is empty.
+
+**Note `PatientAppointment` is NOT affected** — it was verified live on 2026-07-09 and already uses
+`scheduled_at`/`duration_minutes`. One of the two appointment types was checked against the API and
+the other was not, which is why they disagree.
+
+#### `CheckIn` — wrong on three fields, and D4 is built entirely on it
+
+```
+type:  check_in_time, assigned_doctor?: string | null, chief_complaint?
+live:  checked_in_at, assigned_doctor{}, reason_for_visit,
+       + queue_number, called_at, completed_at, checked_in_by{}
+```
+
+`queue_number` is exactly what a receptionist queue UI needs and is being returned and ignored.
+
+#### 🪤 `/receptionist/check-ins/` defaults to TODAY
+
+```
+GET /receptionist/check-ins/                  → count 0
+GET /receptionist/check-ins/?date=2026-08-13  → count 5
+GET /receptionist/check-ins/?status=WAITING   → count 0   (date filter applies first)
+```
+
+The 5 seeded check-ins are dated 13 Aug, so **against seed data the queue looks empty and broken**,
+and filtering by status alone returns nothing. This is correct behaviour for a "today's queue"
+endpoint, but it will read as a bug to whoever builds D4 — it cost time here and it is written down
+so it does not cost it again.
+
+#### Minor
+
+`GET /receptionist/emergency-beds/` returns `{"emergency_wards": [...]}` — a bare keyed object, not
+a DRF envelope, so `usePaginatedList` is the wrong tool for it.
+
+**Done when:** `Appointment` and `CheckIn` are re-typed from the captured payloads with fixtures
+derived from them (not hand-written), the Receptionist and Doctor tables render real dates and
+doctors, and the check-ins date default is handled explicitly rather than discovered. **Sequencing:**
+the receptionist half rides with **D4** and the doctor half with **D5**, since both rewrite those
+components anyway — fixing the types in isolation first would mean touching the same files twice.
+
+---
+
 ## Resolved flags
 
 *(none yet — move entries here with their PR number and resolution date)*
