@@ -33,10 +33,13 @@ describe('middleware — session gating', () => {
     expect(location(res)).toBe('https://app.test/acme/signin');
   });
 
-  it('redirects an unauthenticated user off /superadmin to the general signin', () => {
+  // Was: expected '/signin'. That assertion locked in sending a superadmin to
+  // the PATIENT portal, which cannot log them in — the backend rejects staff
+  // there. Corrected 2026-08-19 alongside the fix; see the describe block below.
+  it('redirects an unauthenticated user off /superadmin to the SUPERADMIN signin', () => {
     const res = middleware(makeReq('/superadmin'));
     expect(res.status).toBe(307);
-    expect(location(res)).toBe('https://app.test/signin');
+    expect(location(res)).toBe('https://app.test/superadmin/signin');
   });
 
   it('lets a dashboard nav through when ONLY the refresh cookie is present', () => {
@@ -80,5 +83,43 @@ describe('middleware — no /undefined/ redirects', () => {
     );
     expect(res.status).toBe(307);
     expect(location(res)).toBe('https://app.test/superadmin');
+  });
+});
+
+/**
+ * Regression guards for the 2026-08-19 fix: every signin portal must be
+ * reachable while logged OUT, which is the only time it is any use.
+ *
+ * `/superadmin/signin` sits under the `/superadmin` dashboard prefix, so the
+ * dashboard guard claimed it and redirected it to `/signin` — the patients-only
+ * portal, where the backend rejects staff. A superadmin could not sign in at
+ * all. Found by clicking through the running app, not by these tests: nothing
+ * here covered a signin URL without a session, so the bug was invisible.
+ */
+describe('middleware — signin pages are reachable when logged out', () => {
+  it('does NOT redirect /superadmin/signin away when there is no session', () => {
+    const res = middleware(makeReq('/superadmin/signin'));
+    expect(location(res)).toBeNull();
+  });
+
+  it('does NOT redirect the org signin away when there is no session', () => {
+    const res = middleware(makeReq('/acme/signin'));
+    expect(location(res)).toBeNull();
+  });
+
+  it('does NOT redirect the general signin away when there is no session', () => {
+    const res = middleware(makeReq('/signin'));
+    expect(location(res)).toBeNull();
+  });
+
+  it('still guards the superadmin DASHBOARD itself', () => {
+    const res = middleware(makeReq('/superadmin'));
+    expect(res.status).toBe(307);
+    expect(location(res)).toBe('https://app.test/superadmin/signin');
+  });
+
+  it('sends an expired org-staff session to its own org portal, not the general one', () => {
+    const res = middleware(makeReq('/acme/org-admin'));
+    expect(location(res)).toBe('https://app.test/acme/signin');
   });
 });
