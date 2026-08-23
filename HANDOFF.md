@@ -18,7 +18,17 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| *(none — claim before cutting your next branch)* | | | | | |
+| @Qeeyat | **Gate 1 assessment** (docs only) | `docs/gate-1-assessment` | `HANDOFF.md`, `HANDOFF-Qeeyat.md` | 2026-08-22 | 🔄 open |
+| @Qeeyat | **#84** superadmin signin unreachable | `fix/superadmin-signin-unreachable` | `src/middleware.ts` + tests | 2026-08-19 | ⏳ **awaiting @Bastoh review — 3 days** 🔴 UAT-critical |
+| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*` + fixtures | 2026-08-19 | ⏳ **awaiting @Bastoh review — 3 days** 🔴 UAT-critical |
+| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
+| @Qeeyat | **#87** FLAG-213 receptionist shapes | `docs/flag-213-receptionist-shapes` | `CODEBASE_FLAGS.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
+| @Qeeyat | **#88** session log 19 Aug | `docs/session-log-qeeyat-2026-08-19b` | `HANDOFF-Qeeyat.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
+
+> ⚠️ **These five rows were added retroactively on 2026-08-22, which is itself a rule violation worth
+> recording:** the branches were cut and the PRs opened on 19 Aug with the table left empty, so for
+> three days five live branches were invisible to the other dev. Reviewers were correctly set on all
+> five at open time — the gap is the In Flight claim, not the reviewer rule.
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -42,6 +52,61 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 
 ---
 
+## 🚦 GATE 1 — assessment (due Fri 21 Aug · **run late, Sat 22 Aug, by @Qeeyat**)
+
+> **Verdict: 🔴 NO-GO for the backend's UAT week as scheduled.**
+>
+> Gate 1 asks one question — *"is the UI ready for the backend's UAT week?"* (sprint plan, Week 2).
+> It was not run on Fri 21 because @Qeeyat was away Thu 20 – Fri 21. Run here instead, one working
+> day before UAT starts **Mon 24 Aug**. The plan says *"If NO-GO, what moves is decided here — not
+> during UAT."* This section is that decision being surfaced; **the descope itself needs @Bastoh.**
+
+### Criteria, measured on `develop` @ `8eb5f23`
+
+| Gate 1 criterion | Result | Evidence |
+|---|---|---|
+| `tsc --noEmit` clean | ✅ | exit 0 |
+| Suite green | ⚠️ **green, but partly on false fixtures** | 112 passed / 17 files. **6 of them assert payload shapes the backend never sends** — PR #85 makes them fail correctly. Green here is not evidence of correctness |
+| `npm run build` green | ✅ | builds; middleware 35.3 kB |
+| **All six dashboards merged on `develop`** | ❌ | **2 of 6.** D1 Superadmin + D2 Org Admin merged · D3 Nurse in unmerged #86 · **D4/D5/D6 not started** |
+| **Exercised against `api-dev`** | ❌ | see the role table below — 2 of 6 roles cannot sign in at all |
+| `HANDOFF.md` current | ❌ → ✅ | was missing five In Flight rows and this section; both fixed in this PR |
+| No unclaimed In Flight rows | ❌ → ✅ | five branches ran unclaimed 19–22 Aug; claimed retroactively above |
+| **C4 Cloudflare decision written** | ❌ | **the C2 spike was never run.** `HANDOFF-Bastoh.md:206` slipped it from Thu 13 to the Sat 15 float; no writeup exists. `[INFRA]` lane — @Bastoh's call |
+
+### 🔴 The finding that actually matters: what UAT can test on Monday
+
+The backend's UAT week runs **role-by-role through this UI**, so this table is their dependency, not
+just ours. Measured on `develop` today:
+
+| Role | Can sign in? | Renders correctly? | Blocker |
+|---|---|---|---|
+| `SUPERADMIN` | ❌ **no** | — | `isDashboardRoute('/superadmin/signin')` → `true` (`middleware.ts:25`), guard at `:56` fires before `isSigninRoute` → logged-out superadmin is 307'd to `/signin`, the **patients-only** portal, where the backend rejects staff. **Fix sits in unmerged #84** |
+| `PATIENT` | ❌ **no** | — | **FLAG-210** (P1, @Bastoh, open) — `organization: null` is correct, but `roleDashboardPath()` needs a slug |
+| `ORGANIZATION_ADMIN` | ✅ | ❌ blank names, `?` avatars, 2 of 4 stat cards `—` | typed against the wrong endpoints. **Fix sits in unmerged #85** |
+| `DOCTOR` | ✅ | ⚠️ episodes panel **always empty** | **FLAG-004 / E1** — `?status=OPEN` (`doctor/…:58`), the enum is `ACTIVE`; `?today=true` (`:56`) silently ignored. E1 was Fri 14's row and **was never done** |
+| `NURSE` | ✅ | ⚠️ old primitives | D3 in unmerged #86 |
+| `RECEPTIONIST` | ✅ | ⚠️ old primitives | D4 not started |
+
+🚨 **Monday's very first UAT item is impossible today.** Week 3 Mon 24 opens with the receptionist
+journey: *register → HCL-ID → portal invite → patient sets password → **patient logs in***. That last
+step is exactly FLAG-210. The journey cannot complete regardless of how much D4 work lands.
+
+### What unblocks the most, in order
+
+1. 🔴 **Review and merge #84 and #85.** This is no longer housekeeping — it is the difference between
+   **two** roles being untestable on Monday and **four**. Both are already reviewer-assigned to
+   @Bastoh and have sat three days. Cheapest possible win.
+2. 🔴 **FLAG-210 needs its architecture decision** (`[INFRA]`, @Bastoh). Until it lands, the patient
+   role is untestable and the Mon 24 receptionist journey cannot complete end to end.
+3. 🟠 **E1 / FLAG-004** — a small, verifiable fix that makes the Doctor dashboard show real data
+   before Tue 25's doctor journey. Originally scoped as Qeeyat's first PR; still unclaimed.
+4. 🟠 **D4/D5/D6 will not all land before Monday.** Two dashboards do not fit in one float day. Which
+   role UAT covers on old primitives is a **descope decision for @Bastoh and the backend team**, not
+   something to be discovered on Monday morning.
+
+---
+
 ## 📡 Backend Contract Notes
 
 > Backend changes we must consume. The live `/api/v1/schema/` is the single source of truth —
@@ -50,7 +115,7 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 | Date | Note | Status |
 |---|---|---|
 | 2026-08-19 | ⚠️ **Read before D4/D5: `Appointment` and `CheckIn` describe shapes the API does not return, and `/receptionist/check-ins/` defaults to TODAY.** Captured live as `reception@demo.test`. Appointments return `scheduled_at` + a nested `doctor{}` — **not** `appointment_date`/`appointment_time`/`doctor_name`, which is what `ReceptionistDashboard.tsx:208-210` and `DoctorDashboard.tsx:101,310-311` render **on `develop` today**, so both tables show blank dates against real data. Check-ins return `checked_in_at`, a nested `assigned_doctor{}`, `reason_for_visit` and a `queue_number` we ignore — not `check_in_time`/`chief_complaint`. 🪤 **And `/receptionist/check-ins/` with no params returns 0** against seeded data: the 5 seeded check-ins are dated 13 Aug and the endpoint defaults to today, so the queue looks broken and `?status=` alone returns nothing because the date filter applies first. ✅ `ReceptionistStats`, `OnDutyDoctor` and `PatientSearchResult` are all correct as typed. | logged as **FLAG-213** · fixes sequenced **with D4 (receptionist) and D5 (doctor)** rather than separately, since both rewrite those components · ⚠️ **this is the D2 bug class again**, found this time by capturing payloads *before* building |
-| 2026-08-19 | 🚨 **A patient has no organisation, and every patient route we have needs one — so patients cannot sign in.** `GET /auth/me/` returns `"organization": null` for `patient@demo.test`, which is **correct**: records move with the patient between facilities (`CLAUDE.md` §1), so a patient belongs to no single org. But `roleDashboardPath()` builds `/${orgSlug}/patient` and the only route that exists is `/[slug]/patient`, so `SigninForm.tsx:87` refuses the login rather than navigate to `/undefined/patient`. Verified in a real browser against `api-dev`: login returns **200** with role `PATIENT`, then our UI shows *"Signed in, but your organization could not be determined. Please use your organization portal"* — advice that cannot be followed, because the general portal **is** the patient portal. ⚠️ **This nuances FLAG-010:** for patients, the backend's slug-less `redirect_to: "/patient/"` is the **correct** answer, not the loaded gun that flag describes. | ❗ **open — assigned to @Bastoh as FLAG-210** (P1). Needs an architecture decision, not a one-liner: a slug-less `/patient` route (plus `RESERVED_PATHS` + `middleware.ts` changes) or a backend home-org. **Blocks D6 Patient, Thu 20 Aug** |
+| 2026-08-19 | 🚨 **A patient has no organisation, and every patient route we have needs one — so patients cannot sign in.** `GET /auth/me/` returns `"organization": null` for `patient@demo.test`, which is **correct**: records move with the patient between facilities (`CLAUDE.md` §1), so a patient belongs to no single org. But `roleDashboardPath()` builds `/${orgSlug}/patient` and the only route that exists is `/[slug]/patient`, so `SigninForm.tsx:87` refuses the login rather than navigate to `/undefined/patient`. Verified in a real browser against `api-dev`: login returns **200** with role `PATIENT`, then our UI shows *"Signed in, but your organization could not be determined. Please use your organization portal"* — advice that cannot be followed, because the general portal **is** the patient portal. ⚠️ **This nuances FLAG-010:** for patients, the backend's slug-less `redirect_to: "/patient/"` is the **correct** answer, not the loaded gun that flag describes. | ❗ **open — assigned to @Bastoh as FLAG-210** (P1). Needs an architecture decision, not a one-liner: a slug-less `/patient` route (plus `RESERVED_PATHS` + `middleware.ts` changes) or a backend home-org. **Blocks D6 Patient** (was Thu 20 Aug's row; that day passed unworked) · ⏫ **escalated 2026-08-22:** this now also blocks the **Mon 24 Aug UAT opener** — the receptionist journey ends in *"patient logs in"*, which is precisely this bug. It is no longer only a D6 dependency; it is on the backend's UAT critical path |
 | 2026-08-17 | ⚠️ **`?page_size=` is ignored by the server, and the response hides it.** Measured against `api-dev` by @Qeeyat (PR #76, `b6fa74c`): `GET /audit/logs/` → count 162, **results 20**; `?page_size=5` → still **results 20**; `GET /auth/users/?page_size=1` → count 7, **results 7**. The real page size is **20** and `?page=` works, so `usePaginatedList`'s hardcoded 20 is right **by coincidence, not contract** — if the backend retunes `PAGE_SIZE`, every list in the app silently mis-paginates and later pages become unreachable. 🪤 **The trap:** the `next` URL **echoes `page_size` back** while ignoring it, so the payload looks like the param was honoured — verify with `results.length`, never with `next`. The schema documents `page_size` on only two endpoints in the entire API (`/org/{slug}/announcements/`, `/org/contacts/`). | logged as **FLAG-013** · ✅ the one present-tense bug (Overview "Recent Organisations" rendering 20 instead of 5) fixed in PR #76 · ⏳ `usePaginatedList` still sends the ignored param repo-wide, and the superadmin invite dropdown is capped at the first 20 orgs |
 | 2026-08-13 | 🎯 **`api-dev` is now seeded — the dev tier is usable for the first time.** It previously had 112 migrations applied and **zero rows**; the 5 July note *"dev-tier is NOT seeded"* was accurate and the sprint plan's *"real seeded data"* was aspirational. Now present: `demo-clinic` **and** `other-clinic` (a second org, so cross-org isolation is testable — T3), 7 users across all six roles, 21 patients (⚠️ **that is the total across BOTH orgs — `demo-clinic` alone has 14**, corrected 2026-08-19 after a live count; sizing a fixture or expecting pagination from "21" will be wrong), 16 episodes, 7 appointments, 5 check-ins, 31 vitals, 10 prescriptions, 2 wards, 7 beds, 3 admissions, 5 referrals, 4 access requests. Dashboards render populated, not empty. **Verified through the proxy path, not just reported:** both orgs `GET /org/by-slug/<slug>/` → 200 · staff on the generic portal → **400** (not 401) carrying `org_slug` + `redirect_url` · `POST /auth/login/demo-clinic/` → 200 with `{access, refresh, user, redirect_to}`. Login's `user` carries only `id, email, first_name, last_name, role, last_login` — **no organization, no duty fields**; our login route already enriches from `/auth/me/` (`api/auth/login/route.ts:96-117`), so **no code change is needed**. Credentials are synthetic and stay out of this repo. | ✅ **unblocks** visual verification, the T5 harness, and the FLAG-003 re-verification. ✅ **@Qeeyat has credentials** — sent out-of-band by @Bastoh 2026-08-13, together with the three-portal table (staff on the general portal get a **400**, not a 401). Values stay out of this repo |
 | 2026-08-10 | **API host moved to `https://api-dev.healthclouda.com`.** The old Railway host returns HTTP 400 `DisallowedHost` on every path — removed from `ALLOWED_HOSTS` deliberately (it bypassed Cloudflare, sidestepping edge rate limiting + the audit-logging security header). **It will not be restored.** | ✅ purged from the codebase 2026-08-12 (A2) |
