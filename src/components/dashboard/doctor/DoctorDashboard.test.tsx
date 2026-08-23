@@ -210,6 +210,25 @@ describe('FLAG-004 — the Episodes PAGE had the same bug as the overview panel'
   });
 });
 
+describe('D5 — the shared filter control is announceable', () => {
+  it('groups the episode filters and marks the active one with aria-pressed', async () => {
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+
+    const group = await screen.findByRole('group', { name: /filter episodes by status/i });
+    expect(group).toBeInTheDocument();
+
+    // Active is the default, so it is the pressed one — a screen reader user
+    // otherwise has no way to tell which filter is applied, because the only
+    // signal is the pill's background colour.
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Completed' })).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Completed' }));
+    expect(screen.getByRole('button', { name: 'Completed' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
 describe('FLAG-213 (doctor half) — appointments render the real payload', () => {
   it('renders a real date from scheduled_at rather than a blank appointment_date', async () => {
     render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);

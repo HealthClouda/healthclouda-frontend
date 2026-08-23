@@ -6,10 +6,9 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle } from '@/components/dashboard/DutyToggle';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
@@ -37,14 +36,180 @@ const NAV: NavItem[] = [
   { id: 'prescriptions', label: 'Prescriptions', icon: <BeakerIcon /> },
 ];
 
-function TableWrap({ children }: { children: React.ReactNode }) {
-  return <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white"><table className="w-full text-sm">{children}</table></div>;
+/**
+ * Segmented filter control, shared by Episodes and Referrals — both previously
+ * carried their own copy of this markup.
+ *
+ * ⚠️ The active pill is `bg-primary-dark`, NOT `bg-primary`. Measured
+ * 2026-08-23: white on `primary` is **4.21:1 and fails WCAG AA** (FLAG-014),
+ * white on `primary-dark` is **5.98:1 and passes**. The `bg-blue-600` this
+ * replaces was 5.17:1 — also passing — so migrating to `bg-primary` "for
+ * consistency" would have been a silent accessibility regression on a control
+ * that was previously fine. Tokens are not automatically the accessible choice.
+ */
+function FilterTabs<T extends string>({
+  value, options, onChange, label,
+}: {
+  value: T;
+  options: readonly { value: T; label: string }[];
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div className="flex rounded-lg border border-border overflow-hidden text-xs font-medium" role="group" aria-label={label}>
+      {options.map(o => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={`px-3 py-1.5 transition-colors ${
+            value === o.value ? 'bg-primary-dark text-white' : 'text-text-mid hover:bg-page'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 }
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{children}</th>;
+
+/** Page heading + count line, repeated on every list page. */
+function PageHeading({ title, count, unit }: { title: string; count: number; unit: string }) {
+  return (
+    <div>
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
+      {count > 0 && <p className="text-sm text-text-soft mt-0.5">{count} {unit}</p>}
+    </div>
+  );
 }
-function Td({ children, className = '', testId }: { children: React.ReactNode; className?: string; testId?: string }) {
-  return <td className={`px-4 py-3.5 text-gray-700 ${className}`} data-testid={testId}>{children}</td>;
+
+/**
+ * Names the patient on a row that may carry either a flat `patient_name` or a
+ * nested `patient`. Episodes/referrals/prescriptions still hedge both ways —
+ * unlike `Appointment`, their real shapes have not been captured live yet, so
+ * the hedge stays until someone verifies them (the FLAG-213 treatment, applied
+ * to the other three list endpoints, is still owed).
+ */
+function subjectName(row: {
+  patient_name?: string;
+  patient?: { first_name: string; last_name: string };
+}): string {
+  return row.patient_name ?? personName(row.patient);
+}
+
+/**
+ * Episode status filters. ACTIVE | COMPLETED are the real enum values (live
+ * schema, 2026-08-22) — these tabs previously read Open/Closed, which matched
+ * nothing (FLAG-004).
+ */
+const EPISODE_FILTERS = [
+  { value: 'ACTIVE' as const, label: 'Active' },
+  { value: 'COMPLETED' as const, label: 'Completed' },
+  { value: '' as const, label: 'All' },
+];
+
+const REFERRAL_TABS = [
+  { value: 'outgoing' as const, label: 'Outgoing' },
+  { value: 'incoming' as const, label: 'Incoming' },
+];
+
+// ─── Column definitions ───────────────────────────────────────────
+
+const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
+  { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
+  { key: 'complaint', header: 'Complaint', className: 'max-w-[160px]', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 30)}</span> },
+  { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
+];
+
+const patientColumns: DataTableColumn<PatientSummary>[] = [
+  {
+    key: 'patient',
+    header: 'Patient',
+    render: p => (
+      <div className="flex items-center gap-2.5">
+        <Avatar firstName={p.first_name} lastName={p.last_name} size="sm" />
+        <div>
+          <div className="font-medium text-ink">{p.first_name} {p.last_name}</div>
+          <div className="text-xs text-text-soft">{p.email ?? '—'}</div>
+        </div>
+      </div>
+    ),
+  },
+  { key: 'phone', header: 'Phone', render: p => p.phone_number ?? '—' },
+  { key: 'dob', header: 'Date of Birth', render: p => (p.date_of_birth ? formatDate(p.date_of_birth) : '—') },
+  { key: 'since', header: 'Since', className: 'whitespace-nowrap', render: p => <span className="text-text-soft">{formatDate(p.created_at)}</span> },
+];
+
+function episodeColumns(onComplete: (ep: Episode) => void): DataTableColumn<Episode>[] {
+  return [
+    { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
+    { key: 'complaint', header: 'Chief Complaint', className: 'max-w-xs', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 50)}</span> },
+    { key: 'status', header: 'Status', render: ep => <StatusBadge status={ep.status} /> },
+    { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
+    {
+      key: 'actions',
+      header: 'Actions',
+      // ACTIVE, not OPEN — see FLAG-004. Gated on the wrong value, this action
+      // never rendered at all.
+      render: ep => ep.status === 'ACTIVE' ? (
+        <button onClick={() => onComplete(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+          Complete
+        </button>
+      ) : null,
+    },
+  ];
+}
+
+const appointmentColumns: DataTableColumn<Appointment>[] = [
+  {
+    key: 'patient',
+    header: 'Patient',
+    render: a => (
+      <div className="flex items-center gap-2.5">
+        <Avatar firstName={a.patient?.first_name ?? '?'} lastName={a.patient?.last_name ?? ''} size="sm" />
+        <span className="font-medium text-ink">{personName(a.patient)}</span>
+      </div>
+    ),
+  },
+  { key: 'doctor', header: 'Doctor', render: a => <span data-testid={`appt-doctor-${a.id}`}>{personName(a.doctor)}</span> },
+  { key: 'date', header: 'Date', className: 'whitespace-nowrap', render: a => <span data-testid={`appt-when-${a.id}`}>{formatDate(a.scheduled_at)}</span> },
+  { key: 'time', header: 'Time', render: a => <span className="text-text-soft">{formatTime(a.scheduled_at)}</span> },
+  { key: 'reason', header: 'Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.reason ?? a.notes ?? '—', 40)}</span> },
+  { key: 'status', header: 'Status', render: a => a.status ? <StatusBadge status={a.status} /> : <span className="text-text-soft">—</span> },
+];
+
+function referralColumns(tab: 'outgoing' | 'incoming'): DataTableColumn<Referral>[] {
+  return [
+    { key: 'patient', header: 'Patient', render: r => <span className="font-medium text-ink">{subjectName(r)}</span> },
+    {
+      key: 'party',
+      header: tab === 'outgoing' ? 'Referred To' : 'Referred By',
+      render: r => (tab === 'outgoing' ? r.referred_to : r.referring_doctor) ?? '—',
+    },
+    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: r => <span className="text-text-soft">{truncate(r.reason ?? '—', 45)}</span> },
+    { key: 'date', header: 'Date', className: 'whitespace-nowrap', render: r => <span className="text-text-soft">{formatDate(r.created_at)}</span> },
+    { key: 'status', header: 'Status', render: r => <StatusBadge status={r.status} /> },
+  ];
+}
+
+function prescriptionColumns(onCancel: (rx: Prescription) => void): DataTableColumn<Prescription>[] {
+  return [
+    { key: 'patient', header: 'Patient', render: rx => <span className="font-medium text-ink">{subjectName(rx)}</span> },
+    { key: 'medication', header: 'Medication', render: rx => <span className="font-medium text-text-mid">{rx.medication}</span> },
+    { key: 'dosage', header: 'Dosage', render: rx => rx.dosage ?? '—' },
+    { key: 'frequency', header: 'Frequency', render: rx => rx.frequency ?? '—' },
+    { key: 'status', header: 'Status', render: rx => <StatusBadge status={rx.status} /> },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: rx => rx.status === 'ACTIVE' ? (
+        <button onClick={() => onCancel(rx)} className="text-xs font-semibold text-danger hover:underline">
+          Cancel
+        </button>
+      ) : null,
+    },
+  ];
 }
 
 // ─── Overview ─────────────────────────────────────────────────────
@@ -102,17 +267,17 @@ function OverviewPage({
           {apptLoading ? <ShimmerRows count={4} /> : apptError ? (
             <ErrorState message={apptError} onRetry={apptRefetch} />
           ) : !todayAppts.length ? (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-5 text-center">
-              <p className="text-sm font-medium text-blue-700">No appointments scheduled for today</p>
+            <div className="bg-chip border border-primary/15 rounded-card px-4 py-5 text-center">
+              <p className="text-sm font-medium text-primary-dark">No appointments scheduled for today</p>
             </div>
           ) : (
             <div className="space-y-2">
               {todayAppts.map(a => (
-                <div key={a.id} className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 hover:border-blue-200 hover:shadow-sm transition-all">
+                <div key={a.id} className="flex items-center gap-3 bg-white border border-border rounded-card px-4 py-3 hover:border-primary/30 hover:shadow-dash-card transition-all">
                   <Avatar firstName={a.patient?.first_name ?? '?'} lastName={a.patient?.last_name ?? ''} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{personName(a.patient)}</p>
-                    <p className="text-xs text-gray-400">{formatTime(a.scheduled_at)}</p>
+                    <p className="text-sm font-medium text-ink truncate">{personName(a.patient)}</p>
+                    <p className="text-xs text-text-soft">{formatTime(a.scheduled_at)}</p>
                   </div>
                   {a.status ? <StatusBadge status={a.status} /> : null}
                 </div>
@@ -121,34 +286,22 @@ function OverviewPage({
           )}
         </div>
 
-        {/* Recent open episodes */}
+        {/* Recent active episodes */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-900">Open Episodes</h2>
-            <button onClick={() => onNavigate('episodes')} className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</button>
+            <h2 className="text-sm font-semibold text-ink">Active Episodes</h2>
+            <button onClick={() => onNavigate('episodes')} className="text-xs font-medium text-primary-dark hover:underline">View all →</button>
           </div>
-          {epLoading ? <ShimmerRows count={4} /> : epError ? (
-            <ErrorState message={epError} onRetry={epRefetch} />
-          ) : !recentEps.length ? (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-5 text-center">
-              <p className="text-sm font-medium text-emerald-700">No open episodes</p>
-            </div>
-          ) : (
-            <TableWrap>
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr><Th>Patient</Th><Th>Complaint</Th><Th>Opened</Th></tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {recentEps.map(ep => (
-                  <tr key={ep.id} className="hover:bg-gray-50/60 transition-colors">
-                    <Td><span className="font-medium text-gray-900">{ep.patient_name ?? (ep.patient ? `${ep.patient.first_name} ${ep.patient.last_name}` : '—')}</span></Td>
-                    <Td className="text-xs text-gray-500 max-w-[160px]">{truncate(ep.chief_complaint ?? '—', 30)}</Td>
-                    <Td className="text-xs text-gray-400 whitespace-nowrap">{timeAgo(ep.created_at)}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </TableWrap>
-          )}
+          <DataTable
+            columns={overviewEpisodeColumns}
+            data={recentEps}
+            getRowKey={ep => ep.id}
+            loading={epLoading}
+            error={epError}
+            onRetry={epRefetch}
+            emptyTitle="No active episodes"
+            emptyDescription="Episodes you open will appear here."
+          />
         </div>
       </div>
     </div>
@@ -163,40 +316,22 @@ function MyPatientsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">My Patients</h2>
-        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} active</p>}
-      </div>
-      {loading ? <ShimmerRows count={7} /> : error ? (
-        <ErrorState message={error} onRetry={refetch} />
-      ) : !patients.length ? (
-        <EmptyState title="No patients" description="Patients assigned to you will appear here." />
-      ) : (
-        <TableWrap>
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Phone</Th><Th>Date of Birth</Th><Th>Since</Th></tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {patients.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar firstName={p.first_name} lastName={p.last_name} size="sm" />
-                    <div>
-                      <div className="font-medium text-gray-900">{p.first_name} {p.last_name}</div>
-                      <div className="text-xs text-gray-400">{p.email ?? '—'}</div>
-                    </div>
-                  </div>
-                </Td>
-                <Td className="text-xs">{p.phone_number ?? '—'}</Td>
-                <Td className="text-xs">{p.date_of_birth ? formatDate(p.date_of_birth) : '—'}</Td>
-                <Td className="text-xs text-gray-400">{formatDate(p.created_at)}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
-      )}
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
+      <PageHeading title="My Patients" count={count} unit="active" />
+      <DataTable
+        columns={patientColumns}
+        data={patients}
+        getRowKey={p => p.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No patients"
+        emptyDescription="Patients assigned to you will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
     </div>
   );
 }
@@ -234,52 +369,30 @@ function EpisodesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900">Episodes</h2>
-          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} {filter.toLowerCase() || 'total'}</p>}
-        </div>
-        <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
-          {(['ACTIVE', 'COMPLETED', ''] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => { setFilter(f); setPage(1); }}
-              className={`px-3 py-1.5 transition-colors ${filter === f ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              {f === '' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
+        <PageHeading title="Episodes" count={count} unit={filter.toLowerCase() || 'total'} />
+        <FilterTabs
+          label="Filter episodes by status"
+          value={filter}
+          onChange={f => { setFilter(f); setPage(1); }}
+          options={EPISODE_FILTERS}
+        />
       </div>
 
-      {loading ? <ShimmerRows count={6} /> : error ? (
-        <ErrorState message={error} onRetry={refetch} />
-      ) : !episodes.length ? (
-        <EmptyState title={`No ${filter.toLowerCase() || ''} episodes`} description="Episodes will appear here." />
-      ) : (
-        <TableWrap>
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Chief Complaint</Th><Th>Status</Th><Th>Opened</Th><Th>Actions</Th></tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {episodes.map(ep => (
-              <tr key={ep.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td><span className="font-medium text-gray-900">{ep.patient_name ?? (ep.patient ? `${ep.patient.first_name} ${ep.patient.last_name}` : '—')}</span></Td>
-                <Td className="text-xs text-gray-500 max-w-xs">{truncate(ep.chief_complaint ?? '—', 50)}</Td>
-                <Td><StatusBadge status={ep.status} /></Td>
-                <Td className="text-xs text-gray-400 whitespace-nowrap">{timeAgo(ep.created_at)}</Td>
-                <Td>
-                  {ep.status === 'ACTIVE' && (
-                    <button onClick={() => setCompleting(ep)} className="text-xs font-medium text-blue-600 hover:text-blue-800">
-                      Complete
-                    </button>
-                  )}
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
-      )}
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
+      <DataTable
+        columns={episodeColumns(setCompleting)}
+        data={episodes}
+        getRowKey={ep => ep.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle={`No ${filter.toLowerCase() || ''} episodes`.replace('  ', ' ')}
+        emptyDescription="Episodes will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
 
       <ConfirmDialog
         open={!!completing}
@@ -303,40 +416,24 @@ function AppointmentsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">Appointments</h2>
-        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
-      </div>
-      {loading ? <ShimmerRows count={7} /> : error ? (
-        <ErrorState message={error} onRetry={refetch} />
-      ) : !list.length ? (
-        <EmptyState title="No appointments" description="Your scheduled appointments will appear here." />
-      ) : (
-        <TableWrap>
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Doctor</Th><Th>Date</Th><Th>Time</Th><Th>Reason</Th><Th>Status</Th></tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {list.map(a => (
-              <tr key={a.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar firstName={a.patient?.first_name ?? '?'} lastName={a.patient?.last_name ?? ''} size="sm" />
-                    <span className="font-medium text-gray-900">{personName(a.patient)}</span>
-                  </div>
-                </Td>
-                <Td className="text-xs" testId={`appt-doctor-${a.id}`}>{personName(a.doctor)}</Td>
-                <Td className="text-xs whitespace-nowrap" testId={`appt-when-${a.id}`}>{formatDate(a.scheduled_at)}</Td>
-                <Td className="text-xs text-gray-400">{formatTime(a.scheduled_at)}</Td>
-                <Td className="text-xs text-gray-500 max-w-xs">{truncate(a.reason ?? a.notes ?? '—', 40)}</Td>
-                <Td>{a.status ? <StatusBadge status={a.status} /> : <span className="text-xs text-gray-400">—</span>}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
-      )}
-      {/* Was destructured and never rendered, so page 2+ was unreachable. */}
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
+      <PageHeading title="Appointments" count={count} unit="total" />
+      {/* Pagination was destructured and never rendered before, so page 2+ was
+          unreachable. DataTable renders it from these props. */}
+      <DataTable
+        columns={appointmentColumns}
+        data={list}
+        getRowKey={a => a.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No appointments"
+        emptyDescription="Your scheduled appointments will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
     </div>
   );
 }
@@ -352,42 +449,29 @@ function ReferralsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900">Referrals</h2>
-          {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} {tab}</p>}
-        </div>
-        <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
-          {(['outgoing', 'incoming'] as const).map(t => (
-            <button key={t} onClick={() => { setTab(t); setPage(1); }}
-              className={`px-3 py-1.5 capitalize transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-              {t}
-            </button>
-          ))}
-        </div>
+        <PageHeading title="Referrals" count={count} unit={tab} />
+        <FilterTabs
+          label="Referral direction"
+          value={tab}
+          onChange={t => { setTab(t); setPage(1); }}
+          options={REFERRAL_TABS}
+        />
       </div>
-      {loading ? <ShimmerRows count={5} /> : error ? (
-        <ErrorState message={error} onRetry={refetch} />
-      ) : !list.length ? (
-        <EmptyState title={`No ${tab} referrals`} description="Referrals will appear here." />
-      ) : (
-        <TableWrap>
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>{tab === 'outgoing' ? 'Referred To' : 'Referred By'}</Th><Th>Reason</Th><Th>Date</Th><Th>Status</Th></tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {list.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td><span className="font-medium text-gray-900">{r.patient_name ?? (r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : '—')}</span></Td>
-                <Td className="text-xs">{tab === 'outgoing' ? (r.referred_to ?? '—') : (r.referring_doctor ?? '—')}</Td>
-                <Td className="text-xs text-gray-500 max-w-xs">{truncate(r.reason ?? '—', 45)}</Td>
-                <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(r.created_at)}</Td>
-                <Td><StatusBadge status={r.status} /></Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
-      )}
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
+      <DataTable
+        columns={referralColumns(tab)}
+        data={list}
+        getRowKey={r => r.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle={`No ${tab} referrals`}
+        emptyDescription="Referrals will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
     </div>
   );
 }
@@ -418,38 +502,22 @@ function PrescriptionsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">Prescriptions</h2>
-        {count > 0 && <p className="text-sm text-gray-400 mt-0.5">{count} total</p>}
-      </div>
-      {loading ? <ShimmerRows count={6} /> : error ? (
-        <ErrorState message={error} onRetry={refetch} />
-      ) : !list.length ? (
-        <EmptyState title="No prescriptions" description="Prescriptions you've issued will appear here." />
-      ) : (
-        <TableWrap>
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr><Th>Patient</Th><Th>Medication</Th><Th>Dosage</Th><Th>Frequency</Th><Th>Status</Th><Th>Actions</Th></tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {list.map(rx => (
-              <tr key={rx.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td><span className="font-medium text-gray-900">{rx.patient_name ?? (rx.patient ? `${rx.patient.first_name} ${rx.patient.last_name}` : '—')}</span></Td>
-                <Td className="font-medium text-gray-800">{rx.medication}</Td>
-                <Td className="text-xs">{rx.dosage ?? '—'}</Td>
-                <Td className="text-xs">{rx.frequency ?? '—'}</Td>
-                <Td><StatusBadge status={rx.status} /></Td>
-                <Td>
-                  {rx.status === 'ACTIVE' && (
-                    <button onClick={() => setCancelling(rx)} className="text-xs font-medium text-red-600 hover:text-red-800">Cancel</button>
-                  )}
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
-      )}
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={20} />
+      <PageHeading title="Prescriptions" count={count} unit="total" />
+      <DataTable
+        columns={prescriptionColumns(setCancelling)}
+        data={list}
+        getRowKey={rx => rx.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No prescriptions"
+        emptyDescription="Prescriptions you've issued will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
       <ConfirmDialog
         open={!!cancelling}
         onClose={() => setCancelling(null)}
@@ -498,6 +566,7 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       user={{ ...user, is_on_duty: isOnDuty }}
       pageTitle={PAGE_TITLES[page]}
       dutyToggle={<DutyToggle isOnDuty={isOnDuty} onToggle={setIsOnDuty} />}
+      smallScreenGateFor="Doctor"
     >
       {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} isOnDuty={isOnDuty} />}
       {page === 'patients'      && <MyPatientsPage />}
