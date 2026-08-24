@@ -141,6 +141,93 @@ including `Unable to find GW-21` — the board stopping dead at GW-20.
 - [ ] 🟠 **FLAG-006 / E8 — no CI.** Every gate tonight was me running three commands locally and
       choosing to report them honestly. That is not a gate.
 
+
+#### Part 2, same session — D4 Receptionist and D5's writes (PRs #94, #95)
+
+**Goal:** with both blockers cleared, actually move the two lanes that hadn't started. D4 then D5.
+
+**The finding that reframed the night:**
+
+- 🎯 **`/api/v1/schema/` needs NO authentication.** An unauthenticated GET returns 200 and all 125
+  paths. I had told Bastoh on #86, hours earlier, that I couldn't verify an endpoint because I had
+  "no token to hand tonight." **That was never a reason.** Only live *data* needs auth; shapes,
+  params and required fields never did. Corrected on the PR, recorded in `HANDOFF.md`, and it is
+  why every scoping decision below rests on evidence instead of a captured payload from five days
+  ago. **If a contract question feels blocked on credentials, it probably isn't.**
+
+**What I found by reading the schema BEFORE building — all three would otherwise have shipped:**
+
+- 🚨 **`POST /patients/` returns no `id` and no `healthclouda_id`** (FLAG-216, backend #137). The
+  HCL-ID handout is the entire point of front-desk registration and it cannot be built. The
+  available workaround — search for the patient just created and take the first result — **I
+  refused.** Two same-name registrations minutes apart are indistinguishable, and handing someone
+  the wrong HealthClouda ID attaches their records to another person, invisibly, at a desk. The
+  screen says the ID isn't available and offers a search where the receptionist can *see* who they
+  pick. Asked the user first; they chose file-and-build-around, which is what CLAUDE.md §1 mandates
+  anyway.
+- 🚨 **Referral accept/decline is no longer the doctor's** (FLAG-220). The sprint plan told us to
+  re-read Swagger before D5 because this was due ~20 Aug. It landed: *"the receiving organisation's
+  ORGANIZATION_ADMIN only — a doctor can no longer self-accept."* 🪤 **And the endpoints are still
+  under `/doctor/`** — a path that says doctor, an authorisation that says otherwise. Building D5's
+  sprint row as written would have shipped a button that 403s every time. It belongs in **D2 Org
+  Admin**, where it is currently a hole in the product, not a misplaced button.
+- 🚨 **Every receptionist write endpoint documents an empty request body** (FLAG-218) — check-in
+  creation, appointment booking, check-in status. Same for `/doctor/prescriptions/`, which has **no
+  `Prescription` component in the schema at all**. So four write flows across D4 and D5 were left
+  unbuilt rather than invented. Everything that shipped is backed by the schema or a live capture.
+
+**Two corrections to my own flags, both from the same cause:**
+
+- **FLAG-211 was wrong twice.** I'd already narrowed its "the schema documents no params" claim
+  earlier tonight. Reading further, **its other half is also too broad**: some endpoints *do*
+  document role permissions — in the `description` string. The patients viewset spells out
+  `CREATE (POST): SUPERADMIN, RECEPTIONIST only` and `RECEPTIONIST: contact info only`, which is how
+  D4's registration and contact-edit were verified without a single POST at shared seed data. It is
+  12 operations across 6 paths. **Params hide in the same place** — `/receptionist/appointments/`
+  declares none and its description names three. FLAG-217 records this.
+- The one thing FLAG-211 still gets right: `/ward/admissions/` POST documents no permissions, so
+  "may a nurse admit?" is genuinely still open. Checked, not assumed.
+
+**Decisions:**
+
+- **Split D4 into function now, design later** — following the #90 → #91 precedent. Check-ins and
+  appointments are on `DataTable` because they were rewritten anyway; the rest follows.
+- **Episode create starts from a patient row, not a picker.** A picker lists patients, and a
+  client-side one sees page 1 only (FLAG-214). A doctor silently unable to find their own patient
+  is worse than one extra click.
+- **Used `POST /episodes/`, not `/doctor/episodes/`** — the doctor-scoped one documents no body.
+  Wrote the reason into `config.ts` next to the constant, because the obvious-looking choice is the
+  wrong one.
+
+**Mistakes I made and fixed:**
+
+- **The same a11y defect twice in one night**: in D4 the panel submit and the opener both read
+  "Register patient"; in D5, both read "Start episode". Two buttons with one accessible name, on
+  screen together. Both caught by tests failing with *"Found multiple elements with the role
+  button"* — a test failure that looks like a selector problem and is actually a real defect.
+  **Worth remembering: `getByRole` ambiguity is usually the UI's fault, not the test's.**
+- **`tsc` caught me adding a duplicate `EPISODES` key** to `ENDPOINTS` — it already existed. I
+  annotated the existing one rather than shadowing it.
+- **I claimed D5 In Flight *after* cutting the branch.** That is the exact rule I broke on 19 Aug and
+  wrote down as a lesson. Recorded rather than quietly backdated.
+
+**Verified:** #94 — tsc clean, 135/135, build green. #95 — tsc clean, 131/131, build green. New
+field tests confirmed **RED** against the pre-fix source in both: D4's pre-fix code could not render
+the patient's *name* from the real check-in payload.
+
+**Left undone / next:**
+- [ ] 🔴 **#85, #86, #94, #95 all await @Bastoh.** Four open PRs is more queue than I'd like given
+      what three days of latency cost last week — worth flagging rather than repeating.
+- [ ] 🔴 **FLAG-210 patient signin** — still his, still the one Gate 1 blocker I cannot clear.
+- [ ] 🔴 **FLAG-218's write bodies** are the largest remaining product gap: a receptionist cannot
+      check a patient in or book an appointment. Settle right after backend #137.
+- [ ] 🟠 **FLAG-220 → D2**: the ORG_ADMIN incoming-referral queue does not exist anywhere.
+- [ ] 🟠 **Sweep the other creates** for FLAG-219's missing-`id` convention (`/referrals/`,
+      `/ward/admissions/`).
+- [ ] 🟠 **D4/D5 design migration** — the remaining tables onto `DataTable`, per the #90 → #91 split.
+- [ ] 🟠 **Update `CLAUDE.md`/`ONBOARDING.md`** to say: read the schema's `description`, and it needs
+      no token. Both would have saved me time tonight and neither is written down.
+
 ---
 
 ### 2026-08-22/23 — Gate 1 run late (NO-GO), then the doctor contract fixed (branches: docs/gate-1-assessment #89, feat/dash-5-doctor #90)
