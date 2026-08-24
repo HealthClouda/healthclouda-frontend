@@ -922,6 +922,110 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
+### FLAG-216 — `POST /patients/` returns no identifiers, so the HCL-ID handout cannot be built
+**Severity:** P1 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN — filed upstream
+**Found:** 2026-08-24, verifying D4 against the live schema before building
+
+The 201 response to `POST /api/v1/patients/` is the `PatientCreate` serializer: 19 fields and
+**no `id`, no `healthclouda_id`**. Read from the component directly, not inferred from an example.
+
+Registering a patient and reading them their HealthClouda ID is the point of the front-desk flow.
+It cannot be done, and there is no fallback: without `id` we cannot even follow up with
+`GET /patients/{id}/`, and `send-portal-invite` needs that same `patient_id`.
+
+**⚠️ The available workaround was deliberately refused.** We could search for the patient just
+created and take the first result. Two patients registered with the same name minutes apart are
+indistinguishable that way, and handing someone the **wrong HealthClouda ID** in an EHR attaches
+their records to another person — invisibly, at a reception desk, with no error anywhere. A gap the
+receptionist can see is safer than a guess they cannot.
+
+**What was built instead:** registration works and says plainly that the ID is not available yet,
+with a one-click search for the patient by name. The receptionist gets the ID from the search
+result, where it is unambiguous because they can see who they picked.
+
+**Filed:** backend [#137](https://github.com/HealthClouda/healthclouda-backend/issues/137), which
+also asks whether the *"email optional, phone required when email omitted"* rule exists —
+`PatientCreateRequest` marks only `first_name`/`last_name` required, so if that rule lives in
+`validate()` our form cannot mirror it and the receptionist meets it as a 400 after submitting.
+
+**Done when:** the 201 carries `id` and `healthclouda_id`, the registration screen shows the ID
+directly, and the "search for them instead" notice is deleted.
+
+---
+
+### FLAG-217 — This API documents permissions and query params in prose, not in the schema fields
+**Severity:** P2 · **Area:** Backend contract / process · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-24, reading the live schema for D4
+
+Two discoveries that change how we should read `/api/v1/schema/`, both the opposite of what our own
+flags asserted.
+
+**1. `/api/v1/schema/` needs no authentication.** An unauthenticated GET returns 200 and the full
+125-path document. Both devs have deferred contract questions believing a token was required —
+@Qeeyat did it on PR #86 the same night this was found. **Only live *data* needs auth. Shapes,
+params and required fields never did.**
+
+**2. Some endpoints DO document their role permissions — in the `description` string.** The patients
+viewset spells it out verbatim:
+
+```
+Permissions:
+- VIEW (GET): All staff members
+- CREATE (POST): SUPERADMIN, RECEPTIONIST only
+- UPDATE (PUT/PATCH):
+    - SUPERADMIN, ORG_ADMIN: all fields
+    - RECEPTIONIST: contact info only
+    - DOCTOR, NURSE: medical info only
+- DELETE: SUPERADMIN, ORG_ADMIN only
+```
+
+This is exactly what FLAG-209 and FLAG-211 say the schema "never" exposes. It is not never — it is
+**12 operations across 6 paths**, all of them prose. D4's contact-edit and registration permissions
+were both settled from that block rather than by guessing or by POSTing at shared seed data.
+
+**Params hide in the same place.** `/receptionist/appointments/` declares no parameters and its
+description says `GET: appointments (?date=&doctor_id=&status=)`. `/ward/admissions/` declares none
+and documents `status`, `ward_id`, `patient_id`. Given that inventing query params is a known bug
+class here (DRF ignores unknown params silently), **the descriptions are load-bearing and must be
+read** — they are frequently the only place a param is written down.
+
+**Where it does NOT help:** `/ward/admissions/` POST documents no permissions, so FLAG-211's actual
+question — may a nurse admit? — is still open. Checked, not assumed.
+
+**Done when:** `ONBOARDING.md` and the contract-seam section of `CLAUDE.md` say to read the schema
+**description** as well as the parameters, and FLAG-209/211's "the schema never exposes roles"
+wording is narrowed to "unless the description says so — check first."
+
+---
+
+### FLAG-218 — Every receptionist write endpoint documents an empty request body
+**Severity:** P1 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-24, scoping D4
+
+`POST /receptionist/check-ins/` (check a patient in), `POST /receptionist/appointments/` (book), and
+`PATCH /receptionist/check-ins/{id}/` (call / complete / no-show) all carry **no `requestBody` in
+the schema at all** — they are hand-rolled APIViews whose descriptions name the *action* but never
+the payload. `PATCH /patients/{id}/` is the same: role rules in prose, no documented body.
+
+FLAG-213 captured the **GET** shapes for these endpoints live, but not the write shapes, so there is
+no second source either.
+
+**Consequence for D4:** checking a patient in and booking an appointment — two things a receptionist
+does constantly — **were not built**, because building them means inventing a request body and
+discovering the truth from 400s in front of a patient. Everything D4 *did* ship is backed by either
+the schema or a live capture.
+
+What shipped instead: the queue and appointment list read correctly, are filterable by the params
+the descriptions document, and doctor assignment (whose body was already known and working) is
+unchanged.
+
+**Done when:** the three write bodies are documented — ideally in the schema, otherwise captured
+live against a disposable record with @Bastoh's agreement — and check-in creation plus appointment
+booking are built. **This is the largest remaining gap in D4** and should be the first thing settled
+after backend #137.
+
+---
+
 *Last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
 fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-012 raised 2026-08-13
@@ -931,7 +1035,7 @@ raised 2026-08-17, building D2 Org Admin (PR #78, merged 2026-08-19) — FLAG-20
 **FLAG-013/014/015 raised 2026-08-17 reviewing PRs #76/#77/#78 — numbered in @Bastoh's range, owned
 by @Qeeyat** (see the note under the range table). FLAG-013 and FLAG-014 were **swapped on
 2026-08-19** so that `page_size` is 013, matching three in-code comments already merged on `develop`
-— see the numbering note on FLAG-013.*
+— see the numbering note on FLAG-013. FLAG-216/217/218 raised 2026-08-24, verifying D4 against the live schema BEFORE building it — which is how all three were found rather than shipped.*
 
 > ⚠️ **FLAG-011 is still OPEN — do not read `HANDOFF.md` as saying otherwise.** Its "Cleared on
 > merge" line reads *"FLAG-011 token contrast — PR #68"*, which looks like a fix. PR #68 was

@@ -266,14 +266,76 @@ export interface Referral {
   created_at: string;
 }
 
+/**
+ * GET /receptionist/check-ins/ — captured live 2026-08-19 (FLAG-213).
+ *
+ * The previous type described `check_in_time`, a string `assigned_doctor` and
+ * `chief_complaint`; none of the three exist. The endpoint returns
+ * `checked_in_at`, a nested `assigned_doctor` OBJECT and `reason_for_visit`,
+ * plus `queue_number` — which is precisely what a queue UI needs and was being
+ * returned and thrown away.
+ *
+ * ⚠️ The schema documents NO response body for this endpoint (it is a
+ * hand-rolled APIView), so this shape comes from a live capture and nothing
+ * else. Do not "tidy" it against the schema — the schema has nothing to say.
+ */
 export interface CheckIn {
   id: string;
-  patient?: { first_name: string; last_name: string };
-  patient_name?: string;
-  check_in_time: string;
-  assigned_doctor?: string | null;
+  queue_number?: number;
+  patient?: { id?: string; first_name: string; last_name: string; healthclouda_id?: string };
+  checked_in_at: string;
+  assigned_doctor?: { id: string; first_name: string; last_name: string } | null;
+  checked_in_by?: { id?: string; first_name: string; last_name: string } | null;
+  reason_for_visit?: string | null;
   status: string;
-  chief_complaint?: string;
+  called_at?: string | null;
+  completed_at?: string | null;
+}
+
+/**
+ * GET /patients/{id}/ — `PatientDetail`, read from the live schema 2026-08-24.
+ * Only the fields D4 consumes are listed; the serializer returns ~30.
+ *
+ * `has_portal_account` lives HERE and on no list endpoint — not on
+ * `PatientList`, not on `PatientSearchResult` — so deciding whether to offer a
+ * portal invite costs one detail fetch per patient. That is a contract fact,
+ * not an oversight to optimise away.
+ */
+export interface PatientDetail {
+  id: string;
+  healthclouda_id: string;
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string;
+  date_of_birth?: string | null;
+  age?: number;
+  gender?: string;
+  has_portal_account: boolean;
+  is_active?: boolean;
+}
+
+/**
+ * POST /patients/ request body — `PatientCreateRequest` from the live schema
+ * 2026-08-24. **Only `first_name` and `last_name` are required.**
+ *
+ * ⚠️ The sprint plan records a rule that email is optional but phone becomes
+ * REQUIRED when email is omitted. That rule is NOT in the schema — if it
+ * exists it is in the serializer's `validate()`, where our form cannot see it,
+ * and the receptionist meets it as a 400 after submitting. Asked in backend
+ * #137; until answered, the form asks for phone but does not hard-block on it,
+ * because inventing a client-side rule the server may not share is how you get
+ * a form that refuses valid data.
+ */
+export interface NewPatient {
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  date_of_birth?: string;
+  gender?: string;
+  address?: string;
+  consent_given?: boolean;
 }
 
 export interface Ward {
