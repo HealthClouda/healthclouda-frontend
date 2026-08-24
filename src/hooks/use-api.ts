@@ -32,6 +32,109 @@ export function useApi<T>(path: string | null): ApiState<T> {
   return { data, loading, error, refetch: fetchData };
 }
 
+/**
+ * Fetch EVERY page of a DRF list and return the flattened result.
+ *
+ * For views that must show a COMPLETE set rather than a page at a time — the
+ * ward board being the case that prompted this: beds are grouped by ward, so a
+ * pager would fragment one ward's beds across pages, and a nurse reading a
+ * partial bed list has no way to tell it is partial. `useApi` + `.results`
+ * silently rendered only the first 20 beds; invisible against 7 seeded beds,
+ * wrong at any real hospital.
+ *
+ * ⚠️ Use this deliberately, not by default. It is N requests, and
+ * `usePaginatedList` remains right for anything a user can page through.
+ *
+ * Mechanics, and why they look like the thing the comment above warns against:
+ * we cannot follow DRF's `next` URL, because it is an absolute backend URL and
+ * the browser only ever talks to our own proxy (CLAUDE.md §5). So the page
+ * count is derived from `count` and the size of page ONE. That is safe in a
+ * way deriving from an arbitrary page is not — the warning on
+ * `usePaginatedList` is about partial pages yielding phantom pages, and page 1
+ * is only ever partial when it is the ONLY page, which this handles first.
+ * Deriving the size from the response also sidesteps FLAG-013 entirely: we
+ * never send the ignored `page_size`, and we never trust `next` to tell us it
+ * was honoured.
+ *
+ * Pages 2..n go out in parallel; `maxPages` is a runaway guard, and hitting it
+ * surfaces an error rather than quietly truncating — silently-partial data is
+ * the exact bug this hook exists to prevent.
+ */
+export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState<T[]> {
+  const [data, setData] = useState<T[] | null>(null);
+  const [loading, setLoading] = useState(!!endpoint);
+  const [error, setError] = useState<string | null>(null);
+  const [reloads, setReloads] = useState(0);
+
+  const refetch = useCallback(() => setReloads((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!endpoint) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const first = await dataGet<Paginated<T> | T[]>(endpoint);
+        if (cancelled) return;
+
+        // Tolerate hand-rolled APIViews that return a bare array.
+        if (Array.isArray(first)) {
+          setData(first);
+          return;
+        }
+
+        const firstPage = first.results ?? [];
+        const count = first.count ?? firstPage.length;
+        // Single page (including a partial one) — nothing further to fetch.
+        if (firstPage.length === 0 || count <= firstPage.length) {
+          setData(firstPage);
+          return;
+        }
+
+        const totalPages = Math.ceil(count / firstPage.length);
+        if (totalPages > maxPages) {
+          setError(
+            `This list has ${count} items, more than this view can load at once. ` +
+              'Showing nothing rather than a partial list — please report this.',
+          );
+          setData(null);
+          return;
+        }
+
+        const sep = endpoint.includes('?') ? '&' : '?';
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) =>
+            dataGet<Paginated<T> | T[]>(`${endpoint}${sep}page=${i + 2}`),
+          ),
+        );
+        if (cancelled) return;
+
+        setData([
+          ...firstPage,
+          ...rest.flatMap((r) => (Array.isArray(r) ? r : r.results ?? [])),
+        ]);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : 'Failed to load');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [endpoint, maxPages, reloads]);
+
+  return { data, loading, error, refetch };
+}
+
 export async function apiAction(
   path: string,
   method = 'POST',

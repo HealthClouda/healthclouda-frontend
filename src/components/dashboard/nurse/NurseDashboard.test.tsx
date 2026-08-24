@@ -387,6 +387,81 @@ describe('D3 — ward overview shows per-bed detail', () => {
   });
 });
 
+/**
+ * The ward board caps at the first page unless it explicitly asks for the rest.
+ * /ward/beds/ returns a paginated envelope (live schema 2026-08-23, which also
+ * documents page/search/ordering). With 7 seeded beds this is invisible — the
+ * fixture therefore has to exceed one page to see it at all, which is why the
+ * bug survived a green suite and a live click-through.
+ */
+describe('D3 — the ward board loads every bed, not just the first page', () => {
+  const PAGE = 20;
+  const TOTAL = 25;
+
+  const bed = (n: number) => ({
+    id: `bed-${n}`,
+    bed_number: `GW-${String(n).padStart(2, '0')}`,
+    status: 'AVAILABLE',
+    ward: { id: 'ward-1', name: 'General Ward', category: 'MEDICAL' },
+    room: null,
+    current_patient: null,
+    assigned_at: null,
+  });
+  const allBeds = Array.from({ length: TOTAL }, (_, i) => bed(i + 1));
+
+  const wardsResponse = {
+    count: 1,
+    results: [{
+      id: 'ward-1', name: 'General Ward', category: 'MEDICAL', category_other: '',
+      gender: 'O', total_beds: TOTAL, available_beds: TOTAL - 1, occupied_beds: 1,
+      maintenance_beds: 0, reserved_beds: 0, occupancy_rate: 4, active_admissions: 1,
+    }],
+  };
+
+  async function openWards() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.WARD_BEDS)) {
+        const page = Number(new URLSearchParams(path.split('?')[1] ?? '').get('page') ?? 1);
+        return Promise.resolve({
+          count: TOTAL,
+          // The trap FLAG-013 records: `next` echoes params back whether or not
+          // the server honoured them. The fixture mimics that faithfully.
+          next: page * PAGE < TOTAL ? `${ENDPOINTS.WARD_BEDS}?page=${page + 1}` : null,
+          results: allBeds.slice((page - 1) * PAGE, page * PAGE),
+        });
+      }
+      if (path.startsWith(ENDPOINTS.NURSE_WARDS_OVERVIEW)) return Promise.resolve(wardsResponse);
+      return Promise.resolve({ count: 0, results: [] });
+    });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ward Overview' }));
+    await waitFor(() => expect(screen.getByText('General Ward')).toBeInTheDocument());
+  }
+
+  it('renders beds from beyond the first page', async () => {
+    await openWards();
+    // GW-21..GW-25 exist only on page 2. Before the fix the board stopped at 20
+    // and a nurse had no indication the list was partial.
+    expect(await screen.findByText('GW-21')).toBeInTheDocument();
+    expect(screen.getByText('GW-25')).toBeInTheDocument();
+  });
+
+  it('renders every bed the API reports, not a page of them', async () => {
+    await openWards();
+    await screen.findByText('GW-25');
+    expect(screen.getAllByText(/^GW-\d+$/)).toHaveLength(TOTAL);
+  });
+
+  it('requests the later pages through our own proxy path', async () => {
+    await openWards();
+    await screen.findByText('GW-25');
+    // Never DRF's absolute `next` URL — the browser only talks to our proxy.
+    const paths = dataGetMock.mock.calls.map((c) => c[0] as string);
+    expect(paths).toContain(`${ENDPOINTS.WARD_BEDS}?page=2`);
+    expect(paths.every((p) => p.startsWith('/'))).toBe(true);
+  });
+});
+
 describe('D3 — the nurse dashboard has a small-screen gate', () => {
   // DashboardShell has had `smallScreenGateFor` since D1, but Nurse never
   // passed it — the same dead-prop omission the T5 harness caught on

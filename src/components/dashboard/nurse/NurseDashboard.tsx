@@ -8,7 +8,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { FormField, formInputClass } from '@/components/ui/FormField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
+import { useApi, useAllPages, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -374,13 +374,21 @@ const BED_STATUS_LABEL: Record<string, string> = {
 };
 
 function WardsPage() {
-  const { data, loading, error, refetch } = useApi<Ward[] | Paginated<Ward>>(ENDPOINTS.NURSE_WARDS_OVERVIEW);
-  const wards = Array.isArray(data) ? data : (data as Paginated<Ward> | null)?.results ?? [];
+  // A ward board must show EVERY ward and EVERY bed, so both of these read all
+  // pages rather than the first. `useApi` + `.results` capped the board at the
+  // first 20 beds: invisible against 7 seeded beds, and at a real hospital a
+  // partial bed list with nothing to say it is partial. A nurse concluding a
+  // bed is not there has clinical consequence, which is what separates this
+  // from the cosmetic pagination gaps in FLAG-013/214.
+  const { data: wardData, loading, error, refetch } = useAllPages<Ward>(ENDPOINTS.NURSE_WARDS_OVERVIEW);
+  const wards = wardData ?? [];
 
   // Bed-level detail lives on the ward app, not the nurse app: the nurse
   // wards-overview endpoint returns counts only, with no per-bed information.
-  const { data: bedData } = useApi<WardBed[] | Paginated<WardBed>>(ENDPOINTS.WARD_BEDS);
-  const beds = Array.isArray(bedData) ? bedData : (bedData as Paginated<WardBed> | null)?.results ?? [];
+  // /ward/beds/ is a paginated envelope and documents page/search/ordering
+  // (live schema, confirmed 2026-08-23).
+  const { data: bedData } = useAllPages<WardBed>(ENDPOINTS.WARD_BEDS);
+  const beds = bedData ?? [];
   const bedsByWard = beds.reduce<Record<string, WardBed[]>>((acc, b) => {
     const wardId = b.ward?.id;
     if (!wardId) return acc;
@@ -413,7 +421,7 @@ function WardsPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs text-text-soft">
                     <span>{ward.occupied_beds} occupied</span>
-                    <span className="text-success-strong font-semibold">{ward.available_beds} free</span>
+                    <span className="text-success-strong font-semibold">{ward.available_beds ?? ward.total_beds - ward.occupied_beds} free</span>
                   </div>
                   <div className="h-2 bg-row-hairline rounded-full overflow-hidden">
                     <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />

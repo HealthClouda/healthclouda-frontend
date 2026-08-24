@@ -835,6 +835,19 @@ block says `jwtAuth` generically for every endpoint and never exposes which role
 permission classes allow — the same gap as FLAG-209. A `GET` returning 200 says nothing about
 `POST`.
 
+> ⚠️ **Narrowed 2026-08-23, after @Bastoh's review of PR #86.** As first written this entry
+> generalised from the doctor endpoints to the whole API, saying the schema documents no
+> parameters. **That generalisation is wrong.** It holds for the doctor routes — `/doctor/appointments/`
+> and `/doctor/episodes/` really are `200: no response body` with no parameters — but **not** for
+> `/ward/beds/`, which documents `page`, `search` and `ordering` and returns a
+> `PaginatedBedListList` envelope.
+>
+> This cost something real rather than being a tidy-up: believing the endpoint documented nothing
+> is why the ward board was built with a plain `useApi` and rendered only the first 20 beds. **The
+> roles half of the claim still stands** — no endpoint exposes its permission classes, and that is
+> the part this flag is actually about. **Read the schema per endpoint; this API is not uniform,
+> and assuming it is produced a real bug.**
+
 **Why it wasn't guessed:** the only way to settle it is to POST, and on a shared dev tier that
 means creating or discharging a real admission in seed data the other dev may be testing against.
 Unlike a silently-ignored filter param, a wrong write here is not invisible — it is *visible to
