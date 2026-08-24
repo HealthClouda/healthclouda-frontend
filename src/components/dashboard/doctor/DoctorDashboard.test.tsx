@@ -50,8 +50,9 @@ vi.mock('@/lib/client-api', () => ({
   },
 }));
 
-import { dataGet } from '@/lib/client-api';
+import { dataGet, dataAction } from '@/lib/client-api';
 const dataGetMock = vi.mocked(dataGet);
+const dataActionMock = vi.mocked(dataAction);
 
 const user = {
   id: 'd1',
@@ -254,5 +255,113 @@ describe('FLAG-213 (doctor half) — appointments render the real payload', () =
     fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
 
     expect(await screen.findByText(/Chidi Nwosu/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * D5 write workflows. Every contract fact here was read from the live schema on
+ * 2026-08-24 before the feature was built:
+ *
+ *  - POST /episodes/ is fully specified and its description says "Create
+ *    episode (doctor/nurse)". POST /doctor/episodes/ documents NO request body
+ *    (FLAG-218), so the generic viewset is the one we can build against.
+ *  - `patient` is the only required field; `episode_type` is a real enum.
+ *  - The 201 returns no `id` (FLAG-219), so this refetches rather than
+ *    navigating to the episode it just created.
+ */
+describe('D5 — starting an episode', () => {
+  const patientsPage = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'pat-1',
+      first_name: 'Chidi',
+      last_name: 'Nwosu',
+      email: 'chidi@example.test',
+      phone_number: '08031231234',
+      date_of_birth: '1990-04-02',
+      created_at: '2026-07-01T10:00:00Z',
+    }],
+  };
+
+  async function openPanel() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(patientsPage);
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'New episode' }));
+    await screen.findByLabelText(/Episode type/);
+  }
+
+  it('posts to the DOCUMENTED episodes endpoint, not the doctor-scoped one', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openPanel();
+    fireEvent.change(screen.getByLabelText(/Chief complaint/), { target: { value: 'Chest pain' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start episode' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe(ENDPOINTS.EPISODES);
+    expect(path).not.toBe(ENDPOINTS.DOC_EPISODES);
+    expect(method).toBe('POST');
+    expect(body).toMatchObject({ patient: 'pat-1', episode_type: 'OUTPATIENT', chief_complaint: 'Chest pain' });
+  });
+
+  it('sends the patient id and omits every field left blank', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Start episode' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const body = dataActionMock.mock.calls[0][2] as Record<string, unknown>;
+    // `patient` is the only REQUIRED field in the schema; empty optionals must
+    // be absent rather than '' — the serializer treats the two differently.
+    expect(body.patient).toBe('pat-1');
+    expect(Object.keys(body)).not.toContain('diagnosis');
+    expect(Object.keys(body)).not.toContain('clinical_notes');
+  });
+
+  it('offers only the four episode types the enum actually allows', async () => {
+    await openPanel();
+    const select = screen.getByLabelText(/Episode type/) as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    // Free text or an invented value here is a 400. Enum read from the live
+    // schema 2026-08-24.
+    expect(values).toEqual(['OUTPATIENT', 'INPATIENT', 'EMERGENCY', 'CONSULTATION']);
+  });
+});
+
+/**
+ * FLAG-280 (backend): accepting or declining a referral is now the RECEIVING
+ * organisation's ORGANIZATION_ADMIN, and "a doctor can no longer self-accept" —
+ * stated verbatim in the live schema on both /referrals/{id}/accept/ and the
+ * doctor-namespaced path. The sprint plan flagged this change as due ~20 Aug
+ * and told us to re-read Swagger before building; this test is that re-read,
+ * pinned so nobody adds the buttons back later.
+ */
+describe('D5 — referral accept/decline is NOT the doctor’s to make', () => {
+  it('renders referrals read-only, with no accept or decline action', async () => {
+    dataGetMock.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{
+        id: 'ref-1',
+        status: 'PENDING',
+        reason: 'Cardiology opinion',
+        created_at: '2026-08-20T09:00:00Z',
+        patient: { id: 'pat-1', first_name: 'Chidi', last_name: 'Nwosu' },
+      }],
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Referrals' }));
+    await screen.findByText('Cardiology opinion');
+
+    // A button here would 403 every time — an affordance the doctor cannot use
+    // and cannot understand.
+    expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /decline/i })).not.toBeInTheDocument();
   });
 });
