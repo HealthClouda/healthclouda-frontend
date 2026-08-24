@@ -94,9 +94,12 @@ export function fullName(firstName?: string, lastName?: string): string {
  * rather than the two fields `/auth/users/` gives, so without this the avatar
  * received `undefined` and fell back to '?'.
  *
- * Everything after the first space is the surname, so "Ada Grace Bello" →
- * A + G. Imperfect for multi-part names but stable and never wrong about the
- * first initial, which is what a 28px circle actually shows.
+ * Takes the FIRST TWO whitespace-separated parts and drops the rest, so
+ * "Ada Grace Bello" → { firstName: 'Ada', lastName: 'Grace' } and the initials
+ * are A + G. Imperfect for multi-part names but stable and never wrong about
+ * the first initial, which is what a 28px circle actually shows. Note that
+ * `lastName` is therefore a middle name for such people — fine for initials,
+ * worth remembering before using it as a display surname anywhere.
  */
 export function splitName(name?: string): { firstName?: string; lastName?: string } {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -108,14 +111,40 @@ export function truncate(str: string, max: number): string {
 }
 
 // Role display
+
+/** Keyed by the UPPERCASE `RoleEnum` that `/auth/users/` and `/auth/me/` return. */
+const ROLE_LABELS: Record<string, string> = {
+  DOCTOR: 'Doctor',
+  NURSE: 'Nurse',
+  RECEPTIONIST: 'Receptionist',
+  PATIENT: 'Patient',
+  ORGANIZATION_ADMIN: 'Org Admin',
+  SUPERADMIN: 'Superadmin',
+};
+
+/**
+ * The two endpoints genuinely disagree about role casing: `/auth/users/`
+ * returns the uppercase `RoleEnum`, `/org-admin/staff/` returns lowercase
+ * (see `OrgStaffMember` in `types/dashboard.ts`). Both reach this function.
+ *
+ * Case normalisation alone does NOT work, which is why this table is explicit:
+ * `'org_admin'.toUpperCase()` is `ORG_ADMIN`, but the canonical key is
+ * `ORGANIZATION_ADMIN` — the spellings differ by more than case, so an
+ * uppercased lookup still misses and falls through to the raw value. That was
+ * the bug: the Org Admin staff table shipped a Role column reading
+ * `org_admin` / `doctor`.
+ */
+const ROLE_ALIASES: Record<string, string> = {
+  doctor: 'DOCTOR',
+  nurse: 'NURSE',
+  receptionist: 'RECEPTIONIST',
+  patient: 'PATIENT',
+  org_admin: 'ORGANIZATION_ADMIN',
+  organization_admin: 'ORGANIZATION_ADMIN',
+  superadmin: 'SUPERADMIN',
+};
+
 export function roleLabel(role: string): string {
-  const map: Record<string, string> = {
-    DOCTOR: 'Doctor',
-    NURSE: 'Nurse',
-    RECEPTIONIST: 'Receptionist',
-    PATIENT: 'Patient',
-    ORGANIZATION_ADMIN: 'Org Admin',
-    SUPERADMIN: 'Superadmin',
-  };
-  return map[role] ?? role;
+  const canonical = ROLE_ALIASES[role.toLowerCase()] ?? role;
+  return ROLE_LABELS[canonical] ?? role;
 }

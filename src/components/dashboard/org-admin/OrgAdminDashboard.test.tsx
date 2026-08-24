@@ -226,6 +226,12 @@ describe('OrgAdmin — Staff invite', () => {
     expect(row!.textContent).toContain('Ngozi Eze');
     // '—' is the empty-value placeholder; a row of them is the failure mode.
     expect(row!.textContent?.match(/—/g)?.length ?? 0).toBeLessThan(2);
+    // ...and the em-dash count alone CANNOT see the Role column bug, because a
+    // raw lowercase role is not an em dash. The fixture's role is 'nurse'
+    // (lowercase, as this endpoint really returns it); the column must show the
+    // humanised label. The negative assertion is the one with teeth.
+    expect(row!.textContent).toContain('Nurse');
+    expect(row!.textContent).not.toContain('nurse');
   });
 
   it('sends full_name and a lowercase role, not first/last name or uppercase role', async () => {
