@@ -922,6 +922,38 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
+### FLAG-215 — Two `roleLabel` implementations, and they disagree about what a role is called
+**Severity:** P3 · **Area:** Consistency / UX copy · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-24, fixing the Role column for PR #85
+
+There are two independent role-label functions:
+
+| Where | `ORGANIZATION_ADMIN` | `SUPERADMIN` | Unknown role |
+|---|---|---|---|
+| `lib/utils.ts` → `roleLabel` | **Org Admin** | **Superadmin** | returns the raw value |
+| `components/forms/SetPasswordForm.tsx:42` → local `roleLabel` | **Organization Admin** | **Super Admin** | title-cases it |
+
+So a staff member is told they have been created as an *"Organization Admin"* in the invite email
+flow, then sees *"Org Admin"* in the staff table of the dashboard they land on. Same product, same
+role, two names.
+
+**Not a live bug, and worth being precise about why:** the `SetPasswordForm` copy is *correct* on
+its own terms, and its title-case fallback means it would have survived the lowercase-role problem
+that FLAG-215's sibling fix (PR #85) had to solve in `utils.ts`. The defect is that there are two
+sources of truth for user-facing role names, not that either is broken.
+
+**Why it wasn't fixed in #85:** that PR is a bugfix for a Role column rendering raw `org_admin`.
+Changing which words a patient-facing invite screen shows is a **copy decision**, not a bugfix, and
+it belongs to whoever owns the wording — silently rewording an invite screen inside a typing PR is
+exactly the kind of unreviewed change `CLAUDE.md` §6 exists to prevent.
+
+**Done when:** one `roleLabel` remains, in `lib/utils.ts`, with the labels chosen deliberately
+(including which of "Org Admin" / "Organization Admin" is the product's word), `SetPasswordForm`
+imports it, and the title-case fallback for unknown roles is kept or dropped on purpose rather than
+by accident.
+
+---
+
 *Last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
 fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-012 raised 2026-08-13
@@ -931,7 +963,9 @@ raised 2026-08-17, building D2 Org Admin (PR #78, merged 2026-08-19) — FLAG-20
 **FLAG-013/014/015 raised 2026-08-17 reviewing PRs #76/#77/#78 — numbered in @Bastoh's range, owned
 by @Qeeyat** (see the note under the range table). FLAG-013 and FLAG-014 were **swapped on
 2026-08-19** so that `page_size` is 013, matching three in-code comments already merged on `develop`
-— see the numbering note on FLAG-013.*
+— see the numbering note on FLAG-013. FLAG-215 raised 2026-08-24, fixing the Role column for
+PR #85. FLAG-211 was **narrowed** the same night (see the note inside it): its claim that the schema
+documents no parameters held for the doctor endpoints and was wrongly generalised to the whole API.*
 
 > ⚠️ **FLAG-011 is still OPEN — do not read `HANDOFF.md` as saying otherwise.** Its "Cleared on
 > merge" line reads *"FLAG-011 token contrast — PR #68"*, which looks like a fix. PR #68 was

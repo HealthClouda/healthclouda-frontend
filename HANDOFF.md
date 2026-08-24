@@ -18,8 +18,9 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*` + fixtures | 2026-08-19 | 🔴 **CHANGES_REQUESTED 2026-08-23** — Role column renders raw lowercase `org_admin`/`doctor`; `roleLabel` maps uppercase only. UAT-critical |
-| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*` | 2026-08-19 | 🟠 **CHANGES_REQUESTED 2026-08-23** — ward board caps at the first 20 beds; `/ward/beds/` is paginated (live schema) |
+| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*`, `lib/utils.ts` + fixtures | 2026-08-19 | ✅ **fix pushed 2026-08-24 — awaiting @Bastoh re-review.** Role column fixed with an explicit lowercase→`RoleEnum` alias table (`.toUpperCase()` does not work: `ORG_ADMIN` ≠ `ORGANIZATION_ADMIN`). Rebased onto `develop`. UAT-critical |
+| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*`, `hooks/use-api.ts`, `CODEBASE_FLAGS.md` | 2026-08-19 | ✅ **fix pushed 2026-08-24 — awaiting @Bastoh re-review.** Ward board loads every page via a new `useAllPages()`; FLAG-211 narrowed. ⚠️ **Adds a shared hook to `use-api.ts`** — worth knowing before anyone else edits that file |
+| @Qeeyat | **Session log + FLAG-215** (docs only) | `docs/session-log-qeeyat-2026-08-24` | `HANDOFF-Qeeyat.md`, `HANDOFF.md`, `CODEBASE_FLAGS.md` | 2026-08-24 | 🔄 open |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
