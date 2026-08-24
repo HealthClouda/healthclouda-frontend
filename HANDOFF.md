@@ -18,34 +18,8 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **Gate 1 assessment** (docs only) | `docs/gate-1-assessment` | `HANDOFF.md`, `HANDOFF-Qeeyat.md` | 2026-08-22 | 🔄 open |
-| @Qeeyat | **#84** superadmin signin unreachable | `fix/superadmin-signin-unreachable` | `src/middleware.ts` + tests | 2026-08-19 | ⏳ **awaiting @Bastoh review — 3 days** 🔴 UAT-critical |
-| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*` + fixtures | 2026-08-19 | ⏳ **awaiting @Bastoh review — 3 days** 🔴 UAT-critical |
-| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
-| @Qeeyat | **#87** FLAG-213 receptionist shapes | `docs/flag-213-receptionist-shapes` | `CODEBASE_FLAGS.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
-| @Qeeyat | **#88** session log 19 Aug | `docs/session-log-qeeyat-2026-08-19b` | `HANDOFF-Qeeyat.md` | 2026-08-19 | ⏳ awaiting @Bastoh review — 3 days |
-| @Qeeyat | **E1/FLAG-004** + **FLAG-213 doctor half** (the *contract* half of D5 — **not** the design migration or the write workflows) | `feat/dash-5-doctor` | `doctor/*`, `receptionist/*` (fields only), `types/dashboard.ts`, `lib/utils.ts` | 2026-08-22 | 🔄 open — PR #90 |
-| @Qeeyat | **D5 design migration** — tables onto `DataTable`, tokens, `SmallScreenGate` | `feat/dash-5-doctor-design` ⬆️ **stacked on `feat/dash-5-doctor`** | `src/components/dashboard/doctor/*` | 2026-08-23 | 🔄 open |
-
-> ⛓️ **Stacking note (#90 → the design branch).** Stacked deliberately, per the rule that stacking is
-> only for work that *needs* code from the unmerged parent: the design migration rewrites the very
-> rows #90 retyped, so off `develop` it would be an instant conflict. **#90 must merge via a merge
-> commit, not a squash** — a squash breaks the retargeted child with phantom conflicts
-> (`HANDOFF.md` § Branch Strategy). Reviewer: confirm the child's base shows `develop` before merging it.
-
-> ⚠️ **These five rows were added retroactively on 2026-08-22, which is itself a rule violation worth
-> recording:** the branches were cut and the PRs opened on 19 Aug with the table left empty, so for
-> three days five live branches were invisible to the other dev. Reviewers were correctly set on all
-> five at open time — the gap is the In Flight claim, not the reviewer rule.
-
-> ⚠️ **@Bastoh — E1/FLAG-004 is a contract item in your lane and FLAG-004 lists you as owner.** I'm
-> taking it because the sprint plan scopes E1 as mine ("🎓 Qeeyat's first PR") and because **it lives
-> in the same two lines D5 rewrites** — FLAG-213 says explicitly that fixing the doctor types in
-> isolation means touching the same file twice. Claiming it loudly rather than quietly. If you'd
-> rather own it, say so and I'll drop it from this branch.
->
-> 🔀 **This row will conflict with PR #89**, which restructures this same table. #89 should merge
-> first; I'll rebase this branch onto it.
+| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*` + fixtures | 2026-08-19 | 🔴 **CHANGES_REQUESTED 2026-08-23** — Role column renders raw lowercase `org_admin`/`doctor`; `roleLabel` maps uppercase only. UAT-critical |
+| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*` | 2026-08-19 | 🟠 **CHANGES_REQUESTED 2026-08-23** — ward board caps at the first 20 beds; `/ward/beds/` is paginated (live schema) |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -55,7 +29,7 @@ logged** (docs only — see the correction below) — PR #68 · **D1 shared shel
 2026-08-12/13) · **Token cleanup** (Button/ErrorState/Pagination onto dashboard tokens) — PR #77 ·
 **D1 Superadmin pages + T5 harness** — PR #76 (both merged 2026-08-17) · **D2 Org Admin** (staff
 invite + read-only access requests) — PR #78 · **FLAG-013/014/015** (logged from reviewing
-#76/#77/#78) — PR #79. Both merged 2026-08-19.*
+#76/#77/#78) — PR #79. Both merged 2026-08-19 · **#84** superadmin signin reachable when logged out · **#87** FLAG-213 · **#88** session log · **#89** Gate 1 assessment · **#90** E1/FLAG-004 + FLAG-213 doctor half · **#91** D5 design migration (all reviewed and merged 2026-08-23 by @Bastoh; #90 merged via merge commit so #91 retargeted cleanly).*
 
 > ⚠️ **Correction (2026-08-17):** this line previously read *"**FLAG-011** token contrast — PR #68"*,
 > which reads as though the contrast problem was **fixed**. It was not. PR #68 was docs-only and
