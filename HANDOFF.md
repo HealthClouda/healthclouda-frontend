@@ -23,6 +23,7 @@
 | @Qeeyat | **Session log + FLAG-215** (docs only) | `docs/session-log-qeeyat-2026-08-24` | `HANDOFF-Qeeyat.md`, `HANDOFF.md`, `CODEBASE_FLAGS.md` | 2026-08-24 | 🔄 open |
 | @Qeeyat | **D4 Receptionist** (Wed 19 row) — check-ins, appointments, registration, portal invite + the **FLAG-213 receptionist half** | `feat/dash-4-receptionist` | `receptionist/*`, `types/dashboard.ts`, `lib/config.ts` | 2026-08-24 | 🔄 open. ⚠️ **Absorbing E2's data layer inline** (`[INFRA]`, @Bastoh's lane, never landed) — claiming loudly. HCL-ID handout is **blocked on backend #137**. PR #94 |
 | @Qeeyat | **D5 write workflows** — episode create; referral accept/decline **not built, see FLAG-220** | `feat/dash-5-doctor-writes` | `doctor/*`, `lib/config.ts` | 2026-08-24 | 🔄 open — PR #95. ⚠️ **Claimed AFTER cutting the branch**, which is the rule I broke on 19 Aug and just broke again — recorded rather than quietly fixed |
+| @Qeeyat | **Schema-reading guidance** — `CLAUDE.md` §1 + `ONBOARDING.md` §5 (docs only) | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🔄 open. ✅ **Claimed before cutting the branch** this time. Deliberately touches NO other file — `CODEBASE_FLAGS.md` is already open in four branches |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
