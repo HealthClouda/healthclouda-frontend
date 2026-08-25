@@ -163,9 +163,52 @@ for you; prefer it.
 The **live API schema is the single source of truth** — not a PDF, not a doc in this repo, and not
 what a component currently assumes. Check it before building anything that calls the backend.
 
-If an endpoint doesn't exist, or a response is missing a field: **open a GitHub issue on the
-backend repo tagged `api-request`** — what you need, why, and the shape you expect. Do not guess,
-and do not silently work around it.
+**You do not need a login to read it.** This surprises everyone, including people who have been here
+weeks:
+
+```bash
+curl -s "https://api-dev.healthclouda.com/api/v1/schema/?format=json" > schema.json
+```
+
+200, no token, the whole thing. Only live *data* needs credentials. So "I can't check the contract
+until someone sends me a login" is never true, and believing it has already cost this team time
+more than once.
+
+**Three habits that will save you a day each.**
+
+**1. Read the `description`, not just the fields.** This API writes a lot of its contract in prose
+that never reaches the structured parts. The patients viewset spells out its role rules in the
+description — `CREATE (POST): SUPERADMIN, RECEPTIONIST only`, `RECEPTIONIST: contact info only` —
+and `/receptionist/appointments/` declares **no** parameters while its description names three.
+That matters because DRF **ignores an unknown query param silently**: you get 200, plausible-looking
+data, and no hint you filtered nothing.
+
+**2. Check each endpoint. Don't generalise to its neighbours.** `/ward/beds/` documents three
+parameters and a paginated envelope. `/nurse/wards/overview/`, one path segment away, documents
+nothing at all. Assuming the two behaved alike shipped a ward board that silently showed only the
+first 20 beds — invisible against 7 seeded beds, wrong at a real hospital.
+
+**3. A path existing is not a contract.** Plenty of endpoints appear in the schema with **no request
+body and no response body** — they're hand-written views the generator can't introspect. If you find
+two endpoints that do the same job, prefer the documented one.
+
+**When the contract has a gap, say so — don't route around it.** Open a GitHub issue on the backend
+repo tagged `api-request`: what you need, why, and the shape you expect.
+
+And the part worth internalising early, because it is what makes this a medical system rather than a
+CRUD app: **when a gap has a tempting workaround, ask what a wrong answer does to a patient.**
+
+> Registering a patient is supposed to end with the receptionist reading them their HealthClouda ID.
+> The create response doesn't include it. The obvious fix is to search for the patient you just made
+> and show the first result — except two people with the same name registered minutes apart are
+> indistinguishable, so the desk could hand someone another patient's medical identifier with
+> nothing visibly wrong anywhere.
+>
+> We shipped the gap instead: the screen says the ID isn't available yet and offers a search where
+> the receptionist can *see* who they pick. **A gap the user can see beats a guess they cannot.**
+
+Nobody will be annoyed that you asked rather than guessed. Guessing in a records system is how
+someone else's data ends up attached to the wrong human being.
 
 ### North Star: progressive hardening, not a rewrite
 
@@ -262,9 +305,10 @@ src/
 | `CLAUDE.md` | The shared brain — project context and the session rituals, for humans and AI agents |
 | `HANDOFF.md` | Durable shared state + the 🚧 In Flight claim table. Read every session. |
 | `HANDOFF-<Name>.md` | Per-dev session logs. Owner writes only. |
-| `ARCHITECTURE.md` | What is actually built |
-| `TARGET_ARCHITECTURE_CHECKLIST.md` | Current → target, in dependency order, each with a "Done when" |
-| `BETA_READINESS.md` | Prioritised backlog, Tier 1 (beta-blocking) → Tier 5 (roadmap) |
+| `ARCHITECTURE.md` | What is actually built — ⚠️ **currently stale wholesale** (ARCH-7): it still describes the vanilla-JS app deleted in July. Read it for history, not truth. |
+| `docs/FRONTEND_SPRINT_PLAN.md` | The dated plan to beta onboarding — the nearest thing to a live backlog. Read the current week. |
+| ~~`TARGET_ARCHITECTURE_CHECKLIST.md`~~ | ⚠️ **Does not exist yet.** Listed here and in `CLAUDE.md` since day one, so every session has silently skipped it. Still owed (sprint plan §F). |
+| ~~`BETA_READINESS.md`~~ | ⚠️ **Does not exist yet either** — same story. A7's Tier-1 list is meant to land here. |
 | `CODEBASE_FLAGS.md` | Known issues and logged shortcuts. Each dev owns a FLAG number range — see the top of that file. |
 
 ---

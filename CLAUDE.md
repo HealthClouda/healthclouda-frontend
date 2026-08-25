@@ -38,8 +38,38 @@ The **live `/api/v1/schema/` (Swagger) is the single source of truth** for the A
 not a doc committed here, not what a component currently assumes, and not this file.
 
 - Verify against the live schema **before** building anything that calls the backend.
+- **It needs no authentication.** `curl https://api-dev.healthclouda.com/api/v1/schema/?format=json`
+  returns 200 and the whole document to an unauthenticated request. Only live *data* needs a token —
+  shapes, required fields, enums and permissions never did. **A contract question is therefore never
+  blocked on credentials**, and treating it as blocked has already cost this team time twice
+  (FLAG-217).
+- **Read the `description` string, not only the `parameters` and schema fields.** This API documents
+  a great deal in prose that never reaches the machine-readable parts:
+  - **Role permissions.** The patients viewset states `CREATE (POST): SUPERADMIN, RECEPTIONIST only`
+    and `RECEPTIONIST: contact info only` verbatim. That is how D4's registration and contact-edit
+    were settled without POSTing at shared seed data. 12 operations across 6 paths carry a block
+    like this.
+  - **Query params.** `/receptionist/appointments/` declares **no** parameters and its description
+    names three (`?date=&doctor_id=&status=`). Since DRF ignores unknown params *silently*, the
+    description is often the only place a working filter is written down.
+- **Read it per endpoint. This API is not uniform.** `/ward/beds/` documents three params and a
+  paginated envelope; `/nurse/wards/overview/`, one path segment away, documents nothing at all.
+  Generalising from one endpoint to its neighbours has already shipped a real bug (FLAG-211, and the
+  ward-board cap it caused).
+- **A documented path is not a documented contract.** Many hand-rolled `APIView`s appear in the
+  schema with **no request body and no response body** — every receptionist write endpoint, and all
+  of `/doctor/episodes/`, `/doctor/prescriptions/` (FLAG-218). Where two endpoints do the same job,
+  prefer the documented one: episode create goes to `POST /episodes/`, *not* `/doctor/episodes/`.
+- **Check the create response before you rely on it.** `POST /patients/` and `POST /episodes/` both
+  return the request echoed back with **no `id`** (FLAG-216, FLAG-219), so "create then navigate to
+  it" does not work by default.
 - Missing endpoint or field → **open a GitHub issue on the backend repo tagged `api-request`**
   stating what you need, why, and the shape you expect. Never guess; never silently work around it.
+- ⚠️ **When a gap has a tempting workaround, weigh what a wrong answer does to a patient.** The
+  registration flow could have recovered a missing HealthClouda ID by searching for the patient just
+  created — and two same-name registrations minutes apart are indistinguishable, so the desk could
+  hand someone another person's medical identifier with nothing visibly wrong. **A gap the user can
+  see beats a guess they cannot.** That reasoning is the point, not the example.
 - Backend changes we must consume are tracked in the **BACKEND CONTRACT NOTES** banner in
   `HANDOFF.md`.
 
@@ -327,5 +357,5 @@ redirect them to their org portal automatically.
 
 ---
 
-*Last updated 2026-08-09. This file is binding on humans and agents alike — if a rule here is
+*Last updated 2026-08-25 (contract-seam section rewritten — the schema needs no auth, and it documents permissions and query params in prose). Previously 2026-08-09. This file is binding on humans and agents alike — if a rule here is
 wrong, change it deliberately and say so in your session log.*
