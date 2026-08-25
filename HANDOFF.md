@@ -101,6 +101,60 @@ step is exactly FLAG-210. The journey cannot complete regardless of how much D4 
 
 ---
 
+### 🧪 UAT Day 2 (Tue 25 Aug) — three of today's four items are blocked
+
+> Written the morning of Tue 25, **before** the backend team hits these at their desk. Monday's
+> journey died on FLAG-210 with no warning; this is the same failure mode caught one day earlier.
+
+Today's sprint row is *"T6 part 2 — nurse, org-admin (staff CRUD, announcements incl. `is_public`),
+superadmin, and the referral journey end to end."* Measured on `develop` this morning:
+
+| Today's UAT item | State on `develop` | Blocker |
+|---|---|---|
+| **Superadmin** | ✅ testable | — (#84 merged 23 Aug) |
+| **Org Admin** | ❌ blank names, `?` avatars, 2 of 4 stat cards `—` | **the fix is in unmerged #85**, pushed 24 Aug, awaiting re-review |
+| **Nurse** | ⚠️ old primitives; ward board caps at 20 beds | **the fix is in unmerged #86**, pushed 24 Aug, awaiting re-review |
+| **Referral journey, end to end** | 🚨 **cannot be tested at all** | **no UI exists for the accept step, anywhere in the product** |
+
+#### 🚨 The referral journey has no accept step
+
+**FLAG-220:** accepting or declining a referral is now the receiving organisation's
+**ORGANIZATION_ADMIN** — *"a doctor can no longer self-accept"*, stated verbatim in the live schema.
+
+- The **Doctor** dashboard's referrals page is read-only, and per FLAG-220 it must stay that way —
+  a button there would 403 every time.
+- The **Org Admin** dashboard has **no referrals page**. Its nav is Dashboard / Staff / Patients /
+  Wards & Beds / Access Requests. Confirmed in `OrgAdminDashboard.tsx` on 25 Aug: the string
+  "referral" does not appear in the file.
+
+So the journey can be *created* and *listed* but never *accepted*. **This is a hole in the product,
+not a misplaced button** — the backend moved the authorisation ~20 Aug and no dashboard gained the
+capability.
+
+⚠️ **Note the trap that hid this:** the endpoints are still namespaced `/doctor/referrals/{id}/accept/`
+while requiring ORG_ADMIN. Anyone deciding scope from path names gets it exactly backwards.
+
+#### What this needs, in order
+
+1. 🔴 **Review #85 and #86 today.** Both are today's UAT roles and both fixes are already written and
+   pushed. This is the same "cheapest possible win" the Gate 1 assessment named on 22 Aug, three
+   days later and now inside UAT week.
+2. 🔴 **Tell the backend team the referral journey cannot complete** before they spend the day on it.
+   Monday cost them the receptionist journey discovered live; this one is knowable in advance.
+3. 🟠 **Decide who builds the ORG_ADMIN referral queue, and whether it happens during the freeze.**
+   Week 3 says *"no new features — `develop` is frozen except for fixes arising from testing."*
+   This gap arises **from** testing, so it plausibly qualifies — but that is @Bastoh's descope call,
+   not something to be assumed. It is unclaimed and unbuilt as of this morning.
+
+> ⚠️ **A freeze note against myself.** D4 (#94) and D5 (#95) were built on Mon 24 — inside the
+> declared freeze. Gate 1's NO-GO said *"if NO-GO, what moves is decided here — not during UAT"*, and
+> that descope decision was never made, so I built into an undecided plan rather than waiting for it.
+> Both PRs are honest about what they contain and neither is merged, so nothing is on `develop` that
+> shouldn't be — but the sequencing was mine to get wrong and it is recorded here rather than
+> quietly.
+
+---
+
 ## 📡 Backend Contract Notes
 
 > Backend changes we must consume. The live `/api/v1/schema/` is the single source of truth —
