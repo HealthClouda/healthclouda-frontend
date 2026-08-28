@@ -84,7 +84,13 @@ export function SigninForm({ loginType, orgSlug, orgName, orgLogo }: SigninFormP
     // Fall back to the portal's own slug — the backend login response may not
     // carry org info (enriched best-effort in the login route).
     const slug = user.organization_slug ?? orgSlug;
-    if (!slug && user.role !== 'SUPERADMIN') {
+    // SUPERADMIN sits above organisations and PATIENT sits outside them, so
+    // neither needs a slug (FLAG-210). Requiring one for patients is what made
+    // this branch refuse a successful login: the backend returned 200, and we
+    // showed "please use your organization portal" — advice a patient cannot
+    // follow, because the general portal IS the patient portal.
+    const isSlugless = user.role === 'SUPERADMIN' || user.role === 'PATIENT';
+    if (!slug && !isSlugless) {
       setServerError('Signed in, but your organization could not be determined. Please use your organization portal.');
       return;
     }

@@ -14,7 +14,12 @@ export function roleDashboardPath(role: Role, orgSlug?: string): string {
     case ROLES.RECEPTIONIST:
       return `/${orgSlug}/receptionist`;
     case ROLES.PATIENT:
-      return `/${orgSlug}/patient`;
+      // FLAG-210: a patient belongs to NO organisation — `/auth/me/` returns
+      // `organization: null`, and that is correct, because records move with the
+      // patient between facilities (CLAUDE.md §1). This deliberately ignores
+      // `orgSlug` even when one is known: honouring it would rebuild
+      // `/undefined/patient` for everyone whose portal happens not to know one.
+      return '/patient';
     default:
       return '/signin';
   }
