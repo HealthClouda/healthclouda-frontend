@@ -1120,6 +1120,39 @@ imports it, and the title-case fallback for unknown roles is kept or dropped on 
 by accident.
 
 ### FLAG-216 — `POST /patients/` returns no identifiers, so the HCL-ID handout cannot be built
+
+> 🔴 **DISPROVEN 2026-08-28 by @Bastoh — the handout CAN be built, and this is now the blocker it
+> claimed to be, in reverse.** Recorded here rather than rewritten, because the reasoning is worth
+> keeping and the entry is in @Qeeyat's range. **@Qeeyat: this unblocks the D4 item you deliberately
+> did not build.**
+>
+> Backend **closed #137 with no code change**: *"this already works today."* `PatientViewSet.create`
+> does not serialise its response with `PatientCreateSerializer` — it re-serialises the saved row with
+> `PatientDetailSerializer`, which carries both fields. **The patient is nested, not top-level:**
+>
+> ```json
+> { "message": "Patient registered successfully",
+>   "patient": { "id": "…", "healthclouda_id": "HCL-…", … } }
+> ```
+>
+> So the desk reads **`response.patient.healthclouda_id`**. Reading the top level gives `undefined` —
+> which looks exactly like "the API doesn't return it".
+>
+> 🪤 **Why we got it wrong, and why nobody should feel silly about it:** the flag was derived from the
+> live schema, which documents the 201 as `PatientCreate` — 19 fields, no identifiers. That is the
+> **request** serializer echoed into the response slot. The schema is wrong; the endpoint is right.
+>
+> 🎯 **Third time today.** `?date=` on the receptionist endpoints was undocumented and *worked*
+> (FLAG-213 / PR #94); the `/patients/` role matrix is documented **only** in prose; and here the
+> documented response shape is simply not the one returned. **The schema is a lead, never a verdict.**
+>
+> ⚠️ **Not re-verified live by me, deliberately.** Confirming it means `POST`ing a real patient into
+> the seed data @Qeeyat is testing against — her own reasoning for declining, and it still holds. The
+> backend verified it on `api-dev` (`201, created HCL-5WO6SE`), which is good enough to act on and
+> cheap to confirm the next time someone registers a patient legitimately.
+>
+> **Still open, and it is the only thing left of this flag:** the frontend does not yet read the
+> nested field, so the HCL-ID handout remains unbuilt. That is a D4 follow-up, not a backend gap.
 **Severity:** P1 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN — filed upstream
 **Found:** 2026-08-24, verifying D4 against the live schema before building
 
