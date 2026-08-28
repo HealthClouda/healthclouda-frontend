@@ -145,6 +145,11 @@ export const ENDPOINTS = {
   DOC_VITALS_HISTORY: (id: string) => `/doctor/patients/${id}/vitals/history/`,
 
   // ── Ward / Bed / Admissions (shared) ───────────────────────
+  // Read access verified live for a NURSE token 2026-08-19: GET /ward/beds/
+  // → 200 (7 beds with status + current_patient), GET /ward/admissions/ → 200.
+  // The WRITE side (POST /ward/admissions/, .../discharge/, .../transfer/) is
+  // documented in the schema but its permission for a nurse is unverified —
+  // see FLAG-211 before wiring any of it up.
   WARDS: '/ward/',
   WARD: (id: string) => `/ward/${id}/`,
   WARD_BEDS: '/ward/beds/',

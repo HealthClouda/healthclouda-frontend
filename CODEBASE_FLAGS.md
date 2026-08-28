@@ -807,6 +807,98 @@ sits on, so it wants deciding before that branch is cut rather than during it.
 **Done when:** a patient can sign in at `/signin` and land on a working dashboard URL that contains
 no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.md`, and a
 regression test covering a `PATIENT` whose `organization` is `null`.
+
+---
+
+### FLAG-211 — Admission write endpoints are documented, but nurse permission is not
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-19, building D3 Nurse
+
+Tuesday's sprint row names an **admission** workflow for the nurse dashboard. The contract exists
+and is fully documented, unusually for this API:
+
+```
+POST /ward/admissions/              AdmissionCreateRequest
+                                    required: patient, episode, bed
+                                    optional: admission_reason, override
+POST /ward/admissions/<id>/discharge/   discharge_summary, discharge_instructions (both optional)
+POST /ward/admissions/<id>/transfer/
+```
+
+**What is verified (live, nurse token, 2026-08-19):** a nurse can **read** both
+`GET /ward/beds/` → 200 (7 beds, with `status` and a nested `current_patient`) and
+`GET /ward/admissions/` → 200. The read side is built in this PR — the ward board now shows which
+patient is in which bed.
+
+**What is NOT verified:** whether a nurse may **POST** any of the three. The schema's `security`
+block says `jwtAuth` generically for every endpoint and never exposes which roles a view's
+permission classes allow — the same gap as FLAG-209. A `GET` returning 200 says nothing about
+`POST`.
+
+> ⚠️ **Narrowed 2026-08-23, after @Bastoh's review of PR #86.** As first written this entry
+> generalised from the doctor endpoints to the whole API, saying the schema documents no
+> parameters. **That generalisation is wrong.** It holds for the doctor routes — `/doctor/appointments/`
+> and `/doctor/episodes/` really are `200: no response body` with no parameters — but **not** for
+> `/ward/beds/`, which documents `page`, `search` and `ordering` and returns a
+> `PaginatedBedListList` envelope.
+>
+> This cost something real rather than being a tidy-up: believing the endpoint documented nothing
+> is why the ward board was built with a plain `useApi` and rendered only the first 20 beds. **The
+> roles half of the claim still stands** — no endpoint exposes its permission classes, and that is
+> the part this flag is actually about. **Read the schema per endpoint; this API is not uniform,
+> and assuming it is produced a real bug.**
+
+**Why it wasn't guessed:** the only way to settle it is to POST, and on a shared dev tier that
+means creating or discharging a real admission in seed data the other dev may be testing against.
+Unlike a silently-ignored filter param, a wrong write here is not invisible — it is *visible to
+everyone*, and discharging a seeded admission is only undone by re-admitting.
+
+**Also unresolved even if permission is granted:** `POST /ward/admissions/` needs an **`episode`**
+id, and no nurse endpoint exposes a patient's episodes. `/nurse/my-patients/` carries an episode
+only for patients who are *already admitted*, which is the wrong direction — admitting needs the
+episode of someone not yet in a bed. So the admit flow needs an episode lookup that does not
+currently exist for this role.
+
+**Done when:** either (a) the permission is confirmed — ideally by the backend documenting it,
+otherwise by one deliberate POST against a disposable record with @Bastoh's agreement — **and** an
+episode-lookup route for the nurse role is identified, after which admit/discharge/transfer can be
+built; or (b) it is confirmed that admission is an ORG_ADMIN/receptionist workflow rather than a
+nurse one, and Tuesday's row is corrected to say so.
+
+---
+
+### FLAG-212 — The two bed sources disagree, and one bed belongs to no ward
+**Severity:** P3 · **Area:** Backend contract / data · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-19, building the D3 ward board — visible only once real beds were rendered
+
+Measured live as `nurse@demo.test`, 2026-08-19:
+
+```
+GET /ward/beds/             7 beds → General Ward 6, ward: null 1
+GET /nurse/wards/overview/  General Ward  total 6, available 4, occupied 2   ✓ consistent
+                            Maternity Ward total 4, available 0, occupied 0   ✗
+```
+
+Two separate problems:
+
+1. **A bed with `ward: null`.** It cannot be grouped under any ward, so it renders on no ward board
+   anywhere in the app and is effectively invisible. Whether that is seed-data debris or a real
+   possibility (a bed awaiting assignment) decides whether the UI needs an "unassigned beds" bucket.
+2. **Maternity's counts are internally inconsistent** — `total 4` with `available 0` and
+   `occupied 0`, which does not add up on its own terms, and `/ward/beds/` lists no maternity beds
+   at all. So the ward card shows "4 total beds" above an empty bed list. Note the **org-admin**
+   wards endpoint reported Maternity as `0` beds on the same day, so the two ward endpoints
+   disagree with each other as well as internally.
+
+**Not worked around in the UI, deliberately.** The board renders what `/ward/beds/` actually
+returns; inventing a placeholder row per missing bed would make a data problem look like a display
+and hide it from whoever can fix it. This is a case where the honest render *is* the bug report.
+
+**Done when:** the backend confirms whether `ward: null` beds are legitimate (and if so the board
+grows an unassigned bucket), and Maternity's counts either reconcile with `/ward/beds/` or the
+discrepancy is explained. Likely a seed-data issue rather than a code one — worth checking before
+filing an `api-request`.
+
 ---
 
 ### FLAG-213 — `Appointment` and `CheckIn` describe shapes the API does not return
@@ -931,7 +1023,15 @@ raised 2026-08-17, building D2 Org Admin (PR #78, merged 2026-08-19) — FLAG-20
 **FLAG-013/014/015 raised 2026-08-17 reviewing PRs #76/#77/#78 — numbered in @Bastoh's range, owned
 by @Qeeyat** (see the note under the range table). FLAG-013 and FLAG-014 were **swapped on
 2026-08-19** so that `page_size` is 013, matching three in-code comments already merged on `develop`
-— see the numbering note on FLAG-013.*
+— see the numbering note on FLAG-013. FLAG-211/212 raised 2026-08-19, building D3 Nurse.*
+
+> 🔁 **The numbering rule bit again, in the third distinct way.** FLAG-016 (patient sign-in, PR #83)
+> was renumbered to **FLAG-210** on merge, into @Qeeyat's range. A D3 branch cut before that merge
+> then added its own "FLAG-210", and the collision only surfaced when the two files met. So the rule
+> now has three cases, not two: an unmerged PR reserves numbers · a **review comment** reserves
+> numbers · and a flag that gets **renumbered on merge** silently invalidates any branch that was
+> cut while it held its old number. Before numbering: check `develop` **and** open PRs **and**
+> whether anything you filed has since been renumbered.
 
 > ⚠️ **FLAG-011 is still OPEN — do not read `HANDOFF.md` as saying otherwise.** Its "Cleared on
 > merge" line reads *"FLAG-011 token contrast — PR #68"*, which looks like a fix. PR #68 was
