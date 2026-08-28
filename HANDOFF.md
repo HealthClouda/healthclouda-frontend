@@ -18,10 +18,18 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **B1/B3 dev tier live** — `dev.healthclouda.com` + per-env vars (infra already applied; this PR is the record) | `docs/clear-in-flight-2026-08-28` | `HANDOFF.md`, `CODEBASE_FLAGS.md`, `HANDOFF-Bastoh.md` | 2026-08-28 | 🔄 open — PR #97. ⚠️ **Claimed after the fact** — the Vercel/Cloudflare changes went live before this row existed, so the tier work was briefly invisible to @Qeeyat. Recorded rather than backfilled quietly |
-| @Bastoh | **A5 / FLAG-001** — role + tenant gating off the client-writable `hc_user` cookie | `fix/flag-001-server-trusted-auth` | `lib/auth-server.ts` (new), all six `src/app/**/page.tsx` dashboard gates, tests | 2026-08-28 | 🔄 open. ⚠️ **Touches every dashboard page** — the gate line only, not the components, but worth knowing before anyone edits those files. Also closes a gap FLAG-001 only hinted at: the route slug is currently never checked against the user's org |
-| @Bastoh | **FLAG-210** — patient sign-in: slug-less `/patient` route | `fix/flag-210-patient-portal` | `app/patient/*` (new), `app/[slug]/patient/*` (removed), `config.ts` RESERVED_PATHS, `router.ts`, `SigninForm.tsx`, `middleware.ts` | 2026-08-28 | 🔄 open. 🔑 **Architecture settled by @Bastoh 2026-08-28:** the apex is marketing **+ the patient portal**; org staff use `beta.`. So patients get a slug-less route, not a home-org. ⚠️ Pairs with PR #99, which made `/[slug]/patient` unreachable |
-| @Qeeyat | **Schema-reading guidance** — `CLAUDE.md` §1 + `ONBOARDING.md` §5 (docs only) | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🟡 **CHANGES_REQUESTED 2026-08-28, then narrowed.** The no-auth finding is ✅ verified and the params are ✅ **verified working live** — only the one citation needs rewording. See my follow-up comment on #96 for the exact replacement text. PR #96 |
+| @Bastoh | **Dev tier live + FLAG-017/018/019, FLAG-216 correction, session log** | `docs/clear-in-flight-2026-08-28` | `HANDOFF.md`, `CODEBASE_FLAGS.md`, `HANDOFF-Bastoh.md` | 2026-08-28 | 🔄 **PR #97** — docs only |
+| @Bastoh | **A5/FLAG-001** — server-trusted role **and** tenant gating | `fix/flag-001-server-trusted-auth` | `lib/auth-server.ts` (new), all six dashboard page gates | 2026-08-28 | 🔄 **PR #99**. ⛓️ **MUST merge as a merge commit, not a squash** — #100 is stacked on it |
+| @Bastoh | **FLAG-210** — slug-less `/patient` portal | `fix/flag-210-patient-portal` | `app/patient/*` (new), `app/[slug]/patient/*` (removed), `config.ts`, `router.ts`, `SigninForm`, `middleware` | 2026-08-28 | 🔄 **PR #100**, ⬆️ stacked on #99 |
+| @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion, fast-forward | 2026-08-28 | 🔄 **PR #98**. `staging` still holds the **12 Apr vanilla app** until this merges |
+| @Bastoh | **A7** — `SECURITY_BASELINE.md` | `docs/a7-security-baseline` | `SECURITY_BASELINE.md` (new) | 2026-08-28 | 🔄 **PR #102** — new file only, no conflicts |
+| @Bastoh | **E7/FLAG-005** — server-fetch observability | `fix/flag-005-server-fetch-observability` | `lib/server-fetch.ts` + tests | 2026-08-28 | 🔄 **PR #103** |
+| @Bastoh | **FLAG-220** — Org Admin referrals page | `feat/flag-220-org-admin-referrals` | `org-admin/OrgAdminDashboard.tsx`, `config.ts`, `types/dashboard.ts` | 2026-08-28 | 🔄 **PR #104**. ⚠️ **Touches the design lane's file** — nav + one new page, existing pages untouched |
+| @Qeeyat | **Schema-reading guidance** | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🟡 **PR #96** — one bullet to reword; exact replacement text is in a comment on the PR |
+
+> 📌 **Issue #101 is assigned to @Qeeyat:** the HCL-ID handout is buildable after all — `POST /patients/`
+> returns `{message, patient:{id, healthclouda_id}}`. FLAG-216 was derived from a schema that documents
+> the *request* serializer as the response.
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**

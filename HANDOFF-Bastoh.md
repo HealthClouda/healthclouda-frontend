@@ -107,6 +107,86 @@ the 27th. **Retracted, approved, merged, and the retraction is in the PR in full
 SameSite=strict` with **no `Domain=`** (A3), and **zero `railway.app`** in the deployed chunks (A2).
 Live schema re-fetched unauthenticated (200, 391 KB) — @Qeeyat's finding, confirmed.
 
+#### Part 2, same session — P1 cleared down, and four schema lies in one day
+
+**What I did:** fixed and shipped **A5/FLAG-001** (#99), **FLAG-210** (#100, stacked), **A7
+SECURITY_BASELINE.md** (#102), **E7/FLAG-005** (#103), **FLAG-220** (#104). Filed backend
+[#155](https://github.com/HealthClouda/healthclouda-backend/issues/155) and frontend issue #101.
+
+**🔴 THREE THINGS THAT NEED A HUMAN — carried forward deliberately, do not let these evaporate:**
+
+**1. The schema is a lead, never a verdict. Four mismatches in one day.**
+   - `?date=`/`?status=`/`?doctor_id=` on the receptionist endpoints: documented **nowhere**, and they
+     **work**. I blocked PR #94 over it and was wrong.
+   - `/patients/` documents its entire role matrix **only in a prose description string**.
+   - `POST /patients/` documents the *request* serializer as its response; it actually returns
+     `{message, patient:{id, healthclouda_id}}`. That is FLAG-216, disproven, and it unblocks the
+     HCL-ID handout.
+   - `/referrals/received/` is documented as one 28-field object; it returns a **DRF envelope with
+     14-field items**.
+
+   **Two of these cost real work and one of them cost another dev half a day.** The rule I wrote after
+   Qeeyat disproved me on `?role=` — *absence from the schema is not evidence of non-support* — I then
+   broke myself, four days later, with more confidence because I had the schema open. **Types on this
+   backend must be CAPTURED, not derived.**
+
+**2. FLAG-203 is, on my reading, the most serious unfixed item in the codebase — and nothing on the
+   P1 list ranked above it.** `SmallScreenGate` is CSS-only: below 768px the dashboard still mounts,
+   still fetches, and the patient records **land in the DOM** behind a polite notice. On a phone that
+   is PHI in the document. It sits in @Qeeyat's range as a P1 and has been open since 13 Aug. I have
+   written it into `SECURITY_BASELINE.md` §3 as Tier 1. **Someone needs to decide whether it outranks
+   what is left on the board; I think it does.**
+
+**3. One judgement call I want challenged.** The referral action buttons gate by **exclusion**
+   (anything not `ACCEPTED`/`DECLINED`/`CANCELLED`/`COMPLETED` is actionable). There is **no status
+   enum in the schema** and the seed data only ever showed two values, so naming the pending state
+   would be inventing an enum member — the FLAG-004 trap. Inclusion would read tidier and would hide
+   the buttons on exactly the rows that need them, silently. Flagged for @Qeeyat in #104.
+
+**Decisions taken today (mine, recorded so nobody re-litigates them):**
+- **The apex is marketing + the PATIENT portal, pointing at `api-beta` from 3 Sep; `beta.` is org
+  staff only.** This settled FLAG-210 as a slug-less route rather than a backend home-org, and it is
+  why backend #155 exists — patient invite emails must reach the apex while staff links reach `beta.`
+- **Preview-wide env vars, `beta.` deliberately unattached** until 31 Aug, so the beta host cannot
+  serve against the dev backend.
+- **FLAG-017: re-enable SSO at beta stand-up, not today** — flipping it now would re-block `dev.` for
+  the backend team's UAT.
+- **Gate 2 parked**, because FLAG-017 and FLAG-018 must land before a verdict means anything.
+- **No self-merging.** I offered it on #97 when the queue got long; @Bastoh declined and was right —
+  the reviewer is the only real gate this repo has.
+
+**🚨 The 31 Aug runbook is the riskiest half-hour on this project.** Four ordered steps; wrong order
+means either `beta.` serving the dev backend or `dev.` going dark mid-UAT. Written into **FLAG-017**
+and the deployment section of `HANDOFF.md`. **It is not in anybody's head — read it, do not improvise.**
+
+**Verified (part 2):** every PR re-run by me — tsc clean, suites green (155 → 159 → 165 → 161 per
+branch), builds green. `dev.healthclouda.com` proved end to end: login through the **deployed** proxy
+returns 200 with `role=DOCTOR`, cookies `Secure; HttpOnly; SameSite=strict` and **no `Domain=`** (A3),
+zero `railway.app` in deployed chunks (A2). Live schema and live payloads re-fetched for every
+contract claim above.
+
+**Left undone / next:**
+- [ ] 🔴 **Eight PRs queued on @Qeeyat.** ⛓️ **#99 must merge via a MERGE COMMIT, not a squash**, or
+      the stacked #100 breaks with phantom conflicts.
+- [ ] 🔴 **Mon 31 Aug runbook** — FLAG-017 step order. Invite testers → staging env override →
+      attach `beta.` → re-enable SSO → **verify `dev.` still works**.
+- [ ] 🔴 **FLAG-018 execution** — apex needs `NEXT_PUBLIC_API_URL=api-beta` and a fresh production
+      deploy. It cannot be redeployed today and the live apex is a **13 July** build.
+- [ ] 🔴 **@Bastoh: check Vercel team seats.** If Hobby cannot invite members, FLAG-017's chosen path
+      collapses into the paid option it was picked over. Our project-scoped token gets 403 on
+      `/v2/teams` and cannot check.
+- [ ] 🟠 **Revoke the Vercel + Cloudflare tokens** — the work they were minted for is done; they were
+      created with a 7-day expiry as a net, not a plan.
+- [ ] 🟠 **FLAG-005's third clause** — stat cards still render empty rather than errored. Deferred
+      because it means threading a prop through all six dashboards, which is the design lane's active
+      surface.
+- [ ] 🟠 Gate 2 verdict, once FLAG-017/018 land. **The backend team still needs a signal either way.**
+- [ ] `CLAUDE.md` §3 is factually wrong — branch protection **is** enforced (ruleset 11328360, active,
+      no bypass actors) and the repo is **public**. Both need correcting, and the public-repo status
+      needs confirming as deliberate.
+
+---
+
 **Left undone / next:**
 - [ ] 🔴 **GATE 2 verdict is still unwritten** — and it cannot be a clean pass: A5/FLAG-001, A7 and now
       FLAG-018 are open. The descope call needs the backend team, not just me.
