@@ -550,9 +550,39 @@ apex was *already* public under the old setting, so what actually changed is tha
 `beta.healthclouda.com` will also be a **preview**-target deployment, and **beta carries real PHI from
 3 Sep.** With protection off project-wide, beta would be publicly reachable the moment it is attached.
 
-**Done when:** either the team is on a plan with Advanced Deployment Protection and beta is password-
-protected, or protection is re-enabled and the beta testers are granted access another way — **decided
-before 3 Sep, not on the day.**
+**Done when:** protection is back on and the beta org's testers can still get in — **completed at beta
+stand-up, verified before 3 Sep.**
+
+> 🔑 **DECIDED 2026-08-28 by @Bastoh: re-enable SSO and invite the beta testers to the Vercel team.**
+> Not password protection (needs a paid tier we don't have) and not accepting public hosts.
+>
+> ⏰ **Deliberately NOT done today, and this is the part to get right.** `beta.` does not exist yet, so
+> there is nothing to protect — while flipping it now would instantly re-block **`dev.`**, which is the
+> backend team's UAT host and the only screenshot target @Qeeyat has. The exposure this flag describes
+> begins when beta is attached, so the fix belongs to the **same runbook step**, not to today.
+>
+> **Runbook — at beta stand-up (Mon 31 Aug), in this order:**
+> 1. Invite the beta org's testers to the Vercel team; confirm each one can sign in **before** step 3.
+> 2. Set the `staging`-scoped `NEXT_PUBLIC_API_URL` to `api-beta`, then attach `beta.healthclouda.com`
+>    (order per the deployment section in `HANDOFF.md` — reversed, beta serves the dev backend).
+> 3. Re-enable protection:
+>    ```
+>    PATCH /v9/projects/<id>?teamId=<team>
+>      {"ssoProtection":{"deploymentType":"all_except_custom_domains"}}
+>    ```
+> 4. 🚨 **Verify `dev.` afterwards.** This setting is **project-wide**, and `all_except_custom_domains`
+>    exempts only *production* custom domains — `dev.` and `beta.` are both **preview**-target, so this
+>    re-blocks `dev.` too. That is exactly how the flag was found. If UAT still needs `dev.` open at
+>    that point, the testers must be invited before it flips, or `dev.` work stops dead.
+>
+> ⚠️ **Unresolved, and it may reopen the decision: Vercel team seats are usually a PAID feature, and we
+> are on Hobby.** If testers cannot be invited without a plan upgrade, this choice collapses into the
+> paid option it was chosen over. @Bastoh to confirm on the billing page — our project-scoped token
+> returns 403 on `/v2/teams` and cannot read it.
+>
+> **Worth stating plainly either way:** protection is the OUTER layer. The app is login-gated and every
+> request is authorised server-side by DRF, so this is defence in depth, not the thing standing between
+> the internet and the records.
 
 Re-enabling is one call, the exact inverse of what was run:
 
