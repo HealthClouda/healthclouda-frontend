@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { SlidePanel } from '@/components/ui/SlidePanel';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, formatTime, isToday, personName, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
@@ -122,7 +123,8 @@ const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
   { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
 ];
 
-const patientColumns: DataTableColumn<PatientSummary>[] = [
+function patientColumns(onStartEpisode: (p: PatientSummary) => void): DataTableColumn<PatientSummary>[] {
+  return [
   {
     key: 'patient',
     header: 'Patient',
@@ -139,7 +141,19 @@ const patientColumns: DataTableColumn<PatientSummary>[] = [
   { key: 'phone', header: 'Phone', render: p => p.phone_number ?? '—' },
   { key: 'dob', header: 'Date of Birth', render: p => (p.date_of_birth ? formatDate(p.date_of_birth) : '—') },
   { key: 'since', header: 'Since', className: 'whitespace-nowrap', render: p => <span className="text-text-soft">{formatDate(p.created_at)}</span> },
-];
+  {
+    key: 'actions', header: '', className: 'text-right',
+    render: p => (
+      <button
+        onClick={() => onStartEpisode(p)}
+        className="text-xs font-medium text-primary-dark hover:underline"
+      >
+        New episode
+      </button>
+    ),
+  },
+  ];
+}
 
 function episodeColumns(onComplete: (ep: Episode) => void): DataTableColumn<Episode>[] {
   return [
@@ -310,15 +324,150 @@ function OverviewPage({
 
 // ─── My Patients ───────────────────────────────────────────────────
 
+/**
+ * Start a clinical episode — POST /episodes/.
+ *
+ * ⚠️ NOT `/doctor/episodes/`. The doctor-namespaced endpoint documents no
+ * request body at all (FLAG-218), while the generic viewset is fully specified
+ * and its description states plainly: "POST /api/v1/episodes/ Create episode
+ * (doctor/nurse)". Both were read from the live schema on 2026-08-24; the
+ * documented one wins, because the alternative is inventing a payload and
+ * learning the truth from 400s with a patient in the room.
+ *
+ * Required: `patient` (an id) — everything else is optional. `episode_type` is
+ * a real enum, so it is a select, not a free-text field: OUTPATIENT |
+ * INPATIENT | EMERGENCY | CONSULTATION.
+ *
+ * 🚨 Like `POST /patients/` (FLAG-216), the 201 returns NO `id` — `EpisodeCreate`
+ * echoes the fields back and nothing else. So this cannot navigate to the
+ * episode it just made; it refetches the list instead. Same shape of gap,
+ * second endpoint, which is why FLAG-219 records it as a pattern rather than
+ * one endpoint's oversight.
+ */
+function NewEpisodePanel({ patient, onClose, onCreated }: {
+  patient: PatientSummary | null;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    episode_type: 'OUTPATIENT',
+    chief_complaint: '',
+    diagnosis: '',
+    clinical_notes: '',
+    treatment_plan: '',
+    patient_instructions: '',
+    prescribed_drugs: '',
+  });
+
+  const set = (k: keyof typeof form) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!patient || saving) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = { patient: patient.id };
+      for (const [k, v] of Object.entries(form)) if (v !== '') payload[k] = v;
+      await apiAction(ENDPOINTS.EPISODES, 'POST', payload);
+      toast.success('Episode started');
+      onCreated();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not start episode');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const label = 'block text-xs font-medium text-text-soft';
+  const field =
+    'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
+
+  return (
+    <SlidePanel
+      open={!!patient}
+      onClose={onClose}
+      title="Start episode"
+      subtitle={patient ? `${patient.first_name} ${patient.last_name}` : undefined}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+          <button type="submit" form="new-episode" disabled={saving}
+            className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+            {saving ? 'Starting…' : 'Start episode'}
+          </button>
+        </div>
+      }
+    >
+      <form id="new-episode" onSubmit={submit} className="space-y-4">
+        <label className={label}>
+          Episode type
+          {/* A real enum in the schema — free text here would 400. */}
+          <select value={form.episode_type} onChange={set('episode_type')} className={field}>
+            <option value="OUTPATIENT">Outpatient</option>
+            <option value="INPATIENT">Inpatient</option>
+            <option value="EMERGENCY">Emergency</option>
+            <option value="CONSULTATION">Consultation</option>
+          </select>
+        </label>
+
+        <label className={label}>
+          Chief complaint
+          <input value={form.chief_complaint} onChange={set('chief_complaint')} className={field} />
+        </label>
+
+        <label className={label}>
+          Diagnosis
+          <input value={form.diagnosis} onChange={set('diagnosis')} className={field} />
+        </label>
+
+        <label className={label}>
+          Clinical notes
+          <textarea rows={3} value={form.clinical_notes} onChange={set('clinical_notes')} className={field} />
+        </label>
+
+        <label className={label}>
+          Treatment plan
+          <textarea rows={2} value={form.treatment_plan} onChange={set('treatment_plan')} className={field} />
+        </label>
+
+        <label className={label}>
+          Prescribed drugs
+          <textarea rows={2} value={form.prescribed_drugs} onChange={set('prescribed_drugs')} className={field} />
+        </label>
+
+        <label className={label}>
+          Patient instructions
+          <textarea rows={2} value={form.patient_instructions} onChange={set('patient_instructions')} className={field} />
+        </label>
+
+        <p className="text-[11px] text-text-soft border-t border-border pt-3">
+          Only the patient is required. Clinical notes and treatment plan are not shown to the patient
+          in their portal; chief complaint, diagnosis and instructions are.
+        </p>
+      </form>
+    </SlidePanel>
+  );
+}
+
 function MyPatientsPage() {
   const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<PatientSummary>(ENDPOINTS.DOC_MY_PATIENTS);
+  // Episodes start FROM a patient row rather than from a picker inside the
+  // episodes page. A picker would have to list patients, and a client-side one
+  // sees only the first page (FLAG-214) — a doctor silently unable to find
+  // their own patient is worse than one extra click.
+  const [startFor, setStartFor] = useState<PatientSummary | null>(null);
 
   return (
     <div className="space-y-4">
       <PageHeading title="My Patients" count={count} unit="active" />
       <DataTable
-        columns={patientColumns}
+        columns={patientColumns(setStartFor)}
         data={patients}
         getRowKey={p => p.id}
         loading={loading}
@@ -331,6 +480,11 @@ function MyPatientsPage() {
         onPageChange={setPage}
         totalCount={count}
         pageSize={20}
+      />
+      <NewEpisodePanel
+        patient={startFor}
+        onClose={() => setStartFor(null)}
+        onCreated={refetch}
       />
     </div>
   );

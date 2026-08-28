@@ -84,6 +84,10 @@ export const ENDPOINTS = {
   ORG_CONTACT: (slug: string) => `/org/${slug}/contact/`,
 
   // ── Shared ─────────────────────────────────────────────────
+  // ⚠️ Use this for episode CREATE, not DOC_EPISODES. /doctor/episodes/ is
+  // the doctor-scoped LIST, and it documents no request body at all; this
+  // viewset is fully specified and its description states "Create episode
+  // (doctor/nurse)" (live schema, 2026-08-24). See FLAG-218.
   EPISODES: '/episodes/',
   STAFF_NOTIFS: '/auth/me/notifications/',
   STAFF_UNREAD: '/auth/me/notifications/unread-count/',

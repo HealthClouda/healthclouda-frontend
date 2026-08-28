@@ -1044,6 +1044,76 @@ exactly the kind of unreviewed change `CLAUDE.md` §6 exists to prevent.
 imports it, and the title-case fallback for unknown roles is kept or dropped on purpose rather than
 by accident.
 
+### FLAG-219 — Create endpoints return their input back without an `id`, twice now
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-24, building D5 episode create — the second endpoint with this shape in one night
+
+`POST /api/v1/episodes/` returns `EpisodeCreate`, which is the request echoed back:
+
+```
+patient, episode_type, chief_complaint, diagnosis, prescribed_drugs,
+patient_instructions, vitals, clinical_notes, treatment_plan
+```
+
+**No `id`.** So having created an episode we cannot link to it, cannot attach anything to it, and
+cannot confirm which record we made — only refetch the list and hope to recognise it.
+
+This is the **same shape as FLAG-216** (`POST /patients/` returning no `id`/`healthclouda_id`), and
+two instances in two different apps is a serializer convention, not an oversight in one place.
+Filed separately from #137 only because that issue is specifically about the HCL-ID handout; **if
+the backend fixes the convention rather than the endpoint, both close together.**
+
+**Impact is lower here than in FLAG-216** and worth saying so plainly: a doctor who has just started
+an episode is looking at the patient in front of them, so refetching the list is a mild annoyance.
+Handing a patient the wrong HealthClouda ID is not. Same defect, very different blast radius.
+
+**Worth checking before filing more:** whether `POST /referrals/`, `POST /ward/admissions/` and the
+other creates share it. Not swept yet.
+
+**Done when:** create responses carry `id`, or the convention is confirmed deliberate and we stop
+expecting it.
+
+---
+
+### FLAG-220 — Referral accept/decline moved to ORG_ADMIN, and the doctor-namespaced route is a trap
+**Severity:** P1 · **Area:** Backend contract / authorisation · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-24, re-reading Swagger before D5 writes — exactly as the sprint plan instructed
+
+The change the sprint plan warned about (*"referral workflow becomes ORG_ADMIN-managed ~20 Aug —
+re-read Swagger first, don't build deep"*) **has landed.** From the live schema, verbatim:
+
+> **Authorisation: the receiving organisation's ORGANIZATION_ADMIN only** (FLAG-280) — a doctor can
+> no longer self-accept. On accept, a receiving-org Episode is created and the referral is forwarded
+> to that org's on-duty doctors.
+
+**🪤 The trap:** the endpoints are still namespaced under `/doctor/`.
+
+```
+PATCH /api/v1/doctor/referrals/{id}/accept/
+PATCH /api/v1/doctor/referrals/{id}/decline/
+```
+
+Their own descriptions say they are the **ORG_ADMIN's** capacity confirmation. So a path that reads
+`/doctor/…` requires a role that is not the doctor, and anyone scanning path names to decide what
+belongs on the doctor dashboard will get it exactly backwards. There are also two parallel surfaces
+(`/referrals/{id}/accept/` POST vs `/doctor/referrals/{id}/accept/` PATCH) with **different verbs**
+for the same action.
+
+**Consequence, and why this flag is worth its length:** D5's sprint row lists "referral
+accept/decline" as doctor work. Building it would have shipped a button that 403s every time — an
+affordance a doctor can neither use nor understand, on a dashboard the backend tests next week. The
+doctor's Referrals page is read-only today and **must stay that way**; a test now pins that
+(`referral accept/decline is NOT the doctor's to make`).
+
+**Where it belongs instead:** **D2 Org Admin.** The receiving org's admin needs an incoming-referrals
+queue with accept/decline, and nothing in D2 covers it — this is currently a hole in the product,
+not just a misplaced button.
+
+**Done when:** the sprint plan's D5 row no longer lists referral accept/decline as doctor work, D2
+gains the ORG_ADMIN referral queue, and — ideally — the backend is asked why an ORG_ADMIN-only
+action lives under `/doctor/`.
+
+
 ---
 
 *Last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
@@ -1058,7 +1128,7 @@ by @Qeeyat** (see the note under the range table). FLAG-013 and FLAG-014 were **
 — see the numbering note on FLAG-013. FLAG-211/212 raised 2026-08-19, building D3 Nurse.
 FLAG-215 raised 2026-08-24, fixing the Role column for PR #85. FLAG-211 was **narrowed** the same
 night (see the note inside it): its claim that the schema documents no parameters held for the
-doctor endpoints and was wrongly generalised to the whole API.*
+doctor endpoints and was wrongly generalised to the whole API. FLAG-219/220 raised 2026-08-24, re-reading Swagger before the D5 write workflows — FLAG-220 is the referral authorisation change the sprint plan told us to check for, and it had landed.*
 
 > 🔁 **The numbering rule bit again, in the third distinct way.** FLAG-016 (patient sign-in, PR #83)
 > was renumbered to **FLAG-210** on merge, into @Qeeyat's range. A D3 branch cut before that merge
@@ -1067,6 +1137,7 @@ doctor endpoints and was wrongly generalised to the whole API.*
 > numbers · and a flag that gets **renumbered on merge** silently invalidates any branch that was
 > cut while it held its old number. Before numbering: check `develop` **and** open PRs **and**
 > whether anything you filed has since been renumbered.
+
 
 > ⚠️ **FLAG-011 is still OPEN — do not read `HANDOFF.md` as saying otherwise.** Its "Cleared on
 > merge" line reads *"FLAG-011 token contrast — PR #68"*, which looks like a fix. PR #68 was
