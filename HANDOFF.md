@@ -18,8 +18,12 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*` + fixtures | 2026-08-19 | 🔴 **CHANGES_REQUESTED 2026-08-23** — Role column renders raw lowercase `org_admin`/`doctor`; `roleLabel` maps uppercase only. UAT-critical |
-| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*` | 2026-08-19 | 🟠 **CHANGES_REQUESTED 2026-08-23** — ward board caps at the first 20 beds; `/ward/beds/` is paginated (live schema) |
+| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*`, `lib/utils.ts` + fixtures | 2026-08-19 | ✅ **fix pushed 2026-08-24 — awaiting @Bastoh re-review.** Role column fixed with an explicit lowercase→`RoleEnum` alias table (`.toUpperCase()` does not work: `ORG_ADMIN` ≠ `ORGANIZATION_ADMIN`). Rebased onto `develop`. UAT-critical |
+| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*`, `hooks/use-api.ts`, `CODEBASE_FLAGS.md` | 2026-08-19 | ✅ **fix pushed 2026-08-24 — awaiting @Bastoh re-review.** Ward board loads every page via a new `useAllPages()`; FLAG-211 narrowed. ⚠️ **Adds a shared hook to `use-api.ts`** — worth knowing before anyone else edits that file |
+| @Qeeyat | **Session log + FLAG-215** (docs only) | `docs/session-log-qeeyat-2026-08-24` | `HANDOFF-Qeeyat.md`, `HANDOFF.md`, `CODEBASE_FLAGS.md` | 2026-08-24 | 🔄 open |
+| @Qeeyat | **D4 Receptionist** (Wed 19 row) — check-ins, appointments, registration, portal invite + the **FLAG-213 receptionist half** | `feat/dash-4-receptionist` | `receptionist/*`, `types/dashboard.ts`, `lib/config.ts` | 2026-08-24 | 🔄 open. ⚠️ **Absorbing E2's data layer inline** (`[INFRA]`, @Bastoh's lane, never landed) — claiming loudly. HCL-ID handout is **blocked on backend #137**. PR #94 |
+| @Qeeyat | **D5 write workflows** — episode create; referral accept/decline **not built, see FLAG-220** | `feat/dash-5-doctor-writes` | `doctor/*`, `lib/config.ts` | 2026-08-24 | 🔄 open — PR #95. ⚠️ **Claimed AFTER cutting the branch**, which is the rule I broke on 19 Aug and just broke again — recorded rather than quietly fixed |
+| @Qeeyat | **Schema-reading guidance** — `CLAUDE.md` §1 + `ONBOARDING.md` §5 (docs only) | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🔄 open. ✅ **Claimed before cutting the branch** this time. Deliberately touches NO other file — `CODEBASE_FLAGS.md` is already open in four branches |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -98,6 +102,60 @@ step is exactly FLAG-210. The journey cannot complete regardless of how much D4 
 
 ---
 
+### 🧪 UAT Day 2 (Tue 25 Aug) — three of today's four items are blocked
+
+> Written the morning of Tue 25, **before** the backend team hits these at their desk. Monday's
+> journey died on FLAG-210 with no warning; this is the same failure mode caught one day earlier.
+
+Today's sprint row is *"T6 part 2 — nurse, org-admin (staff CRUD, announcements incl. `is_public`),
+superadmin, and the referral journey end to end."* Measured on `develop` this morning:
+
+| Today's UAT item | State on `develop` | Blocker |
+|---|---|---|
+| **Superadmin** | ✅ testable | — (#84 merged 23 Aug) |
+| **Org Admin** | ❌ blank names, `?` avatars, 2 of 4 stat cards `—` | **the fix is in unmerged #85**, pushed 24 Aug, awaiting re-review |
+| **Nurse** | ⚠️ old primitives; ward board caps at 20 beds | **the fix is in unmerged #86**, pushed 24 Aug, awaiting re-review |
+| **Referral journey, end to end** | 🚨 **cannot be tested at all** | **no UI exists for the accept step, anywhere in the product** |
+
+#### 🚨 The referral journey has no accept step
+
+**FLAG-220:** accepting or declining a referral is now the receiving organisation's
+**ORGANIZATION_ADMIN** — *"a doctor can no longer self-accept"*, stated verbatim in the live schema.
+
+- The **Doctor** dashboard's referrals page is read-only, and per FLAG-220 it must stay that way —
+  a button there would 403 every time.
+- The **Org Admin** dashboard has **no referrals page**. Its nav is Dashboard / Staff / Patients /
+  Wards & Beds / Access Requests. Confirmed in `OrgAdminDashboard.tsx` on 25 Aug: the string
+  "referral" does not appear in the file.
+
+So the journey can be *created* and *listed* but never *accepted*. **This is a hole in the product,
+not a misplaced button** — the backend moved the authorisation ~20 Aug and no dashboard gained the
+capability.
+
+⚠️ **Note the trap that hid this:** the endpoints are still namespaced `/doctor/referrals/{id}/accept/`
+while requiring ORG_ADMIN. Anyone deciding scope from path names gets it exactly backwards.
+
+#### What this needs, in order
+
+1. 🔴 **Review #85 and #86 today.** Both are today's UAT roles and both fixes are already written and
+   pushed. This is the same "cheapest possible win" the Gate 1 assessment named on 22 Aug, three
+   days later and now inside UAT week.
+2. 🔴 **Tell the backend team the referral journey cannot complete** before they spend the day on it.
+   Monday cost them the receptionist journey discovered live; this one is knowable in advance.
+3. 🟠 **Decide who builds the ORG_ADMIN referral queue, and whether it happens during the freeze.**
+   Week 3 says *"no new features — `develop` is frozen except for fixes arising from testing."*
+   This gap arises **from** testing, so it plausibly qualifies — but that is @Bastoh's descope call,
+   not something to be assumed. It is unclaimed and unbuilt as of this morning.
+
+> ⚠️ **A freeze note against myself.** D4 (#94) and D5 (#95) were built on Mon 24 — inside the
+> declared freeze. Gate 1's NO-GO said *"if NO-GO, what moves is decided here — not during UAT"*, and
+> that descope decision was never made, so I built into an undecided plan rather than waiting for it.
+> Both PRs are honest about what they contain and neither is merged, so nothing is on `develop` that
+> shouldn't be — but the sequencing was mine to get wrong and it is recorded here rather than
+> quietly.
+
+---
+
 ## 📡 Backend Contract Notes
 
 > Backend changes we must consume. The live `/api/v1/schema/` is the single source of truth —
@@ -105,6 +163,8 @@ step is exactly FLAG-210. The journey cannot complete regardless of how much D4 
 
 | Date | Note | Status |
 |---|---|---|
+| 2026-08-24 | 🎯 **`/api/v1/schema/` needs NO authentication — contract verification is never blocked on credentials.** An unauthenticated `GET https://api-dev.healthclouda.com/api/v1/schema/?format=json` returns **200** and the full 125-path OpenAPI document. This is worth stating loudly because both devs have deferred contract questions on the belief that a token was needed: @Qeeyat left `/nurse/wards/overview/` "unverified, no token to hand" on PR #86 the same night (corrected there). **Only live *data* needs a token — shapes, params and required fields do not.** Pull the schema and read the component directly rather than inferring from an example response. | ✅ verified 2026-08-24 |
+| 2026-08-24 | 🚨 **`POST /patients/` returns no `id` and no `healthclouda_id`, so a receptionist cannot hand a newly-registered patient their HCL-ID.** The 201 body is the `PatientCreate` serializer: 19 fields, **zero identifiers** (read from the component, not an example). No fallback exists — without `id` we cannot even `GET /patients/{id}/`, and `send-portal-invite` needs that same `patient_id`. ⚠️ **The available workaround was deliberately refused:** searching for the patient just created and guessing which result is theirs. Two same-name registrations minutes apart are indistinguishable, and handing over the **wrong HealthClouda ID** risks a patient's records attaching to another person — an error invisible at the desk. Also asked in the same issue: `PatientCreateRequest` marks only `first_name`/`last_name` required, so the sprint's *"email optional, phone required when email omitted"* rule is either absent or hidden in `validate()`, and our form cannot mirror it. | ❗ **filed: backend [#137](https://github.com/HealthClouda/healthclouda-backend/issues/137)** · frontend side is **FLAG-216** · **blocks the D4 HCL-ID handout only** — portal invite is unaffected (search → `id` → detail → invite) |
 | 2026-08-19 | ⚠️ **Read before D4/D5: `Appointment` and `CheckIn` describe shapes the API does not return, and `/receptionist/check-ins/` defaults to TODAY.** Captured live as `reception@demo.test`. Appointments return `scheduled_at` + a nested `doctor{}` — **not** `appointment_date`/`appointment_time`/`doctor_name`, which is what `ReceptionistDashboard.tsx:208-210` and `DoctorDashboard.tsx:101,310-311` render **on `develop` today**, so both tables show blank dates against real data. Check-ins return `checked_in_at`, a nested `assigned_doctor{}`, `reason_for_visit` and a `queue_number` we ignore — not `check_in_time`/`chief_complaint`. 🪤 **And `/receptionist/check-ins/` with no params returns 0** against seeded data: the 5 seeded check-ins are dated 13 Aug and the endpoint defaults to today, so the queue looks broken and `?status=` alone returns nothing because the date filter applies first. ✅ `ReceptionistStats`, `OnDutyDoctor` and `PatientSearchResult` are all correct as typed. | logged as **FLAG-213** · fixes sequenced **with D4 (receptionist) and D5 (doctor)** rather than separately, since both rewrite those components · ⚠️ **this is the D2 bug class again**, found this time by capturing payloads *before* building |
 | 2026-08-19 | 🚨 **A patient has no organisation, and every patient route we have needs one — so patients cannot sign in.** `GET /auth/me/` returns `"organization": null` for `patient@demo.test`, which is **correct**: records move with the patient between facilities (`CLAUDE.md` §1), so a patient belongs to no single org. But `roleDashboardPath()` builds `/${orgSlug}/patient` and the only route that exists is `/[slug]/patient`, so `SigninForm.tsx:87` refuses the login rather than navigate to `/undefined/patient`. Verified in a real browser against `api-dev`: login returns **200** with role `PATIENT`, then our UI shows *"Signed in, but your organization could not be determined. Please use your organization portal"* — advice that cannot be followed, because the general portal **is** the patient portal. ⚠️ **This nuances FLAG-010:** for patients, the backend's slug-less `redirect_to: "/patient/"` is the **correct** answer, not the loaded gun that flag describes. | ❗ **open — assigned to @Bastoh as FLAG-210** (P1). Needs an architecture decision, not a one-liner: a slug-less `/patient` route (plus `RESERVED_PATHS` + `middleware.ts` changes) or a backend home-org. **Blocks D6 Patient** (was Thu 20 Aug's row; that day passed unworked) · ⏫ **escalated 2026-08-22:** this now also blocks the **Mon 24 Aug UAT opener** — the receptionist journey ends in *"patient logs in"*, which is precisely this bug. It is no longer only a D6 dependency; it is on the backend's UAT critical path |
 | 2026-08-17 | ⚠️ **`?page_size=` is ignored by the server, and the response hides it.** Measured against `api-dev` by @Qeeyat (PR #76, `b6fa74c`): `GET /audit/logs/` → count 162, **results 20**; `?page_size=5` → still **results 20**; `GET /auth/users/?page_size=1` → count 7, **results 7**. The real page size is **20** and `?page=` works, so `usePaginatedList`'s hardcoded 20 is right **by coincidence, not contract** — if the backend retunes `PAGE_SIZE`, every list in the app silently mis-paginates and later pages become unreachable. 🪤 **The trap:** the `next` URL **echoes `page_size` back** while ignoring it, so the payload looks like the param was honoured — verify with `results.length`, never with `next`. The schema documents `page_size` on only two endpoints in the entire API (`/org/{slug}/announcements/`, `/org/contacts/`). | logged as **FLAG-013** · ✅ the one present-tense bug (Overview "Recent Organisations" rendering 20 instead of 5) fixed in PR #76 · ⏳ `usePaginatedList` still sends the ignored param repo-wide, and the superadmin invite dropdown is capped at the first 20 orgs |

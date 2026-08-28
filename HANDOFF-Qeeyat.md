@@ -60,6 +60,176 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-24 — cleared both CHANGES_REQUESTED blockers (branches: fix/org-admin-payload-shapes #85, feat/dash-3-nurse #86)
+
+**Goal:** @Bastoh reviewed the whole backlog overnight and merged six (#84, #87, #88, #89, #90, #91).
+Two came back blocked. Clear both before UAT week opens.
+
+**What I did:**
+- **Reviewed and merged #92** (his In Flight bookkeeping). Docs-only, diff matched the description.
+- **#85 — the Role column.** `/org-admin/staff/` returns lowercase roles; `roleLabel` mapped only the
+  uppercase `RoleEnum`, so `map[role] ?? role` fell through and the table shipped raw `org_admin` /
+  `doctor`. Fixed with an explicit alias table.
+- **#86 — the ward board.** Fetched `/ward/beds/` with a plain `useApi` and read `.results`, so it
+  rendered only the first 20 beds. Added `useAllPages()` and moved both the beds and wards fetches
+  onto it.
+- Narrowed **FLAG-211**, raised **FLAG-215**.
+
+**What I found:**
+- 🎯 **`.toUpperCase()` is the wrong instinct and I'd have reached for it.** `'org_admin'` uppercases
+  to `ORG_ADMIN`; the canonical key is `ORGANIZATION_ADMIN`. The two spellings differ by more than
+  case, so the "obvious" one-liner still misses and still falls through to the raw value. Bastoh
+  called this out before I could get it wrong.
+- 🎯 **My test couldn't see the bug, and the reason generalises.** *"renders the staff name, not a
+  blank cell"* counts em dashes — and a raw lowercase role **is not an em dash**. The fixture even
+  had the correct lowercase role in it. **A test written against one failure mode is blind to the
+  next one in the same cell.** The assertion with teeth turned out to be the negative:
+  `not.toContain('nurse')`.
+- 🎯 **A one-page fixture cannot see a pagination bug.** Seven seeded beds meant a green suite *and*
+  a live click-through both passed over the ward board cap. I had to fixture 25 beds across two
+  pages before anything failed. Same shape as FLAG-013/214 — but those are cosmetic and this one
+  isn't: a nurse reading a partial bed list has no way to tell it's partial, and concluding a bed
+  isn't there has clinical consequence. That distinction is why Bastoh blocked instead of filing,
+  and I'd have filed it.
+- 🎯 **FLAG-211 caused this bug, which is the part worth keeping.** I wrote that the schema documents
+  no params — true of `/doctor/appointments/` and `/doctor/episodes/`, and I generalised it to the
+  whole API. `/ward/beds/` documents three params and returns a paginated envelope. **Believing my
+  own over-generalisation is why I reached for a plain `useApi`.** A wrong flag is not inert; the
+  next reader inherits it as fact, and here the next reader was me, four days later. Narrowed it as
+  a cost, not a tidy-up.
+- **`useAllPages` cannot follow DRF's `next`** — it's an absolute backend URL and the browser only
+  talks to our proxy. So the page count comes from `count` + the size of page one. That looks like
+  the thing `usePaginatedList`'s comment warns against, but page 1 is only ever partial when it's
+  the *only* page. Wrote the reasoning into the code so it doesn't read as ignoring the warning.
+- **Second `roleLabel` at `SetPasswordForm.tsx:42`** — no bug (it title-cases), but it says
+  "Organization Admin" where `utils.ts` says "Org Admin". Two sources of truth for user-facing role
+  names → **FLAG-215**.
+- **Vercel previews still fail on every PR, including docs-only ones.** Not new — Bastoh diagnosed
+  it in his log (`NEXT_PUBLIC_API_URL` unset on Vercel, A4's fail-loud config working as designed).
+  I checked before treating a red check as a blocker. Combined with FLAG-006 (no `.github/`),
+  **nothing mechanical gates this repo** — tsc/tests/build are honour-system and local.
+
+**Decisions:**
+- **Deferred `Ward.available_beds` from #85 to #86** rather than fixing it where it was raised. The
+  unguarded read lives in the exact block #86 rewrites, so fixing it in #85 meant resolving the same
+  conflict twice — the FLAG-213 lesson, applied.
+- **Moved the wards fetch onto `useAllPages` too**, though only the beds endpoint was flagged. I
+  couldn't verify that endpoint's envelope live (no token to hand), but the hook is correct either
+  way, so it removes the bug class from the view rather than the one instance. Said so on the PR
+  rather than letting it pass as verified.
+- **Didn't reword the invite screen** while fixing the Role column. Copy is a decision with an
+  owner; §6 says flag it.
+- **Resolved the #86 rebase conflict in favour of Bastoh's row**, which states the actual blocker
+  rather than my three-day-old claim text.
+- **Carrying forward one thing #92 deleted:** the note recording that I cut five branches on 19 Aug
+  and left the In Flight table empty for three days, so five live branches were invisible to the
+  other dev. Removing it there was right — the rows are gone. Keeping it here because it's mine.
+
+**Verified:** #85 — tsc clean, 136/136, build green. #86 — tsc clean, 134/134, build green. **Both
+confirmed RED against the pre-fix source rather than assumed:** #85 gave 3 failures including the
+bug rendered verbatim (`'NENgozi Ezengozi@demo-clinic.testnurs…' to contain 'Nurse'`); #86 gave 3,
+including `Unable to find GW-21` — the board stopping dead at GW-20.
+
+**Left undone / next:**
+- [ ] 🔴 **#85 and #86 await @Bastoh's re-review.** Both UAT-relevant; UAT week opens Monday.
+- [ ] 🔴 **FLAG-210 (patient signin) is still open and still his** — the one Gate 1 blocker no work
+      of mine can clear.
+- [ ] 🟠 **FLAG-215** — collapse the two `roleLabel`s once someone owns the copy call.
+- [ ] 🟠 **Audit the other `useApi(...).results` call sites for the same cap.** I fixed the two in
+      the ward board because they were in front of me; I have not swept the rest of the app, and
+      FLAG-211's lesson says assume nothing is uniform.
+- [ ] 🟠 **FLAG-006 / E8 — no CI.** Every gate tonight was me running three commands locally and
+      choosing to report them honestly. That is not a gate.
+
+
+#### Part 2, same session — D4 Receptionist and D5's writes (PRs #94, #95)
+
+**Goal:** with both blockers cleared, actually move the two lanes that hadn't started. D4 then D5.
+
+**The finding that reframed the night:**
+
+- 🎯 **`/api/v1/schema/` needs NO authentication.** An unauthenticated GET returns 200 and all 125
+  paths. I had told Bastoh on #86, hours earlier, that I couldn't verify an endpoint because I had
+  "no token to hand tonight." **That was never a reason.** Only live *data* needs auth; shapes,
+  params and required fields never did. Corrected on the PR, recorded in `HANDOFF.md`, and it is
+  why every scoping decision below rests on evidence instead of a captured payload from five days
+  ago. **If a contract question feels blocked on credentials, it probably isn't.**
+
+**What I found by reading the schema BEFORE building — all three would otherwise have shipped:**
+
+- 🚨 **`POST /patients/` returns no `id` and no `healthclouda_id`** (FLAG-216, backend #137). The
+  HCL-ID handout is the entire point of front-desk registration and it cannot be built. The
+  available workaround — search for the patient just created and take the first result — **I
+  refused.** Two same-name registrations minutes apart are indistinguishable, and handing someone
+  the wrong HealthClouda ID attaches their records to another person, invisibly, at a desk. The
+  screen says the ID isn't available and offers a search where the receptionist can *see* who they
+  pick. Asked the user first; they chose file-and-build-around, which is what CLAUDE.md §1 mandates
+  anyway.
+- 🚨 **Referral accept/decline is no longer the doctor's** (FLAG-220). The sprint plan told us to
+  re-read Swagger before D5 because this was due ~20 Aug. It landed: *"the receiving organisation's
+  ORGANIZATION_ADMIN only — a doctor can no longer self-accept."* 🪤 **And the endpoints are still
+  under `/doctor/`** — a path that says doctor, an authorisation that says otherwise. Building D5's
+  sprint row as written would have shipped a button that 403s every time. It belongs in **D2 Org
+  Admin**, where it is currently a hole in the product, not a misplaced button.
+- 🚨 **Every receptionist write endpoint documents an empty request body** (FLAG-218) — check-in
+  creation, appointment booking, check-in status. Same for `/doctor/prescriptions/`, which has **no
+  `Prescription` component in the schema at all**. So four write flows across D4 and D5 were left
+  unbuilt rather than invented. Everything that shipped is backed by the schema or a live capture.
+
+**Two corrections to my own flags, both from the same cause:**
+
+- **FLAG-211 was wrong twice.** I'd already narrowed its "the schema documents no params" claim
+  earlier tonight. Reading further, **its other half is also too broad**: some endpoints *do*
+  document role permissions — in the `description` string. The patients viewset spells out
+  `CREATE (POST): SUPERADMIN, RECEPTIONIST only` and `RECEPTIONIST: contact info only`, which is how
+  D4's registration and contact-edit were verified without a single POST at shared seed data. It is
+  12 operations across 6 paths. **Params hide in the same place** — `/receptionist/appointments/`
+  declares none and its description names three. FLAG-217 records this.
+- The one thing FLAG-211 still gets right: `/ward/admissions/` POST documents no permissions, so
+  "may a nurse admit?" is genuinely still open. Checked, not assumed.
+
+**Decisions:**
+
+- **Split D4 into function now, design later** — following the #90 → #91 precedent. Check-ins and
+  appointments are on `DataTable` because they were rewritten anyway; the rest follows.
+- **Episode create starts from a patient row, not a picker.** A picker lists patients, and a
+  client-side one sees page 1 only (FLAG-214). A doctor silently unable to find their own patient
+  is worse than one extra click.
+- **Used `POST /episodes/`, not `/doctor/episodes/`** — the doctor-scoped one documents no body.
+  Wrote the reason into `config.ts` next to the constant, because the obvious-looking choice is the
+  wrong one.
+
+**Mistakes I made and fixed:**
+
+- **The same a11y defect twice in one night**: in D4 the panel submit and the opener both read
+  "Register patient"; in D5, both read "Start episode". Two buttons with one accessible name, on
+  screen together. Both caught by tests failing with *"Found multiple elements with the role
+  button"* — a test failure that looks like a selector problem and is actually a real defect.
+  **Worth remembering: `getByRole` ambiguity is usually the UI's fault, not the test's.**
+- **`tsc` caught me adding a duplicate `EPISODES` key** to `ENDPOINTS` — it already existed. I
+  annotated the existing one rather than shadowing it.
+- **I claimed D5 In Flight *after* cutting the branch.** That is the exact rule I broke on 19 Aug and
+  wrote down as a lesson. Recorded rather than quietly backdated.
+
+**Verified:** #94 — tsc clean, 135/135, build green. #95 — tsc clean, 131/131, build green. New
+field tests confirmed **RED** against the pre-fix source in both: D4's pre-fix code could not render
+the patient's *name* from the real check-in payload.
+
+**Left undone / next:**
+- [ ] 🔴 **#85, #86, #94, #95 all await @Bastoh.** Four open PRs is more queue than I'd like given
+      what three days of latency cost last week — worth flagging rather than repeating.
+- [ ] 🔴 **FLAG-210 patient signin** — still his, still the one Gate 1 blocker I cannot clear.
+- [ ] 🔴 **FLAG-218's write bodies** are the largest remaining product gap: a receptionist cannot
+      check a patient in or book an appointment. Settle right after backend #137.
+- [ ] 🟠 **FLAG-220 → D2**: the ORG_ADMIN incoming-referral queue does not exist anywhere.
+- [ ] 🟠 **Sweep the other creates** for FLAG-219's missing-`id` convention (`/referrals/`,
+      `/ward/admissions/`).
+- [ ] 🟠 **D4/D5 design migration** — the remaining tables onto `DataTable`, per the #90 → #91 split.
+- [ ] 🟠 **Update `CLAUDE.md`/`ONBOARDING.md`** to say: read the schema's `description`, and it needs
+      no token. Both would have saved me time tonight and neither is written down.
+
+---
+
 ### 2026-08-22/23 — Gate 1 run late (NO-GO), then the doctor contract fixed (branches: docs/gate-1-assessment #89, feat/dash-5-doctor #90)
 
 **Goal:** I was away Thu 20 and Fri 21. Work out what those two days actually cost and get the board
