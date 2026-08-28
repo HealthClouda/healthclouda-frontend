@@ -56,7 +56,7 @@ Every flag needs a **Done when** that someone else can verify without asking the
 ## Open flags
 
 ### FLAG-001 — Authorization is decided from a client-writable cookie
-**Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** ✅ **FIXED 2026-08-28** — *stays here until the PR merges; move to Resolved then*
 **Found:** 2026-08-08, codebase survey
 
 The `hc_user` cookie is set `httpOnly: false` (`src/lib/auth.ts:30`) so the UI can read the user's
@@ -79,6 +79,38 @@ moment PHI arrives.
 **Done when:** role/tenant gating decides from a server-trusted source (access token claims or a
 server-side lookup), the `hc_user` cookie is display-only, and a test proves a tampered `hc_user`
 cookie cannot render another role's or another org's dashboard.
+
+> ✅ **Fixed 2026-08-28.** All six page gates now call `requireDashboardUser()`
+> (`lib/auth-server.ts`), which resolves identity from `GET /auth/me/` using the **httpOnly** access
+> token. `hc_user` is annotated display-only at its definition and at `getUser()`.
+>
+> 🔍 **Access-token claims were the cheaper fix and are not available.** Decoded a real token from
+> `api-dev` rather than assuming: the payload is stock SimpleJWT —
+> `{ token_type, exp, iat, jti, user_id }`, **no role, no organisation**. So a server lookup is the
+> only server-trusted option today. It costs one round trip per gated render, held to one by React
+> `cache()`. If the backend later adds `role`/`organization` claims, `getAuthorizedUser()` is the
+> single function to change and the trip disappears — worth an `api-request`, but it is an
+> optimisation, not a blocker.
+>
+> 🚨 **A second hole was found while fixing the first, and it needed no tampering at all.** The gates
+> checked the *role* and never compared the route slug to the user's organisation, so a real doctor at
+> `demo-clinic` could open `/other-clinic/doctor` and get that org's dashboard shell by typing a URL.
+> Multi-tenancy is the core constraint of this product, so this is now asserted in the same gate and
+> covered by its own test.
+>
+> ⚠️ **The fix fails closed, deliberately.** `serverFetch` returns `null` for everything — no token,
+> 401, 500, network blip (FLAG-005) — and the gate treats every one as DENY. The cost is that a
+> backend wobble bounces people to signin rather than showing a stale shell. That is the right trade
+> for an authorization decision, but it does mean **FLAG-005 now has a UX consequence it did not have
+> before**, which is an argument for raising its priority.
+>
+> Also corrected in passing: the superadmin gate redirected to `/signin`, the **patients-only** portal
+> where the backend rejects staff — the same defect PR #84 fixed in `middleware.ts`, still live here.
+> It now goes to `/superadmin/signin`.
+>
+> **Not changed:** `middleware.ts` still reads `hc_user` for its signin-page redirect. That is a
+> convenience redirect, not an authorization decision — a tampered cookie can now only send the
+> attacker to a dashboard that refuses to render.
 
 ---
 
