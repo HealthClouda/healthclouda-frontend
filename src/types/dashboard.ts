@@ -9,13 +9,24 @@ export interface SuperadminStats {
   total_staff?: number;
 }
 
+// GET /org-admin/dashboard/stats/ — CAPTURED LIVE 2026-08-19, not inferred:
+//   {"total_staff":4,"active_patients":14,"todays_appointments":0,
+//    "bed_occupancy":"2/7","pending_access_requests":2,"critical_alerts":0}
+//
+// The previous version of this interface had `total_patients` and
+// `active_episodes`, which the endpoint does not return — both stat cards
+// rendered a permanent '—' against real data. The design README named these
+// fields correctly all along; they were changed on the assumption that the
+// existing names already worked. Nobody had run the dashboard.
+//
+// `bed_occupancy` is a STRING ("2/7"), not a number — do not do arithmetic.
 export interface OrgAdminStats {
   total_staff: number;
-  total_patients: number;
-  active_episodes: number;
+  active_patients: number;
+  todays_appointments: number;
+  bed_occupancy: string;
   pending_access_requests: number;
-  wards_total?: number;
-  beds_occupied?: number;
+  critical_alerts: number;
 }
 
 // Shape verified live 2026-07-05 (GLOBAL-6) — GET /receptionist/dashboard/stats/
@@ -116,6 +127,46 @@ export interface OrganizationInput {
 // GET /auth/users/ item — shape verified live 2026-08-14 against UserList.
 // last_login is the only signal for "invite still pending" — the backend has
 // no dedicated pending-invite field or filter (FLAG-205).
+// GET /org-admin/staff/ — CAPTURED LIVE 2026-08-19. Note this is a BARE ARRAY,
+// not a DRF envelope, so there is no pagination on this list at all:
+//   [{"id":"…","full_name":"Ada Administrator","role":"org_admin",
+//     "email":"…","phone":null,"is_active":true}]
+//
+// Deliberately NOT `StaffMember`: that type describes `/auth/users/`, which the
+// Superadmin dashboard consumes and which really does return first_name /
+// last_name. Org Admin was typed as `StaffMember` and so rendered a blank name
+// and a '?' avatar for every row. Two endpoints, two shapes, two types.
+//
+// `role` is LOWERCASE here ("org_admin", "doctor") while /auth/users/ returns
+// uppercase ("ORGANIZATION_ADMIN") — a real inconsistency in the API, not a typo.
+export interface OrgStaffMember {
+  id: string;
+  full_name: string;
+  role: string;
+  email: string;
+  phone: string | null;
+  is_active: boolean;
+}
+
+// GET /org-admin/patients/ — CAPTURED LIVE 2026-08-19 (DRF envelope):
+//   {"id":"…","full_name":"Abubakar Nwosu","healthclouda_id":"HCL-CCBV02",
+//    "gender":"Male","phone":"08096197808","last_visit":"2026-08-13",
+//    "status":"ACTIVE"}
+//
+// Shares only `id` with `PatientSummary`, which describes /doctor/patients/.
+// Typing this list as `PatientSummary` meant every column read a field that
+// does not exist: 14 rows rendered with blank names and '—' everywhere, while
+// the HCL-ID the search box advertises was returned and never displayed.
+export interface OrgPatientSummary {
+  id: string;
+  full_name: string;
+  healthclouda_id: string;
+  gender?: string;
+  phone?: string | null;
+  last_visit?: string | null;
+  status?: string;
+}
+
 export interface StaffMember {
   id: string;
   first_name: string;
@@ -281,7 +332,13 @@ export interface Ward {
   name: string;
   total_beds: number;
   occupied_beds: number;
-  available_beds: number;
+  // Optional: /org-admin/wards/overview/ does NOT return it (captured live
+  // 2026-08-19 — it returns total_beds, occupied_beds and a nested `beds[]`).
+  // The org-admin ward card rendered an empty string before the word
+  // "available". Derive it as total_beds - occupied_beds rather than assuming
+  // every wards endpoint supplies it.
+  available_beds?: number;
+  beds?: { id: string; bed_number: string; status: string }[];
   ward_type?: string;
   // Nurse wards-overview serializer uses `category` (verified 2026-07-11).
   category?: string;

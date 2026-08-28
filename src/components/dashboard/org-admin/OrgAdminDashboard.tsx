@@ -15,11 +15,11 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatDate, roleLabel, truncate } from '@/lib/utils';
+import { formatDate, roleLabel, splitName, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  OrgAdminStats, StaffMember, StaffInviteInput, PatientSummary, Ward, AccessRequest, Paginated,
+  OrgAdminStats, OrgStaffMember, StaffInviteInput, OrgPatientSummary, Ward, AccessRequest, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -67,9 +67,12 @@ function OverviewPage({ stats, onNavigate }: { stats: OrgAdminStats | null; onNa
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Fields captured live 2026-08-19. `total_patients` and
+            `active_episodes` were not in the payload and rendered '—' on every
+            load; `bed_occupancy` arrives as the string "2/7". */}
         <StatCard loading={!stats} label="Total Staff" value={stats?.total_staff} icon={<UsersIcon />} color="purple" />
-        <StatCard loading={!stats} label="Total Patients" value={stats?.total_patients} icon={<UserIcon />} color="blue" />
-        <StatCard loading={!stats} label="Active Episodes" value={stats?.active_episodes} icon={<DocIcon />} color="amber" />
+        <StatCard loading={!stats} label="Active Patients" value={stats?.active_patients} icon={<UserIcon />} color="blue" />
+        <StatCard loading={!stats} label="Bed Occupancy" value={stats?.bed_occupancy} icon={<DocIcon />} color="amber" />
         <StatCard loading={!stats} label="Pending Access" value={stats?.pending_access_requests} icon={<KeyIcon />} color="red" onClick={stats?.pending_access_requests ? () => onNavigate('access-requests') : undefined} />
       </div>
 
@@ -105,7 +108,7 @@ const EMPTY_INVITE: StaffInviteInput = { full_name: '', email: '', role: 'doctor
 
 function StaffPage() {
   const { items: staff, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<StaffMember>(ENDPOINTS.ORG_ADMIN_STAFF);
+    usePaginatedList<OrgStaffMember>(ENDPOINTS.ORG_ADMIN_STAFF);
   const { toast } = useToast();
   const [invitePanel, setInvitePanel] = useState(false);
   const [form, setForm] = useState<StaffInviteInput>(EMPTY_INVITE);
@@ -136,12 +139,12 @@ function StaffPage() {
     }
   }
 
-  const columns: DataTableColumn<StaffMember>[] = [
+  const columns: DataTableColumn<OrgStaffMember>[] = [
     { key: 'member', header: 'Member', render: (s) => (
       <div className="flex items-center gap-2.5">
-        <Avatar firstName={s.first_name} lastName={s.last_name} size="sm" />
+        <Avatar {...splitName(s.full_name)} size="sm" />
         <div>
-          <div className="text-[13px] font-semibold text-ink">{s.first_name} {s.last_name}</div>
+          <div className="text-[13px] font-semibold text-ink">{s.full_name}</div>
           <div className="text-[11px] text-text-soft">{s.email}</div>
         </div>
       </div>
@@ -152,14 +155,11 @@ function StaffPage() {
       </span>
     ) },
     { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.is_active ? 'ACTIVE' : 'INACTIVE'} /> },
-    { key: 'duty', header: 'Duty', render: (s) => (
-      s.is_on_duty !== undefined && (
-        <span className={`text-xs font-semibold ${s.is_on_duty ? 'text-success' : 'text-text-soft'}`}>
-          {s.is_on_duty ? '● On Duty' : '○ Off Duty'}
-        </span>
-      )
-    ) },
-    { key: 'joined', header: 'Joined', className: 'whitespace-nowrap', render: (s) => <span className="text-xs text-text-soft">{s.date_joined ? formatDate(s.date_joined) : '—'}</span> },
+    // Was: Duty (`is_on_duty`) and Joined (`date_joined`). Neither field is on
+    // /org-admin/staff/, so Duty rendered nothing at all and Joined rendered
+    // '—' on every row. Replaced with `phone`, which the endpoint does return.
+    // If on-duty status is wanted here it needs an `api-request`, not a column.
+    { key: 'phone', header: 'Phone', render: (s) => <span className="text-xs text-text-soft">{s.phone ?? '—'}</span> },
   ];
 
   return (
@@ -237,23 +237,30 @@ function PatientsPage() {
   const debouncedSearch = useDebouncedValue(search, 350);
   const endpoint = ENDPOINTS.ORG_ADMIN_PATIENTS + (debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '');
   const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<PatientSummary>(endpoint);
+    usePaginatedList<OrgPatientSummary>(endpoint);
   // No page-reset effect needed: `usePaginatedList` resets to page 1 itself
   // when the endpoint changes, during render rather than after it.
 
-  const columns: DataTableColumn<PatientSummary>[] = [
+  // Columns match the CAPTURED payload (2026-08-19). The previous set was typed
+  // as PatientSummary — the /doctor/patients/ shape — and read first_name,
+  // last_name, email, phone_number, date_of_birth and created_at, none of which
+  // this endpoint returns. All 14 rows rendered blank names and '—' columns.
+  // healthclouda_id in particular was being returned and never shown, while the
+  // search box invited people to search by it.
+  const columns: DataTableColumn<OrgPatientSummary>[] = [
     { key: 'patient', header: 'Patient', render: (p) => (
       <div className="flex items-center gap-2.5">
-        <Avatar firstName={p.first_name} lastName={p.last_name} size="sm" />
+        <Avatar {...splitName(p.full_name)} size="sm" />
         <div>
-          <div className="text-[13px] font-semibold text-ink">{p.first_name} {p.last_name}</div>
-          <div className="text-[11px] text-text-soft">{p.email ?? '—'}</div>
+          <div className="text-[13px] font-semibold text-ink">{p.full_name}</div>
+          <div className="text-[11px] text-text-soft font-mono">{p.healthclouda_id}</div>
         </div>
       </div>
     ) },
-    { key: 'phone', header: 'Phone', render: (p) => <span className="text-xs text-text-soft">{p.phone_number ?? '—'}</span> },
-    { key: 'dob', header: 'Date of Birth', render: (p) => <span className="text-xs text-text-soft">{p.date_of_birth ? formatDate(p.date_of_birth) : '—'}</span> },
-    { key: 'registered', header: 'Registered', className: 'whitespace-nowrap', render: (p) => <span className="text-xs text-text-soft">{p.created_at ? formatDate(p.created_at) : '—'}</span> },
+    { key: 'gender', header: 'Gender', render: (p) => <span className="text-xs text-text-soft">{p.gender ?? '—'}</span> },
+    { key: 'phone', header: 'Phone', render: (p) => <span className="text-xs text-text-soft">{p.phone ?? '—'}</span> },
+    { key: 'last_visit', header: 'Last Visit', className: 'whitespace-nowrap', render: (p) => <span className="text-xs text-text-soft">{p.last_visit ? formatDate(p.last_visit) : '—'}</span> },
+    { key: 'status', header: 'Status', render: (p) => (p.status ? <StatusBadge status={p.status} /> : <span className="text-xs text-text-soft">—</span>) },
   ];
 
   return (
@@ -320,7 +327,10 @@ function WardsPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs text-text-soft">
                     <span>{ward.occupied_beds} occupied</span>
-                    <span>{ward.available_beds} available</span>
+                    {/* Derived: /org-admin/wards/overview/ returns no
+                        available_beds, so this rendered an empty string
+                        followed by the word "available". */}
+                    <span>{ward.available_beds ?? ward.total_beds - ward.occupied_beds} available</span>
                   </div>
                   <div className="h-2 bg-row-hairline rounded-full overflow-hidden">
                     <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
