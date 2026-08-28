@@ -20,6 +20,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   OrgAdminStats, OrgStaffMember, StaffInviteInput, OrgPatientSummary, Ward, AccessRequest, Paginated,
+  OrgReferral, ReferralResponseInput,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { id: 'patients',         label: 'Patients',        icon: <UserIcon /> },
   { id: 'wards',            label: 'Wards & Beds',    icon: <BedIcon /> },
   { id: 'access-requests',  label: 'Access Requests', icon: <KeyIcon /> },
+  { id: 'referrals',        label: 'Referrals',       icon: <DocIcon /> },
   { id: 'notifications',    label: 'Notifications',   icon: <RecordsIcon />, section: 'Platform', soon: true },
   { id: 'settings',         label: 'Settings',        icon: <SettingsIcon />, section: 'System', soon: true },
 ];
@@ -403,6 +405,233 @@ function AccessRequestsPage() {
   );
 }
 
+
+// ─── Referrals page (FLAG-220) ────────────────────────────────────
+
+/**
+ * Incoming referrals, and the accept/decline the product had nowhere to do.
+ *
+ * 🚨 Why this page exists. The backend moved referral authorisation to the
+ * receiving organisation's ORGANIZATION_ADMIN around 20 Aug — "a doctor can no
+ * longer self-accept", verbatim in the live schema. The Doctor dashboard is
+ * read-only and must stay that way (a button there would 403 every time), and
+ * Org Admin had no referrals page at all. So a referral could be created and
+ * listed but never accepted, by anyone — a hole in the product rather than a
+ * misplaced button (FLAG-220).
+ *
+ * 🪤 The endpoints are still namespaced /doctor/referrals/<id>/accept/ while
+ * requiring ORG_ADMIN, so scoping work from path names gets this backwards. We
+ * use the generic /referrals/<id>/accept/ twins, which carry the same rule and
+ * are the fully documented ones.
+ */
+
+// Statuses observed live 2026-08-28: ACCEPTED, DECLINED. The schema documents NO
+// status enum for referrals, so the name of the PENDING state is unverified.
+//
+// 🔴 Gate by EXCLUSION, not inclusion: anything not already resolved can be
+// actioned. Listing the pending value would mean inventing an enum member — the
+// exact bug class FLAG-004 was — and a wrong guess would hide the buttons on
+// precisely the rows that need them, which fails silently.
+const RESOLVED_STATUSES = new Set(['ACCEPTED', 'DECLINED', 'CANCELLED', 'COMPLETED']);
+const isActionable = (r: OrgReferral) => !RESOLVED_STATUSES.has(r.status);
+
+function ReferralsPage() {
+  const { items: referrals, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<OrgReferral>(ENDPOINTS.ORG_ADMIN_REFERRALS);
+  const { toast } = useToast();
+  const [responding, setResponding] = useState<{ referral: OrgReferral; action: 'accept' | 'decline' } | null>(null);
+  const [form, setForm] = useState<ReferralResponseInput>({ response_notes: '' });
+  const [saving, setSaving] = useState(false);
+
+  function open(referral: OrgReferral, action: 'accept' | 'decline') {
+    setForm({ response_notes: '', create_episode: action === 'accept' });
+    setResponding({ referral, action });
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!responding || !form.response_notes.trim() || saving) return;
+    setSaving(true);
+    try {
+      const { referral, action } = responding;
+      const endpoint = action === 'accept'
+        ? ENDPOINTS.REFERRAL_ACCEPT(referral.id)
+        : ENDPOINTS.REFERRAL_DECLINE(referral.id);
+      // Only send the clinical fields when an episode is actually being opened:
+      // they are meaningless otherwise, and response_notes is the only field the
+      // schema marks required.
+      const payload: ReferralResponseInput = { response_notes: form.response_notes.trim() };
+      if (action === 'accept' && form.create_episode) {
+        payload.create_episode = true;
+        if (form.chief_complaint?.trim()) payload.chief_complaint = form.chief_complaint.trim();
+        if (form.diagnosis?.trim()) payload.diagnosis = form.diagnosis.trim();
+      }
+      await apiAction(endpoint, 'POST', payload);
+      toast.success(action === 'accept' ? 'Referral accepted' : 'Referral declined');
+      setResponding(null);
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not send the response');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const columns: DataTableColumn<OrgReferral>[] = [
+    {
+      key: 'patient', header: 'Patient',
+      render: (r) => (
+        <div>
+          <div className="text-[13px] font-semibold text-ink">{r.patient.first_name} {r.patient.last_name}</div>
+          <div className="text-[11px] text-text-soft font-mono">{r.patient.healthclouda_id}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'from', header: 'Referred by',
+      render: (r) => (
+        <div>
+          <div className="text-xs text-ink">{r.from_organization?.name ?? '—'}</div>
+          {r.referring_doctor && (
+            <div className="text-[11px] text-text-soft">
+              Dr. {r.referring_doctor.full_name ?? `${r.referring_doctor.first_name} ${r.referring_doctor.last_name}`}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    { key: 'reason', header: 'Reason', render: (r) => <span className="text-xs text-text-soft">{truncate(r.reason ?? '—', 40)}</span> },
+    {
+      key: 'urgency', header: 'Urgency',
+      // urgency_display is prose ("Semi-Urgent - assessment within days to
+      // weeks") and too long for a cell, so the raw enum reads better here with
+      // the full wording kept as the tooltip.
+      render: (r) => (
+        <span title={r.urgency_display} className="text-xs font-medium text-ink">
+          {r.urgency ? r.urgency.replace(/_/g, ' ').toLowerCase() : '—'}
+        </span>
+      ),
+    },
+    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'received', header: 'Received', className: 'whitespace-nowrap', render: (r) => <span className="text-xs text-text-soft">{formatDate(r.created_at)}</span> },
+    {
+      key: 'actions', header: '',
+      render: (r) => (
+        isActionable(r) ? (
+          <div className="flex gap-1.5 justify-end">
+            <button onClick={() => open(r, 'accept')}
+              aria-label={`Accept referral for ${r.patient.first_name} ${r.patient.last_name}`}
+              className="px-2.5 py-1 text-[11.5px] font-semibold rounded-md bg-primary-dark text-white hover:opacity-90 transition-opacity">
+              Accept
+            </button>
+            <button onClick={() => open(r, 'decline')}
+              aria-label={`Decline referral for ${r.patient.first_name} ${r.patient.last_name}`}
+              className="px-2.5 py-1 text-[11.5px] font-semibold rounded-md border border-border text-text-soft hover:text-ink transition-colors">
+              Decline
+            </button>
+          </div>
+        ) : (
+          <span className="text-[11.5px] text-text-soft block text-right">{r.status_display ?? '—'}</span>
+        )
+      ),
+    },
+  ];
+
+  const accepting = responding?.action === 'accept';
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-ink">Incoming referrals</h2>
+        <p className="text-sm text-text-soft mt-0.5">
+          Referrals sent to this organisation. Accepting or declining is an organisation admin
+          decision — a doctor cannot respond on the organisation&apos;s behalf.
+        </p>
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={referrals}
+        getRowKey={(r) => r.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No referrals"
+        emptyDescription="Referrals sent to this organisation will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
+
+      <SlidePanel
+        open={!!responding}
+        onClose={() => setResponding(null)}
+        title={accepting ? 'Accept referral' : 'Decline referral'}
+        subtitle={responding ? `${responding.referral.patient.first_name} ${responding.referral.patient.last_name} · ${responding.referral.letter_number}` : undefined}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setResponding(null)} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+            <Button type="submit" form="referral-response" disabled={!form.response_notes.trim() || saving}>
+              {saving ? 'Sending…' : accepting ? 'Accept referral' : 'Decline referral'}
+            </Button>
+          </div>
+        }
+      >
+        <form id="referral-response" onSubmit={submit} className="space-y-4">
+          <FormField label="Response notes *">
+            <textarea
+              required
+              rows={4}
+              value={form.response_notes}
+              onChange={(e) => setForm(f => ({ ...f, response_notes: e.target.value }))}
+              // `formInputClass` pins height to 42px for single-line inputs, which
+              // squashes a rows=4 textarea into one line. h-auto lets rows win.
+              className={`${formInputClass} h-auto py-2.5`}
+            />
+            <p className="mt-1 text-xs text-text-soft">
+              {accepting
+                ? 'Sent to the referring organisation. Required.'
+                : 'The reason for declining, sent to the referring organisation. Required.'}
+            </p>
+          </FormField>
+
+          {accepting && (
+            <>
+              <label className="flex items-start gap-2.5 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={!!form.create_episode}
+                  onChange={(e) => setForm(f => ({ ...f, create_episode: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  Open an episode for this patient
+                  <span className="block text-xs text-text-soft">
+                    Starts the patient&apos;s care record in this organisation straight away.
+                  </span>
+                </span>
+              </label>
+
+              {form.create_episode && (
+                <div className="space-y-4 pl-6">
+                  <FormField label="Chief complaint">
+                    <input value={form.chief_complaint ?? ''} onChange={(e) => setForm(f => ({ ...f, chief_complaint: e.target.value }))} className={formInputClass} />
+                  </FormField>
+                  <FormField label="Diagnosis">
+                    <input value={form.diagnosis ?? ''} onChange={(e) => setForm(f => ({ ...f, diagnosis: e.target.value }))} className={formInputClass} />
+                  </FormField>
+                </div>
+              )}
+            </>
+          )}
+        </form>
+      </SlidePanel>
+    </div>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────────
 
 const PAGE_TITLES: Record<string, string> = {
@@ -411,6 +640,7 @@ const PAGE_TITLES: Record<string, string> = {
   patients: 'Patients',
   wards: 'Wards & Beds',
   'access-requests': 'Access Requests',
+  referrals: 'Referrals',
 };
 
 interface Props {
@@ -440,6 +670,7 @@ export function OrgAdminDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'patients'        && <PatientsPage />}
       {page === 'wards'           && <WardsPage />}
       {page === 'access-requests' && <AccessRequestsPage />}
+      {page === 'referrals'       && <ReferralsPage />}
     </DashboardShell>
   );
 }

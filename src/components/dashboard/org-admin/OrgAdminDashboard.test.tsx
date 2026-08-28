@@ -317,3 +317,122 @@ describe('OrgAdmin — Overview stat cards', () => {
     expect(screen.getByText('12')).toBeInTheDocument();            // total_staff
   });
 });
+
+
+/**
+ * FLAG-220 — the referral journey had no accept step, anywhere in the product.
+ *
+ * The backend moved accept/decline to the receiving organisation's
+ * ORGANIZATION_ADMIN around 20 Aug ("a doctor can no longer self-accept",
+ * verbatim in the live schema). The Doctor dashboard is read-only and must stay
+ * so, and Org Admin had no referrals page at all — so a referral could be
+ * created and listed but never accepted, by anyone.
+ *
+ * Fixtures are CAPTURED from GET /referrals/received/ against api-dev on
+ * 2026-08-28: a DRF envelope whose items carry 14 fields, NOT the 28-field
+ * `ReferralDetail` the schema documents for this endpoint.
+ */
+describe('FLAG-220 — org admin can respond to incoming referrals', () => {
+  const pendingReferral = {
+    id: 'ref-1',
+    letter_number: 'REF-OTH-2026-0002',
+    patient: {
+      id: 'p-1', healthclouda_id: 'HCL-CCBV02',
+      first_name: 'Adaeze', last_name: 'Okafor', gender: 'Female',
+    },
+    patient_age_at_referral: 18,
+    from_organization: { id: 'o-2', name: 'Other Clinic' },
+    referring_doctor: { id: 'd-9', first_name: 'Emeka', last_name: 'Obi', full_name: 'Emeka Obi' },
+    reason: 'Requires specialist evaluation and management.',
+    urgency: 'SEMI_URGENT',
+    urgency_display: 'Semi-Urgent - assessment within days to weeks',
+    // NOTE: the schema documents no status enum for referrals, and the seeded
+    // data only ever showed ACCEPTED / DECLINED. The pending value is therefore
+    // UNVERIFIED, which is exactly why the UI gates by exclusion. This fixture
+    // uses a deliberately unfamiliar value to prove that gating works for a
+    // status we have never seen.
+    status: 'AWAITING_RESPONSE',
+    status_display: 'Awaiting response',
+    has_letter: false,
+    created_at: '2026-08-27T21:13:21.333306Z',
+  };
+
+  const resolvedReferral = {
+    ...pendingReferral,
+    id: 'ref-2',
+    letter_number: 'REF-OTH-2026-0003',
+    patient: { ...pendingReferral.patient, first_name: 'Tunde', last_name: 'Bello' },
+    // A different sending org on purpose: sharing one name across fixtures makes
+    // getByText ambiguous and reads like a component bug when it is a fixture bug.
+    from_organization: { id: 'o-3', name: 'Lagos General' },
+    status: 'DECLINED',
+    status_display: 'Declined by Receiving Hospital',
+  };
+
+  const referralEnvelope = (rows: unknown[]) => ({ count: rows.length, next: null, previous: null, results: rows });
+
+  async function openReferrals(rows: unknown[] = [pendingReferral, resolvedReferral]) {
+    dataGetMock.mockResolvedValue(referralEnvelope(rows));
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Referrals' }));
+    await waitFor(() => expect(screen.getByText('Adaeze Okafor')).toBeInTheDocument());
+  }
+
+  it('has a Referrals page at all — the capability that was missing', async () => {
+    await openReferrals();
+    expect(screen.getByText('Incoming referrals')).toBeInTheDocument();
+    expect(screen.getByText('Other Clinic')).toBeInTheDocument();
+  });
+
+  it('offers Accept and Decline on a referral that is not yet resolved', async () => {
+    await openReferrals();
+    expect(screen.getByRole('button', { name: /Accept referral for Adaeze Okafor/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Decline referral for Adaeze Okafor/ })).toBeInTheDocument();
+  });
+
+  it('does NOT offer actions on an already-resolved referral', async () => {
+    await openReferrals();
+    expect(screen.queryByRole('button', { name: /Accept referral for Tunde Bello/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Declined by Receiving Hospital')).toBeInTheDocument();
+  });
+
+  it('requires response notes before the response can be sent', async () => {
+    await openReferrals();
+    fireEvent.click(screen.getByRole('button', { name: /Accept referral for Adaeze Okafor/ }));
+    // `response_notes` is the ONLY field the schema marks required on
+    // ReferralResponseRequest, so submitting without it would be a guaranteed 400.
+    const submit = await screen.findByRole('button', { name: 'Accept referral' });
+    expect(submit).toBeDisabled();
+  });
+
+  it('POSTs the accept with the notes, and to the generic (not doctor-namespaced) path', async () => {
+    await openReferrals();
+    fireEvent.click(screen.getByRole('button', { name: /Accept referral for Adaeze Okafor/ }));
+
+    const notes = await screen.findByLabelText(/Response notes/);
+    fireEvent.change(notes, { target: { value: 'Capacity confirmed, bed available.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Accept referral' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe('/referrals/ref-1/accept/');
+    expect(method).toBe('POST');
+    expect(body).toMatchObject({ response_notes: 'Capacity confirmed, bed available.' });
+  });
+
+  it('sends the decline to the decline endpoint, with no episode fields', async () => {
+    await openReferrals();
+    fireEvent.click(screen.getByRole('button', { name: /Decline referral for Adaeze Okafor/ }));
+
+    const notes = await screen.findByLabelText(/Response notes/);
+    fireEvent.change(notes, { target: { value: 'No cardiology cover this week.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Decline referral' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, , body] = dataActionMock.mock.calls[0];
+    expect(path).toBe('/referrals/ref-1/decline/');
+    expect(body).toEqual({ response_notes: 'No cardiology cover this week.' });
+    // create_episode must never ride along on a decline.
+    expect(body).not.toHaveProperty('create_episode');
+  });
+});

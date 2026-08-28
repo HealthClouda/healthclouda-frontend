@@ -1178,6 +1178,35 @@ expecting it.
 ---
 
 ### FLAG-220 — Referral accept/decline moved to ORG_ADMIN, and the doctor-namespaced route is a trap
+
+> ✅ **The capability gap is closed 2026-08-28 (@Bastoh)** — Org Admin now has a **Referrals** page
+> with accept/decline. The flag stays open until that PR merges; the *trap* it documents is permanent
+> and should not be deleted.
+>
+> Built against the **generic** `/referrals/<id>/accept/` and `/decline/`, which the schema fully
+> specifies, rather than the `/doctor/`-namespaced twins that carry the same ORG_ADMIN rule.
+>
+> **Contract, read live 2026-08-28:** `ReferralResponseRequest` requires **`response_notes`** on both
+> actions; `create_episode`, `chief_complaint` and `diagnosis` are optional and only sent when an
+> episode is actually being opened. The submit button stays disabled until notes exist, because a
+> missing required field would be a guaranteed 400 in front of a waiting patient.
+>
+> 🪤 **Two schema errors found on this endpoint, and the type is captured, not derived.**
+> `GET /referrals/received/` is documented as returning a single `ReferralDetail` (28 fields). It
+> actually returns a **DRF envelope** whose items carry **14** — the list serializer is a subset, and
+> `response_notes` / `responded_by` / the clinical fields are detail-only. Do not "tidy" `OrgReferral`
+> against the schema.
+>
+> 🔴 **The action buttons gate by EXCLUSION, and that is deliberate.** The schema documents **no status
+> enum for referrals**, and the seeded data only ever showed `ACCEPTED` and `DECLINED` — so the name of
+> the pending state is **unverified**. Listing it would mean inventing an enum member, which is exactly
+> the FLAG-004 bug class, and a wrong guess would hide the buttons on precisely the rows that need
+> them — failing silently. Anything not already resolved is therefore actionable.
+>
+> ⚠️ **Not exercised end to end against `api-dev`.** Both seeded received-referrals are already
+> resolved, so no row in real data currently offers the buttons, and confirming a real accept would
+> mutate shared seed data (and create an episode). The test fixture uses a deliberately unfamiliar
+> status to prove the gating works for a value we have never seen.
 **Severity:** P1 · **Area:** Backend contract / authorisation · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-24, re-reading Swagger before D5 writes — exactly as the sprint plan instructed
 
