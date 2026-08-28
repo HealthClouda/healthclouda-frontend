@@ -123,6 +123,15 @@ export const ENDPOINTS = {
   REC_APPOINTMENT: (id: string) => `/receptionist/appointments/${id}/`,
   REC_REFERRALS: '/referrals/received/',
   REC_NOTIFY_DOCTORS: (id: string) => `/receptionist/referrals/${id}/notify-doctors/`,
+  // D4. `/patients/` is the shared patient CRUD viewset, NOT a receptionist
+  // route — its schema description spells out the role rules verbatim:
+  //   CREATE (POST):        SUPERADMIN, RECEPTIONIST only
+  //   UPDATE (PUT/PATCH):   RECEPTIONIST -> contact info only
+  // (read from the live schema 2026-08-24; see FLAG-217 on where this API
+  // hides its permissions and query params).
+  PATIENTS: '/patients/',
+  PATIENT: (id: string) => `/patients/${id}/`,
+  REC_SEND_PORTAL_INVITE: (id: string) => `/receptionist/patients/${id}/send-portal-invite/`,
   CREATE_PATIENT: '/patients/',
 
   // ── Nurse ──────────────────────────────────────────────────

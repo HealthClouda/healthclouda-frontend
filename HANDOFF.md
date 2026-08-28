@@ -18,8 +18,8 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **D4 Receptionist** — check-ins, appointments, registration, portal invite + the **FLAG-213 receptionist half** | `feat/dash-4-receptionist` | `receptionist/*`, `types/dashboard.ts`, `lib/config.ts` | 2026-08-24 | 🔴 **CHANGES_REQUESTED 2026-08-28** — the check-in and appointment filters send `?date=`/`?status=`/`?doctor_id=`, which the live schema documents nowhere for `/receptionist/*`; the quoted description is not in the schema. Silently-ignored params would relabel one day's queue as another. HCL-ID handout still blocked on backend #137. PR #94 |
-| @Qeeyat | **Schema-reading guidance** — `CLAUDE.md` §1 + `ONBOARDING.md` §5 (docs only) | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🔴 **CHANGES_REQUESTED 2026-08-28** — the no-auth finding is ✅ **verified by @Bastoh** and is the keeper; one query-param example is false and would enter the binding manual. Swap the example and it merges. PR #96 |
+| @Bastoh | **B1/B3 dev tier live** — `dev.healthclouda.com` + per-env vars (infra already applied; this PR is the record) | `docs/clear-in-flight-2026-08-28` | `HANDOFF.md`, `CODEBASE_FLAGS.md`, `HANDOFF-Bastoh.md` | 2026-08-28 | 🔄 open — PR #97. ⚠️ **Claimed after the fact** — the Vercel/Cloudflare changes went live before this row existed, so the tier work was briefly invisible to @Qeeyat. Recorded rather than backfilled quietly |
+| @Qeeyat | **Schema-reading guidance** — `CLAUDE.md` §1 + `ONBOARDING.md` §5 (docs only) | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🟡 **CHANGES_REQUESTED 2026-08-28, then narrowed.** The no-auth finding is ✅ verified and the params are ✅ **verified working live** — only the one citation needs rewording. See my follow-up comment on #96 for the exact replacement text. PR #96 |
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -149,6 +149,54 @@ while requiring ORG_ADMIN. Anyone deciding scope from path names gets it exactly
 > Both PRs are honest about what they contain and neither is merged, so nothing is on `develop` that
 > shouldn't be — but the sequencing was mine to get wrong and it is recorded here rather than
 > quietly.
+
+---
+
+## 🚀 Deployment & tier state
+
+> **Updated 2026-08-28 (@Bastoh).** Measured against the live systems, not reported. B1/B3 landed
+> today; the rest of this table is what is *actually* deployed, which is not what the tier map assumes.
+
+| Host | Git branch | Backend tier | State |
+|---|---|---|---|
+| **`dev.healthclouda.com`** | `develop` | `api-dev` | ✅ **LIVE 2026-08-28** — first working frontend tier |
+| `beta.healthclouda.com` | `staging` | `api-beta` | ❌ **not created — deliberately held.** See the note below |
+| `healthclouda.com` (apex) | `main` | — | ⚠️ **serving a 13 Jul build cut from `develop`** — see **FLAG-018** |
+
+**How `dev.` was verified — end to end, not by the dashboard saying "Ready":**
+
+```
+https://dev.healthclouda.com                       -> HTTP 200, valid TLS
+POST /api/auth/login (deployed proxy, doctor)      -> 200, role=DOCTOR, org_slug=demo-clinic
+Set-Cookie hc_access_token / hc_refresh_token      -> Secure; HttpOnly; SameSite=strict
+Set-Cookie (all three)                             -> NO Domain= attribute (host-only)  ✅ A3
+deployed JS chunks grepped for `railway.app`       -> 0 occurrences                     ✅ A2
+```
+
+That login is **A1 proved end to end** — a request to `dev.` authenticated against `api-dev` and came
+back with the right role and org. The single `api-beta` string in the bundle is the text of A4's
+error message in `config.ts:37`, not a live reference.
+
+**Vercel configuration as it now stands:**
+
+- The project had **zero environment variables**. That — not anything in anyone's code — is why every
+  Vercel check failed from PR #65 onward: A4's fail-loud guard was firing exactly as designed.
+- `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SITE_URL` are set **preview-wide**, so *every* PR preview now
+  builds. 🔴 **This is why `beta.` is deliberately not attached yet:** `staging` is also a *preview*
+  target, so it would inherit `api-dev` and serve the beta host against the dev backend — the exact
+  tier-crossing `.env.example` warns presents as *"the invite is broken"*. **On 31 Aug, set a
+  `staging`-scoped override to `api-beta` FIRST, then attach the domain. Not the other way round.**
+- DNS: `dev` is a **CNAME → `85232879bb8ef21f.vercel-dns-017.com`, DNS-only (grey cloud)** — not
+  proxied like the apex. Deliberate: with Cloudflare's proxy on, Vercel's certificate challenge can
+  fail and you get TLS errors on a host that looks correctly configured. It can be flipped to proxied
+  later, once the cert is settled, if we want the apex's edge behaviour.
+- The Vercel token used was **project-scoped**, not user-scoped — `/v2/teams` returns 403 while the
+  project endpoints return 200. Worth knowing: `vercel whoami` fails with such a token, which looks
+  like a bad credential and is not one.
+
+⚠️ **Deployment protection is OFF — see FLAG-017.** It had to be: `dev.` was returning 302 to
+`vercel.com/sso-api`, so no one outside the Vercel team could reach it, and **password protection is
+unavailable on the Hobby plan** (*"Advanced Deployment Protection is not enabled on your team"*).
 
 ---
 
