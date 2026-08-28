@@ -526,6 +526,81 @@ Coordinate with FLAG-011 and FLAG-014 so the tokens move once, not three times.
 
 ---
 
+### FLAG-017 — Vercel deployment protection is OFF, and beta will inherit that
+**Severity:** P2 · **Area:** Security / Deploy · **Owner:** @Bastoh · **Status:** OPEN — **deliberate, reversible, and dated**
+**Found:** 2026-08-28, standing up the dev tier (B1/B3)
+
+`dev.healthclouda.com` came up returning **302 → `vercel.com/sso-api`**: the project had
+`ssoProtection: {"deploymentType":"all_except_custom_domains"}`, and that exemption only covers
+**production** custom domains. `dev.` is a *preview*-target deployment, so it was gated to Vercel team
+members — meaning the backend team could not run UAT through it and @Qeeyat could not screenshot it
+(sprint plan **B5**).
+
+**Password protection was the preferred fix and is not available:** the API refuses it with
+*"Advanced Deployment Protection is not enabled on your team"* — it needs a paid plan; we are on Hobby.
+
+So SSO was **disabled for the whole project**, with @Bastoh's explicit decision, to unblock B5.
+
+**What this does and does not expose.** The dev tier holds **synthetic seed data only**, and the app
+itself is still login-gated — this removes a layer, it does not open the records. Note also that the
+apex was *already* public under the old setting, so what actually changed is that **preview URLs**
+(every PR) are now world-reachable.
+
+🔴 **The part that matters, and the reason this is a flag rather than a footnote:**
+`beta.healthclouda.com` will also be a **preview**-target deployment, and **beta carries real PHI from
+3 Sep.** With protection off project-wide, beta would be publicly reachable the moment it is attached.
+
+**Done when:** either the team is on a plan with Advanced Deployment Protection and beta is password-
+protected, or protection is re-enabled and the beta testers are granted access another way — **decided
+before 3 Sep, not on the day.**
+
+Re-enabling is one call, the exact inverse of what was run:
+
+```
+PATCH /v9/projects/<id>?teamId=<team>
+  {"ssoProtection":{"deploymentType":"all_except_custom_domains"}}
+```
+
+---
+
+### FLAG-018 — Production is six weeks stale and cannot currently be redeployed
+**Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-28, while verifying the dev tier
+
+Two separate problems that hide each other, both measured against the live Vercel project:
+
+**1. The live apex is a build from 13 July, cut from `develop` — not `main`.**
+
+```
+production deployments (target=production):
+  2026-07-13T21:13  READY  develop
+  2026-07-13T20:25  READY  develop
+  2026-06-12T09:35  READY  develop
+```
+
+`healthclouda.com` serves the **full application, including a Sign in page** — not the marketing-only
+site the tier map describes. So the apex today is an unhardened six-week-old app build: it predates
+A2 (stale host purge), A4 (fail-loud config), A3 (cookie scoping) and every dashboard fix since.
+
+**2. The next production deploy will fail the build.** Production has **no `NEXT_PUBLIC_API_URL`**, and
+A4 makes that throw at build time (`config.ts:33`) — deliberately, since one build serves exactly one
+tier. That guard is right; the consequence is that `main` is currently **un-redeployable**, and nobody
+noticed because nothing has tried to deploy it since 13 July.
+
+🪤 **Why this stayed invisible:** the apex returns a healthy **200**, so every casual check passes. A
+stale deployment and a working deployment are indistinguishable from the outside — which is the same
+class of trap as FLAG-013's `next` URL echoing a param it ignored.
+
+**Why P1:** production is one deploy away from breaking, and the tier map's central claim — *"apex
+marketing-only"* — is not what is deployed. Both need settling before 3 Sep, when a real organisation
+is pointed at this product.
+
+**Done when:** the production branch and its expected content are decided (marketing-only page, or the
+app), `main` builds green with whatever `NEXT_PUBLIC_API_URL` that decision implies, and a fresh
+production deployment has been made and verified — so the apex is a build somebody chose.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
