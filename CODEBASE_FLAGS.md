@@ -631,6 +631,46 @@ production deployment has been made and verified — so the apex is a build some
 
 ---
 
+### FLAG-019 — CSP allows `unsafe-inline` and `unsafe-eval` on the pages that render PHI
+**Severity:** P2 · **Area:** Security / Headers · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-28, surveying controls for `SECURITY_BASELINE.md` (A7)
+
+The Content-Security-Policy served on every route (`next.config.ts`) includes:
+
+```
+script-src 'self' 'unsafe-inline' 'unsafe-eval'
+style-src  'self' 'unsafe-inline'
+```
+
+**`unsafe-inline` on `script-src` disables the main thing CSP is for.** The policy's value against XSS
+is that injected `<script>` and inline handlers do not execute; allowing inline scripts permits exactly
+those. `unsafe-eval` additionally allows `eval`/`new Function` on strings an attacker may influence.
+
+**Verified served live** on `dev.healthclouda.com` 2026-08-28 — this is the deployed policy, not just
+the committed one.
+
+**Why it is P2 and not P1.** It is a *mitigation* gap, not a live vulnerability: it does not by itself
+leak anything, and we have no known XSS. But it is the layer that would contain one, and the pages in
+question render patient records — so the cost of being wrong is high even though the probability is
+unknown.
+
+⚠️ **The rest of the policy is genuinely good** and should not be lost in a rewrite: `connect-src
+'self'` (the browser never calls the backend directly), `frame-ancestors 'none'`, and `default-src
+'self'` are all correct and deliberate. This flag is about two directives, not the policy.
+
+**Why the values are there:** Next.js App Router injects inline bootstrap/hydration scripts, so a
+naive removal breaks the app immediately. The supported fix is **nonce-based CSP** — generate a nonce
+per request in `middleware.ts`, emit `script-src 'self' 'nonce-<value>' 'strict-dynamic'`, and let
+Next attach it. `unsafe-eval` can usually go first and independently; it is rarely needed in a
+production build and is the cheaper half.
+
+**Done when:** `script-src` no longer contains `unsafe-inline`; a nonce (or hash) mechanism is in
+place; the app still renders and hydrates on a real deployment — **verified in a browser, not only by
+a passing build**, since CSP failures appear at runtime in the console and a build cannot see them.
+Dropping `unsafe-eval` alone is a valid, smaller first step.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
