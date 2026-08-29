@@ -88,6 +88,31 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 | **A7** `SECURITY_BASELINE.md` | ❌ **OPEN** | **the file does not exist on `develop`.** It is written and approved, in unmerged #102 |
 | **A8** backend tiers `FRONTEND_URL` | ✅ | backend **#107 CLOSED** |
 
+### 🔴 Added after the gate was first written: the dashboards have not been *looked at*
+
+Running the T5 harness against `dev.` on the night of 29 Aug — **the first time any of these
+dashboards had been rendered in a browser** — found a P1 in the first screenshot.
+
+**FLAG-222: three of four Superadmin stat cards read fields the API has never returned.** Measured
+live: the endpoint sends `total_orgs`, `active_records`, `monthly_revenue`; the UI reads
+`total_organizations`, `active_organizations`, `total_patients`. On screen the **Organisations tile
+renders `—` directly above a table listing three organisations.**
+
+Three things make this a gate-level finding rather than a bug report:
+
+1. **155 green tests did not catch it**, because the fixtures assert our own type. FLAG-221, a fourth
+   time.
+2. **The schema could not catch it** — `/superadmin/dashboard/` documents `200: No response body` and
+   only *claims* in prose to "match the frontend contract".
+3. **It is the third dashboard with this exact bug** — Org Admin (#85) and Nurse (NURSE-1) were the
+   first two. The remaining unverified dashboards are Doctor, Receptionist and Patient, and **nothing
+   currently in flight would find the same fault in them.**
+
+⚠️ **So "all six dashboards merged" was never the same claim as "all six dashboards work."** Gate 1
+measured the former. Nobody has yet measured the latter, four days out. **A T5 pass over the
+remaining five roles is now the cheapest high-value thing on the board** — it is one evening, it
+needs no new code, and it just paid for itself on the first run.
+
 ### The test layers week 3 was supposed to execute
 
 | Layer | State |
