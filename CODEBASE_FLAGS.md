@@ -576,7 +576,8 @@ keyframes (or swaps to opacity-only), fixed once rather than per animation.
 ---
 
 ### FLAG-203 — `SmallScreenGate` hides the dashboard visually, not functionally
-**Severity:** P1 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P1 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** 🟡 **HALF FIXED
+2026-08-29** — the client channel is closed; the server-rendered channel is still open
 **Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
 
 `DashboardShell`'s `smallScreenGateFor` prop hides the shell below 768px with `hidden md:flex`
@@ -595,10 +596,63 @@ is real (3 Sep) — it belongs in the PHI-leakage-channels section of the still-
 `SECURITY_BASELINE.md`, alongside bfcache/URL-history/screenshot channels, not just as a frontend
 polish item.
 
-**Done when:** either (a) the dashboard genuinely doesn't fetch below 768px — a JS check that
-accepts a brief flash, or a server-side device hint — or (b) the risk is explicitly accepted in
-`SECURITY_BASELINE.md` with a stated reason (e.g. "no PHI-bearing dashboard is realistically opened
-on a sub-768px device in a clinic" — a claim that should be verified, not assumed).
+> ⚠️ **Update 2026-08-29 (@Qeeyat) — this flag's own "Done when" was wrong, and measuring the live
+> deployment is what showed it.** Logged into `dev.healthclouda.com` through its own proxy as
+> `doctor@demo.test` and fetched `/demo-clinic/doctor` twice, once with an iPhone user-agent and once
+> with a desktop one:
+>
+> ```
+> iPhone UA   -> 200, 29,750 bytes
+> desktop UA  -> 200, 29,750 bytes
+> byte-identical: YES
+> ```
+>
+> **There are two leak channels here, not one, and they need different fixes:**
+>
+> | Channel | What it carries | Closed by a JS breakpoint check? |
+> |---|---|---|
+> | **1. Server-rendered props** | the full `user` object (name, email, UUID, role, org) and `initialStats` — measured live: `active_episodes: 14`, `admissions_under_care: 2`, `todays_appointments: 1` | ❌ **no** |
+> | **2. Client fetches on mount** | the patient-level PHI — names, HCL-IDs, episodes, prescriptions, ~7 `useApi`/`usePaginatedList` calls | ✅ yes |
+>
+> The original "Done when (a)" proposed *"a JS check that accepts a brief flash"*. **That closes
+> channel 2 only.** `page.tsx` calls `serverFetch` and passes `initialStats` into the client
+> component before any client JS exists, so the payload is already in the HTML — identical for a
+> phone and a desktop, as measured above. A criterion that would have been marked satisfied while
+> half the leak remained.
+
+**Fixed so far (channel 2):** `DashboardShell` now decides in **JS** whether the dashboard subtree
+mounts at all, via `useWideViewport()` (`src/hooks/use-wide-viewport.ts`). React does not invoke a
+component — or run its hooks, or fire its fetches — until it is rendered, so returning early is what
+stops the requests. It **fails closed**: until `matchMedia` answers (server render, first paint, or
+any runtime without it) the state is `unknown` and nothing mounts. The mirrored CSS classes
+(`hidden md:flex` on the shell, `md:hidden` on the notice) are **gone** — two CSS mechanisms deciding
+the same thing is what let the dashboard sit mounted underneath. Cost: one frame of a neutral
+placeholder on desktop, which is the trade this flag anticipated. Resizing a window across 768px now
+unmounts the dashboard rather than hiding it.
+
+🪤 **A test was asserting the bug.** `NurseDashboard.test.tsx` checked only that the notice was
+*rendered*, with the note *"the md: breakpoint is a media query JSDOM cannot evaluate, so visibility
+is not assertable here"* — true of the CSS gate, and precisely what hid the problem: the notice and
+the whole dashboard were both in the DOM and the test passed on a build that shipped records to the
+phone. It now asserts `dataGetMock` was never called. **"Is the notice rendered" was never the
+question; "did any PHI leave the server" is.**
+
+**Done when (revised):** channel 1 also closed — the page must not `serverFetch` or serialise PHI
+props for a device it should not serve. That needs a **server-side** signal (`Sec-CH-UA-Mobile`
+client hint, or UA inspection) in the six `page.tsx` files, **or** explicit acceptance in
+`SECURITY_BASELINE.md` naming what remains: staff PII plus aggregate clinical counts, but no
+patient-level records.
+
+⚠️ **Sequencing note:** channel 1 was deliberately *not* fixed in the same PR. It requires editing all
+six `page.tsx` files, which **#99 rewrites and #100 deletes one of**. Doing both at once would have
+meant a three-way conflict during UAT week. Channel 2 lives entirely in `DashboardShell` /
+`SmallScreenGate`, so it conflicts with nothing.
+
+⚠️ **And the two fixes test different predicates, which is worth stating before anyone "unifies"
+them:** the client gate tests the **viewport**; any server-side hint tests the **device**. They do
+not agree — a desktop with a narrowed window is a trusted device with a small viewport, and the
+server cannot know a viewport on the first request at all. Whatever closes channel 1 should say
+plainly which predicate it is enforcing.
 
 ---
 

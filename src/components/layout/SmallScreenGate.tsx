@@ -9,10 +9,16 @@ interface SmallScreenGateProps {
  * Below 768px, staff/admin dashboards show only this notice instead of the
  * shell (design_handoff_dashboards/README.md). Applies to DASH-1..5 — the
  * patient dashboard (DASH-6) stays responsive and must not use this.
+ *
+ * ⚠️ **No `md:hidden` here, deliberately (FLAG-203).** This used to carry its own
+ * breakpoint class while `DashboardShell` carried the mirror-image one, so two
+ * mechanisms decided the same thing and both were CSS — which is why the
+ * dashboard stayed mounted underneath. `DashboardShell` now decides in JS
+ * whether this renders at all, and it is the only thing that decides.
  */
 export function SmallScreenGate({ dashboardName }: SmallScreenGateProps) {
   return (
-    <div className="flex md:hidden flex-col items-center justify-center gap-4 min-h-screen bg-page text-center p-8">
+    <div className="flex flex-col items-center justify-center gap-4 min-h-screen bg-page text-center p-8">
       <Image src="/assets/images/HealthClouda-icon-tight.png" alt="HealthClouda" width={64} height={32} className="w-16 h-8 object-contain" />
       <div className="w-14 h-14 rounded-card bg-chip text-primary flex items-center justify-center">
         <svg className="w-[26px] h-[26px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">

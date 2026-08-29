@@ -467,13 +467,43 @@ describe('D3 — the nurse dashboard has a small-screen gate', () => {
   // passed it — the same dead-prop omission the T5 harness caught on
   // Superadmin. Without it this dashboard renders a full table layout on a
   // phone, which is where PHI is most likely to be shoulder-surfed.
-  it('passes smallScreenGateFor, naming this dashboard', async () => {
-    mockBackend();
-    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
-    // The gate is CSS-only (FLAG-203) — assert it is RENDERED, which is what
-    // the prop controls; the md: breakpoint is a media query JSDOM cannot
-    // evaluate, so visibility is not assertable here.
-    expect(await screen.findByText('This dashboard needs a bigger screen')).toBeInTheDocument();
-    expect(screen.getByText(/the Nurse dashboard is designed for/i)).toBeInTheDocument();
+  it('shows the notice and fetches NO patient data on a small screen', async () => {
+    // ⚠️ Rewritten 2026-08-29 (FLAG-203 fixed). This test used to assert only
+    // that the notice was RENDERED, with the note "the md: breakpoint is a media
+    // query JSDOM cannot evaluate, so visibility is not assertable here." That
+    // was true of the CSS-only gate and it is exactly what hid the bug: the
+    // notice and the whole dashboard were BOTH in the DOM, and the test passed
+    // on a build that shipped the records to the phone.
+    //
+    // The gate is now a JS mount decision, so the real property is assertable —
+    // and it is not "is the notice visible" but "did any PHI leave the server".
+    const realMatchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: false, // narrow
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+
+    try {
+      mockBackend();
+      render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+      expect(await screen.findByText('This dashboard needs a bigger screen')).toBeInTheDocument();
+      expect(screen.getByText(/the Nurse dashboard is designed for/i)).toBeInTheDocument();
+
+      // The assertion that actually matters: nothing was requested, so no
+      // patient reached this device — not even hidden.
+      expect(dataGetMock).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Chidi Nwosu/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/HCL-05CS2Q/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Active Admissions')).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = realMatchMedia;
+    }
   });
 });
