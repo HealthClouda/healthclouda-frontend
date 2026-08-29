@@ -153,9 +153,10 @@ included · **zero `railway.app`** in the served HTML and JS chunk (A2 confirmed
 the source) · beta unresolvable · apex 200.
 
 **Left undone / next:**
-- [ ] 🔴 **FLAG-203 — `SmallScreenGate` is CSS-only, so PHI renders into the DOM below 768px.** Mine,
+- [x] 🔴 **FLAG-203 — `SmallScreenGate` is CSS-only, so PHI renders into the DOM below 768px.** Mine,
   my component from D1, and #102 calls it *the most serious unfixed item in the document*. Tier 1,
-  design lane. **This is what I pick up next.**
+  design lane. **Picked up in Part 2 below — half fixed in PR #106; the server-rendered half is
+  still open and deliberately deferred.**
 - [ ] **Issue #101 — the HCL-ID handout is buildable after all** (`POST /patients/` returns
   `{message, patient:{id, healthclouda_id}}`). Assigned to me; unblocks the D4 gap FLAG-216 described.
 - [ ] **#96 awaits re-review**; **#99 awaits his fix** for the session regression.
@@ -165,6 +166,85 @@ the source) · beta unresolvable · apex 200.
 - [ ] **`CLAUDE.md` §3 branch-protection correction is @Bastoh's** — I stood down. If it has not
   landed by Monday, take it.
 - [ ] The apex/patient-portal question still needs one answer in `HANDOFF.md`.
+
+#### Part 2, same session — FLAG-203 half fixed, and the test suite turned out not to be defending it (PR #106)
+
+**Goal:** take the item I had just called the most serious unfixed thing on the board.
+
+**What I did:** measured the leak against the live deployment first, fixed the half that does not
+collide with @Bastoh's open PRs, then went looking for how it had survived a green suite for two
+weeks — and found that was the more important question.
+
+**What I found:**
+
+- 🎯 **Measuring first changed what the job was.** I logged into `dev.healthclouda.com` through its
+  own proxy as the doctor and fetched `/demo-clinic/doctor` twice, once with an iPhone UA and once
+  desktop: **both 200, both 29,750 bytes, byte-identical.** The phone gets the full `user` object and
+  `initialStats` (`active_episodes: 14`, `admissions_under_care: 2`) in the HTML. That showed
+  **FLAG-203 has two channels, not one** — and that **its own "Done when" only covered the second.**
+  It proposed *"a JS check that accepts a brief flash"*, which cannot touch anything `page.tsx`
+  already server-fetched and passed as props. **I wrote that criterion on 13 Aug and would have
+  ticked it while half the leak remained.**
+- **Fixed channel 2** (the patient-level half: names, HCL-IDs, episodes, prescriptions).
+  `DashboardShell` now decides in **JS** whether the subtree mounts. React does not run a component's
+  hooks until it renders it, so the early return is what stops the fetches. Fails closed: until
+  `matchMedia` answers, nothing mounts. Both mirrored CSS classes are gone — two CSS mechanisms
+  deciding the same thing is what let the dashboard sit mounted underneath.
+- 🚨 **The suite was not defending the control at all.** I deleted `smallScreenGateFor="Doctor"` from
+  `DoctorDashboard` outright and ran everything: **161/161 green.** The gate is one opt-in prop on
+  five components and only Nurse had a test naming it — so a one-line edit could remove a PHI control
+  from four dashboards with no signal. New `small-screen-gate.test.tsx` covers all five; re-running
+  the mutation now fails **exactly one** test.
+- 🪤 **A test was asserting the bug.** The nurse gate test checked only that the notice *rendered*,
+  noting *"the md: breakpoint is a media query JSDOM cannot evaluate, so visibility is not assertable
+  here."* True — and exactly what hid it: the notice **and the whole dashboard** were both in the DOM,
+  and it passed on a build shipping records to phones. It now asserts `dataGetMock` was never called.
+- 🔴 **The same shape is on the security path, and it hides a bug in #99.**
+  `middleware.test.ts:45` is named *"lets a dashboard nav through when ONLY the refresh cookie is
+  present"* — precisely the invariant #99 breaks for the user — and **it stays green, because #99
+  does not touch `middleware.ts` at all.** Middleware lets the request through; the new page gate then
+  throws the user out. Logged the whole class as **FLAG-221**, two instances fixed, that one open.
+- 🎯 **The generalisation:** every one of these tests is *correct about its own layer*. The properties
+  that matter span two — CSS + mount, middleware + page, server render + client fetch — and **no test
+  in this repo spans two.** I wrote almost this sentence during Gate 1 about the six fixture tests
+  ("green means the code matches the fixtures, nothing more"). Same sentence, different cause, second
+  time. That is why it is a flag now rather than a third rediscovery.
+- **Bounded the residual rather than assuming it.** With `initialStats` null the fallback stats fetch
+  runs *above* the shell where the gate cannot reach. Measured: exactly one request per dashboard,
+  always its own `dashboard/stats`, never patient-bearing. The test asserts that **limit**, so it
+  fails the day someone moves a patient list above the shell.
+- ⚠️ **My own sweep missed a file.** My first pass for this pattern used a glob that silently skipped
+  `src/middleware.test.ts` — the file holding the most important instance. Caught it only because the
+  count did not match vitest's 20. **The same failure mode as an invented query param: no error, just
+  a quietly incomplete answer.**
+
+**Decisions:**
+- **Deferred channel 1 deliberately.** Closing it means editing all six `page.tsx` files, which **#99
+  rewrites and #100 deletes one of** — a three-way merge during UAT week. Channel 2 lives entirely in
+  my two shell files and conflicts with nothing.
+- **Wrote the two fixes' predicates down before anyone unifies them:** the client gate tests the
+  **viewport**; any server-side hint tests the **device**. A desktop with a narrowed window is a
+  trusted device with a small viewport, and the server cannot know a viewport on first request.
+- **Put the five-dashboard tests in a new file** rather than in the five dashboard test files —
+  **#104 is already editing `OrgAdminDashboard.test.tsx`**, and one invariant applying five times
+  belongs in one place.
+- **Did not write a test that blesses the residual.** "One aggregate call here is fine" is the same
+  mistake as the nurse test, one level up. Asserted the bound instead.
+
+**Verified:** RED first — the 6 shell tests run against pre-fix code gave **5 failed / 1 passed** (the
+passing one is the ungated patient dashboard, so they are not merely asserting emptiness). Then
+`npx tsc --noEmit` clean · `npm test` **176/176, 21 files** · `npm run build` green. Live evidence
+captured against `dev.healthclouda.com` and `api-dev` as above.
+
+**Left undone / next:**
+- [ ] **FLAG-203 channel 1** — the server-rendered payload. Needs a device hint in the six page files,
+  **after #99 and #100 merge**, or explicit acceptance in `SECURITY_BASELINE.md` naming what remains
+  (staff PII + aggregate counts, no patient records).
+- [ ] **FLAG-221 instance 3** — a test spanning middleware **and** the page gate. Belongs with #99's
+  fix, not a separate PR.
+- [ ] **FLAG-221's last item** — run the mutation probe against every control claimed in
+  `SECURITY_BASELINE.md` §2 before beta. **A control with no failing test is a claim, not a control.**
+- [ ] Then **issue #101**, the HCL-ID handout.
 
 ---
 
