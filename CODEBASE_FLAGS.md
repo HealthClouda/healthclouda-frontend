@@ -637,6 +637,19 @@ the whole dashboard were both in the DOM and the test passed on a build that shi
 phone. It now asserts `dataGetMock` was never called. **"Is the notice rendered" was never the
 question; "did any PHI leave the server" is.**
 
+🚨 **And nothing defended the control at all on four of five dashboards.** The gate is one opt-in
+prop. Measured, not assumed: deleting `smallScreenGateFor="Doctor"` outright left the suite at
+**161/161 green**. `src/components/dashboard/small-screen-gate.test.tsx` now covers all five, and
+re-running that mutation fails exactly one test. **This test weakness is a class, not an incident —
+written up as [[FLAG-221]], where a third instance is still open and currently hides the session bug
+in PR #99.**
+
+📏 **The residual is bounded, and asserted as a bound.** With `initialStats` null (the server fetch
+failed) each dashboard falls back to a client stats fetch from a hook *above* the shell, which the
+gate cannot stop. Measured 2026-08-29 — a narrow screen makes exactly **one** request per dashboard,
+always its own `dashboard/stats` endpoint, never a patient-bearing one. The test asserts that limit
+rather than blessing the call, so it fails the day someone moves a patient list above the shell.
+
 **Done when (revised):** channel 1 also closed — the page must not `serverFetch` or serialise PHI
 props for a device it should not serve. That needs a **server-side** signal (`Sec-CH-UA-Mobile`
 client hint, or UA inspection) in the six `page.tsx` files, **or** explicit acceptance in
@@ -1300,3 +1313,59 @@ doctor endpoints and was wrongly generalised to the whole API. FLAG-219/220 rais
 > **docs-only**: it *logged* this flag. The failing token values are unchanged and still live.
 > FLAG-014 and FLAG-015 are the same underlying problem at other call sites — fix the tokens once,
 > across all three, and re-measure.
+
+---
+
+### FLAG-221 — Tests assert the layer, not the property — and one of them was green on a live PHI leak
+**Severity:** P2 (process) · **Area:** Testing / process · **Owner:** @Qeeyat · **Status:** 🟡 two
+instances fixed, one open
+**Found:** 2026-08-29, while fixing FLAG-203
+
+A test can be green, well-named, and carefully written, and still say nothing about the property it
+appears to protect — because it asserts the **layer it can reach** rather than **what the user
+gets**. This is not hypothetical here: it is how FLAG-203 shipped a PHI leak past a passing suite,
+and it currently hides a session bug in an unmerged PR.
+
+**Instance 1 — the test that asserted the bug (fixed).** `NurseDashboard.test.tsx` checked only that
+the small-screen notice was *rendered*, with the note *"the md: breakpoint is a media query JSDOM
+cannot evaluate, so visibility is not assertable here."* Every word of that was true, and it is
+exactly what hid the problem: with a CSS-only gate, the notice **and the entire dashboard** were both
+in the DOM. The test passed on a build that shipped patient records to phones. **The honest question
+was never "is the notice rendered" — it is "did any PHI leave the server."** It now asserts
+`dataGetMock` was never called.
+
+**Instance 2 — a control that nothing defended (fixed).** The gate is one opt-in prop
+(`smallScreenGateFor`) on five dashboard components, and only Nurse had any test naming it. Measured
+rather than assumed: deleting `smallScreenGateFor="Doctor"` from `DoctorDashboard` outright left the
+suite at **161/161 green**. A PHI control could be removed by a one-line edit with no signal.
+`src/components/dashboard/small-screen-gate.test.tsx` now covers all five; re-running the same
+mutation fails exactly one test.
+
+**Instance 3 — OPEN, and it matters this week.** `middleware.test.ts:45` is named *"lets a dashboard
+nav through when ONLY the refresh cookie is present"* and asserts middleware does not redirect. PR
+**#99** breaks precisely that invariant for the user — the new page-level gate reads only the access
+token, which expires hourly, so the user is bounced to signin with six days of refresh token left.
+**That test stays green, because #99 does not touch `middleware.ts` at all** (verified: zero
+middleware files in its diff). Middleware still "lets it through"; the page then throws it out. The
+test covers a layer; nobody covers the composition.
+
+> 🎯 **The generalisation worth keeping:** every one of these tests is *correct about its own layer*.
+> The failure is scope — the property that matters spans two layers (CSS + mount, middleware + page,
+> server render + client fetch), and no test in this repo spans two layers. **A green suite means the
+> code matches its tests; it has never meant the code matches its contract.** @Qeeyat wrote almost
+> exactly that during Gate 1 about the six fixture tests; this is the same sentence with a different
+> cause, so it is worth stating as a standing rule rather than rediscovering a third time.
+
+**The technique that found 2 and 3, which is cheap enough to make routine:** break the control on
+purpose and run the suite. If it stays green, the control is undefended. It took about two minutes
+per probe and needs no tooling. Worth doing for every item in `SECURITY_BASELINE.md` §2 before beta —
+a control with no failing test is a claim, not a control.
+
+**Done when:**
+- [x] Instance 1 — nurse test asserts the fetch, not the render (PR #106)
+- [x] Instance 2 — all five staff dashboards assert the gate (PR #106)
+- [ ] Instance 3 — a test that spans middleware **and** the page gate, so "an expired access token
+      with a live refresh token keeps the session" is asserted end to end rather than per layer.
+      Belongs with #99's fix, not in a separate PR.
+- [ ] Run the mutation probe against each control claimed in `SECURITY_BASELINE.md` §2 and record
+      which ones have a test that actually fails when they are removed.
