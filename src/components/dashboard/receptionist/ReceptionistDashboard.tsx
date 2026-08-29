@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   ReceptionistStats, CheckIn, Appointment, Referral, PatientSearchResult, OnDutyDoctor, Paginated,
-  PatientDetail, NewPatient,
+  PatientDetail, NewPatient, PatientCreateResponse,
 } from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -398,24 +398,52 @@ const inputCls =
   'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
 
 /**
+ * Pull the identifiers out of a `POST /patients/` response.
+ *
+ * 🪤 **They are nested under `patient`.** Reading the top level returns
+ * `undefined`, which looks exactly like the backend not sending them — the
+ * misreading behind FLAG-216 (issue #101). The top-level read below is a
+ * forward-compatible fallback for a future flattened shape, **not** a guess:
+ * either way the values come from the response to *this* request, so they
+ * cannot belong to a different patient.
+ *
+ * What this must never become is a search for the patient we just created.
+ * Two same-name registrations minutes apart are indistinguishable, and handing
+ * someone the WRONG HealthClouda ID attaches their records to another person,
+ * silently, at the desk. A gap the receptionist can see beats a guess they
+ * cannot.
+ */
+/** What the desk needs after a successful registration. */
+type RegisteredPatient = { name: string; id?: string; healthcloudaId?: string };
+
+function readCreatedPatient(response: unknown): { id?: string; healthcloudaId?: string } {
+  const body = (response ?? {}) as PatientCreateResponse & { id?: string; healthclouda_id?: string };
+  return {
+    id: body.patient?.id ?? body.id,
+    healthcloudaId: body.patient?.healthclouda_id ?? body.healthclouda_id,
+  };
+}
+
+/**
  * Register a patient — POST /patients/.
  *
  * Verified against the live schema 2026-08-24: RECEPTIONIST is one of only two
  * roles allowed to CREATE, and `first_name`/`last_name` are the only required
  * fields.
  *
- * 🚨 The 201 response carries NEITHER `id` NOR `healthclouda_id` — it is the
- * `PatientCreate` serializer, 19 fields, no identifiers (backend #137,
- * FLAG-216). So the HCL-ID handout this flow exists for cannot happen here.
+ * ✅ **The 201 DOES carry `id` and `healthclouda_id`, nested under `patient`**
+ * (backend #137, closed with no code change; issue #101). The schema documents
+ * this response as the `PatientCreate` *request* serializer, which is what made
+ * FLAG-216 conclude the identifiers were absent. They are not — so the HCL-ID
+ * handout this whole flow exists for happens right here, from the response we
+ * already have.
  *
- * We deliberately do NOT search for the patient we just created to recover it:
- * two same-name registrations minutes apart are indistinguishable, and handing
- * someone the WRONG HealthClouda ID attaches their records to another person —
- * silently, at the desk. The screen says what happened and points at search
- * instead of quietly guessing.
+ * The fallback for a missing ID is kept anyway: this shape has been documented
+ * wrongly once already, and a desk that is told the ID is unavailable can still
+ * search. A desk handed a confidently wrong ID cannot.
  */
 function RegisterPatientPanel({ open, onClose, onRegistered }: {
-  open: boolean; onClose: () => void; onRegistered: (name: string) => void;
+  open: boolean; onClose: () => void; onRegistered: (result: RegisteredPatient) => void;
 }) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -436,8 +464,8 @@ function RegisterPatientPanel({ open, onClose, onRegistered }: {
       const payload = Object.fromEntries(
         Object.entries(form).filter(([, v]) => v !== '' && v !== undefined),
       );
-      await apiAction(ENDPOINTS.PATIENTS, 'POST', payload);
-      onRegistered(`${form.first_name} ${form.last_name}`.trim());
+      const created = readCreatedPatient(await apiAction(ENDPOINTS.PATIENTS, 'POST', payload));
+      onRegistered({ name: `${form.first_name} ${form.last_name}`.trim(), ...created });
       setForm({ first_name: '', last_name: '' });
       onClose();
     } catch (err) {
@@ -627,7 +655,7 @@ function PatientSearchPage() {
   const [loading, setLoading] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [selected, setSelected] = useState<PatientSearchResult | null>(null);
-  const [justRegistered, setJustRegistered] = useState<string | null>(null);
+  const [justRegistered, setJustRegistered] = useState<RegisteredPatient | null>(null);
   const { toast } = useToast();
 
   const runSearch = async (q: string) => {
@@ -669,17 +697,53 @@ function PatientSearchPage() {
           one safe next step. */}
       {justRegistered && (
         <div className="bg-primary-soft border border-primary/20 rounded-xl px-4 py-3">
-          <p className="text-sm font-medium text-primary-dark">{justRegistered} has been registered.</p>
-          <p className="text-xs text-text-soft mt-1">
-            The server does not return the new HealthClouda ID yet, so it cannot be shown here.
-            Search for the patient to read it back to them.
-          </p>
-          <button
-            onClick={() => { setQuery(justRegistered); void runSearch(justRegistered); }}
-            className="mt-2 text-xs font-medium text-primary-dark hover:underline"
-          >
-            Find {justRegistered} →
-          </button>
+          <p className="text-sm font-medium text-primary-dark">{justRegistered.name} has been registered.</p>
+
+          {justRegistered.healthcloudaId ? (
+            <>
+              {/* The point of the whole flow: the desk reads this back to the
+                  patient. It is their permanent identifier across every
+                  organisation on the platform, so it is shown large, in mono,
+                  and selectable rather than tucked into a toast that vanishes. */}
+              <p className="text-xs text-text-soft mt-2">HealthClouda ID — read this back to the patient</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="font-mono text-lg font-semibold text-ink tracking-wide select-all">
+                  {justRegistered.healthcloudaId}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(justRegistered.healthcloudaId ?? '');
+                    toast.success('HealthClouda ID copied');
+                  }}
+                  className="text-xs font-medium text-primary-dark hover:underline"
+                >
+                  Copy
+                </button>
+              </div>
+            </>
+          ) : (
+            /* FLAG-216's original state, kept deliberately. This response shape
+               has been documented wrongly once already, so if the ID is missing
+               we say so and hand over the one safe next step. We do NOT search
+               for the patient just created and assume the first hit is theirs:
+               two same-name registrations minutes apart are indistinguishable,
+               and the wrong HealthClouda ID attaches someone's records to
+               another person, invisibly, at the desk. */
+            <>
+              <p className="text-xs text-text-soft mt-1">
+                The HealthClouda ID did not come back with this registration, so it cannot be shown
+                here. Search for the patient to confirm which record is theirs before reading an ID
+                back to them.
+              </p>
+              <button
+                onClick={() => { setQuery(justRegistered.name); void runSearch(justRegistered.name); }}
+                className="mt-2 text-xs font-medium text-primary-dark hover:underline"
+              >
+                Find {justRegistered.name} →
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -740,7 +804,7 @@ function PatientSearchPage() {
       <RegisterPatientPanel
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}
-        onRegistered={(name) => setJustRegistered(name)}
+        onRegistered={setJustRegistered}
       />
       <PatientActionsPanel patient={selected} onClose={() => setSelected(null)} />
     </div>
