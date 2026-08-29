@@ -120,7 +120,7 @@ const REFERRAL_TABS = [
 const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
   { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
   { key: 'complaint', header: 'Complaint', className: 'max-w-[160px]', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 30)}</span> },
-  { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
+  { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
 ];
 
 function patientColumns(onStartEpisode: (p: PatientSummary) => void): DataTableColumn<PatientSummary>[] {
@@ -160,7 +160,7 @@ function episodeColumns(onComplete: (ep: Episode) => void): DataTableColumn<Epis
     { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
     { key: 'complaint', header: 'Chief Complaint', className: 'max-w-xs', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 50)}</span> },
     { key: 'status', header: 'Status', render: ep => <StatusBadge status={ep.status} /> },
-    { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
+    { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
     {
       key: 'actions',
       header: 'Actions',
@@ -266,9 +266,17 @@ function OverviewPage({
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard loading={!stats} label="Active Episodes"    value={stats?.active_episodes}     icon={<DocIcon />}    color="blue"   onClick={() => onNavigate('episodes')} />
-        <StatCard loading={!stats} label="Appointments Today" value={stats?.appointments_today}   icon={<CalIcon />}    color="indigo" onClick={() => onNavigate('appointments')} />
+        {/* FLAG-222: the field is `todays_appointments`, not `appointments_today`
+            — same two words, other order, and this tile was blank because of it. */}
+        <StatCard loading={!stats} label="Appointments Today" value={stats?.todays_appointments}  icon={<CalIcon />}    color="indigo" onClick={() => onNavigate('appointments')} />
         <StatCard loading={!stats} label="Pending Referrals"  value={stats?.pending_referrals}    icon={<ArrowIcon />}  color="amber"  onClick={stats?.pending_referrals ? () => onNavigate('referrals') : undefined} />
-        <StatCard loading={!stats} label="Prescriptions"      value={stats?.active_prescriptions} icon={<BeakerIcon />} color="purple" onClick={() => onNavigate('prescriptions')} />
+        {/* Was "Prescriptions" reading `active_prescriptions`, which this endpoint
+            has never sent — permanently blank. There is no prescriptions count in
+            the payload; `/doctor/prescriptions/` has one, but reading it would pull
+            ~20 prescription records (PHI) into a page that shows none of them just
+            to render an integer. Asked for upstream. Meanwhile this tile shows a
+            real field, and Prescriptions stays reachable from the sidebar. */}
+        <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BeakerIcon />} color="purple" onClick={() => onNavigate('episodes')} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

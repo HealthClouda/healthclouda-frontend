@@ -1,12 +1,32 @@
 // ─── Stats ────────────────────────────────────────────────────
 
+// GET /superadmin/dashboard/ — CAPTURED LIVE 2026-08-29 (FLAG-222), not inferred:
+//   {"total_users":17,"total_orgs":3,"monthly_revenue":0,"active_records":18,
+//    "users_trend":null,"users_trend_up":null,"orgs_trend":null,"orgs_trend_up":null,
+//    "revenue_trend":null,"revenue_trend_up":null,"records_trend":null,"records_trend_up":null}
+//
+// The previous version declared total_organizations / active_organizations /
+// total_patients / new_orgs_this_month / total_staff — the endpoint sends NONE
+// of those, so three of the four stat tiles rendered a permanent '—' while the
+// table directly beneath one of them listed three organisations.
+//
+// ⚠️ `active_records` is NOT a patient count. Measured the same day:
+// active_records = 18 while GET /patients/ reports count = 30. Mapping it to the
+// "Total Patients" tile by name-similarity would have replaced a visible gap
+// with an invisible wrong number.
+//
+// The schema is no help here — /superadmin/dashboard/ documents "200: No
+// response body" and only *claims* in prose to "match the frontend contract".
 export interface SuperadminStats {
-  total_organizations: number;
-  active_organizations: number;
   total_users: number;
-  total_patients: number;
-  new_orgs_this_month?: number;
-  total_staff?: number;
+  total_orgs: number;
+  monthly_revenue?: number;
+  active_records?: number;
+  // Trend fields are all null on api-dev today; typed so nobody re-invents them.
+  users_trend?: number | null;
+  users_trend_up?: boolean | null;
+  orgs_trend?: number | null;
+  orgs_trend_up?: boolean | null;
 }
 
 // GET /org-admin/dashboard/stats/ — CAPTURED LIVE 2026-08-19, not inferred:
@@ -62,11 +82,25 @@ export interface NurseStats {
   patients_in_queue: number;
 }
 
+// GET /doctor/dashboard/stats/ — CAPTURED LIVE 2026-08-29 (FLAG-222):
+//   {"todays_appointments":1,"active_episodes":14,"patients_in_queue":0,
+//    "pending_referrals":0,"admissions_under_care":2,"completed_episodes_this_week":0}
+//
+// It was declared with `appointments_today` (the endpoint sends
+// `todays_appointments` — same words, other order) and `active_prescriptions`,
+// which does not exist at all. Two of the four tiles were permanently '—'.
+//
+// ⚠️ There is no prescriptions count in this payload. `/doctor/prescriptions/`
+// does carry `count: 10`, but reading it would mean pulling ~20 prescription
+// records — PHI — into a page that displays none of them, purely to render one
+// integer. Asked for upstream instead; see FLAG-222.
 export interface DoctorStats {
   active_episodes: number;
-  appointments_today: number;
+  todays_appointments: number;
   pending_referrals: number;
-  active_prescriptions: number;
+  patients_in_queue?: number;
+  admissions_under_care?: number;
+  completed_episodes_this_week?: number;
 }
 
 export interface PatientDashboardData {
@@ -238,13 +272,34 @@ export interface OnDutyDoctor {
   duty_toggled_at: string | null;
 }
 
+// GET /doctor/episodes/ item — CAPTURED LIVE 2026-08-29 (FLAG-222):
+//   {id, patient{}, episode_type, episode_type_display, chief_complaint,
+//    diagnosis, status, episode_start, episode_end, has_admission}
+//
+// ⚠️ There is no `created_at` and no `closed_at`. Both were declared here and
+// `created_at` was declared REQUIRED, so the "Opened" column called
+// `timeAgo(undefined)` and rendered '—' for every episode on the doctor
+// dashboard — found by looking at it, not by any test.
+//
+// `created_at` is kept as an optional fallback ONLY because the patient
+// dashboard reads episodes from a different endpoint whose shape is unverified:
+// patients still cannot sign in (FLAG-210), so nobody has captured it. Verify
+// and remove the fallback once they can.
 export interface Episode {
   id: string;
   patient?: { id: string; first_name: string; last_name: string };
   patient_name?: string;
   status: string;
   chief_complaint?: string;
-  created_at: string;
+  diagnosis?: string;
+  episode_type?: string;
+  episode_type_display?: string;
+  episode_start?: string;
+  episode_end?: string | null;
+  has_admission?: boolean;
+  /** @deprecated Not sent by /doctor/episodes/ — see the note above. */
+  created_at?: string;
+  /** @deprecated Not sent by /doctor/episodes/ — the field is `episode_end`. */
   closed_at?: string | null;
 }
 

@@ -166,7 +166,7 @@ function HealthPage() {
                   <Td><span className="font-mono text-xs text-gray-500">#{ep.id.slice(0, 8)}</span></Td>
                   <Td className="font-medium text-gray-900 max-w-xs">{truncate(ep.chief_complaint ?? '—', 50)}</Td>
                   <Td><StatusBadge status={ep.status} /></Td>
-                  <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.created_at)}</Td>
+                  <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.episode_start ?? ep.created_at)}</Td>
                   <Td className="text-xs text-gray-400 whitespace-nowrap">{ep.closed_at ? formatDate(ep.closed_at) : '—'}</Td>
                 </tr>
               ))}

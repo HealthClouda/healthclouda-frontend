@@ -143,10 +143,22 @@ function OverviewPage({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* FLAG-222 — every tile here now shows a number the endpoint actually
+            sends, under the backend's own name for it. Two tiles were removed
+            rather than left permanently blank:
+
+              "Active Orgs"    — no such field, and /org/?is_active= is IGNORED
+                                 (measured: true -> 3, false -> 3, unfiltered -> 3)
+              "Total Patients" — no such field. active_records is NOT it:
+                                 active_records = 18 while /patients/ count = 30
+
+            Both are asked for upstream. They are deliberately not reconstructed
+            client-side: counting is_active over the /org/ list would read only
+            page 1 (FLAG-013), and fetching /patients/ for its envelope count
+            would pull ~20 patient records into a page that displays none. */}
         <StatCard loading={!stats} label="Total Users" value={stats?.total_users} icon={<UsersIcon />} color="purple" />
-        <StatCard loading={!stats} label="Organisations" value={stats?.total_organizations} icon={<BuildingIcon />} color="blue" />
-        <StatCard loading={!stats} label="Active Orgs" value={stats?.active_organizations} icon={<ChartCheckIcon />} color="green" />
-        <StatCard loading={!stats} label="Total Patients" value={stats?.total_patients} icon={<UsersIcon />} color="amber" />
+        <StatCard loading={!stats} label="Organisations" value={stats?.total_orgs} icon={<BuildingIcon />} color="blue" />
+        <StatCard loading={!stats} label="Active Records" value={stats?.active_records} icon={<ChartCheckIcon />} color="green" />
       </div>
 
       <div className="rounded-card border border-border bg-white shadow-dash-card p-5">
