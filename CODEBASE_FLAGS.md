@@ -1369,3 +1369,56 @@ a control with no failing test is a claim, not a control.
       Belongs with #99's fix, not in a separate PR.
 - [ ] Run the mutation probe against each control claimed in `SECURITY_BASELINE.md` §2 and record
       which ones have a test that actually fails when they are removed.
+
+---
+
+### FLAG-222 — Three of four Superadmin stat cards read fields the API has never returned
+**Severity:** P1 · **Area:** Backend contract / D1 · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-29, the first time anyone rendered this dashboard in a browser
+
+`SuperadminStats` is typed against fields `/superadmin/dashboard/` does not send. Measured live on
+`api-dev` as `superadmin`, 29 Aug:
+
+```
+GET /api/v1/superadmin/dashboard/  -> 200
+{ "total_users": 17, "total_orgs": 3, "monthly_revenue": 0, "active_records": 18,
+  "users_trend": null, "users_trend_up": null, "orgs_trend": null, "orgs_trend_up": null,
+  "revenue_trend": null, "revenue_trend_up": null, "records_trend": null, "records_trend_up": null }
+```
+
+| Card | Reads | Exists? | Renders |
+|---|---|---|---|
+| Total Users | `total_users` | ✅ | **17** |
+| Organisations | `total_organizations` | ❌ — it is `total_orgs` | **—** |
+| Active Orgs | `active_organizations` | ❌ **no such field at all** | **—** |
+| Total Patients | `total_patients` | ❌ — nearest is `active_records` | **—** |
+
+🪤 **On screen this is visibly absurd and nobody saw it:** the "Organisations" tile reads **—** while
+the "Recent Organisations" table **directly beneath it lists three organisations**. Screenshot in
+PR #106's thread.
+
+**Why the schema could not have caught it:** `/superadmin/dashboard/` documents `200: No response
+body` (FLAG-218 class) and its description merely *claims* *"Returns flat dashboard stats matching
+the frontend contract."* That sentence is the only contract, and it is false. **A description is
+evidence about intent, not about shape.**
+
+**Why 155 green tests did not catch it:** the fixtures assert our own `SuperadminStats` type, so
+they agree with the code and never with the API. This is [[FLAG-221]] a fourth time, and Gate 1 said
+it in September's words already — *"green means the code matches the fixtures, nothing more."* It is
+also the **same bug class as the merged D2 fix (#85, Org Admin) and NURSE-1** — third dashboard, same
+cause.
+
+⚠️ **Do NOT map these by name-similarity — two of the three are genuinely unresolvable today:**
+
+- `total_orgs` → **Organisations** is exact and safe.
+- **Active Orgs** has *no* corresponding field. It cannot be shown truthfully without one.
+- **Total Patients**: `active_records: 18` is **not** a patient count — the seed has 21+ patients
+  across orgs. "Records" and "patients" are different nouns and guessing they are the same is how
+  this class of bug started. Renaming the read to `active_records` would replace a visible gap with
+  an invisible wrong number, which is strictly worse on a dashboard someone makes decisions from.
+
+**Done when:**
+- [ ] `total_orgs` wired to the Organisations tile.
+- [ ] An `api-request` filed for a real `active_organizations` and a real patient count — or the two
+      tiles are removed rather than shown permanently blank.
+- [ ] A test that fails against the **captured** payload above rather than against our own type.
