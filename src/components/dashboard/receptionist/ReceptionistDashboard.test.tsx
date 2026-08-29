@@ -484,21 +484,67 @@ describe('D4 — registering a patient', () => {
     expect(Object.keys(body as object)).not.toContain('email');
   });
 
-  it('does not claim an HCL-ID it was never given', async () => {
-    dataActionMock.mockResolvedValue({});
-    await openRegister();
+  async function registerAda() {
     fireEvent.change(screen.getByLabelText('First name *'), { target: { value: 'Ada' } });
     fireEvent.change(screen.getByLabelText('Last name *'), { target: { value: 'Bello' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create patient record' }));
+    return screen.findByText(/has been registered/);
+  }
 
-    // POST /patients/ returns no id and no healthclouda_id (backend #137). The
-    // screen must say so and point at search — NOT invent an ID, and NOT
-    // silently search and present whichever result comes back first, which
-    // could hand the patient someone else's identifier.
-    const notice = await screen.findByText(/has been registered/);
+  it('reads the HealthClouda ID from the NESTED patient object (issue #101)', async () => {
+    // 🪤 This is the whole point of the test. The 201 nests the identifiers:
+    //   { message, patient: { id, healthclouda_id } }
+    // Reading the top level returns `undefined`, which is indistinguishable
+    // from the field being absent — the misreading that made FLAG-216 conclude
+    // for four days that the HCL-ID handout could not be built.
+    //
+    // The fixture below carries the ID ONLY in the nested position, so this
+    // test fails the moment someone "simplifies" the read to `body.healthclouda_id`.
+    dataActionMock.mockResolvedValue({
+      message: 'Patient registered successfully',
+      patient: { id: 'p-1', healthclouda_id: 'HCL-5WO6SE', first_name: 'Ada', last_name: 'Bello' },
+    });
+    await openRegister();
+    const notice = await registerAda();
+
     expect(notice.textContent).toContain('Ada Bello');
-    expect(screen.getByText(/does not return the new HealthClouda ID/)).toBeInTheDocument();
+    // The moment the flow exists for: the desk can read it back immediately.
+    expect(await screen.findByText('HCL-5WO6SE')).toBeInTheDocument();
+    expect(screen.getByText(/read this back to the patient/i)).toBeInTheDocument();
+    // And it must NOT be showing the "we could not get it" fallback.
+    expect(screen.queryByText(/did not come back with this registration/)).not.toBeInTheDocument();
+  });
+
+  it('does not claim an HCL-ID it was never given', async () => {
+    // The response shape here has already been documented wrongly once, so the
+    // degraded path has to stay honest rather than assume.
+    dataActionMock.mockResolvedValue({ message: 'Patient registered successfully' });
+    await openRegister();
+    const notice = await registerAda();
+
+    expect(notice.textContent).toContain('Ada Bello');
+    expect(screen.getByText(/did not come back with this registration/)).toBeInTheDocument();
     expect(screen.queryByText(/^HCL-/)).not.toBeInTheDocument();
+  });
+
+  it('never recovers a missing ID by searching for the patient it just created', async () => {
+    // 🔴 The safety property, and the reason FLAG-216 refused to build this
+    // with a workaround. Two same-name registrations minutes apart are
+    // indistinguishable, so presenting the first search hit as "their" HCL-ID
+    // can attach one patient's records to another — invisibly, at the desk.
+    dataActionMock.mockResolvedValue({ message: 'Patient registered successfully' });
+    await openRegister();
+    dataGetMock.mockClear();
+    await registerAda();
+
+    // Registration must not trigger a patient search on its own. The desk can
+    // still choose to search — that button is present — but nothing is
+    // presented as the new patient's identifier without them confirming.
+    const searches = dataGetMock.mock.calls.filter(([p]) =>
+      String(p).startsWith(ENDPOINTS.REC_PATIENT_SEARCH),
+    );
+    expect(searches).toEqual([]);
+    expect(screen.getByRole('button', { name: /Find Ada Bello/ })).toBeInTheDocument();
   });
 });
 
