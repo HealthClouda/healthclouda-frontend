@@ -246,6 +246,79 @@ captured against `dev.healthclouda.com` and `api-dev` as above.
   `SECURITY_BASELINE.md` §2 before beta. **A control with no failing test is a claim, not a control.**
 - [ ] Then **issue #101**, the HCL-ID handout.
 
+#### Part 3, same session — issue #101, Gate 2, and the first browser render (PRs #107, #108, #106)
+
+**Goal:** clear issue #101, then answer "what's next" honestly instead of picking the nearest task.
+
+**What I did:** shipped the HCL-ID handout (#107), ran **Gate 2** (#108) after finding nobody had,
+then paid the visual-verification debt — which immediately found a P1.
+
+**What I found:**
+
+- 🚨 **Gate 2 was due Fri 28 Aug and there was no record of it anywhere.** Not on `develop`, not in
+  any of the eleven open PRs — I grepped both. Onboarding with real PHI is **Thu 3 Sep**, and the plan
+  says *"If NO-GO, onboarding moves — decided here, not on 3 Sep."* Ran it late, same as Gate 1.
+  **Verdict 🔴 NO-GO**, but the diagnosis inverts Gate 1's: Gate 1 found work that did not exist;
+  Gate 2 found **eleven PRs, six approved and mergeable**. **This is merge throughput, not build
+  work** — it can flip over a weekend with nobody writing a feature.
+- 🚨 **FLAG-222 — three of four Superadmin stat cards read fields the API has never returned.** Found
+  in the **first screenshot** of the first browser render this project has ever had. Measured live:
+  the endpoint sends `total_orgs`/`active_records`; we read
+  `total_organizations`/`active_organizations`/`total_patients`. On screen the **Organisations tile
+  shows `—` directly above a table listing three organisations.** Nobody had ever looked.
+- 🎯 **Three things about FLAG-222 matter more than the bug.** **155 green tests missed it** (fixtures
+  assert our own type — FLAG-221 a fourth time). **The schema could not catch it** —
+  `/superadmin/dashboard/` documents `200: No response body` and merely *claims* in prose to "match
+  the frontend contract". And it is the **third dashboard with this exact fault** after Org Admin
+  (#85) and Nurse. **Doctor, Receptionist and Patient have still never been rendered.**
+- 🎯 **"All six dashboards merged" was never the same claim as "all six dashboards work."** Gate 1
+  measured the first and I wrote it up as a criterion; nobody has measured the second. That is a flaw
+  in **my own** Gate 1 criteria, not just in the execution.
+- 🪤 **I nearly reported a second bug that was my own instrument.** The first screenshots showed both
+  Superadmin list panels stuck shimmering. I was about to write it up, then re-ran with a 9-second
+  settle: the lists load fine — three orgs and a proper empty state. **I was screenshotting before
+  the data arrived.** The stat-card bug was real and the shimmer was not, and the only thing
+  separating them was checking. Same lesson as the `?x=` grep in Part 2, one day later.
+- **The seed data moved again.** There is now a **Third Clinic** and 17 users; @Bastoh's note that the
+  check-ins moved 13 Aug → 27 Aug was not a one-off. **Nothing should hardcode a count or a date.**
+- **`/patients/` verification of #107 was done with an intercepted POST**, deliberately: verifying it
+  for real means registering a junk patient into the seed data everyone tests against, which is
+  precisely what FLAG-216 refused to do. The mock returns the shape the backend verified on #137.
+
+**Decisions:**
+- **Ran Gate 2 rather than taking the next build task.** Four days from PHI, the absent gate was worth
+  more than another feature. I measured and explicitly did **not** choose whether 3 Sep holds — that
+  is @Bastoh's and the owner's call, and the plan says it gets made now.
+- **Did not guess FLAG-222's two unresolvable fields.** `total_orgs` → Organisations is exact and
+  safe. But `active_records: 18` is **not** a patient count (the seed has 21+), and there is no
+  active-orgs field at all. **Replacing a visible gap with an invisible wrong number on a dashboard
+  someone makes decisions from is strictly worse than the gap.** Logged, did not "fix".
+- **Promoted the small-screen check into `e2e/design/smallscreen.spec.ts`** rather than leaving it a
+  throwaway. It is the **"span two layers" test FLAG-221 asks for**: jsdom does not evaluate a media
+  query at all, which is why the CSS-only gate survived a green suite for two weeks.
+- **Put FLAG-222 on #106's branch** because that branch already owns the end of `CODEBASE_FLAGS.md`
+  and the finding came out of verifying #106 — four other open PRs also edit that file.
+- **Added the doctor/receptionist credentials to `.env.local`** (gitignored, verified). The file's own
+  warning is real: the passwords contain `#`, which starts a comment in a `.env` file unless quoted.
+
+**Verified:** #107 — tsc clean · 157/157 · build green; the nested-read test confirmed by mutation
+(swapping to a top-level read fails exactly that one test). #106 — tsc clean · **176/176 unit** ·
+**2/2 browser** · build green. Gate 2 measured on `develop` @ `3765b62`: tsc clean · 155/155 · build
+green · A2/A4/A6/A8 evidenced · **A5 and A7 open** · A3 verified independently by reading the cookie
+jar after signing in through the deployed proxy (all three cookies host-only, `Secure`, no `Domain=`).
+Trial-merged #108 against #97 — clean.
+
+**Left undone / next:**
+- [ ] 🔴 **T5 pass over Doctor, Receptionist, Nurse, Org Admin and Patient.** Superadmin's bug took one
+  screenshot to find and three dashboards have now had this same fault. **This is the cheapest
+  high-value thing on the board** — one evening, no new code.
+- [ ] **FLAG-222's fix** — wire `total_orgs`, and file an `api-request` for a real active-orgs count
+  and a real patient count, or remove those two tiles rather than ship them permanently blank.
+- [ ] **Five of my PRs are open and unreviewed** (#96, #105, #106, #107, #108). I should stop opening
+  PRs and start getting them merged — this is the Gate 1 review-latency dynamic with me as the cause.
+- [ ] Everything from Part 2 still stands: FLAG-203 channel 1, FLAG-221 instance 3, the
+  `SECURITY_BASELINE.md` mutation sweep.
+
 ---
 
 ### 2026-08-24 — cleared both CHANGES_REQUESTED blockers (branches: fix/org-admin-payload-shapes #85, feat/dash-3-nurse #86)
