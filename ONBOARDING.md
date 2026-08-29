@@ -174,14 +174,16 @@ curl -s "https://api-dev.healthclouda.com/api/v1/schema/?format=json" > schema.j
 until someone sends me a login" is never true, and believing it has already cost this team time
 more than once.
 
-**Three habits that will save you a day each.**
+**Four habits that will save you a day each.**
 
 **1. Read the `description`, not just the fields.** This API writes a lot of its contract in prose
 that never reaches the structured parts. The patients viewset spells out its role rules in the
 description — `CREATE (POST): SUPERADMIN, RECEPTIONIST only`, `RECEPTIONIST: contact info only` —
-and `/receptionist/appointments/` declares **no** parameters while its description names three.
-That matters because DRF **ignores an unknown query param silently**: you get 200, plausible-looking
-data, and no hint you filtered nothing.
+and `/patients/me/appointments/` declares **no** parameters while its description names four
+(`?status=&date=&page=&page_size=`). Across the API, **23 operations on 17 paths document params in
+prose and 12 of those declare none in `parameters`** — sometimes inline like that, sometimes as a
+`Query params:` block (`/ward/admissions/`). That matters because DRF **ignores an unknown query
+param silently**: you get 200, plausible-looking data, and no hint you filtered nothing.
 
 **2. Check each endpoint. Don't generalise to its neighbours.** `/ward/beds/` documents three
 parameters and a paginated envelope. `/nurse/wards/overview/`, one path segment away, documents
@@ -191,6 +193,14 @@ first 20 beds — invisible against 7 seeded beds, wrong at a real hospital.
 **3. A path existing is not a contract.** Plenty of endpoints appear in the schema with **no request
 body and no response body** — they're hand-written views the generator can't introspect. If you find
 two endpoints that do the same job, prefer the documented one.
+
+**4. Absence from the schema is not evidence of non-support.** The flip side of habit 1, and the one
+we keep relearning. `/receptionist/appointments/` and `/receptionist/check-ins/` document `?date=`,
+`?status=` and `?doctor_id=` in neither their parameters nor their prose — and all three work
+(measured against `api-dev`: `?date=1999-01-01` returns 0 where unfiltered returns 7). Twice now
+someone here has reasoned *"it isn't in the schema, so it must be ignored"* and been wrong: once on
+`?role=` (FLAG-205), once on the receptionist filters, where the inference nearly deleted a working
+feature. A gap means **go measure it against `api-dev`**. It never means conclude.
 
 **When the contract has a gap, say so — don't route around it.** Open a GitHub issue on the backend
 repo tagged `api-request`: what you need, why, and the shape you expect.
