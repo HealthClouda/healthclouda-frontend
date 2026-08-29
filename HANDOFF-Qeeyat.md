@@ -60,6 +60,114 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-29 — #96 unblocked at its source, then the whole review queue (branches: docs/schema-contract-guidance #96, docs/session-log-qeeyat-2026-08-29)
+
+**Goal:** clear @Bastoh's changes-requested on #96, then stop being the bottleneck — seven of his PRs
+were open and six were assigned to me, five days from PHI.
+
+**What I did:**
+- Fixed #96 and **fixed it at the source**, not only at the two call sites.
+- Reviewed **all seven** open PRs: #97 ✅ · #98 ✅ · #99 🔴 changes requested · #100 ✅ · #102 ✅ ·
+  #103 ✅ · #104 ✅. Re-ran the three commands myself on the code PRs rather than trusting the bodies.
+
+**What I found:**
+
+- 🎯 **The false example in #96 was mine, and it came from FLAG-217.** @Bastoh blocked one bullet in
+  `CLAUDE.md` claiming `/receptionist/appointments/` documents `?date=&doctor_id=&status=` in its
+  description. It does not — I re-fetched and the description is two lines naming no params. It
+  originated in **FLAG-217, which I wrote on 24 Aug**, and propagated into `CLAUDE.md` and
+  `ONBOARDING.md` from there. Fixing only the two docs would have left the wrong version in the flag
+  new readers are pointed at, so FLAG-217 now carries a correction. **A rule illustrated by a false
+  example is weaker than no example.**
+- 🪤 **I nearly shipped a second bad number into the file that tells people to verify.** My
+  replacement text said *"13 operations name a query string in prose"*. That grep matched only the
+  inline `?x=` style and **missed the `Query params:` block format entirely** — the one
+  `/ward/admissions/` and `/ward/beds/` use. Real figure: **23 operations across 17 of 125 paths, 12
+  declaring none in `parameters`.** Caught it because `/ward/admissions/` turned up while I was
+  checking FLAG-217's *other* claim. **Measuring with the wrong instrument produces a
+  verified-sounding number, which is worse than an admitted guess.**
+- **Both directions of the schema mistake have now been made by both devs.** I asserted prose that
+  wasn't there; @Bastoh inferred that absence meant ignored and blocked #94 for it (his email, 28
+  Aug, retracted plainly). The receptionist filters **work while documented nowhere**. That is
+  FLAG-205's rule a second time, and it is now a `CLAUDE.md` bullet and `ONBOARDING.md` habit 4.
+- 🎯 **`/auth/me/` returns `organization: {id, name, slug, org_id, org_type}` — verified live.** #99's
+  whole tenant check rests on that shape, and **the schema documents the endpoint as `200` with no
+  response body** (FLAG-218 class), so it was not answerable from the schema. This is the first thing
+  in weeks that genuinely *was* blocked on credentials — the contract questions never were.
+- 🔴 **#99 logs every user out after one hour, and I approved it before I saw that.** `middleware.ts:49`
+  documents the invariant: *"the access cookie expires hourly; a present refresh cookie means the
+  session is still alive (client refreshes on first API call)."* The new server gate reads **only**
+  the access token, so at the 60-minute mark middleware allows the request through and the page then
+  redirects to signin, with six days of refresh token left. Measured: `ACCESS_COOKIE_OPTIONS.maxAge`
+  = 3600, and the real `api-dev` token's `exp - iat` = 3600. **It arrives as `no_token`, which #103
+  deliberately does not log — so the most likely production failure of #99 is the one case that stays
+  silent.** Found it while reviewing #103; switched my approval to changes-requested.
+- 🔴 **`CLAUDE.md` §3 is wrong about branch protection, and it is not a small wrongness.** It states
+  the rules are *"honour system"* because *"GitHub branch rules require Pro on private repos."*
+  Measured: the repo is **PUBLIC** (rulesets are therefore free) and ruleset `11328360` is
+  **enforcement: active** on `main`/`staging`/`develop` with `required_approving_review_count = 1`,
+  deletion and force-push blocked, **no bypass actors**. `HANDOFF.md`'s branch table was right all
+  along. We have had a real gate and have been telling ourselves we don't.
+- ⚠️ **@Bastoh found the same thing independently the same night** — by getting a push rejected on
+  #98 — and said he would fix §3. I had already offered to do it on #102. **Two devs, two assistants,
+  one edit to the same section of the operating manual.** I stood down on #98 in writing. Neither of
+  us would have seen the collision without reading the other's PRs, which is the case for the In
+  Flight table and also its limit: it does not catch work discovered *inside* a review.
+- ⚠️ **The apex is described three different ways across his open PRs.** #102 records *"Decided: apex
+  = marketing + patient portal against `api-beta`"*; #100 says it in a code comment; #97's deployment
+  table lists the apex tier as `—`; and the sprint plan says *"marketing-only, no API."* The decision
+  is real but lives in a new file in an unmerged PR. **Where the beta org's patient signs in on 3 Sep
+  is still not settled anywhere a reader would look.**
+- 🪤 **Reviewer trap on #100:** checking it out over a `.next` built from #99 makes `tsc` fail with
+  three phantom errors naming the route #100 deletes. `rm -rf .next` first. I nearly reported a false
+  failure against his PR.
+
+**Decisions:**
+- **Fixed FLAG-217 in place rather than only the call sites** — the flag is where the error would
+  have been re-copied from. Same retract-in-place style he used for FLAG-015.
+- **Went beyond the one-bullet swap he asked for**, and said so on the PR. The rule the false example
+  was reaching for is real once inverted, and shipping the swap alone would have dropped it.
+- **Accepted the FLAG-216 correction (issue #101) on his measurement without re-verifying.** The only
+  way to check is to `POST /patients/` at shared seed data during UAT week. **Creating a junk patient
+  to confirm a payload shape is worse than trusting a colleague who already ran it** — the same
+  reasoning FLAG-216 used to refuse the search-for-the-patient workaround.
+- **Changes-requested on #99 rather than a follow-up note**, even though it fails *closed* and is
+  therefore safe. It hits every user every hour, presents in UAT as "it keeps logging me out", and
+  nobody traces that to an authorization change.
+- **Approved #100 and #104 despite open questions** — an apex decision in a code comment and an
+  unsupported parenthetical are worth raising, not worth blocking a patient-signin fix five days out.
+- **Did not add an In Flight row for this branch.** #97 rewrites that entire table; an added row is a
+  guaranteed conflict. **Recording the skip rather than doing it silently** — the rule says claim
+  before cutting, and I did not.
+
+**Verified:** `npx tsc --noEmit` exit 0 · `npm test` **155/155, 19 files** · `npm run build` green,
+on #96 after rebasing onto `develop`. On **#99**: tsc 0 · 159/159 · build green, and the RED-first
+claim confirmed by applying the new tests to pre-fix `develop` — **3 failed, 1 passed**, exactly his
+table. On **#100**: tsc 0 (after `rm -rf .next`) · 165/165 · build green. Against **live `api-dev`**:
+schema 200 unauthenticated (391 KB) · `/auth/me/` shape as a doctor · access-token lifetime 3600s
+with claims `token_type, exp, iat, jti, user_id` (no role, no org — confirming #99's reasoning) ·
+`ReferralResponseRequest.required = ["response_notes"]` · the ORG_ADMIN referral prose verbatim ·
+the 23/17 and 12/6 prose counts. Against **live `dev.healthclouda.com`**: 200 with valid TLS · all
+six security headers byte-for-byte as `SECURITY_BASELINE.md` documents, `frame-ancestors 'none'`
+included · **zero `railway.app`** in the served HTML and JS chunk (A2 confirmed on the artifact, not
+the source) · beta unresolvable · apex 200.
+
+**Left undone / next:**
+- [ ] 🔴 **FLAG-203 — `SmallScreenGate` is CSS-only, so PHI renders into the DOM below 768px.** Mine,
+  my component from D1, and #102 calls it *the most serious unfixed item in the document*. Tier 1,
+  design lane. **This is what I pick up next.**
+- [ ] **Issue #101 — the HCL-ID handout is buildable after all** (`POST /patients/` returns
+  `{message, patient:{id, healthclouda_id}}`). Assigned to me; unblocks the D4 gap FLAG-216 described.
+- [ ] **#96 awaits re-review**; **#99 awaits his fix** for the session regression.
+- [ ] ⚠️ **`staging` must be re-promoted after #99/#100/#103 merge and before beta is attached on
+  31 Aug**, or beta stands up on the tier that receives PHI with client-trusted auth. Raised on #98;
+  it belongs on the 31 Aug checklist, not in anyone's memory.
+- [ ] **`CLAUDE.md` §3 branch-protection correction is @Bastoh's** — I stood down. If it has not
+  landed by Monday, take it.
+- [ ] The apex/patient-portal question still needs one answer in `HANDOFF.md`.
+
+---
+
 ### 2026-08-24 — cleared both CHANGES_REQUESTED blockers (branches: fix/org-admin-payload-shapes #85, feat/dash-3-nurse #86)
 
 **Goal:** @Bastoh reviewed the whole backlog overnight and merged six (#84, #87, #88, #89, #90, #91).
