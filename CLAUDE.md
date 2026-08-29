@@ -49,9 +49,24 @@ not a doc committed here, not what a component currently assumes, and not this f
     and `RECEPTIONIST: contact info only` verbatim. That is how D4's registration and contact-edit
     were settled without POSTing at shared seed data. 12 operations across 6 paths carry a block
     like this.
-  - **Query params.** `/receptionist/appointments/` declares **no** parameters and its description
-    names three (`?date=&doctor_id=&status=`). Since DRF ignores unknown params *silently*, the
-    description is often the only place a working filter is written down.
+  - **Query params.** `/patients/me/appointments/` declares **no** parameters and its description
+    names four (`?status=&date=&page=&page_size=`). Since DRF ignores unknown params *silently*, the
+    description is often the only place a working filter is written down. **23 operations across 17
+    of the 125 paths document params in prose; 12 of those declare none in `parameters`** (counted
+    against the live schema 2026-08-29). It appears in two formats — inline like the above, and a
+    literal `Query params:` block, as on `/ward/admissions/`. ⚠️ **The two sets are disjoint, not
+    overlapping:** `/ward/admissions/` declares `ordering, page, search` *and* documents `status`,
+    `ward_id`, `patient_id` in prose. Reading either alone gives you half the contract — and a
+    grep for `?x=` alone misses the block format entirely, which undercounted this very bullet.
+    `/receptionist/check-ins/` is documented as *"List **today's** check-ins"* — the date default
+    behind FLAG-213 was written down all along.
+- **Absence from the schema is not evidence of non-support. Measure it; never conclude.**
+  `/receptionist/appointments/` and `/receptionist/check-ins/` document `?date=`, `?status=` and
+  `?doctor_id=` in **neither** their parameters nor their prose — and **all three work**, measured
+  against `api-dev` 2026-08-28: 7 appointments unfiltered, 0 with `?date=1999-01-01`; check-ins
+  `?date=2026-08-27` → 5, `&status=WAITING` → 2. This inference has now been made twice and been
+  wrong twice — first on `?role=` (FLAG-205), then on the receptionist filters, where it nearly
+  removed a working feature in PR #94. A schema gap justifies **verifying**, never concluding.
 - **Read it per endpoint. This API is not uniform.** `/ward/beds/` documents three params and a
   paginated envelope; `/nurse/wards/overview/`, one path segment away, documents nothing at all.
   Generalising from one endpoint to its neighbours has already shipped a real bug (FLAG-211, and the

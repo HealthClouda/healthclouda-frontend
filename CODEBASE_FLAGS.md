@@ -835,6 +835,13 @@ block says `jwtAuth` generically for every endpoint and never exposes which role
 permission classes allow — the same gap as FLAG-209. A `GET` returning 200 says nothing about
 `POST`.
 
+> ⚠️ **Narrowed again 2026-08-29 — this satisfies FLAG-217's "Done when".** The `security` *block*
+> never exposes roles, but the **`description` sometimes does**: 12 operations across 6 paths carry
+> a full role matrix in prose (`/patients/` is the flagship). So *"the schema never says"* must from
+> now on mean *"I read the description too."* It does **not** rescue this flag — `/ward/admissions/`
+> POST documents no permissions either way, so the nurse-admit question stays genuinely open — but
+> it was concluded here without that check having been made.
+
 > ⚠️ **Narrowed 2026-08-23, after @Bastoh's review of PR #86.** As first written this entry
 > generalised from the doctor endpoints to the whole API, saying the schema documents no
 > parameters. **That generalisation is wrong.** It holds for the doctor routes — `/doctor/appointments/`
@@ -1105,11 +1112,35 @@ This is exactly what FLAG-209 and FLAG-211 say the schema "never" exposes. It is
 **12 operations across 6 paths**, all of them prose. D4's contact-edit and registration permissions
 were both settled from that block rather than by guessing or by POSTing at shared seed data.
 
-**Params hide in the same place.** `/receptionist/appointments/` declares no parameters and its
-description says `GET: appointments (?date=&doctor_id=&status=)`. `/ward/admissions/` declares none
-and documents `status`, `ward_id`, `patient_id`. Given that inventing query params is a known bug
-class here (DRF ignores unknown params silently), **the descriptions are load-bearing and must be
-read** — they are frequently the only place a param is written down.
+**Params hide in the same place.** `/patients/me/appointments/` declares no parameters and its
+description says `GET /api/v1/patients/me/appointments/?status=&date=&page=&page_size=`.
+`/ward/admissions/` documents `status`, `ward_id`, `patient_id` under a literal `Query params:`
+heading. Given that inventing query params is a known bug class here (DRF ignores unknown params
+silently), **the descriptions are load-bearing and must be read** — they are frequently the only
+place a param is written down. Re-measured 2026-08-29: **23 operations across 17 of the 125 paths**,
+in two formats (inline `?x=`, and a `Query params:` block).
+
+> ⚠️ **Correction (2026-08-29, @Qeeyat — two errors of my own, both caught in review of PR #96):**
+>
+> 1. **The original example was false.** This flag said `/receptionist/appointments/` documents
+>    `?date=&doctor_id=&status=` in its description. **It does not** — that description reads only
+>    `GET…List appointments / POST…Book appointment`, with no params in the fields or the prose.
+>    @Bastoh caught it on #96; I re-fetched the schema on 29 Aug and confirmed he is right. The bad
+>    example had already propagated into `CLAUDE.md` and `ONBOARDING.md`; all three are fixed
+>    together in #96. **A rule illustrated by a false example is weaker than no example.**
+> 2. **`/ward/admissions/` does not "declare none"** — it declares `ordering, page, search`. The
+>    prose params are *additional to* the declared ones, not a substitute for them. **The two sets
+>    are disjoint**, so reading either alone gives you half the contract.
+>
+> 🎯 **And the thing the false example was reaching for is real, just inverted.** Those receptionist
+> filters **do work** — measured against `api-dev` by @Bastoh 2026-08-28: `/receptionist/appointments/`
+> returns 7 unfiltered and 0 for `?date=1999-01-01`; `/receptionist/check-ins/?date=2026-08-27` → 5,
+> `&status=WAITING` → 2. So they are honoured while documented in **neither** place. That is
+> **FLAG-205's rule a second time** — *absence from the schema is not evidence of non-support* — and
+> it nearly cost us the receptionist filters in PR #94, which was blocked on that inference and is
+> now merged. Both directions of this mistake have now been made by both devs: I asserted prose that
+> wasn't there; the review inferred absence meant ignored. **Measure the endpoint. Cite nothing you
+> have not fetched.**
 
 **Where it does NOT help:** `/ward/admissions/` POST documents no permissions, so FLAG-211's actual
 question — may a nurse admit? — is still open. Checked, not assumed.
