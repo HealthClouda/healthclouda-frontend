@@ -172,7 +172,7 @@ with a regression test asserting the requested URL.
 ---
 
 ### FLAG-005 — `serverFetch` swallows every failure as `null`
-**Severity:** P2 · **Area:** Observability / Error handling · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Observability / Error handling · **Owner:** @Bastoh · **Status:** 🟡 **PARTIALLY FIXED 2026-08-28** — two of three clauses done; see below
 **Found:** 2026-08-08 (originally AUTH-6; partially mitigated, root cause remains)
 
 `src/lib/server-fetch.ts:20-24` turns auth errors, 500s, network failures, and malformed JSON all
@@ -184,6 +184,32 @@ Production incidents will present as a silently empty dashboard with no signal a
 **Done when:** `serverFetch` distinguishes error from empty (throws, or returns a discriminated
 result), failures are logged server-side with status and path, and callers render an error state
 rather than an empty one.
+
+> 🟡 **Two of the three clauses are done (2026-08-28).** `serverFetchResult()` returns a discriminated
+> `{ok:true,data} | {ok:false,status,reason}` with reasons `unauthorized | forbidden | not_found |
+> server | network | malformed | no_token`, and every failure is logged as
+> `[serverFetch] <reason> status=<n> path=<endpoint>`.
+>
+> **Status and path only — never the body, never the token.** Response bodies from this API carry
+> patient data, and a log line is the wrong place for it.
+>
+> `no_token` is deliberately **not** logged: a logged-out visitor on a server-rendered route is a
+> normal state, and logging it would produce an error line per anonymous page view — noise that would
+> get the whole log ignored.
+>
+> ⚠️ **`serverFetch()` keeps its exact contract** (`T | null`). That is on purpose: `requireDashboardUser()`
+> (FLAG-001) treats `null` as DENY, which is correct fail-closed behaviour for an authorization gate.
+> This change adds signal without moving that goalpost, and every existing caller gets logging for free.
+>
+> **What remains — the third clause, narrower than the flag implies.** Dashboards already render
+> `ErrorState` for their *client-side* fetches (`useApi` / `usePaginatedList`), so the gap is only the
+> **server-rendered stat cards**: on failure they show `—` as though the data were empty. Closing it
+> means threading an error prop through all six dashboard components.
+>
+> **Deliberately not done in this PR:** those six files are the design lane's active work surface
+> (D4/D5/D6), and a wide mechanical edit across them would collide with @Qeeyat's open branches for a
+> cosmetic gain. Better folded into whichever design PR next touches each dashboard. Recorded rather
+> than quietly dropped.
 
 ---
 
