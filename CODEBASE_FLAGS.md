@@ -697,6 +697,49 @@ Dropping `unsafe-eval` alone is a valid, smaller first step.
 
 ---
 
+### FLAG-021 — The small-screen gate cannot stop the one fetch that sits above it
+**Severity:** P3 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-30, reviewing PR #106 (FLAG-203)
+
+PR #106 makes `DashboardShell` decide in JS whether the dashboard **mounts** below 768px, which is
+what finally stops the client-side PHI fetches: React never invokes a component passed as
+`children`, so none of its hooks run. That mechanism is correct and it closes the channel FLAG-203
+is mostly about.
+
+**It cannot reach a hook that runs before the shell renders**, and there is exactly one, repeated
+identically in all six dashboards:
+
+```ts
+// NurseDashboard.tsx:489 — and the same line in Doctor, OrgAdmin, Receptionist, Superadmin, Patient
+const { data: fetchedStats } = useApi<NurseStats>(initialStats ? null : ENDPOINTS.NURSE_STATS);
+```
+
+`NurseDashboard` is the *parent* of `DashboardShell`, so this runs on a phone regardless of the
+gate. It is `null` — and therefore silent — **whenever the server supplied `initialStats`**, which
+is the normal path. It fires only when the server-side fetch came back empty, which since #103 is a
+silent `null` on any 401, 500, or network blip.
+
+**Why P3 and not P1:** the payload is aggregate counts (episode totals, appointment counts), not
+patient-identifiable records, and it needs a server-side failure to trigger at all. FLAG-203's
+serious half — names, HCL-IDs, prescriptions — is genuinely closed by #106.
+
+**Why it is still worth a number:** it is the same bug class as the flag it survives, and #106's own
+argument ("React does not run a component's hooks until it is rendered") is true of `children` and
+not of the component doing the rendering. Someone reading that sentence later will reasonably
+believe the gate covers everything below the route. It does not.
+
+⚠️ **Do not fix this by hoisting the gate into the six `page.tsx` files** without reading FLAG-203's
+channel-1 note first: the client gate tests the **viewport**, any server-side gate tests the
+**device**, and those are different predicates. This one is a client-side fetch, so it belongs with
+the client gate.
+
+**Done when:** the stats fallback does not fire on a viewport the gate would refuse — e.g. each
+dashboard reads `useWideViewport()` and passes `null` unless `'wide'` — and a test asserts no
+request is made when the viewport is narrow *and* `initialStats` is absent. **Explicitly accepting
+it in `SECURITY_BASELINE.md` is also a valid close**, naming what a phone can still receive.
+
+---
+
 ### FLAG-022 — `Avatar` renders a remote `<img>`; next/image needs a per-tier host in `next.config.ts`
 **Severity:** P3 · **Area:** Performance / Config · **Owner:** @Bastoh · **Status:** OPEN
 **Found:** 2026-08-31, landing the ESLint gate (E8 / FLAG-006)

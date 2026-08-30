@@ -115,10 +115,41 @@ A stale claim is worse than no claim. If you abandon work, clear the row.
 - **Rebase onto `develop`. Never merge `develop` into your branch.**
 - **Never force-push `develop`.**
 
-> **Branch protection is NOT enforced.** GitHub branch rules require Pro on private repos, which
-> we don't have. Nothing above is mechanically prevented — every rule here is **honour system.**
-> That is precisely why it is written down, and why violating it silently is a real cost to the
-> other dev.
+> ⚠️ **Corrected 2026-08-30 — this section used to say branch protection was NOT enforced. It was
+> wrong, and it had been wrong since the day it was written.** It claimed GitHub branch rules
+> "require Pro on private repos, which we don't have". **This repo is public**, so rulesets were
+> never a paid feature here. Found by @Qeeyat on 29 Aug (and by @Bastoh the same night, via a
+> rejected push on #98); verified against the API before this edit:
+>
+> ```
+> repo                  PUBLIC   (isPrivate: false)
+> ruleset 11328360      enforcement: active  ·  refs/heads/{main,staging,develop}
+> bypass_actors         []       ← nobody, repo admins included
+> rules                 deletion · non_fast_forward
+>                       pull_request: required_approving_review_count = 1
+>                                     dismiss_stale_reviews_on_push  = false
+> ```
+>
+> **What IS mechanically enforced on `main` / `staging` / `develop`:** a PR is required, it needs
+> **one approving review**, and force-pushes and branch deletion are blocked — for everyone, with no
+> bypass list.
+>
+> 🔑 **`dismiss_stale_reviews_on_push = false` is the part that surprises people.** A
+> CHANGES_REQUESTED review is **not** cleared by pushing a fix — the reviewer must come back and
+> approve. Merging "over" a standing change request is not a judgement call available to the author;
+> GitHub refuses it. Plan around the reviewer's availability. (Hit on PR #99 on 30 Aug.)
+>
+> **What remains honour system:** everything else on this page — rebase-don't-merge, claiming In
+> Flight *before* cutting a branch, merging within a day, running the three verify commands, logging
+> shortcuts in `CODEBASE_FLAGS.md`. Nothing checks those, and that is why they are written down —
+> violating one silently is a real cost to the other dev.
+>
+> ⚠️ **CI now exists, and it still gates nothing.** PR #116 closed FLAG-006: GitHub Actions runs
+> `tsc`, the test suite, the build, and ESLint at `--max-warnings=0` on every PR. But ruleset
+> 11328360 carries **no required status checks** — verified against the API 2026-09-02, the rules
+> are `deletion`, `non_fast_forward`, `pull_request` and nothing else. **So a green tick implies a
+> gate that is not wired up**: a red CI run does not block a merge today. Making the three jobs
+> required is a repo-settings change only @Bastoh can make.
 
 ### Reviewers — always set one, and it is always the other dev
 
