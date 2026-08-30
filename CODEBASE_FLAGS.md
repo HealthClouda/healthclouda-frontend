@@ -729,6 +729,47 @@ Dropping `unsafe-eval` alone is a valid, smaller first step.
 
 ---
 
+### FLAG-020 — Two concurrent refreshes still cost a session, and now there are two refreshers
+**Severity:** P2 · **Area:** Auth / Session · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-30, fixing the hourly-logout regression on PR #99
+
+SimpleJWT **rotates and blacklists** refresh tokens: the moment one exchange succeeds, the token it
+consumed is dead. So two refreshes genuinely in flight at the same time end with one of them
+presenting a blacklisted token, and that user is signed out with a session that was perfectly alive.
+
+`client-api.ts` has always guarded this with a single-flight promise, and `CLAUDE.md` §5 calls that
+path load-bearing. **PR #99 adds a second refresher** — `middleware.ts` now resumes a server-rendered
+navigation whose access cookie has aged out, because a Server Component cannot set cookies and the
+A5 gate needs a live token *during* the render.
+
+**The two do not race in the common case**, which is why this is P2 and not P1:
+
+- `/api/*` returns from middleware before the resume ever runs, so the client's own refresh call is
+  never intercepted.
+- The client refreshes only after a 401 on a data call, i.e. on a page that has already rendered.
+  Middleware refreshes only on a navigation that has no access cookie at all. Those are different
+  moments.
+- Next does not fully render dynamic routes on `<Link>` prefetch, so a prefetch does not silently
+  fire a second resume.
+
+**The window that remains** is genuinely simultaneous requests that each arrive with no access
+cookie — most plausibly two browser tabs restored at once after an hour idle, or a hard reload
+racing an open tab's background call. The loser gets `rejected`, which clears the cookies, and the
+user is bounced to signin holding what *was* a good session. This is **the same class of race the
+client path already accepts**, not a new one; PR #99 widens it rather than opening it.
+
+⚠️ **It cannot be fixed by coordinating in middleware.** Middleware runs per-request on the edge with
+no shared state, and the loser's request was already sent before the winner's `Set-Cookie` existed —
+there is nothing for it to observe. A real fix belongs on the backend (a short grace window where a
+just-rotated token is still accepted, which SimpleJWT does not do today) or in a single serialising
+session store on our side. Both are architecture, not a patch.
+
+**Done when:** either the backend accepts a just-rotated refresh token inside a short grace window
+(needs a backend `api-request` issue), or refreshes are serialised through one server-side holder;
+and a test proves two simultaneous expired navigations leave the session intact. **Accepting it in
+writing is also a valid close** — say so in `SECURITY_BASELINE.md` with the window named.
+
+
 ### FLAG-022 — `Avatar` renders a remote `<img>`; next/image needs a per-tier host in `next.config.ts`
 **Severity:** P3 · **Area:** Performance / Config · **Owner:** @Bastoh · **Status:** OPEN
 **Found:** 2026-08-31, landing the ESLint gate (E8 / FLAG-006)

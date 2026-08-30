@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { AUTH_COOKIES } from '@/lib/auth';
+import {
+  AUTH_COOKIES,
+  ACCESS_COOKIE_OPTIONS,
+  REFRESH_COOKIE_OPTIONS,
+} from '@/lib/auth';
 import { ROLES } from '@/lib/config';
 import type { Role } from '@/lib/config';
+import { refreshSessionTokens } from '@/lib/session-refresh';
 
 // Role → dashboard path (mirrors roleDashboardPath from lib/router — duplicated
 // here because middleware runs on the edge and cannot import from lib/router safely)
@@ -41,7 +46,94 @@ function isSigninRoute(pathname: string): boolean {
     pathname.endsWith('/signin');
 }
 
-export function middleware(request: NextRequest) {
+/** The signin portal that belongs to this path — never the general one for staff. */
+function signinUrlFor(pathname: string, request: NextRequest): URL {
+  const parts = pathname.split('/').filter(Boolean);
+  const isOrgScoped = parts.length >= 2 && !DASHBOARD_SEGMENTS.has(parts[0]) && parts[0] !== 'superadmin';
+  // Send each portal to its OWN signin. A superadmin used to be bounced to
+  // the general portal, which is patients-only — the backend rejects staff
+  // there, so an expired session stranded them on a page that cannot log
+  // them in.
+  return parts[0] === 'superadmin'
+    ? new URL('/superadmin/signin', request.url)
+    : isOrgScoped
+      ? new URL(`/${parts[0]}/signin`, request.url)
+      : new URL('/signin', request.url);
+}
+
+/**
+ * Marks a signin redirect that came from a session we could not resume.
+ *
+ * It exists to break a redirect loop, not to decorate the URL: the
+ * "already signed in → go to your dashboard" rule below reads the same cookies
+ * that just failed to resume. Without this marker, an unreachable backend would
+ * send dashboard → signin → dashboard → signin without end.
+ */
+const EXPIRED_MARKER = 'session=expired';
+
+function expiredSigninRedirect(pathname: string, request: NextRequest) {
+  const url = signinUrlFor(pathname, request);
+  url.search = EXPIRED_MARKER;
+  return NextResponse.redirect(url);
+}
+
+/**
+ * Resume a session whose access cookie has expired — the hourly-logout fix.
+ *
+ * The access cookie lives one hour (`ACCESS_COOKIE_OPTIONS.maxAge`) and so does
+ * the token inside it; the refresh cookie lives seven days. Middleware has
+ * always let a request through on the refresh cookie alone and left recovery to
+ * `client-api.ts`'s single-flight refresh on the first API call. That stopped
+ * being enough with A5/FLAG-001: `requireDashboardUser()` runs during the
+ * server render, *before* any client code, and it needs a live access token to
+ * ask `/auth/me/` who the visitor is. Without one it fails closed and redirects
+ * to signin — logging every user out every hour despite six days of refresh
+ * token left.
+ *
+ * A Server Component cannot set cookies in Next, so the gate cannot repair this
+ * itself. Middleware can, and it already owns the invariant, so the refresh
+ * happens here and the new token is handed to the render on the same request.
+ *
+ * ⚠️ This does NOT replace the client's single-flight refresh — that still owns
+ * the 401-on-XHR path, and `/api/*` returns above before reaching this. Two
+ * refreshes genuinely in flight at once will still cost a session (SimpleJWT
+ * blacklists the old token); see FLAG-020 for the residual window.
+ */
+async function resumeSession(request: NextRequest, refreshToken: string) {
+  const { pathname } = request.nextUrl;
+  const outcome = await refreshSessionTokens(refreshToken);
+
+  if (!outcome.ok) {
+    const res = expiredSigninRedirect(pathname, request);
+    // `unreachable` says nothing about whether the session is alive, so the
+    // cookies stay and the next navigation retries. Only an outright refusal
+    // clears them.
+    if (outcome.reason === 'rejected') {
+      res.cookies.delete(AUTH_COOKIES.ACCESS);
+      res.cookies.delete(AUTH_COOKIES.REFRESH);
+      res.cookies.delete(AUTH_COOKIES.USER);
+    }
+    return res;
+  }
+
+  // Hand the new token to THIS request's render. Mutating the request cookies
+  // and passing the request back through `next()` is what puts it in front of
+  // `requireDashboardUser()` now, rather than one navigation later.
+  request.cookies.set(AUTH_COOKIES.ACCESS, outcome.access);
+  if (outcome.refresh) request.cookies.set(AUTH_COOKIES.REFRESH, outcome.refresh);
+
+  const res = NextResponse.next({ request });
+  res.cookies.set(AUTH_COOKIES.ACCESS, outcome.access, ACCESS_COOKIE_OPTIONS);
+  // SimpleJWT rotated and blacklisted the token we just sent. Persisting the
+  // new one is not optional — skip it and the next refresh presents a dead
+  // token and logs the user out.
+  if (outcome.refresh) {
+    res.cookies.set(AUTH_COOKIES.REFRESH, outcome.refresh, REFRESH_COOKIE_OPTIONS);
+  }
+  return res;
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get(AUTH_COOKIES.ACCESS)?.value;
   const refreshToken = request.cookies.get(AUTH_COOKIES.REFRESH)?.value;
@@ -61,22 +153,21 @@ export function middleware(request: NextRequest) {
 
   // Guard dashboard routes — redirect to signin if no live session
   if (isDashboardRoute(pathname) && !hasSession) {
-    const parts = pathname.split('/').filter(Boolean);
-    const isOrgScoped = parts.length >= 2 && !DASHBOARD_SEGMENTS.has(parts[0]) && parts[0] !== 'superadmin';
-    // Send each portal to its OWN signin. A superadmin used to be bounced to
-    // the general portal, which is patients-only — the backend rejects staff
-    // there, so an expired session stranded them on a page that cannot log
-    // them in.
-    const signinUrl = parts[0] === 'superadmin'
-      ? new URL('/superadmin/signin', request.url)
-      : isOrgScoped
-        ? new URL(`/${parts[0]}/signin`, request.url)
-        : new URL('/signin', request.url);
-    return NextResponse.redirect(signinUrl);
+    return NextResponse.redirect(signinUrlFor(pathname, request));
   }
 
-  // Redirect authenticated users away from signin pages to their dashboard
-  if (hasSession && userRaw && isSigninRoute(pathname)) {
+  // The session is alive but its access token has aged out. Renew it here, on
+  // the server, so the page's own gate can resolve identity on this very
+  // request instead of bouncing the user to signin every hour.
+  if (isDashboardRoute(pathname) && !accessToken && refreshToken) {
+    return resumeSession(request, refreshToken);
+  }
+
+  // Redirect authenticated users away from signin pages to their dashboard.
+  // Skipped when we just failed to resume this session, or the two rules
+  // redirect at each other forever.
+  const cameFromFailedResume = request.nextUrl.searchParams.get('session') === 'expired';
+  if (hasSession && userRaw && isSigninRoute(pathname) && !cameFromFailedResume) {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw)) as { role: Role; organization_slug?: string };
       const roleBase = ROLE_PATHS[user.role];
