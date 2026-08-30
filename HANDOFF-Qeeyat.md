@@ -319,6 +319,67 @@ Trial-merged #108 against #97 — clean.
 - [ ] Everything from Part 2 still stands: FLAG-203 channel 1, FLAG-221 instance 3, the
   `SECURITY_BASELINE.md` mutation sweep.
 
+#### Part 4, same session (ran past midnight into 30 Aug) — the stat-tile sweep (PR #109, backend #158)
+
+**Goal:** "sort" FLAG-222 rather than log it. Which meant measuring the whole fault class before
+touching anything.
+
+**What I found:**
+
+- 🚨 **It was never only Superadmin.** Measured every dashboard stats endpoint live:
+
+  | Dashboard | Reads fields the API does not send | Result |
+  |---|---|---|
+  | Superadmin | `total_organizations`, `active_organizations`, `total_patients` | 3 of 4 tiles blank |
+  | **Doctor** | `appointments_today`, `active_prescriptions` | **2 of 4 tiles blank** |
+  | Org Admin | — | ✅ clean |
+  | Receptionist | — | ✅ clean |
+
+- 🎯 **Org Admin and Receptionist are clean because #85 and #94 captured their payloads live before
+  building. The two broken ones were typed from assumption.** That is the entire difference, and it is
+  the strongest one-line argument for capture-first that this repo has produced.
+- **A third instance in the same dashboard, found by looking at it:** the doctor Episodes "Opened"
+  column read `ep.created_at`; `/doctor/episodes/` sends **`episode_start`** and has no `created_at`,
+  so every row rendered `—`.
+- 🪤 **The fixtures were the accomplice, and `tsc` proved it.** Correcting the types surfaced **twelve**
+  test errors — every one a fixture that had been agreeing with the bug. Gate 1's *"6 tests assert
+  payload shapes the backend never sends"* was still true, in two more files, five weeks later.
+- 🪤 **I removed two stat cards and not one existing test failed.** [[FLAG-221]] again — that is the
+  fourth and fifth instance of the class in two days.
+- **Measured, not assumed, on the three fields I could not fix:** `/org/?is_active=` is **silently
+  ignored** (`true` → 3, `false` → 3, unfiltered → 3), so an active-orgs count cannot be derived
+  client-side either. `active_records` is **18** while `/patients/` reports **count 30** — so it is
+  categorically not a patient count.
+
+**Decisions:**
+- **Did not guess any of the three missing fields.** Filed **backend [#158]** instead. Mapping
+  `active_records` → "Total Patients" would have shown **18 where the truth is 30** — a visible gap
+  replaced by an invisible wrong number, on a dashboard someone makes decisions from.
+- **Refused to fetch PHI for a number.** `/doctor/prescriptions/` carries `count: 10`, which would
+  have filled the blank tile — at the cost of pulling ~20 prescription records into a page that
+  displays none of them. That is the exact thing FLAG-203 spent the evening arguing against, so it
+  would have been incoherent to do it two hours later.
+- **Substituted real fields under the backend's own names** (Active Records, Admissions Under Care)
+  rather than shipping tiles that are blank forever. ⚠️ **Two of those are design calls and I flagged
+  them on the PR as @Bastoh's to veto** — the Prescriptions page is still reachable from the sidebar.
+- **Stacked #109 on #106** because FLAG-222's text lives there. ⛓️ **#106 must merge as a merge
+  commit, not a squash**, or #109 breaks on retarget.
+
+**Verified:** tsc clean · **180/180** · build green · **and in a real browser against `api-dev`**:
+Superadmin now reads 17 / 3 / 18 with "Organisations 3" above a table listing three organisations;
+the doctor's four tiles all populate and "Opened" shows real relative dates.
+
+**Left undone / next — start here:**
+- [ ] 🔴 **Nurse and Patient dashboards have still never been measured or rendered.** Nurse needs
+  credentials (ask @Bastoh); Patient needs FLAG-210 merged. **Three of the four dashboards anyone has
+  actually looked at had a contract bug** — assume these two do until shown otherwise. FLAG-222 stays
+  open for them.
+- [ ] 🔴 **Six of my PRs are open and unreviewed** (#96, #105, #106, #107, #108, #109) and six of
+  @Bastoh's are approved-and-unmerged. **Gate 2's finding is that this is a merge-throughput problem,
+  not a build problem — so the next session should merge, not build.**
+- [ ] Everything from Parts 2 and 3 still stands: FLAG-203 channel 1, FLAG-221 instance 3 (the
+  middleware+page composition test, belongs with #99's fix), the `SECURITY_BASELINE.md` mutation sweep.
+
 ---
 
 ### 2026-08-24 — cleared both CHANGES_REQUESTED blockers (branches: fix/org-admin-payload-shapes #85, feat/dash-3-nurse #86)
