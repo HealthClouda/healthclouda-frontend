@@ -389,6 +389,49 @@ export interface NewPatient {
   consent_given?: boolean;
 }
 
+/**
+ * GET /referrals/received/ item — CAPTURED LIVE 2026-08-28 (FLAG-220).
+ *
+ * ⚠️ The schema is wrong twice about this endpoint, so do not "tidy" this type
+ * against it: it documents the 200 as a single `ReferralDetail` (28 fields) when
+ * the endpoint actually returns a **DRF envelope** whose items carry **14**. The
+ * list serializer is a subset — `response_notes`, `responded_by` and the clinical
+ * fields are detail-only and are NOT here.
+ *
+ * `patient`, `from_organization` and `referring_doctor` are nested OBJECTS.
+ */
+export interface OrgReferral {
+  id: string;
+  letter_number: string;
+  patient: { id: string; healthclouda_id: string; first_name: string; last_name: string; gender?: string };
+  patient_age_at_referral?: number;
+  from_organization: { id: string; name: string; org_id?: string; city?: string | null; state?: string | null };
+  to_organization?: { id: string; name: string };
+  referring_doctor?: { id: string; first_name: string; last_name: string; full_name?: string } | null;
+  reason?: string;
+  urgency?: string;
+  urgency_display?: string;
+  status: string;
+  status_display?: string;
+  has_letter?: boolean;
+  created_at: string;
+}
+
+/**
+ * POST /referrals/{id}/accept/ and /decline/ — `ReferralResponseRequest`, read
+ * from the live schema 2026-08-28. **`response_notes` is REQUIRED for both.**
+ *
+ * `create_episode` (accept only, in practice) asks the backend to open an episode
+ * in the receiving org. The clinical fields are optional and only meaningful
+ * alongside it.
+ */
+export interface ReferralResponseInput {
+  response_notes: string;
+  create_episode?: boolean;
+  chief_complaint?: string;
+  diagnosis?: string;
+}
+
 export interface Ward {
   id: string;
   name: string;

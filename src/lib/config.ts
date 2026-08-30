@@ -122,6 +122,14 @@ export const ENDPOINTS = {
   REC_APPOINTMENTS: '/receptionist/appointments/',
   REC_APPOINTMENT: (id: string) => `/receptionist/appointments/${id}/`,
   REC_REFERRALS: '/referrals/received/',
+  // FLAG-220: accepting/declining a referral is the RECEIVING org's
+  // ORGANIZATION_ADMIN — "a doctor can no longer self-accept", stated verbatim in
+  // the live schema. 🪤 The doctor-namespaced twins
+  // (/doctor/referrals/<id>/accept/) carry the SAME rule, so scoping work from
+  // path names gets this exactly backwards. Use these generic ones.
+  ORG_ADMIN_REFERRALS: '/referrals/received/',
+  REFERRAL_ACCEPT: (id: string) => `/referrals/${id}/accept/`,
+  REFERRAL_DECLINE: (id: string) => `/referrals/${id}/decline/`,
   REC_NOTIFY_DOCTORS: (id: string) => `/receptionist/referrals/${id}/notify-doctors/`,
   // D4. `/patients/` is the shared patient CRUD viewset, NOT a receptionist
   // route — its schema description spells out the role rules verbatim:
