@@ -39,6 +39,107 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-08-30 — Fixed #99's hourly logout, reviewed Qeeyat's whole queue, and found out we have had a real merge gate all along (branches: fix/flag-001-server-trusted-auth, docs/branch-protection-and-flag-021, docs/stale-doc-sweep)
+
+**Goal:** unblock #99, merge #100 and #98 behind it, then clear Qeeyat's six open PRs. The first
+half did not go the way I planned it, and the reason is the most useful thing in this entry.
+
+**What I did:**
+- **Fixed the regression Qeeyat blocked #99 for** — the server gate logging every user out every
+  hour. Middleware now resumes the session; FLAG-020 logged for what remains.
+- **Reviewed all six of her PRs**, re-running the three commands myself on each rather than
+  trusting the bodies: **#106 ✅ · #109 🔴 · #107 🔴 · #108 ✅ · #110 ✅ · #105 ✅.**
+- **PR #111** — `CLAUDE.md` §3's branch-protection claim corrected, FLAG-021 logged.
+- **PR #112** — the stale-doc sweep: `README.md` and `ARCHITECTURE.md` rewritten (ARCH-7 closed),
+  four reference docs moved into `docs/`, 28 sprint-plan state cells refreshed.
+
+**What I found:**
+
+- 🎯 **We have had a mechanically enforced merge gate the entire time, and `CLAUDE.md` told everyone
+  we didn't.** Qeeyat found it on 29 Aug; I re-queried the API rather than take it: the repo is
+  **public** (so rulesets were never Pro-only), ruleset `11328360` is **active** on
+  main/staging/develop, one approving review required, force-push and deletion blocked, **bypass
+  list empty**. §3 has said "honour system… nothing is mechanically prevented" since the day it was
+  written. That is the sentence that makes someone comfortable merging their own work.
+- 🔴 **`dismiss_stale_reviews_on_push = false`, and it changed tonight's plan.** Pushing the fix did
+  **not** clear her changes-requested on #99. Merging over a standing change request is not a
+  decision the author gets to make — GitHub refuses it. I had told the owner it was his call. It
+  was not, and I said so as soon as I knew.
+- 🎯 **FLAG-225 is bigger than she wrote it.** She counted 11 stats endpoints documenting no
+  response body. I counted every GET in the schema whose 200 carries no `content`: **48 of 125
+  paths**, including `/auth/me/` — which is exactly what `requireDashboardUser()` asks on every
+  dashboard render in my own #99. Roughly two in five GETs document no response shape at all. That
+  reframes the backend ask from "publish the stats serializers" to something much larger.
+- **FLAG-226 sharpened, not settled.** `/episodes/` documents *field* visibility for patients in
+  prose ("NO clinical_notes, NO treatment_plan") and says nothing about *row* scoping. So patients
+  are expected callers, and the silence is specifically about which rows. Still needs a live patient
+  token, which needs #100.
+- **#107 tells the desk "copied" whether or not it copied.** `navigator.clipboard?.writeText(...)`
+  then an unconditional success toast: no clipboard, or a rejected promise, and the receptionist
+  trusts it and pastes whatever was there before. A wrong identifier entering a record — the exact
+  harm that PR's search-and-guess refusal exists to prevent, arriving through the clipboard.
+- **#109's substituted tile navigates somewhere it isn't.** "Admissions Under Care" routes to
+  Episodes and kept the prescriptions beaker icon; the doctor has no admissions page.
+- **#106's gate cannot reach one hook.** The early return stops everything passed as `children`,
+  but each dashboard's own `useApi(initialStats ? null : STATS)` runs in the *parent*. On a failed
+  server fetch a phone still pulls aggregate counts — **FLAG-021**, P3.
+- **`README.md` told new developers to store JWTs in `localStorage`**, contradicting `CLAUDE.md` §5,
+  in the first file anyone opens, four days before real PHI.
+
+**Decisions:**
+- **Put the session refresh in middleware, not the gate.** A Server Component cannot set cookies in
+  Next, so `requireDashboardUser()` structurally cannot repair its own problem; middleware already
+  owns the "refresh cookie means the session is alive" invariant. The new token is handed to the
+  *same* request via a mutated request cookie — with only `Set-Cookie` the gate still sees nothing
+  on the navigation that refreshed, and the bug survives its own fix by one render.
+- **Distinguished `rejected` from `unreachable`.** A refusal clears the cookies; a network blip
+  keeps them. Destroying a live seven-day session because the API wobbled once is the worse failure.
+- **Did not try to fix the concurrent-refresh race — logged it.** It cannot be fixed by coordinating
+  on the edge: no shared state, and the loser's request was sent before the winner's `Set-Cookie`
+  existed. FLAG-020 names what a real fix needs (a backend grace window, or a serialising store).
+- **Changes-requested on #107 and #109 rather than folding the fixes in myself.** §6 puts fixes in
+  their own commit with the author's name on them, and #109's tile question is about what the tile
+  *means*, not a tidy-up.
+- **Archived `MIGRATION-PLAN.md` and `CONTRACT-AUDIT.md` rather than deleting them.** FLAG-009's
+  "Done when" accepts "clearly marked historical", and both still explain decisions visible in
+  today's code.
+- **Kept the session-ritual docs at root.** They are named by bare filename across the rituals, the
+  sprint plan and Qeeyat's log; moving them mid-sprint means trusting another agent not to keep
+  reading the old path.
+- **No In Flight row for this branch.** #110, #111 and #112 all touch that table already; a fourth
+  edit is a guaranteed conflict for a docs-only log. Recording the skip rather than doing it
+  silently — same call Qeeyat made on 29 Aug, and the rule still says claim before cutting.
+
+**Verified:** every review re-ran the three commands myself — #106 **176/176**, #109 **180/180**
+(matching her numbers exactly), #107 **157/157**, all tsc clean and build green. On my own work:
+#99 tsc clean · **184/184** · build green, with **7 of 10 new middleware tests confirmed RED**
+against the pre-fix code first. #111 and #112: tsc clean · **171/171** · build green. Against live
+sources rather than documents: the ruleset and repo visibility via the GitHub API · the OpenAPI
+schema pulled unauthenticated (125 paths, 391 KB) to confirm FLAG-223/224/225/226 myself ·
+`beta.healthclouda.com` NXDOMAIN · `dev.` 200 · `origin/staging` still at 2026-04-12 · and Next
+15.3.3's own `resolve-routes.js` to confirm `x-middleware-request-cookie` is deleted before response
+headers are emitted, because it carries a bearer token and I was not willing to assume that.
+
+**Left undone / next:**
+- [ ] 🔴 **#99 needs Qeeyat's re-review.** The fix is pushed and written up; nothing else unblocks it,
+      and #100 (patients cannot sign in) is stacked behind it.
+- [ ] 🔴 **Mon 31 Aug — `api-beta`.** Merge #98 first, then set the `staging`-scoped
+      `NEXT_PUBLIC_API_URL` **before** attaching `beta.`, or the beta host serves against the dev
+      backend. Both failure modes are silent. `beta.` is still NXDOMAIN — DNS is the long pole.
+- [ ] 🔴 **Ask the backend team whether their UAT week actually ran through this UI.** Qeeyat raised
+      it on #108 and neither of us can answer it from this repo. If it did not, we onboard onto
+      journeys nobody has walked.
+- [ ] 🟠 **C4 — the Cloudflare decision is still unwritten**, and the C2 spike was never run. Gate 1
+      said so on 22 Aug and nothing has changed. Write the decision, even if the decision is "after
+      hypercare".
+- [ ] 🟠 **The apex is described three different ways** across #97/#100/#102 and the sprint plan.
+      Where the beta org's patient signs in on 3 Sep needs to be settled in `HANDOFF.md`.
+- [ ] 🟠 **FLAG-225 class-level `api-request` issue** — 48 operations, with the list attached.
+- [ ] 🟠 **FLAG-216 → resolved** once #107 lands; I said on that PR I would do it rather than leave
+      it to her.
+- [ ] 🟠 **`docs/UAT-CHECKLIST-FE.md` was never written**, and the sprint plan still lists it as a
+      companion artifact.
+
 ### 2026-08-28 — Review pass (5 PRs merged), the dev tier finally live, and I blocked a PR I was wrong about (branches: several, `infra/b1-b3-dev-tier`)
 
 **Goal:** clear the six-PR review queue, then Gate 2. Both happened; the second one turned into B1/B3
