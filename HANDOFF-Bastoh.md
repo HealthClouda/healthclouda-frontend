@@ -39,6 +39,168 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-08-28 — Review pass (5 PRs merged), the dev tier finally live, and I blocked a PR I was wrong about (branches: several, `infra/b1-b3-dev-tier`)
+
+**Goal:** clear the six-PR review queue, then Gate 2. Both happened; the second one turned into B1/B3
+actually landing after two weeks of me calling it my most overdue item.
+
+**What I did:**
+- **Reviewed all six open PRs and merged five** — #85, #86, #93, #95, #94. Re-ran tsc/tests/build on
+  each myself rather than trusting the PR bodies. `develop` ended at **tsc clean · 155/155 · build
+  green**. #96 is left with one wording fix.
+- **#93 and #95 and #94 each conflicted in `CODEBASE_FLAGS.md`** — unavoidable by ordering, I
+  trial-merged three different sequences to confirm. All were purely additive; resolved by keeping
+  both sides in flag-number order, re-verifying after each, nothing dropped.
+- **B1/B3 done.** `dev.healthclouda.com` is live and proved end to end.
+- Raised **FLAG-017** (deployment protection off) and **FLAG-018** (production stale + un-redeployable).
+
+**🔴 What I got wrong, and it blocked another dev for half a day:**
+
+I put CHANGES_REQUESTED on **#94** because its receptionist filters send `?date=`/`?status=`/`?doctor_id=`
+and I could not find those params anywhere in the live schema — not in `parameters`, not in the
+descriptions. I checked thoroughly and concluded they were invented.
+
+Then I got receptionist credentials working and **measured** it:
+
+```
+/receptionist/appointments/?date=1999-01-01   -> 0    (unfiltered: 7)
+/receptionist/check-ins/?date=2026-08-27      -> 5
+       ...&status=WAITING                     -> 2
+/receptionist/check-ins/?status=WAITING       -> 0    (date applies first)
+```
+
+They all work. **I made the exact inference my own FLAG-205 correction forbids** — *"absence from the
+schema is not evidence of non-support on this backend"* — a sentence I wrote after Qeeyat disproved me
+on `?role=`, and then repeated four days later, more confidently because I had the schema open.
+
+The asymmetry I missed: an unverified param fails in *two* directions. I reasoned carefully about
+shipping a filter that does nothing, and not at all about dropping one that works — which my suggested
+"ship it without the params" would have done, leaving the queue reading 0 while five patients sat on
+the 27th. **Retracted, approved, merged, and the retraction is in the PR in full.**
+
+**What I found:**
+- 🎯 **The Vercel project had ZERO environment variables.** That is the entire cause of three weeks of
+  red checks and "no visual verification in eight merges" — A4's fail-loud guard firing exactly as
+  designed. Not anyone's code. I had been carrying it as "needs dashboard access"; it needed one API call.
+- **`vercel whoami` fails with a project-scoped token.** Looks like a dead credential, isn't. That is
+  what made me report B1/B3 as blocked on access earlier in the day.
+- **The seeded check-ins moved from 13 Aug to 27 Aug.** Seed data is not stable — anything hardcoding a
+  date is already stale, and "today's queue is empty" is currently the *correct* render.
+- **The receptionist account is `reception@demo.test`, not `receptionist@demo.test`.** Cost me twenty
+  minutes and a wrong "these credentials are broken" conclusion.
+- **Production has not deployed since 13 July, and from `develop`, not `main`** (FLAG-018). The apex
+  serves the whole app including a Sign in page, not the marketing-only site the tier map claims.
+
+**Decisions:**
+- **Preview-wide env vars, but `beta.` deliberately NOT attached.** Preview-wide fixes every PR preview;
+  the cost is that `staging` is also a preview target and would inherit `api-dev`. Holding the domain
+  until 31 Aug means the tier-crossing cannot happen through the beta host at all. On 31 Aug the
+  `staging` override goes in **first**, domain second.
+- **DNS-only rather than proxied** for `dev.`, unlike the apex — Cloudflare's proxy can break Vercel's
+  cert challenge and leave a host that looks configured and serves TLS errors. Flip it later if wanted.
+- **Disabled deployment protection rather than leaving B5 open**, since password protection needs a paid
+  plan. Logged as FLAG-017 with the one-line inverse command, because the same setting governs beta,
+  which carries real PHI from 3 Sep.
+
+**Verified:** every merge re-checked by me (tsc/tests/build). `dev.` proved by logging in through the
+**deployed** proxy: 200, `role=DOCTOR`, `org_slug=demo-clinic`, cookies `Secure; HttpOnly;
+SameSite=strict` with **no `Domain=`** (A3), and **zero `railway.app`** in the deployed chunks (A2).
+Live schema re-fetched unauthenticated (200, 391 KB) — @Qeeyat's finding, confirmed.
+
+#### Part 2, same session — P1 cleared down, and four schema lies in one day
+
+**What I did:** fixed and shipped **A5/FLAG-001** (#99), **FLAG-210** (#100, stacked), **A7
+SECURITY_BASELINE.md** (#102), **E7/FLAG-005** (#103), **FLAG-220** (#104). Filed backend
+[#155](https://github.com/HealthClouda/healthclouda-backend/issues/155) and frontend issue #101.
+
+**🔴 THREE THINGS THAT NEED A HUMAN — carried forward deliberately, do not let these evaporate:**
+
+**1. The schema is a lead, never a verdict. Four mismatches in one day.**
+   - `?date=`/`?status=`/`?doctor_id=` on the receptionist endpoints: documented **nowhere**, and they
+     **work**. I blocked PR #94 over it and was wrong.
+   - `/patients/` documents its entire role matrix **only in a prose description string**.
+   - `POST /patients/` documents the *request* serializer as its response; it actually returns
+     `{message, patient:{id, healthclouda_id}}`. That is FLAG-216, disproven, and it unblocks the
+     HCL-ID handout.
+   - `/referrals/received/` is documented as one 28-field object; it returns a **DRF envelope with
+     14-field items**.
+
+   **Two of these cost real work and one of them cost another dev half a day.** The rule I wrote after
+   Qeeyat disproved me on `?role=` — *absence from the schema is not evidence of non-support* — I then
+   broke myself, four days later, with more confidence because I had the schema open. **Types on this
+   backend must be CAPTURED, not derived.**
+
+**2. FLAG-203 is, on my reading, the most serious unfixed item in the codebase — and nothing on the
+   P1 list ranked above it.** `SmallScreenGate` is CSS-only: below 768px the dashboard still mounts,
+   still fetches, and the patient records **land in the DOM** behind a polite notice. On a phone that
+   is PHI in the document. It sits in @Qeeyat's range as a P1 and has been open since 13 Aug. I have
+   written it into `SECURITY_BASELINE.md` §3 as Tier 1. **Someone needs to decide whether it outranks
+   what is left on the board; I think it does.**
+
+**3. One judgement call I want challenged.** The referral action buttons gate by **exclusion**
+   (anything not `ACCEPTED`/`DECLINED`/`CANCELLED`/`COMPLETED` is actionable). There is **no status
+   enum in the schema** and the seed data only ever showed two values, so naming the pending state
+   would be inventing an enum member — the FLAG-004 trap. Inclusion would read tidier and would hide
+   the buttons on exactly the rows that need them, silently. Flagged for @Qeeyat in #104.
+
+**Decisions taken today (mine, recorded so nobody re-litigates them):**
+- **The apex is marketing + the PATIENT portal, pointing at `api-beta` from 3 Sep; `beta.` is org
+  staff only.** This settled FLAG-210 as a slug-less route rather than a backend home-org, and it is
+  why backend #155 exists — patient invite emails must reach the apex while staff links reach `beta.`
+- **Preview-wide env vars, `beta.` deliberately unattached** until 31 Aug, so the beta host cannot
+  serve against the dev backend.
+- **FLAG-017: re-enable SSO at beta stand-up, not today** — flipping it now would re-block `dev.` for
+  the backend team's UAT.
+- **Gate 2 parked**, because FLAG-017 and FLAG-018 must land before a verdict means anything.
+- **No self-merging.** I offered it on #97 when the queue got long; @Bastoh declined and was right —
+  the reviewer is the only real gate this repo has.
+
+**🚨 The 31 Aug runbook is the riskiest half-hour on this project.** Four ordered steps; wrong order
+means either `beta.` serving the dev backend or `dev.` going dark mid-UAT. Written into **FLAG-017**
+and the deployment section of `HANDOFF.md`. **It is not in anybody's head — read it, do not improvise.**
+
+**Verified (part 2):** every PR re-run by me — tsc clean, suites green (155 → 159 → 165 → 161 per
+branch), builds green. `dev.healthclouda.com` proved end to end: login through the **deployed** proxy
+returns 200 with `role=DOCTOR`, cookies `Secure; HttpOnly; SameSite=strict` and **no `Domain=`** (A3),
+zero `railway.app` in deployed chunks (A2). Live schema and live payloads re-fetched for every
+contract claim above.
+
+**Left undone / next:**
+- [ ] 🔴 **Eight PRs queued on @Qeeyat.** ⛓️ **#99 must merge via a MERGE COMMIT, not a squash**, or
+      the stacked #100 breaks with phantom conflicts.
+- [ ] 🔴 **Mon 31 Aug runbook** — FLAG-017 step order. Invite testers → staging env override →
+      attach `beta.` → re-enable SSO → **verify `dev.` still works**.
+- [ ] 🔴 **FLAG-018 execution** — apex needs `NEXT_PUBLIC_API_URL=api-beta` and a fresh production
+      deploy. It cannot be redeployed today and the live apex is a **13 July** build.
+- [ ] 🔴 **@Bastoh: check Vercel team seats.** If Hobby cannot invite members, FLAG-017's chosen path
+      collapses into the paid option it was picked over. Our project-scoped token gets 403 on
+      `/v2/teams` and cannot check.
+- [ ] 🟠 **Revoke the Vercel + Cloudflare tokens** — the work they were minted for is done; they were
+      created with a 7-day expiry as a net, not a plan.
+- [ ] 🟠 **FLAG-005's third clause** — stat cards still render empty rather than errored. Deferred
+      because it means threading a prop through all six dashboards, which is the design lane's active
+      surface.
+- [ ] 🟠 Gate 2 verdict, once FLAG-017/018 land. **The backend team still needs a signal either way.**
+- [ ] `CLAUDE.md` §3 is factually wrong — branch protection **is** enforced (ruleset 11328360, active,
+      no bypass actors) and the repo is **public**. Both need correcting, and the public-repo status
+      needs confirming as deliberate.
+
+---
+
+**Left undone / next:**
+- [ ] 🔴 **GATE 2 verdict is still unwritten** — and it cannot be a clean pass: A5/FLAG-001, A7 and now
+      FLAG-018 are open. The descope call needs the backend team, not just me.
+- [ ] 🔴 **FLAG-018** — production stale and un-redeployable. New, and it is P1.
+- [ ] 🔴 **FLAG-210** patient sign-in, still mine, still blocking D6 and a whole role.
+- [ ] 🔴 **A5/FLAG-001** — role gating off the client-writable cookie. Untouched for another week.
+- [ ] **B4** — `staging` still holds the April vanilla app; recreate from `develop` before beta.
+- [ ] **31 Aug:** `staging` env override, THEN attach `beta.` — in that order (FLAG-017 note).
+- [ ] Send @Qeeyat the corrected `reception@demo.test` credentials and the doctor account.
+- [ ] **#96** needs one bullet reworded, then it merges.
+- [ ] A7 `SECURITY_BASELINE.md` — now has two more flags with nowhere to land.
+
+---
+
 ### 2026-08-17/19 — Review week: #76/#77/#78 merged, three flags logged, and two of my own review calls were wrong (branches: docs/flags-013-015, fix/restore-role-filter)
 
 **Goal:** clear Qeeyat's review backlog. Three PRs were open when I started; all three are merged.

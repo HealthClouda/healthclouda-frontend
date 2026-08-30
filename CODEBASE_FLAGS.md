@@ -526,6 +526,151 @@ Coordinate with FLAG-011 and FLAG-014 so the tokens move once, not three times.
 
 ---
 
+### FLAG-017 — Vercel deployment protection is OFF, and beta will inherit that
+**Severity:** P2 · **Area:** Security / Deploy · **Owner:** @Bastoh · **Status:** OPEN — **deliberate, reversible, and dated**
+**Found:** 2026-08-28, standing up the dev tier (B1/B3)
+
+`dev.healthclouda.com` came up returning **302 → `vercel.com/sso-api`**: the project had
+`ssoProtection: {"deploymentType":"all_except_custom_domains"}`, and that exemption only covers
+**production** custom domains. `dev.` is a *preview*-target deployment, so it was gated to Vercel team
+members — meaning the backend team could not run UAT through it and @Qeeyat could not screenshot it
+(sprint plan **B5**).
+
+**Password protection was the preferred fix and is not available:** the API refuses it with
+*"Advanced Deployment Protection is not enabled on your team"* — it needs a paid plan; we are on Hobby.
+
+So SSO was **disabled for the whole project**, with @Bastoh's explicit decision, to unblock B5.
+
+**What this does and does not expose.** The dev tier holds **synthetic seed data only**, and the app
+itself is still login-gated — this removes a layer, it does not open the records. Note also that the
+apex was *already* public under the old setting, so what actually changed is that **preview URLs**
+(every PR) are now world-reachable.
+
+🔴 **The part that matters, and the reason this is a flag rather than a footnote:**
+`beta.healthclouda.com` will also be a **preview**-target deployment, and **beta carries real PHI from
+3 Sep.** With protection off project-wide, beta would be publicly reachable the moment it is attached.
+
+**Done when:** protection is back on and the beta org's testers can still get in — **completed at beta
+stand-up, verified before 3 Sep.**
+
+> 🔑 **DECIDED 2026-08-28 by @Bastoh: re-enable SSO and invite the beta testers to the Vercel team.**
+> Not password protection (needs a paid tier we don't have) and not accepting public hosts.
+>
+> ⏰ **Deliberately NOT done today, and this is the part to get right.** `beta.` does not exist yet, so
+> there is nothing to protect — while flipping it now would instantly re-block **`dev.`**, which is the
+> backend team's UAT host and the only screenshot target @Qeeyat has. The exposure this flag describes
+> begins when beta is attached, so the fix belongs to the **same runbook step**, not to today.
+>
+> **Runbook — at beta stand-up (Mon 31 Aug), in this order:**
+> 1. Invite the beta org's testers to the Vercel team; confirm each one can sign in **before** step 3.
+> 2. Set the `staging`-scoped `NEXT_PUBLIC_API_URL` to `api-beta`, then attach `beta.healthclouda.com`
+>    (order per the deployment section in `HANDOFF.md` — reversed, beta serves the dev backend).
+> 3. Re-enable protection:
+>    ```
+>    PATCH /v9/projects/<id>?teamId=<team>
+>      {"ssoProtection":{"deploymentType":"all_except_custom_domains"}}
+>    ```
+> 4. 🚨 **Verify `dev.` afterwards.** This setting is **project-wide**, and `all_except_custom_domains`
+>    exempts only *production* custom domains — `dev.` and `beta.` are both **preview**-target, so this
+>    re-blocks `dev.` too. That is exactly how the flag was found. If UAT still needs `dev.` open at
+>    that point, the testers must be invited before it flips, or `dev.` work stops dead.
+>
+> ⚠️ **Unresolved, and it may reopen the decision: Vercel team seats are usually a PAID feature, and we
+> are on Hobby.** If testers cannot be invited without a plan upgrade, this choice collapses into the
+> paid option it was chosen over. @Bastoh to confirm on the billing page — our project-scoped token
+> returns 403 on `/v2/teams` and cannot read it.
+>
+> **Worth stating plainly either way:** protection is the OUTER layer. The app is login-gated and every
+> request is authorised server-side by DRF, so this is defence in depth, not the thing standing between
+> the internet and the records.
+
+Re-enabling is one call, the exact inverse of what was run:
+
+```
+PATCH /v9/projects/<id>?teamId=<team>
+  {"ssoProtection":{"deploymentType":"all_except_custom_domains"}}
+```
+
+---
+
+### FLAG-018 — Production is six weeks stale and cannot currently be redeployed
+**Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-28, while verifying the dev tier
+
+Two separate problems that hide each other, both measured against the live Vercel project:
+
+**1. The live apex is a build from 13 July, cut from `develop` — not `main`.**
+
+```
+production deployments (target=production):
+  2026-07-13T21:13  READY  develop
+  2026-07-13T20:25  READY  develop
+  2026-06-12T09:35  READY  develop
+```
+
+`healthclouda.com` serves the **full application, including a Sign in page** — not the marketing-only
+site the tier map describes. So the apex today is an unhardened six-week-old app build: it predates
+A2 (stale host purge), A4 (fail-loud config), A3 (cookie scoping) and every dashboard fix since.
+
+**2. The next production deploy will fail the build.** Production has **no `NEXT_PUBLIC_API_URL`**, and
+A4 makes that throw at build time (`config.ts:33`) — deliberately, since one build serves exactly one
+tier. That guard is right; the consequence is that `main` is currently **un-redeployable**, and nobody
+noticed because nothing has tried to deploy it since 13 July.
+
+🪤 **Why this stayed invisible:** the apex returns a healthy **200**, so every casual check passes. A
+stale deployment and a working deployment are indistinguishable from the outside — which is the same
+class of trap as FLAG-013's `next` URL echoing a param it ignored.
+
+**Why P1:** production is one deploy away from breaking, and the tier map's central claim — *"apex
+marketing-only"* — is not what is deployed. Both need settling before 3 Sep, when a real organisation
+is pointed at this product.
+
+**Done when:** the production branch and its expected content are decided (marketing-only page, or the
+app), `main` builds green with whatever `NEXT_PUBLIC_API_URL` that decision implies, and a fresh
+production deployment has been made and verified — so the apex is a build somebody chose.
+
+---
+
+### FLAG-019 — CSP allows `unsafe-inline` and `unsafe-eval` on the pages that render PHI
+**Severity:** P2 · **Area:** Security / Headers · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-28, surveying controls for `SECURITY_BASELINE.md` (A7)
+
+The Content-Security-Policy served on every route (`next.config.ts`) includes:
+
+```
+script-src 'self' 'unsafe-inline' 'unsafe-eval'
+style-src  'self' 'unsafe-inline'
+```
+
+**`unsafe-inline` on `script-src` disables the main thing CSP is for.** The policy's value against XSS
+is that injected `<script>` and inline handlers do not execute; allowing inline scripts permits exactly
+those. `unsafe-eval` additionally allows `eval`/`new Function` on strings an attacker may influence.
+
+**Verified served live** on `dev.healthclouda.com` 2026-08-28 — this is the deployed policy, not just
+the committed one.
+
+**Why it is P2 and not P1.** It is a *mitigation* gap, not a live vulnerability: it does not by itself
+leak anything, and we have no known XSS. But it is the layer that would contain one, and the pages in
+question render patient records — so the cost of being wrong is high even though the probability is
+unknown.
+
+⚠️ **The rest of the policy is genuinely good** and should not be lost in a rewrite: `connect-src
+'self'` (the browser never calls the backend directly), `frame-ancestors 'none'`, and `default-src
+'self'` are all correct and deliberate. This flag is about two directives, not the policy.
+
+**Why the values are there:** Next.js App Router injects inline bootstrap/hydration scripts, so a
+naive removal breaks the app immediately. The supported fix is **nonce-based CSP** — generate a nonce
+per request in `middleware.ts`, emit `script-src 'self' 'nonce-<value>' 'strict-dynamic'`, and let
+Next attach it. `unsafe-eval` can usually go first and independently; it is rarely needed in a
+production build and is the cheaper half.
+
+**Done when:** `script-src` no longer contains `unsafe-inline`; a nonce (or hash) mechanism is in
+place; the app still renders and hydrates on a real deployment — **verified in a browser, not only by
+a passing build**, since CSP failures appear at runtime in the console and a build cannot see them.
+Dropping `unsafe-eval` alone is a valid, smaller first step.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
@@ -1045,6 +1190,39 @@ imports it, and the title-case fallback for unknown roles is kept or dropped on 
 by accident.
 
 ### FLAG-216 — `POST /patients/` returns no identifiers, so the HCL-ID handout cannot be built
+
+> 🔴 **DISPROVEN 2026-08-28 by @Bastoh — the handout CAN be built, and this is now the blocker it
+> claimed to be, in reverse.** Recorded here rather than rewritten, because the reasoning is worth
+> keeping and the entry is in @Qeeyat's range. **@Qeeyat: this unblocks the D4 item you deliberately
+> did not build.**
+>
+> Backend **closed #137 with no code change**: *"this already works today."* `PatientViewSet.create`
+> does not serialise its response with `PatientCreateSerializer` — it re-serialises the saved row with
+> `PatientDetailSerializer`, which carries both fields. **The patient is nested, not top-level:**
+>
+> ```json
+> { "message": "Patient registered successfully",
+>   "patient": { "id": "…", "healthclouda_id": "HCL-…", … } }
+> ```
+>
+> So the desk reads **`response.patient.healthclouda_id`**. Reading the top level gives `undefined` —
+> which looks exactly like "the API doesn't return it".
+>
+> 🪤 **Why we got it wrong, and why nobody should feel silly about it:** the flag was derived from the
+> live schema, which documents the 201 as `PatientCreate` — 19 fields, no identifiers. That is the
+> **request** serializer echoed into the response slot. The schema is wrong; the endpoint is right.
+>
+> 🎯 **Third time today.** `?date=` on the receptionist endpoints was undocumented and *worked*
+> (FLAG-213 / PR #94); the `/patients/` role matrix is documented **only** in prose; and here the
+> documented response shape is simply not the one returned. **The schema is a lead, never a verdict.**
+>
+> ⚠️ **Not re-verified live by me, deliberately.** Confirming it means `POST`ing a real patient into
+> the seed data @Qeeyat is testing against — her own reasoning for declining, and it still holds. The
+> backend verified it on `api-dev` (`201, created HCL-5WO6SE`), which is good enough to act on and
+> cheap to confirm the next time someone registers a patient legitimately.
+>
+> **Still open, and it is the only thing left of this flag:** the frontend does not yet read the
+> nested field, so the HCL-ID handout remains unbuilt. That is a D4 follow-up, not a backend gap.
 **Severity:** P1 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN — filed upstream
 **Found:** 2026-08-24, verifying D4 against the live schema before building
 

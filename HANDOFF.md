@@ -18,12 +18,18 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Qeeyat | **#85** Org Admin payload shapes | `fix/org-admin-payload-shapes` | `src/components/dashboard/org-admin/*`, `lib/utils.ts` + fixtures | 2026-08-19 | ✅ **fix pushed 2026-08-24 — awaiting @Bastoh re-review.** Role column fixed with an explicit lowercase→`RoleEnum` alias table (`.toUpperCase()` does not work: `ORG_ADMIN` ≠ `ORGANIZATION_ADMIN`). Rebased onto `develop`. UAT-critical |
-| @Qeeyat | **#86** D3 Nurse onto shared shell | `feat/dash-3-nurse` | `src/components/dashboard/nurse/*`, `hooks/use-api.ts`, `CODEBASE_FLAGS.md` | 2026-08-19 | ✅ **fix pushed 2026-08-24 — awaiting @Bastoh re-review.** Ward board loads every page via a new `useAllPages()`; FLAG-211 narrowed. ⚠️ **Adds a shared hook to `use-api.ts`** — worth knowing before anyone else edits that file |
-| @Qeeyat | **Session log + FLAG-215** (docs only) | `docs/session-log-qeeyat-2026-08-24` | `HANDOFF-Qeeyat.md`, `HANDOFF.md`, `CODEBASE_FLAGS.md` | 2026-08-24 | 🔄 open |
-| @Qeeyat | **D4 Receptionist** (Wed 19 row) — check-ins, appointments, registration, portal invite + the **FLAG-213 receptionist half** | `feat/dash-4-receptionist` | `receptionist/*`, `types/dashboard.ts`, `lib/config.ts` | 2026-08-24 | 🔄 open. ⚠️ **Absorbing E2's data layer inline** (`[INFRA]`, @Bastoh's lane, never landed) — claiming loudly. HCL-ID handout is **blocked on backend #137**. PR #94 |
-| @Qeeyat | **D5 write workflows** — episode create; referral accept/decline **not built, see FLAG-220** | `feat/dash-5-doctor-writes` | `doctor/*`, `lib/config.ts` | 2026-08-24 | 🔄 open — PR #95. ⚠️ **Claimed AFTER cutting the branch**, which is the rule I broke on 19 Aug and just broke again — recorded rather than quietly fixed |
-| @Qeeyat | **Schema-reading guidance** — `CLAUDE.md` §1 + `ONBOARDING.md` §5 (docs only) | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🔄 open. ✅ **Claimed before cutting the branch** this time. Deliberately touches NO other file — `CODEBASE_FLAGS.md` is already open in four branches |
+| @Bastoh | **Dev tier live + FLAG-017/018/019, FLAG-216 correction, session log** | `docs/clear-in-flight-2026-08-28` | `HANDOFF.md`, `CODEBASE_FLAGS.md`, `HANDOFF-Bastoh.md` | 2026-08-28 | 🔄 **PR #97** — docs only |
+| @Bastoh | **A5/FLAG-001** — server-trusted role **and** tenant gating | `fix/flag-001-server-trusted-auth` | `lib/auth-server.ts` (new), all six dashboard page gates | 2026-08-28 | 🔄 **PR #99**. ⛓️ **MUST merge as a merge commit, not a squash** — #100 is stacked on it |
+| @Bastoh | **FLAG-210** — slug-less `/patient` portal | `fix/flag-210-patient-portal` | `app/patient/*` (new), `app/[slug]/patient/*` (removed), `config.ts`, `router.ts`, `SigninForm`, `middleware` | 2026-08-28 | 🔄 **PR #100**, ⬆️ stacked on #99 |
+| @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion, fast-forward | 2026-08-28 | 🔄 **PR #98**. `staging` still holds the **12 Apr vanilla app** until this merges |
+| @Bastoh | **A7** — `SECURITY_BASELINE.md` | `docs/a7-security-baseline` | `SECURITY_BASELINE.md` (new) | 2026-08-28 | 🔄 **PR #102** — new file only, no conflicts |
+| @Bastoh | **E7/FLAG-005** — server-fetch observability | `fix/flag-005-server-fetch-observability` | `lib/server-fetch.ts` + tests | 2026-08-28 | 🔄 **PR #103** |
+| @Bastoh | **FLAG-220** — Org Admin referrals page | `feat/flag-220-org-admin-referrals` | `org-admin/OrgAdminDashboard.tsx`, `config.ts`, `types/dashboard.ts` | 2026-08-28 | 🔄 **PR #104**. ⚠️ **Touches the design lane's file** — nav + one new page, existing pages untouched |
+| @Qeeyat | **Schema-reading guidance** | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🟡 **PR #96** — one bullet to reword; exact replacement text is in a comment on the PR |
+
+> 📌 **Issue #101 is assigned to @Qeeyat:** the HCL-ID handout is buildable after all — `POST /patients/`
+> returns `{message, patient:{id, healthclouda_id}}`. FLAG-216 was derived from a schema that documents
+> the *request* serializer as the response.
 
 *Cleared on merge: **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -33,7 +39,7 @@ logged** (docs only — see the correction below) — PR #68 · **D1 shared shel
 2026-08-12/13) · **Token cleanup** (Button/ErrorState/Pagination onto dashboard tokens) — PR #77 ·
 **D1 Superadmin pages + T5 harness** — PR #76 (both merged 2026-08-17) · **D2 Org Admin** (staff
 invite + read-only access requests) — PR #78 · **FLAG-013/014/015** (logged from reviewing
-#76/#77/#78) — PR #79. Both merged 2026-08-19 · **#84** superadmin signin reachable when logged out · **#87** FLAG-213 · **#88** session log · **#89** Gate 1 assessment · **#90** E1/FLAG-004 + FLAG-213 doctor half · **#91** D5 design migration (all reviewed and merged 2026-08-23 by @Bastoh; #90 merged via merge commit so #91 retargeted cleanly).*
+#76/#77/#78) — PR #79. Both merged 2026-08-19 · **#85** Org Admin payload shapes · **#86** D3 Nurse + `useAllPages()` · **#93** session log 24 Aug + FLAG-215 · **#95** D5 episode create + FLAG-219/220 · **#94** D4 Receptionist (all reviewed and merged 2026-08-28 by @Bastoh; #93 and #95 merged locally with additive `CODEBASE_FLAGS.md` conflict resolutions, nothing dropped) · **#84** superadmin signin reachable when logged out · **#87** FLAG-213 · **#88** session log · **#89** Gate 1 assessment · **#90** E1/FLAG-004 + FLAG-213 doctor half · **#91** D5 design migration (all reviewed and merged 2026-08-23 by @Bastoh; #90 merged via merge commit so #91 retargeted cleanly).*
 
 > ⚠️ **Correction (2026-08-17):** this line previously read *"**FLAG-011** token contrast — PR #68"*,
 > which reads as though the contrast problem was **fixed**. It was not. PR #68 was docs-only and
@@ -156,6 +162,54 @@ while requiring ORG_ADMIN. Anyone deciding scope from path names gets it exactly
 
 ---
 
+## 🚀 Deployment & tier state
+
+> **Updated 2026-08-28 (@Bastoh).** Measured against the live systems, not reported. B1/B3 landed
+> today; the rest of this table is what is *actually* deployed, which is not what the tier map assumes.
+
+| Host | Git branch | Backend tier | State |
+|---|---|---|---|
+| **`dev.healthclouda.com`** | `develop` | `api-dev` | ✅ **LIVE 2026-08-28** — first working frontend tier |
+| `beta.healthclouda.com` | `staging` | `api-beta` | ❌ **not created — deliberately held.** See the note below |
+| `healthclouda.com` (apex) | `main` | — | ⚠️ **serving a 13 Jul build cut from `develop`** — see **FLAG-018** |
+
+**How `dev.` was verified — end to end, not by the dashboard saying "Ready":**
+
+```
+https://dev.healthclouda.com                       -> HTTP 200, valid TLS
+POST /api/auth/login (deployed proxy, doctor)      -> 200, role=DOCTOR, org_slug=demo-clinic
+Set-Cookie hc_access_token / hc_refresh_token      -> Secure; HttpOnly; SameSite=strict
+Set-Cookie (all three)                             -> NO Domain= attribute (host-only)  ✅ A3
+deployed JS chunks grepped for `railway.app`       -> 0 occurrences                     ✅ A2
+```
+
+That login is **A1 proved end to end** — a request to `dev.` authenticated against `api-dev` and came
+back with the right role and org. The single `api-beta` string in the bundle is the text of A4's
+error message in `config.ts:37`, not a live reference.
+
+**Vercel configuration as it now stands:**
+
+- The project had **zero environment variables**. That — not anything in anyone's code — is why every
+  Vercel check failed from PR #65 onward: A4's fail-loud guard was firing exactly as designed.
+- `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SITE_URL` are set **preview-wide**, so *every* PR preview now
+  builds. 🔴 **This is why `beta.` is deliberately not attached yet:** `staging` is also a *preview*
+  target, so it would inherit `api-dev` and serve the beta host against the dev backend — the exact
+  tier-crossing `.env.example` warns presents as *"the invite is broken"*. **On 31 Aug, set a
+  `staging`-scoped override to `api-beta` FIRST, then attach the domain. Not the other way round.**
+- DNS: `dev` is a **CNAME → `85232879bb8ef21f.vercel-dns-017.com`, DNS-only (grey cloud)** — not
+  proxied like the apex. Deliberate: with Cloudflare's proxy on, Vercel's certificate challenge can
+  fail and you get TLS errors on a host that looks correctly configured. It can be flipped to proxied
+  later, once the cert is settled, if we want the apex's edge behaviour.
+- The Vercel token used was **project-scoped**, not user-scoped — `/v2/teams` returns 403 while the
+  project endpoints return 200. Worth knowing: `vercel whoami` fails with such a token, which looks
+  like a bad credential and is not one.
+
+⚠️ **Deployment protection is OFF — see FLAG-017.** It had to be: `dev.` was returning 302 to
+`vercel.com/sso-api`, so no one outside the Vercel team could reach it, and **password protection is
+unavailable on the Hobby plan** (*"Advanced Deployment Protection is not enabled on your team"*).
+
+---
+
 ## 📡 Backend Contract Notes
 
 > Backend changes we must consume. The live `/api/v1/schema/` is the single source of truth —
@@ -163,6 +217,7 @@ while requiring ORG_ADMIN. Anyone deciding scope from path names gets it exactly
 
 | Date | Note | Status |
 |---|---|---|
+| 2026-08-28 | ✅ **The schema needs no auth — and the receptionist filters DO work, though nothing documents them.** Both halves measured against `api-dev` by @Bastoh. **(1)** `curl "https://api-dev.healthclouda.com/api/v1/schema/?format=json"` returns **200 and the whole document unauthenticated** (@Qeeyat's finding, confirmed) — only live *data* needs a token, so **a contract question is never blocked on credentials.** **(2)** ⚠️ **Correcting my own earlier note in this table:** I first recorded that `?date=`/`?status=`/`?doctor_id=` on the receptionist endpoints were *unverified and probably ignored*, because every `/receptionist/` GET declares `parameters: []` and mentions no params in its prose. **That inference was wrong and I blocked PR #94 on it.** Measured with a receptionist token: `/receptionist/appointments/` returns 7 unfiltered and **0** for `?date=1999-01-01`; `/receptionist/check-ins/?date=2026-08-27` returns **5**, `&status=WAITING` narrows to **2**, and `?status=WAITING` alone returns **0** — confirming the date filter applies *before* status, exactly as FLAG-213 says. 🎯 **The rule this restates, which I wrote and then broke: absence from the schema is not evidence of non-support on this backend — it justifies verifying, never concluding.** It cuts both ways: a param can be documented and ignored, or undocumented and honoured. Only measurement settles it. **Still true:** this API hides real contract in prose — `/patients/` carries its entire role matrix (*"CREATE (POST): SUPERADMIN, RECEPTIONIST only"*) in a description string and nowhere else. | ✅ **settled — no action.** Filters shipped in #94 (merged). The seeded check-ins have **moved from 13 Aug to 27 Aug**, so anything hardcoding a date is stale and an empty queue today is the *correct* render |
 | 2026-08-24 | 🎯 **`/api/v1/schema/` needs NO authentication — contract verification is never blocked on credentials.** An unauthenticated `GET https://api-dev.healthclouda.com/api/v1/schema/?format=json` returns **200** and the full 125-path OpenAPI document. This is worth stating loudly because both devs have deferred contract questions on the belief that a token was needed: @Qeeyat left `/nurse/wards/overview/` "unverified, no token to hand" on PR #86 the same night (corrected there). **Only live *data* needs a token — shapes, params and required fields do not.** Pull the schema and read the component directly rather than inferring from an example response. | ✅ verified 2026-08-24 |
 | 2026-08-24 | 🚨 **`POST /patients/` returns no `id` and no `healthclouda_id`, so a receptionist cannot hand a newly-registered patient their HCL-ID.** The 201 body is the `PatientCreate` serializer: 19 fields, **zero identifiers** (read from the component, not an example). No fallback exists — without `id` we cannot even `GET /patients/{id}/`, and `send-portal-invite` needs that same `patient_id`. ⚠️ **The available workaround was deliberately refused:** searching for the patient just created and guessing which result is theirs. Two same-name registrations minutes apart are indistinguishable, and handing over the **wrong HealthClouda ID** risks a patient's records attaching to another person — an error invisible at the desk. Also asked in the same issue: `PatientCreateRequest` marks only `first_name`/`last_name` required, so the sprint's *"email optional, phone required when email omitted"* rule is either absent or hidden in `validate()`, and our form cannot mirror it. | ❗ **filed: backend [#137](https://github.com/HealthClouda/healthclouda-backend/issues/137)** · frontend side is **FLAG-216** · **blocks the D4 HCL-ID handout only** — portal invite is unaffected (search → `id` → detail → invite) |
 | 2026-08-19 | ⚠️ **Read before D4/D5: `Appointment` and `CheckIn` describe shapes the API does not return, and `/receptionist/check-ins/` defaults to TODAY.** Captured live as `reception@demo.test`. Appointments return `scheduled_at` + a nested `doctor{}` — **not** `appointment_date`/`appointment_time`/`doctor_name`, which is what `ReceptionistDashboard.tsx:208-210` and `DoctorDashboard.tsx:101,310-311` render **on `develop` today**, so both tables show blank dates against real data. Check-ins return `checked_in_at`, a nested `assigned_doctor{}`, `reason_for_visit` and a `queue_number` we ignore — not `check_in_time`/`chief_complaint`. 🪤 **And `/receptionist/check-ins/` with no params returns 0** against seeded data: the 5 seeded check-ins are dated 13 Aug and the endpoint defaults to today, so the queue looks broken and `?status=` alone returns nothing because the date filter applies first. ✅ `ReceptionistStats`, `OnDutyDoctor` and `PatientSearchResult` are all correct as typed. | logged as **FLAG-213** · fixes sequenced **with D4 (receptionist) and D5 (doctor)** rather than separately, since both rewrite those components · ⚠️ **this is the D2 bug class again**, found this time by capturing payloads *before* building |
