@@ -1,5 +1,15 @@
 # HealthClouda Frontend — Technical Review & Next.js Migration Plan
 
+> ⚠️ **HISTORICAL — completed, kept for context. Do not act on this document.**
+>
+> This is the plan for the vanilla-JS → Next.js migration, written 2026-06-11. **The migration
+> shipped** (PRs #45/#46) and the `public/*.html` files it schedules for deletion are already gone.
+> It is preserved because the reasoning — why React, why a rewrite rather than incremental
+> hardening, what was deliberately not carried over — still explains decisions visible in today's
+> code. Archived 2026-08-30 (FLAG-009).
+>
+> For what actually exists now, read [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
 > Created: 2026-06-11 | Author: Claude (session review)
 > Update this file if architectural decisions change during migration.
 

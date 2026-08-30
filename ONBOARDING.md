@@ -126,7 +126,7 @@ If they don't pass on a clean clone, that isn't you being new — say so and we'
 
 ## 4. How the app is put together
 
-Full detail is in `ARCHITECTURE.md`. The five things you need on day one:
+Full detail is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The five things you need on day one:
 
 **1. It's Next.js App Router — folders under `src/app/` *are* the URLs.**
 `src/app/[slug]/doctor/page.tsx` serves `/demo-clinic/doctor`. `[slug]` is the org slug; that's
@@ -262,7 +262,7 @@ src/
 | `CLAUDE.md` | The shared brain — project context and the session rituals, for humans and AI agents |
 | `HANDOFF.md` | Durable shared state + the 🚧 In Flight claim table. Read every session. |
 | `HANDOFF-<Name>.md` | Per-dev session logs. Owner writes only. |
-| `ARCHITECTURE.md` | What is actually built |
+| `docs/ARCHITECTURE.md` | What is actually built |
 | `TARGET_ARCHITECTURE_CHECKLIST.md` | Current → target, in dependency order, each with a "Done when" |
 | `BETA_READINESS.md` | Prioritised backlog, Tier 1 (beta-blocking) → Tier 5 (roadmap) |
 | `CODEBASE_FLAGS.md` | Known issues and logged shortcuts. Each dev owns a FLAG number range — see the top of that file. |
@@ -276,7 +276,7 @@ Nobody expects output in week one. Suggested order:
 1. **Get it running** (§3) and confirm the three verification commands pass.
 2. **Click through the app as each role.** Ask the team for demo logins. Seeing the product beats
    reading about it.
-3. **Read `ARCHITECTURE.md`**, then open `src/lib/config.ts` and skim `ENDPOINTS` — the entire API
+3. **Read `docs/ARCHITECTURE.md`**, then open `src/lib/config.ts` and skim `ENDPOINTS` — the entire API
    surface on one screen.
 4. **Follow one request end to end.** Pick the nurse vitals form and trace it: component →
    `useApi` → `client-api.ts` → `/api/data` → Django. When that click-to-database path makes sense,
