@@ -1417,7 +1417,7 @@ expecting it.
 The change the sprint plan warned about (*"referral workflow becomes ORG_ADMIN-managed ~20 Aug —
 re-read Swagger first, don't build deep"*) **has landed.** From the live schema, verbatim:
 
-> **Authorisation: the receiving organisation's ORGANIZATION_ADMIN only** (FLAG-280) — a doctor can
+> **Authorisation: the receiving organisation's ORGANIZATION_ADMIN only** (FLAG-220) — a doctor can
 > no longer self-accept. On accept, a receiving-org Episode is created and the referral is forwarded
 > to that org's on-duty doctors.
 
@@ -1448,10 +1448,161 @@ not just a misplaced button.
 gains the ORG_ADMIN referral queue, and — ideally — the backend is asked why an ORG_ADMIN-only
 action lives under `/doctor/`.
 
+---
+
+### FLAG-223 — Three Patient endpoints return bare arrays; the dashboard reads `.results` from all three
+**Severity:** P1 · **Area:** Contract / Patient dashboard · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-30, auditing the Patient dashboard against the live schema
+
+The Patient dashboard has **never been rendered by anyone** — FLAG-210 means patients cannot sign
+in, so nothing in it has ever been seen against real data. Audited against the live schema instead.
+
+`/patients/me/appointments/`, `/patients/me/notifications/` and `/patients/me/access-requests/` are
+each documented as a **bare array**, not a DRF paginated envelope:
+
+```
+/api/v1/patients/me/appointments/     ARRAY of PatientAppointment
+/api/v1/patients/me/notifications/    ARRAY of PatientNotification
+/api/v1/patients/me/access-requests/  ARRAY of PatientAccessRequest
+```
+
+`PatientDashboard.tsx` reads `.results` off all three:
+
+```ts
+const upcoming   = apptData?.results ?? [];   // :54
+const notifs     = notifData?.results ?? [];  // :55
+const accessList = arData?.results ?? [];     // :258
+usePaginatedList<PatientAppointment>(path);   // :192 — also assumes {count, results}
+```
+
+On a bare array `.results` is `undefined`, so every one of them falls through to `?? []` and the
+panel renders its **empty state**. That is the Overview appointments panel, the Overview
+notifications panel, the whole Appointments page, and the Access tab — i.e. most of the dashboard,
+showing "No appointments" to a patient who has them.
+
+⚠️ **The schema does distinguish the two shapes**, which is why I trust it here: `/patients/`,
+`/ward/beds/` and `/org/` all carry `PaginatedXList` refs in the same document. These three
+deliberately do not.
+
+🪤 **Something already saw this.** Line 255 types referrals as `Paginated<Referral> | Referral[]`
+and unwraps both — someone hit an array there live and hedged at that one call site instead of
+checking its four neighbours. A hedge is evidence about the endpoints next to it.
+
+**Not yet confirmed live** — confirming needs a patient token, and patients cannot sign in
+(FLAG-210), so this is schema-level evidence only. ⚠️ FLAG-216 is precedent that this schema can be
+wrong about a *response* shape, so verify before rewriting all four call sites.
+
+**Also unresolved:** `/referrals/my-referrals/` documents its 200 as a **single `ReferralDetail`
+object**, which matches neither branch of the hedge above. Three different shapes across five
+patient endpoints.
+
+**Done when:** each of the four call sites is confirmed against a live patient response and unwraps
+the shape that endpoint actually returns, with a test per shape.
 
 ---
 
-*Last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
+### FLAG-224 — The patient "Requested By" column reads a field that does not exist on their serializer
+**Severity:** P1 · **Area:** Contract / Consent · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-30, same audit
+
+`PatientDashboard.tsx:274` renders the Access Requests table first column from `ar.staff_name`.
+The patient-scoped serializer has no such field:
+
+```
+PatientAccessRequest: id, organization_name, reason, status, created_at
+```
+
+`staff_name` is optional on our shared `AccessRequest` type (`types/dashboard.ts:501`), which is the
+org-admin shape — so TypeScript is satisfied and the column silently renders an em dash on every row.
+
+**Why this is P1 and not cosmetic.** This is the screen where a patient sees *who asked to read
+their medical records* and decides whether to allow it. Rendering a dash in that column does not
+degrade a nice-to-have; it removes the identity from a consent decision while still presenting the
+decision as informed. `organization_name` — the field the backend actually sends, and arguably the
+more meaningful answer, since access is granted to an organisation — is right there and unused.
+
+**Same class as FLAG-222**, found the same way: a type permissive enough to hide the mismatch. Two
+in one week says the shared-type-across-roles pattern is the bug generator, not the individual field.
+
+**Done when:** the column renders `organization_name`, and a test asserts the requesting
+organisation appears — asserted positively, not as "not an em dash" (the FLAG-221 lesson).
+
+---
+
+### FLAG-225 — No dashboard stats endpoint in the entire API documents a response body
+**Severity:** P1 · **Area:** Contract / Schema · **Owner:** @Qeeyat (frontend) · **Status:** OPEN
+**Found:** 2026-08-30, generalising from FLAG-222
+
+FLAG-222 (three of four Superadmin stat cards read fields the API has never returned) is not a
+one-off. Every stats/dashboard endpoint in the live schema — **eleven of them** — documents a `200`
+with **no response body at all**:
+
+```
+/doctor/dashboard/stats/        /nurse/dashboard/stats/       /org-admin/dashboard/stats/
+/receptionist/dashboard/stats/  /patients/me/dashboard/       /superadmin/dashboard/
+/superadmin/stats/              /doctor/my-patients/          /nurse/my-patients/
+/nurse/wards/overview/          /org-admin/wards/overview/
+```
+
+So **the stat tiles on all six dashboards are unverifiable from the schema**, by construction. Every
+`*DashboardData` / `*Stats` interface in `types/dashboard.ts` is a guess that happens to have been
+right, or has not been caught yet. Three of the four dashboards anyone has looked at carried a
+contract bug; this flag is why that hit rate is not bad luck.
+
+It also explains the shape of the whole audit trail: **the schema cannot answer the one question the
+tiles depend on, so only live capture can.** FLAG-217 established that this API documents contracts
+in prose; this is the same gap at the place it costs most.
+
+**Backend #158** already asks for three missing Superadmin stats fields. That is the instance. The
+class — *publish response serializers for the stats endpoints* — needs its own ask.
+
+**Done when:** the stats endpoints document their response serializers in `/api/v1/schema/`, or —
+failing that — every stat tile in the app has a live-captured payload recorded next to its type, per
+role, with the capture date.
+
+---
+
+### FLAG-226 — `?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes
+**Severity:** P1 — **P0 if live capture shows unscoped results** · **Area:** Security / PHI ·
+**Owner:** @Qeeyat · **Status:** OPEN — **verify before 3 Sep**
+**Found:** 2026-08-30, same audit
+
+The patient "My Health Records" page fetches:
+
+```ts
+usePaginatedList<Episode>(ENDPOINTS.EPISODES + '?my=true');   // PatientDashboard.tsx:143
+```
+
+`/api/v1/episodes/` documents exactly three query params — `ordering`, `page`, `search`. **`my` is
+not one of them.** This repo recurring bug class is precisely that DRF ignores unknown params
+silently (`CLAUDE.md` §5), and the FLAG-205 correction says absence from the schema justifies
+verifying, never concluding — so this is not yet a finding of fact.
+
+**But the two outcomes are very far apart:**
+
+- If the backend scopes `/episodes/` to `request.user` anyway, `?my=true` is dead weight — harmless,
+  delete it.
+- If it does not, a logged-in patient own health-records page renders **other patients episodes**,
+  each row carrying a chief complaint. That is a cross-patient PHI leak on the one screen a patient
+  is guaranteed to open, and it would have shipped looking like a working page.
+
+**This is the FLAG-221 lesson pointed forwards.** That flag recorded a test that was green while PHI
+leaked, because it asserted the layer rather than the property. Here nothing is asserted at all: the
+Patient dashboard has never been rendered, so no test and no human has ever seen this response.
+
+⚠️ **Do not "fix" this by deleting the param.** If the endpoint is unscoped, removing `?my=true`
+changes nothing and destroys the evidence that prompted the check.
+
+**Done when:** `GET /episodes/` is captured live with a patient token and it is recorded here
+whether the response is user-scoped — and if it is not, the page moves to a patient-scoped endpoint
+and a test asserts no foreign patient id appears in the rendered rows.
+
+
+---
+
+*Last updated 2026-08-30. FLAG-223/224/225/226 raised 2026-08-30, auditing the Patient dashboard against the live schema — the first time anything in it had been checked, since FLAG-210 means it has never been rendered. FLAG-225 is the generalisation of FLAG-222 and the reason this audit was worth running: the schema documents no response body for any of the eleven stats endpoints, so no stat tile on any dashboard is verifiable without live capture.*
+
+*Earlier history: last updated 2026-08-19. Flags 001–009 raised from the 2026-08-08 codebase survey. FLAG-200 raised
 2026-08-10 (Qeeyat's first session). FLAG-010 and FLAG-011 raised 2026-08-12; FLAG-002 partially
 fixed by PR #65. FLAG-201/202/203/204 raised 2026-08-13, reviewing PR #69. FLAG-012 raised 2026-08-13
 reviewing PR #73. FLAG-205/206 raised 2026-08-14/15, building D1 Superadmin pages (PR #76, merged
