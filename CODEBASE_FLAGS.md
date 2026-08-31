@@ -1806,3 +1806,57 @@ cause.
 - [ ] An `api-request` filed for a real `active_organizations` and a real patient count — or the two
       tiles are removed rather than shown permanently blank.
 - [ ] A test that fails against the **captured** payload above rather than against our own type.
+
+---
+
+### FLAG-227 — Two Doctor stat tiles read fields `/doctor/dashboard/stats/` does not return
+**Severity:** P1 · **Area:** Contract / Doctor dashboard · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-31, first T5 render of the Doctor dashboard (`e2e/design/roles.spec.ts`)
+
+The **fourth** dashboard with this bug — after Org Admin (#85), Nurse (NURSE-1) and Superadmin
+([[FLAG-222]]). Found the first time anyone rendered the Doctor dashboard in a browser, which is
+exactly what Gate 2 predicted would happen.
+
+**Captured live, 2026-08-31**, `GET /doctor/dashboard/stats/` as `doctor@demo.test` against
+`api-dev` — the payload, not the schema, which documents `200: No response body` ([[FLAG-225]]):
+
+```json
+{"todays_appointments":0,"active_episodes":14,"patients_in_queue":0,
+ "pending_referrals":0,"admissions_under_care":2,"completed_episodes_this_week":0}
+```
+
+`DoctorDashboard.tsx:268-271` reads:
+
+| Tile | Component reads | In payload? |
+|---|---|---|
+| Active Episodes | `active_episodes` | ✅ |
+| **Appointments Today** | `appointments_today` | ❌ — the field is **`todays_appointments`** |
+| Pending Referrals | `pending_referrals` | ✅ |
+| **Prescriptions** | `active_prescriptions` | ❌ — **no equivalent field exists at all** |
+
+⚠️ **These two are not the same problem and must not be fixed the same way.**
+
+- **Appointments Today** is a straight rename — `appointments_today` → `todays_appointments`. Safe.
+- **Prescriptions** has **no corresponding field in the payload**. There is nothing to rename it to.
+  Per the [[FLAG-222]] reasoning, do **not** point it at a plausible-looking neighbour: mapping it to
+  `completed_episodes_this_week` or `admissions_under_care` would replace a visible gap with an
+  invisible wrong number on a screen a clinician makes decisions from. It needs an `api-request` for
+  a real prescriptions count, or the tile comes out.
+
+**Three fields the backend sends and nothing renders:** `patients_in_queue`,
+`admissions_under_care`, `completed_episodes_this_week`. Worth a design look — `admissions_under_care: 2`
+is real clinical information currently thrown away.
+
+**Why the unit suite is green:** `DoctorDashboard.test.tsx` fixtures assert our own `DoctorStats`
+interface, so they agree with the component and never with the API. [[FLAG-221]], a fifth time.
+
+**Currently annotated, not fixed.** `roles.spec.ts` marks the doctor tile test `test.fail()` via
+`knownStatBug: 'FLAG-227'`, so the suite is honest rather than permanently red. **When that test
+starts passing, the source has been fixed — delete the annotation.**
+
+**Done when:**
+- [ ] `todays_appointments` wired to the Appointments Today tile.
+- [ ] An `api-request` filed for a prescriptions count — or the tile removed rather than shown blank.
+- [ ] `knownStatBug` deleted from the doctor entry in `e2e/design/roles.spec.ts`, and that test passes.
+- [ ] The two remaining unverified dashboards — **Nurse and Patient** — rendered the same way. Nothing
+      yet proves they are clean; nobody has been able to run them (no credentials / [[FLAG-210]]).
