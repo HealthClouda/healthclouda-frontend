@@ -43,9 +43,9 @@ jobs:
     name: tsc + tests + build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -78,9 +78,9 @@ jobs:
     # `npm run lint` is `eslint . --max-warnings=0` — the SAME command locally and
     # here, so a dev can never be green on their machine and red in CI.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -108,9 +108,9 @@ jobs:
     # only checked the exit code would go green on any unrelated build breakage —
     # a test that passes for the wrong reason, which is worse than no test.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
