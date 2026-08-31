@@ -60,6 +60,328 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-29 — #96 unblocked at its source, then the whole review queue (branches: docs/schema-contract-guidance #96, docs/session-log-qeeyat-2026-08-29)
+
+**Goal:** clear @Bastoh's changes-requested on #96, then stop being the bottleneck — seven of his PRs
+were open and six were assigned to me, five days from PHI.
+
+**What I did:**
+- Fixed #96 and **fixed it at the source**, not only at the two call sites.
+- Reviewed **all seven** open PRs: #97 ✅ · #98 ✅ · #99 🔴 changes requested · #100 ✅ · #102 ✅ ·
+  #103 ✅ · #104 ✅. Re-ran the three commands myself on the code PRs rather than trusting the bodies.
+
+**What I found:**
+
+- 🎯 **The false example in #96 was mine, and it came from FLAG-217.** @Bastoh blocked one bullet in
+  `CLAUDE.md` claiming `/receptionist/appointments/` documents `?date=&doctor_id=&status=` in its
+  description. It does not — I re-fetched and the description is two lines naming no params. It
+  originated in **FLAG-217, which I wrote on 24 Aug**, and propagated into `CLAUDE.md` and
+  `ONBOARDING.md` from there. Fixing only the two docs would have left the wrong version in the flag
+  new readers are pointed at, so FLAG-217 now carries a correction. **A rule illustrated by a false
+  example is weaker than no example.**
+- 🪤 **I nearly shipped a second bad number into the file that tells people to verify.** My
+  replacement text said *"13 operations name a query string in prose"*. That grep matched only the
+  inline `?x=` style and **missed the `Query params:` block format entirely** — the one
+  `/ward/admissions/` and `/ward/beds/` use. Real figure: **23 operations across 17 of 125 paths, 12
+  declaring none in `parameters`.** Caught it because `/ward/admissions/` turned up while I was
+  checking FLAG-217's *other* claim. **Measuring with the wrong instrument produces a
+  verified-sounding number, which is worse than an admitted guess.**
+- **Both directions of the schema mistake have now been made by both devs.** I asserted prose that
+  wasn't there; @Bastoh inferred that absence meant ignored and blocked #94 for it (his email, 28
+  Aug, retracted plainly). The receptionist filters **work while documented nowhere**. That is
+  FLAG-205's rule a second time, and it is now a `CLAUDE.md` bullet and `ONBOARDING.md` habit 4.
+- 🎯 **`/auth/me/` returns `organization: {id, name, slug, org_id, org_type}` — verified live.** #99's
+  whole tenant check rests on that shape, and **the schema documents the endpoint as `200` with no
+  response body** (FLAG-218 class), so it was not answerable from the schema. This is the first thing
+  in weeks that genuinely *was* blocked on credentials — the contract questions never were.
+- 🔴 **#99 logs every user out after one hour, and I approved it before I saw that.** `middleware.ts:49`
+  documents the invariant: *"the access cookie expires hourly; a present refresh cookie means the
+  session is still alive (client refreshes on first API call)."* The new server gate reads **only**
+  the access token, so at the 60-minute mark middleware allows the request through and the page then
+  redirects to signin, with six days of refresh token left. Measured: `ACCESS_COOKIE_OPTIONS.maxAge`
+  = 3600, and the real `api-dev` token's `exp - iat` = 3600. **It arrives as `no_token`, which #103
+  deliberately does not log — so the most likely production failure of #99 is the one case that stays
+  silent.** Found it while reviewing #103; switched my approval to changes-requested.
+- 🔴 **`CLAUDE.md` §3 is wrong about branch protection, and it is not a small wrongness.** It states
+  the rules are *"honour system"* because *"GitHub branch rules require Pro on private repos."*
+  Measured: the repo is **PUBLIC** (rulesets are therefore free) and ruleset `11328360` is
+  **enforcement: active** on `main`/`staging`/`develop` with `required_approving_review_count = 1`,
+  deletion and force-push blocked, **no bypass actors**. `HANDOFF.md`'s branch table was right all
+  along. We have had a real gate and have been telling ourselves we don't.
+- ⚠️ **@Bastoh found the same thing independently the same night** — by getting a push rejected on
+  #98 — and said he would fix §3. I had already offered to do it on #102. **Two devs, two assistants,
+  one edit to the same section of the operating manual.** I stood down on #98 in writing. Neither of
+  us would have seen the collision without reading the other's PRs, which is the case for the In
+  Flight table and also its limit: it does not catch work discovered *inside* a review.
+- ⚠️ **The apex is described three different ways across his open PRs.** #102 records *"Decided: apex
+  = marketing + patient portal against `api-beta`"*; #100 says it in a code comment; #97's deployment
+  table lists the apex tier as `—`; and the sprint plan says *"marketing-only, no API."* The decision
+  is real but lives in a new file in an unmerged PR. **Where the beta org's patient signs in on 3 Sep
+  is still not settled anywhere a reader would look.**
+- 🪤 **Reviewer trap on #100:** checking it out over a `.next` built from #99 makes `tsc` fail with
+  three phantom errors naming the route #100 deletes. `rm -rf .next` first. I nearly reported a false
+  failure against his PR.
+
+**Decisions:**
+- **Fixed FLAG-217 in place rather than only the call sites** — the flag is where the error would
+  have been re-copied from. Same retract-in-place style he used for FLAG-015.
+- **Went beyond the one-bullet swap he asked for**, and said so on the PR. The rule the false example
+  was reaching for is real once inverted, and shipping the swap alone would have dropped it.
+- **Accepted the FLAG-216 correction (issue #101) on his measurement without re-verifying.** The only
+  way to check is to `POST /patients/` at shared seed data during UAT week. **Creating a junk patient
+  to confirm a payload shape is worse than trusting a colleague who already ran it** — the same
+  reasoning FLAG-216 used to refuse the search-for-the-patient workaround.
+- **Changes-requested on #99 rather than a follow-up note**, even though it fails *closed* and is
+  therefore safe. It hits every user every hour, presents in UAT as "it keeps logging me out", and
+  nobody traces that to an authorization change.
+- **Approved #100 and #104 despite open questions** — an apex decision in a code comment and an
+  unsupported parenthetical are worth raising, not worth blocking a patient-signin fix five days out.
+- **Did not add an In Flight row for this branch.** #97 rewrites that entire table; an added row is a
+  guaranteed conflict. **Recording the skip rather than doing it silently** — the rule says claim
+  before cutting, and I did not.
+
+**Verified:** `npx tsc --noEmit` exit 0 · `npm test` **155/155, 19 files** · `npm run build` green,
+on #96 after rebasing onto `develop`. On **#99**: tsc 0 · 159/159 · build green, and the RED-first
+claim confirmed by applying the new tests to pre-fix `develop` — **3 failed, 1 passed**, exactly his
+table. On **#100**: tsc 0 (after `rm -rf .next`) · 165/165 · build green. Against **live `api-dev`**:
+schema 200 unauthenticated (391 KB) · `/auth/me/` shape as a doctor · access-token lifetime 3600s
+with claims `token_type, exp, iat, jti, user_id` (no role, no org — confirming #99's reasoning) ·
+`ReferralResponseRequest.required = ["response_notes"]` · the ORG_ADMIN referral prose verbatim ·
+the 23/17 and 12/6 prose counts. Against **live `dev.healthclouda.com`**: 200 with valid TLS · all
+six security headers byte-for-byte as `SECURITY_BASELINE.md` documents, `frame-ancestors 'none'`
+included · **zero `railway.app`** in the served HTML and JS chunk (A2 confirmed on the artifact, not
+the source) · beta unresolvable · apex 200.
+
+**Left undone / next:**
+- [x] 🔴 **FLAG-203 — `SmallScreenGate` is CSS-only, so PHI renders into the DOM below 768px.** Mine,
+  my component from D1, and #102 calls it *the most serious unfixed item in the document*. Tier 1,
+  design lane. **Picked up in Part 2 below — half fixed in PR #106; the server-rendered half is
+  still open and deliberately deferred.**
+- [ ] **Issue #101 — the HCL-ID handout is buildable after all** (`POST /patients/` returns
+  `{message, patient:{id, healthclouda_id}}`). Assigned to me; unblocks the D4 gap FLAG-216 described.
+- [ ] **#96 awaits re-review**; **#99 awaits his fix** for the session regression.
+- [ ] ⚠️ **`staging` must be re-promoted after #99/#100/#103 merge and before beta is attached on
+  31 Aug**, or beta stands up on the tier that receives PHI with client-trusted auth. Raised on #98;
+  it belongs on the 31 Aug checklist, not in anyone's memory.
+- [ ] **`CLAUDE.md` §3 branch-protection correction is @Bastoh's** — I stood down. If it has not
+  landed by Monday, take it.
+- [ ] The apex/patient-portal question still needs one answer in `HANDOFF.md`.
+
+#### Part 2, same session — FLAG-203 half fixed, and the test suite turned out not to be defending it (PR #106)
+
+**Goal:** take the item I had just called the most serious unfixed thing on the board.
+
+**What I did:** measured the leak against the live deployment first, fixed the half that does not
+collide with @Bastoh's open PRs, then went looking for how it had survived a green suite for two
+weeks — and found that was the more important question.
+
+**What I found:**
+
+- 🎯 **Measuring first changed what the job was.** I logged into `dev.healthclouda.com` through its
+  own proxy as the doctor and fetched `/demo-clinic/doctor` twice, once with an iPhone UA and once
+  desktop: **both 200, both 29,750 bytes, byte-identical.** The phone gets the full `user` object and
+  `initialStats` (`active_episodes: 14`, `admissions_under_care: 2`) in the HTML. That showed
+  **FLAG-203 has two channels, not one** — and that **its own "Done when" only covered the second.**
+  It proposed *"a JS check that accepts a brief flash"*, which cannot touch anything `page.tsx`
+  already server-fetched and passed as props. **I wrote that criterion on 13 Aug and would have
+  ticked it while half the leak remained.**
+- **Fixed channel 2** (the patient-level half: names, HCL-IDs, episodes, prescriptions).
+  `DashboardShell` now decides in **JS** whether the subtree mounts. React does not run a component's
+  hooks until it renders it, so the early return is what stops the fetches. Fails closed: until
+  `matchMedia` answers, nothing mounts. Both mirrored CSS classes are gone — two CSS mechanisms
+  deciding the same thing is what let the dashboard sit mounted underneath.
+- 🚨 **The suite was not defending the control at all.** I deleted `smallScreenGateFor="Doctor"` from
+  `DoctorDashboard` outright and ran everything: **161/161 green.** The gate is one opt-in prop on
+  five components and only Nurse had a test naming it — so a one-line edit could remove a PHI control
+  from four dashboards with no signal. New `small-screen-gate.test.tsx` covers all five; re-running
+  the mutation now fails **exactly one** test.
+- 🪤 **A test was asserting the bug.** The nurse gate test checked only that the notice *rendered*,
+  noting *"the md: breakpoint is a media query JSDOM cannot evaluate, so visibility is not assertable
+  here."* True — and exactly what hid it: the notice **and the whole dashboard** were both in the DOM,
+  and it passed on a build shipping records to phones. It now asserts `dataGetMock` was never called.
+- 🔴 **The same shape is on the security path, and it hides a bug in #99.**
+  `middleware.test.ts:45` is named *"lets a dashboard nav through when ONLY the refresh cookie is
+  present"* — precisely the invariant #99 breaks for the user — and **it stays green, because #99
+  does not touch `middleware.ts` at all.** Middleware lets the request through; the new page gate then
+  throws the user out. Logged the whole class as **FLAG-221**, two instances fixed, that one open.
+- 🎯 **The generalisation:** every one of these tests is *correct about its own layer*. The properties
+  that matter span two — CSS + mount, middleware + page, server render + client fetch — and **no test
+  in this repo spans two.** I wrote almost this sentence during Gate 1 about the six fixture tests
+  ("green means the code matches the fixtures, nothing more"). Same sentence, different cause, second
+  time. That is why it is a flag now rather than a third rediscovery.
+- **Bounded the residual rather than assuming it.** With `initialStats` null the fallback stats fetch
+  runs *above* the shell where the gate cannot reach. Measured: exactly one request per dashboard,
+  always its own `dashboard/stats`, never patient-bearing. The test asserts that **limit**, so it
+  fails the day someone moves a patient list above the shell.
+- ⚠️ **My own sweep missed a file.** My first pass for this pattern used a glob that silently skipped
+  `src/middleware.test.ts` — the file holding the most important instance. Caught it only because the
+  count did not match vitest's 20. **The same failure mode as an invented query param: no error, just
+  a quietly incomplete answer.**
+
+**Decisions:**
+- **Deferred channel 1 deliberately.** Closing it means editing all six `page.tsx` files, which **#99
+  rewrites and #100 deletes one of** — a three-way merge during UAT week. Channel 2 lives entirely in
+  my two shell files and conflicts with nothing.
+- **Wrote the two fixes' predicates down before anyone unifies them:** the client gate tests the
+  **viewport**; any server-side hint tests the **device**. A desktop with a narrowed window is a
+  trusted device with a small viewport, and the server cannot know a viewport on first request.
+- **Put the five-dashboard tests in a new file** rather than in the five dashboard test files —
+  **#104 is already editing `OrgAdminDashboard.test.tsx`**, and one invariant applying five times
+  belongs in one place.
+- **Did not write a test that blesses the residual.** "One aggregate call here is fine" is the same
+  mistake as the nurse test, one level up. Asserted the bound instead.
+
+**Verified:** RED first — the 6 shell tests run against pre-fix code gave **5 failed / 1 passed** (the
+passing one is the ungated patient dashboard, so they are not merely asserting emptiness). Then
+`npx tsc --noEmit` clean · `npm test` **176/176, 21 files** · `npm run build` green. Live evidence
+captured against `dev.healthclouda.com` and `api-dev` as above.
+
+**Left undone / next:**
+- [ ] **FLAG-203 channel 1** — the server-rendered payload. Needs a device hint in the six page files,
+  **after #99 and #100 merge**, or explicit acceptance in `SECURITY_BASELINE.md` naming what remains
+  (staff PII + aggregate counts, no patient records).
+- [ ] **FLAG-221 instance 3** — a test spanning middleware **and** the page gate. Belongs with #99's
+  fix, not a separate PR.
+- [ ] **FLAG-221's last item** — run the mutation probe against every control claimed in
+  `SECURITY_BASELINE.md` §2 before beta. **A control with no failing test is a claim, not a control.**
+- [ ] Then **issue #101**, the HCL-ID handout.
+
+#### Part 3, same session — issue #101, Gate 2, and the first browser render (PRs #107, #108, #106)
+
+**Goal:** clear issue #101, then answer "what's next" honestly instead of picking the nearest task.
+
+**What I did:** shipped the HCL-ID handout (#107), ran **Gate 2** (#108) after finding nobody had,
+then paid the visual-verification debt — which immediately found a P1.
+
+**What I found:**
+
+- 🚨 **Gate 2 was due Fri 28 Aug and there was no record of it anywhere.** Not on `develop`, not in
+  any of the eleven open PRs — I grepped both. Onboarding with real PHI is **Thu 3 Sep**, and the plan
+  says *"If NO-GO, onboarding moves — decided here, not on 3 Sep."* Ran it late, same as Gate 1.
+  **Verdict 🔴 NO-GO**, but the diagnosis inverts Gate 1's: Gate 1 found work that did not exist;
+  Gate 2 found **eleven PRs, six approved and mergeable**. **This is merge throughput, not build
+  work** — it can flip over a weekend with nobody writing a feature.
+- 🚨 **FLAG-222 — three of four Superadmin stat cards read fields the API has never returned.** Found
+  in the **first screenshot** of the first browser render this project has ever had. Measured live:
+  the endpoint sends `total_orgs`/`active_records`; we read
+  `total_organizations`/`active_organizations`/`total_patients`. On screen the **Organisations tile
+  shows `—` directly above a table listing three organisations.** Nobody had ever looked.
+- 🎯 **Three things about FLAG-222 matter more than the bug.** **155 green tests missed it** (fixtures
+  assert our own type — FLAG-221 a fourth time). **The schema could not catch it** —
+  `/superadmin/dashboard/` documents `200: No response body` and merely *claims* in prose to "match
+  the frontend contract". And it is the **third dashboard with this exact fault** after Org Admin
+  (#85) and Nurse. **Doctor, Receptionist and Patient have still never been rendered.**
+- 🎯 **"All six dashboards merged" was never the same claim as "all six dashboards work."** Gate 1
+  measured the first and I wrote it up as a criterion; nobody has measured the second. That is a flaw
+  in **my own** Gate 1 criteria, not just in the execution.
+- 🪤 **I nearly reported a second bug that was my own instrument.** The first screenshots showed both
+  Superadmin list panels stuck shimmering. I was about to write it up, then re-ran with a 9-second
+  settle: the lists load fine — three orgs and a proper empty state. **I was screenshotting before
+  the data arrived.** The stat-card bug was real and the shimmer was not, and the only thing
+  separating them was checking. Same lesson as the `?x=` grep in Part 2, one day later.
+- **The seed data moved again.** There is now a **Third Clinic** and 17 users; @Bastoh's note that the
+  check-ins moved 13 Aug → 27 Aug was not a one-off. **Nothing should hardcode a count or a date.**
+- **`/patients/` verification of #107 was done with an intercepted POST**, deliberately: verifying it
+  for real means registering a junk patient into the seed data everyone tests against, which is
+  precisely what FLAG-216 refused to do. The mock returns the shape the backend verified on #137.
+
+**Decisions:**
+- **Ran Gate 2 rather than taking the next build task.** Four days from PHI, the absent gate was worth
+  more than another feature. I measured and explicitly did **not** choose whether 3 Sep holds — that
+  is @Bastoh's and the owner's call, and the plan says it gets made now.
+- **Did not guess FLAG-222's two unresolvable fields.** `total_orgs` → Organisations is exact and
+  safe. But `active_records: 18` is **not** a patient count (the seed has 21+), and there is no
+  active-orgs field at all. **Replacing a visible gap with an invisible wrong number on a dashboard
+  someone makes decisions from is strictly worse than the gap.** Logged, did not "fix".
+- **Promoted the small-screen check into `e2e/design/smallscreen.spec.ts`** rather than leaving it a
+  throwaway. It is the **"span two layers" test FLAG-221 asks for**: jsdom does not evaluate a media
+  query at all, which is why the CSS-only gate survived a green suite for two weeks.
+- **Put FLAG-222 on #106's branch** because that branch already owns the end of `CODEBASE_FLAGS.md`
+  and the finding came out of verifying #106 — four other open PRs also edit that file.
+- **Added the doctor/receptionist credentials to `.env.local`** (gitignored, verified). The file's own
+  warning is real: the passwords contain `#`, which starts a comment in a `.env` file unless quoted.
+
+**Verified:** #107 — tsc clean · 157/157 · build green; the nested-read test confirmed by mutation
+(swapping to a top-level read fails exactly that one test). #106 — tsc clean · **176/176 unit** ·
+**2/2 browser** · build green. Gate 2 measured on `develop` @ `3765b62`: tsc clean · 155/155 · build
+green · A2/A4/A6/A8 evidenced · **A5 and A7 open** · A3 verified independently by reading the cookie
+jar after signing in through the deployed proxy (all three cookies host-only, `Secure`, no `Domain=`).
+Trial-merged #108 against #97 — clean.
+
+**Left undone / next:**
+- [ ] 🔴 **T5 pass over Doctor, Receptionist, Nurse, Org Admin and Patient.** Superadmin's bug took one
+  screenshot to find and three dashboards have now had this same fault. **This is the cheapest
+  high-value thing on the board** — one evening, no new code.
+- [ ] **FLAG-222's fix** — wire `total_orgs`, and file an `api-request` for a real active-orgs count
+  and a real patient count, or remove those two tiles rather than ship them permanently blank.
+- [ ] **Five of my PRs are open and unreviewed** (#96, #105, #106, #107, #108). I should stop opening
+  PRs and start getting them merged — this is the Gate 1 review-latency dynamic with me as the cause.
+- [ ] Everything from Part 2 still stands: FLAG-203 channel 1, FLAG-221 instance 3, the
+  `SECURITY_BASELINE.md` mutation sweep.
+
+#### Part 4, same session (ran past midnight into 30 Aug) — the stat-tile sweep (PR #109, backend #158)
+
+**Goal:** "sort" FLAG-222 rather than log it. Which meant measuring the whole fault class before
+touching anything.
+
+**What I found:**
+
+- 🚨 **It was never only Superadmin.** Measured every dashboard stats endpoint live:
+
+  | Dashboard | Reads fields the API does not send | Result |
+  |---|---|---|
+  | Superadmin | `total_organizations`, `active_organizations`, `total_patients` | 3 of 4 tiles blank |
+  | **Doctor** | `appointments_today`, `active_prescriptions` | **2 of 4 tiles blank** |
+  | Org Admin | — | ✅ clean |
+  | Receptionist | — | ✅ clean |
+
+- 🎯 **Org Admin and Receptionist are clean because #85 and #94 captured their payloads live before
+  building. The two broken ones were typed from assumption.** That is the entire difference, and it is
+  the strongest one-line argument for capture-first that this repo has produced.
+- **A third instance in the same dashboard, found by looking at it:** the doctor Episodes "Opened"
+  column read `ep.created_at`; `/doctor/episodes/` sends **`episode_start`** and has no `created_at`,
+  so every row rendered `—`.
+- 🪤 **The fixtures were the accomplice, and `tsc` proved it.** Correcting the types surfaced **twelve**
+  test errors — every one a fixture that had been agreeing with the bug. Gate 1's *"6 tests assert
+  payload shapes the backend never sends"* was still true, in two more files, five weeks later.
+- 🪤 **I removed two stat cards and not one existing test failed.** [[FLAG-221]] again — that is the
+  fourth and fifth instance of the class in two days.
+- **Measured, not assumed, on the three fields I could not fix:** `/org/?is_active=` is **silently
+  ignored** (`true` → 3, `false` → 3, unfiltered → 3), so an active-orgs count cannot be derived
+  client-side either. `active_records` is **18** while `/patients/` reports **count 30** — so it is
+  categorically not a patient count.
+
+**Decisions:**
+- **Did not guess any of the three missing fields.** Filed **backend [#158]** instead. Mapping
+  `active_records` → "Total Patients" would have shown **18 where the truth is 30** — a visible gap
+  replaced by an invisible wrong number, on a dashboard someone makes decisions from.
+- **Refused to fetch PHI for a number.** `/doctor/prescriptions/` carries `count: 10`, which would
+  have filled the blank tile — at the cost of pulling ~20 prescription records into a page that
+  displays none of them. That is the exact thing FLAG-203 spent the evening arguing against, so it
+  would have been incoherent to do it two hours later.
+- **Substituted real fields under the backend's own names** (Active Records, Admissions Under Care)
+  rather than shipping tiles that are blank forever. ⚠️ **Two of those are design calls and I flagged
+  them on the PR as @Bastoh's to veto** — the Prescriptions page is still reachable from the sidebar.
+- **Stacked #109 on #106** because FLAG-222's text lives there. ⛓️ **#106 must merge as a merge
+  commit, not a squash**, or #109 breaks on retarget.
+
+**Verified:** tsc clean · **180/180** · build green · **and in a real browser against `api-dev`**:
+Superadmin now reads 17 / 3 / 18 with "Organisations 3" above a table listing three organisations;
+the doctor's four tiles all populate and "Opened" shows real relative dates.
+
+**Left undone / next — start here:**
+- [ ] 🔴 **Nurse and Patient dashboards have still never been measured or rendered.** Nurse needs
+  credentials (ask @Bastoh); Patient needs FLAG-210 merged. **Three of the four dashboards anyone has
+  actually looked at had a contract bug** — assume these two do until shown otherwise. FLAG-222 stays
+  open for them.
+- [ ] 🔴 **Six of my PRs are open and unreviewed** (#96, #105, #106, #107, #108, #109) and six of
+  @Bastoh's are approved-and-unmerged. **Gate 2's finding is that this is a merge-throughput problem,
+  not a build problem — so the next session should merge, not build.**
+- [ ] Everything from Parts 2 and 3 still stands: FLAG-203 channel 1, FLAG-221 instance 3 (the
+  middleware+page composition test, belongs with #99's fix), the `SECURITY_BASELINE.md` mutation sweep.
+
+---
+
 ### 2026-08-24 — cleared both CHANGES_REQUESTED blockers (branches: fix/org-admin-payload-shapes #85, feat/dash-3-nurse #86)
 
 **Goal:** @Bastoh reviewed the whole backlog overnight and merged six (#84, #87, #88, #89, #90, #91).
