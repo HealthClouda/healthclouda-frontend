@@ -826,6 +826,47 @@ should not be bundled into the same change.
 
 ---
 
+### FLAG-025 — The mobile nav drawer is hidden by transform, so its controls stay focusable when closed
+**Severity:** P3 · **Area:** Accessibility · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-01, fixing the stale e2e specs (FLAG-024)
+
+`LandingNav.tsx:102` renders the mobile drawer **unconditionally** and hides it with a class swap:
+
+```tsx
+className={`fixed top-0 right-0 ... transition-transform ... ${
+  open ? 'translate-x-0' : 'translate-x-full'
+}`}
+```
+
+The overlay above it is conditionally mounted (`{open && ...}`); the drawer itself never is. So when
+the menu is closed, its five nav buttons, the "For organisations" button and the `/signin` link are
+**still in the DOM, still in the accessibility tree, and still in tab order** — just painted
+off-screen.
+
+**What a user hits.** Tabbing the landing page on a phone walks into controls that cannot be seen. A
+screen-reader user meets a second copy of the whole navigation with nothing announcing it as hidden.
+There is no `aria-hidden`, no `inert`, and no `hidden` attribute.
+
+🔁 **This is FLAG-203's pattern again, one component over.** That flag was *"`SmallScreenGate` hides
+the dashboard visually, not functionally"* and it shipped PHI to phones. **This one carries no PHI**
+— it is a marketing nav — which is exactly why it is P3 and not P1. Worth recording anyway: the same
+mistake in two independently written components is a pattern, not an accident, and the next instance
+may be somewhere that matters.
+
+**How it surfaced.** It is why `landing.spec.ts`'s "mobile menu opens and closes" could not be
+repaired by simply updating strings. `expect(menu).not.toBeVisible()` can never pass against a
+transform-hidden element, and clicking the hamburger a second time to close it fails differently —
+the open drawer intercepts the pointer event. The spec now asserts the drawer's **position** relative
+to the viewport, with that reasoning inline, and closes via the "Close menu" button.
+
+**Done when:** the closed drawer is genuinely inert — unmounted when `!open`, or marked `inert` /
+`aria-hidden="true"` with its focusable children removed from tab order. Verify by tabbing the
+landing page at 375px wide with the menu closed: focus must never land on a drawer control. The
+position assertion in `landing.spec.ts` can then be replaced with a visibility assertion, which is
+the clearer test.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
