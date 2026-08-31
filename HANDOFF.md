@@ -28,6 +28,7 @@
 | @Qeeyat | **Gate 2 assessment** (docs only) | `docs/gate-2-assessment` | `HANDOFF.md` | 2026-08-29 | 🔄 **PR #108** — 🔴 NO-GO verdict for 3 Sep as `develop` stood on 29 Aug |
 | @Qeeyat | **Session log 29 Aug** (docs only) | `docs/session-log-qeeyat-2026-08-29` | `HANDOFF-Qeeyat.md` | 2026-08-29 | 🔄 **PR #105** |
 | @Qeeyat | **Patient + Nurse contract audit** — FLAG-223/224/225/226 (docs only) | `docs/flags-patient-nurse-contract-audit` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-08-30 | 🔄 open. ✅ **Claimed before cutting the branch.** Docs only — **no source touched**, per `CLAUDE.md` §6 (review means flag, not fix). ⚠️ **FLAG-226 needs a live patient token to settle** and may be a P0 PHI leak |
+| @Bastoh | **E8 / FLAG-006** — CI + ESLint gating (parity item A1–A6) | `feat/e8-ci-eslint-gating` | `.github/workflows/ci.yml` (new), `eslint.config.mjs` (new), `package.json` | 2026-08-31 | 🔄 open. ⚠️ **`next lint` is not merely unrun — it drops into an interactive prompt**, so it can never run in CI as-is; migrating to the ESLint CLI is part of the work. No source files touched |
 
 > 📌 **Issue #101 is assigned to @Qeeyat:** the HCL-ID handout is buildable after all — `POST /patients/`
 > returns `{message, patient:{id, healthclouda_id}}`. FLAG-216 was derived from a schema that documents
