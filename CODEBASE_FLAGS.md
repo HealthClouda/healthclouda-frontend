@@ -747,7 +747,8 @@ keyframes (or swaps to opacity-only), fixed once rather than per animation.
 ---
 
 ### FLAG-203 — `SmallScreenGate` hides the dashboard visually, not functionally
-**Severity:** P1 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P1 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** 🟡 **HALF FIXED
+2026-08-29** — the client channel is closed; the server-rendered channel is still open
 **Found:** 2026-08-13, reviewing PR #69 (DASH-1 overlays)
 
 `DashboardShell`'s `smallScreenGateFor` prop hides the shell below 768px with `hidden md:flex`
@@ -766,10 +767,76 @@ is real (3 Sep) — it belongs in the PHI-leakage-channels section of the still-
 `SECURITY_BASELINE.md`, alongside bfcache/URL-history/screenshot channels, not just as a frontend
 polish item.
 
-**Done when:** either (a) the dashboard genuinely doesn't fetch below 768px — a JS check that
-accepts a brief flash, or a server-side device hint — or (b) the risk is explicitly accepted in
-`SECURITY_BASELINE.md` with a stated reason (e.g. "no PHI-bearing dashboard is realistically opened
-on a sub-768px device in a clinic" — a claim that should be verified, not assumed).
+> ⚠️ **Update 2026-08-29 (@Qeeyat) — this flag's own "Done when" was wrong, and measuring the live
+> deployment is what showed it.** Logged into `dev.healthclouda.com` through its own proxy as
+> `doctor@demo.test` and fetched `/demo-clinic/doctor` twice, once with an iPhone user-agent and once
+> with a desktop one:
+>
+> ```
+> iPhone UA   -> 200, 29,750 bytes
+> desktop UA  -> 200, 29,750 bytes
+> byte-identical: YES
+> ```
+>
+> **There are two leak channels here, not one, and they need different fixes:**
+>
+> | Channel | What it carries | Closed by a JS breakpoint check? |
+> |---|---|---|
+> | **1. Server-rendered props** | the full `user` object (name, email, UUID, role, org) and `initialStats` — measured live: `active_episodes: 14`, `admissions_under_care: 2`, `todays_appointments: 1` | ❌ **no** |
+> | **2. Client fetches on mount** | the patient-level PHI — names, HCL-IDs, episodes, prescriptions, ~7 `useApi`/`usePaginatedList` calls | ✅ yes |
+>
+> The original "Done when (a)" proposed *"a JS check that accepts a brief flash"*. **That closes
+> channel 2 only.** `page.tsx` calls `serverFetch` and passes `initialStats` into the client
+> component before any client JS exists, so the payload is already in the HTML — identical for a
+> phone and a desktop, as measured above. A criterion that would have been marked satisfied while
+> half the leak remained.
+
+**Fixed so far (channel 2):** `DashboardShell` now decides in **JS** whether the dashboard subtree
+mounts at all, via `useWideViewport()` (`src/hooks/use-wide-viewport.ts`). React does not invoke a
+component — or run its hooks, or fire its fetches — until it is rendered, so returning early is what
+stops the requests. It **fails closed**: until `matchMedia` answers (server render, first paint, or
+any runtime without it) the state is `unknown` and nothing mounts. The mirrored CSS classes
+(`hidden md:flex` on the shell, `md:hidden` on the notice) are **gone** — two CSS mechanisms deciding
+the same thing is what let the dashboard sit mounted underneath. Cost: one frame of a neutral
+placeholder on desktop, which is the trade this flag anticipated. Resizing a window across 768px now
+unmounts the dashboard rather than hiding it.
+
+🪤 **A test was asserting the bug.** `NurseDashboard.test.tsx` checked only that the notice was
+*rendered*, with the note *"the md: breakpoint is a media query JSDOM cannot evaluate, so visibility
+is not assertable here"* — true of the CSS gate, and precisely what hid the problem: the notice and
+the whole dashboard were both in the DOM and the test passed on a build that shipped records to the
+phone. It now asserts `dataGetMock` was never called. **"Is the notice rendered" was never the
+question; "did any PHI leave the server" is.**
+
+🚨 **And nothing defended the control at all on four of five dashboards.** The gate is one opt-in
+prop. Measured, not assumed: deleting `smallScreenGateFor="Doctor"` outright left the suite at
+**161/161 green**. `src/components/dashboard/small-screen-gate.test.tsx` now covers all five, and
+re-running that mutation fails exactly one test. **This test weakness is a class, not an incident —
+written up as [[FLAG-221]], where a third instance is still open and currently hides the session bug
+in PR #99.**
+
+📏 **The residual is bounded, and asserted as a bound.** With `initialStats` null (the server fetch
+failed) each dashboard falls back to a client stats fetch from a hook *above* the shell, which the
+gate cannot stop. Measured 2026-08-29 — a narrow screen makes exactly **one** request per dashboard,
+always its own `dashboard/stats` endpoint, never a patient-bearing one. The test asserts that limit
+rather than blessing the call, so it fails the day someone moves a patient list above the shell.
+
+**Done when (revised):** channel 1 also closed — the page must not `serverFetch` or serialise PHI
+props for a device it should not serve. That needs a **server-side** signal (`Sec-CH-UA-Mobile`
+client hint, or UA inspection) in the six `page.tsx` files, **or** explicit acceptance in
+`SECURITY_BASELINE.md` naming what remains: staff PII plus aggregate clinical counts, but no
+patient-level records.
+
+⚠️ **Sequencing note:** channel 1 was deliberately *not* fixed in the same PR. It requires editing all
+six `page.tsx` files, which **#99 rewrites and #100 deletes one of**. Doing both at once would have
+meant a three-way conflict during UAT week. Channel 2 lives entirely in `DashboardShell` /
+`SmallScreenGate`, so it conflicts with nothing.
+
+⚠️ **And the two fixes test different predicates, which is worth stating before anyone "unifies"
+them:** the client gate tests the **viewport**; any server-side hint tests the **device**. They do
+not agree — a desktop with a narrowed window is a trusted device with a small viewport, and the
+server cannot know a viewport on the first request at all. Whatever closes channel 1 should say
+plainly which predicate it is enforcing.
 
 ---
 
@@ -1479,3 +1546,112 @@ doctor endpoints and was wrongly generalised to the whole API. FLAG-219/220 rais
 > **docs-only**: it *logged* this flag. The failing token values are unchanged and still live.
 > FLAG-014 and FLAG-015 are the same underlying problem at other call sites — fix the tokens once,
 > across all three, and re-measure.
+
+---
+
+### FLAG-221 — Tests assert the layer, not the property — and one of them was green on a live PHI leak
+**Severity:** P2 (process) · **Area:** Testing / process · **Owner:** @Qeeyat · **Status:** 🟡 two
+instances fixed, one open
+**Found:** 2026-08-29, while fixing FLAG-203
+
+A test can be green, well-named, and carefully written, and still say nothing about the property it
+appears to protect — because it asserts the **layer it can reach** rather than **what the user
+gets**. This is not hypothetical here: it is how FLAG-203 shipped a PHI leak past a passing suite,
+and it currently hides a session bug in an unmerged PR.
+
+**Instance 1 — the test that asserted the bug (fixed).** `NurseDashboard.test.tsx` checked only that
+the small-screen notice was *rendered*, with the note *"the md: breakpoint is a media query JSDOM
+cannot evaluate, so visibility is not assertable here."* Every word of that was true, and it is
+exactly what hid the problem: with a CSS-only gate, the notice **and the entire dashboard** were both
+in the DOM. The test passed on a build that shipped patient records to phones. **The honest question
+was never "is the notice rendered" — it is "did any PHI leave the server."** It now asserts
+`dataGetMock` was never called.
+
+**Instance 2 — a control that nothing defended (fixed).** The gate is one opt-in prop
+(`smallScreenGateFor`) on five dashboard components, and only Nurse had any test naming it. Measured
+rather than assumed: deleting `smallScreenGateFor="Doctor"` from `DoctorDashboard` outright left the
+suite at **161/161 green**. A PHI control could be removed by a one-line edit with no signal.
+`src/components/dashboard/small-screen-gate.test.tsx` now covers all five; re-running the same
+mutation fails exactly one test.
+
+**Instance 3 — OPEN, and it matters this week.** `middleware.test.ts:45` is named *"lets a dashboard
+nav through when ONLY the refresh cookie is present"* and asserts middleware does not redirect. PR
+**#99** breaks precisely that invariant for the user — the new page-level gate reads only the access
+token, which expires hourly, so the user is bounced to signin with six days of refresh token left.
+**That test stays green, because #99 does not touch `middleware.ts` at all** (verified: zero
+middleware files in its diff). Middleware still "lets it through"; the page then throws it out. The
+test covers a layer; nobody covers the composition.
+
+> 🎯 **The generalisation worth keeping:** every one of these tests is *correct about its own layer*.
+> The failure is scope — the property that matters spans two layers (CSS + mount, middleware + page,
+> server render + client fetch), and no test in this repo spans two layers. **A green suite means the
+> code matches its tests; it has never meant the code matches its contract.** @Qeeyat wrote almost
+> exactly that during Gate 1 about the six fixture tests; this is the same sentence with a different
+> cause, so it is worth stating as a standing rule rather than rediscovering a third time.
+
+**The technique that found 2 and 3, which is cheap enough to make routine:** break the control on
+purpose and run the suite. If it stays green, the control is undefended. It took about two minutes
+per probe and needs no tooling. Worth doing for every item in `SECURITY_BASELINE.md` §2 before beta —
+a control with no failing test is a claim, not a control.
+
+**Done when:**
+- [x] Instance 1 — nurse test asserts the fetch, not the render (PR #106)
+- [x] Instance 2 — all five staff dashboards assert the gate (PR #106)
+- [ ] Instance 3 — a test that spans middleware **and** the page gate, so "an expired access token
+      with a live refresh token keeps the session" is asserted end to end rather than per layer.
+      Belongs with #99's fix, not in a separate PR.
+- [ ] Run the mutation probe against each control claimed in `SECURITY_BASELINE.md` §2 and record
+      which ones have a test that actually fails when they are removed.
+
+---
+
+### FLAG-222 — Three of four Superadmin stat cards read fields the API has never returned
+**Severity:** P1 · **Area:** Backend contract / D1 · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-08-29, the first time anyone rendered this dashboard in a browser
+
+`SuperadminStats` is typed against fields `/superadmin/dashboard/` does not send. Measured live on
+`api-dev` as `superadmin`, 29 Aug:
+
+```
+GET /api/v1/superadmin/dashboard/  -> 200
+{ "total_users": 17, "total_orgs": 3, "monthly_revenue": 0, "active_records": 18,
+  "users_trend": null, "users_trend_up": null, "orgs_trend": null, "orgs_trend_up": null,
+  "revenue_trend": null, "revenue_trend_up": null, "records_trend": null, "records_trend_up": null }
+```
+
+| Card | Reads | Exists? | Renders |
+|---|---|---|---|
+| Total Users | `total_users` | ✅ | **17** |
+| Organisations | `total_organizations` | ❌ — it is `total_orgs` | **—** |
+| Active Orgs | `active_organizations` | ❌ **no such field at all** | **—** |
+| Total Patients | `total_patients` | ❌ — nearest is `active_records` | **—** |
+
+🪤 **On screen this is visibly absurd and nobody saw it:** the "Organisations" tile reads **—** while
+the "Recent Organisations" table **directly beneath it lists three organisations**. Screenshot in
+PR #106's thread.
+
+**Why the schema could not have caught it:** `/superadmin/dashboard/` documents `200: No response
+body` (FLAG-218 class) and its description merely *claims* *"Returns flat dashboard stats matching
+the frontend contract."* That sentence is the only contract, and it is false. **A description is
+evidence about intent, not about shape.**
+
+**Why 155 green tests did not catch it:** the fixtures assert our own `SuperadminStats` type, so
+they agree with the code and never with the API. This is [[FLAG-221]] a fourth time, and Gate 1 said
+it in September's words already — *"green means the code matches the fixtures, nothing more."* It is
+also the **same bug class as the merged D2 fix (#85, Org Admin) and NURSE-1** — third dashboard, same
+cause.
+
+⚠️ **Do NOT map these by name-similarity — two of the three are genuinely unresolvable today:**
+
+- `total_orgs` → **Organisations** is exact and safe.
+- **Active Orgs** has *no* corresponding field. It cannot be shown truthfully without one.
+- **Total Patients**: `active_records: 18` is **not** a patient count — the seed has 21+ patients
+  across orgs. "Records" and "patients" are different nouns and guessing they are the same is how
+  this class of bug started. Renaming the read to `active_records` would replace a visible gap with
+  an invisible wrong number, which is strictly worse on a dashboard someone makes decisions from.
+
+**Done when:**
+- [ ] `total_orgs` wired to the Organisations tile.
+- [ ] An `api-request` filed for a real `active_organizations` and a real patient count — or the two
+      tiles are removed rather than shown permanently blank.
+- [ ] A test that fails against the **captured** payload above rather than against our own type.
