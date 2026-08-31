@@ -727,6 +727,105 @@ that reasoning. Verify by deleting the `eslint-disable-next-line` and running
 
 ---
 
+### FLAG-023 — The proxy boundary that attaches the JWT has zero test coverage
+**Severity:** P1 · **Area:** Testing / Security · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-31, the first coverage run this repo has ever produced (B7)
+
+`CLAUDE.md` §5 states the security model in one sentence: *"The browser **never** calls the backend
+directly. All browser traffic goes through our own proxy routes (`/api/data` reads, `/api/action`
+writes), which attach the JWT server-side."*
+
+**Every one of those routes reports 0% coverage.** Measured, not inferred — `npm run test:coverage`:
+
+```
+  0%   src/app/api/data/route.ts                     (12 stmts)  ← every browser read
+  0%   src/app/api/action/route.ts                   (15 stmts)  ← every browser write
+  0%   src/app/api/auth/setup-password/route.ts      (19 stmts)
+  0%   src/app/api/access-request/respond/route.ts   (19 stmts)
+  0%   src/app/api/auth/{logout,verify-otp,reset-password,forgot-password}/route.ts
+```
+
+`src/lib/security-headers.test.ts` mentions these paths, which is why a grep looks reassuring — it
+does not exercise the handlers, and coverage is what showed that.
+
+**Why P1 rather than hygiene.** This is the single layer standing between a browser and the backend,
+and it is where the access token is read and attached. The invariants that live here are exactly the
+ones a refactor can silently drop:
+
+- `getAccessToken()` returning nothing must yield **401**, never an unauthenticated upstream call
+- the token must go to the **upstream request** and never into a response body or a log
+- a non-2xx upstream status must be **forwarded**, not flattened into a 200 with an empty body
+  (the FLAG-005 failure mode, one layer up)
+
+Nothing currently fails if any of those changes. A test asserting them would have to be written to
+fail first — none exists to fail.
+
+⚠️ **Related but distinct from FLAG-221.** FLAG-221 is *tests that assert the wrong property*. This is
+*no test at all*, which is the more basic condition and was invisible until coverage existed. Both were
+found the same way: by running a measurement nobody had run before, the same way the first T5 run found
+FLAG-222 in its first screenshot.
+
+📋 **Also 0%, recorded here so the list is not re-derived:** `SigninForm.tsx` (42 stmts — the entry
+point to every role), the six `[slug]/<role>/page.tsx` role gates (rewritten with tests in unmerged
+**#99**, so that half closes when it lands), and all four landing/contact form components.
+
+**Done when:** `/api/data` and `/api/action` have tests covering the three invariants above — at
+minimum: no token → 401 with no upstream call · upstream 4xx/5xx forwarded with its status · the token
+never appears in the response. Verify with `npm run test:coverage` showing both files non-zero, and by
+deleting the `if (!token)` guard and watching a test fail.
+
+---
+
+### FLAG-024 — 9 of 13 Playwright e2e tests fail on `develop`, and nothing was reporting it
+**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-01, evaluating whether the e2e suite could be added to CI (B8)
+
+`npm test` runs **vitest only**. The Playwright suite is a separate script (`npm run test:e2e`), it
+has never run in CI, and it is not part of any pre-PR ritual — so nothing has executed it in a long
+time. Run now, it fails:
+
+```
+npx playwright test e2e/landing.spec.ts e2e/auth.spec.ts --project=chromium
+  9 failed
+  4 passed
+```
+
+**The failures are not environmental.** Run twice — once against `api-dev` and once against an
+unroutable `https://api-ci.invalid/api/v1` — the result is **identical, 9 failed / 4 passed**. So this
+is not a missing backend, missing credentials, or a network problem. The specs describe a UI that no
+longer exists.
+
+**Confirmed cause on the largest group.** `e2e/landing.spec.ts:8` asserts the headline matches
+`/Modern EHR Built for/i`. The landing page's `<h1>` (`src/app/page.tsx:112`) actually reads:
+
+> One patient record. Every facility, connected.
+
+The landing page was redesigned and the specs were never updated with it. Most of the remaining
+landing failures are the same class (navbar buttons, features section, footer, mobile menu).
+
+**Why this blocks B8 rather than being fixed inside it.** Adding a red suite to CI creates exactly
+what **FLAG-370** describes on the backend — *"a permanently-red check nobody could read, which also
+masked any NEW lint issue a PR introduced."* The e2e job is worth having and is deliberately **not**
+added until the specs are green, for that reason and no other.
+
+⚠️ **Two further blockers specific to the T5 design specs** (`e2e/design/*`), separate from the
+staleness above and needing a decision, not just a fix:
+
+1. **They sign in for real.** `helpers.ts` requires `E2E_<ROLE>_EMAIL` / `_PASSWORD` against whatever
+   `NEXT_PUBLIC_API_URL` points at. Running them in CI means putting demo credentials in GitHub
+   Secrets and pointing CI at a live tier — a deliberate decision about CI touching a real backend,
+   which is a different question from "should e2e run in CI".
+2. **The committed baselines are Windows-only.** Every reference shot is named
+   `*-chromium-win32.png`. A Linux runner generates `-linux.png`, matches nothing, and writes new
+   baselines instead of comparing — a green job that verified nothing. Cross-platform baselines have
+   to be generated on the runner OS, or the job pinned to a Windows runner.
+
+**Done when:** `npm run test:e2e` is green for the credential-free specs (`landing`, `auth`) and that
+subset runs in CI as a gating job. The design specs are a separate decision, recorded above, and
+should not be bundled into the same change.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
