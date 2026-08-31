@@ -55,6 +55,121 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 
 ---
 
+## 🚦 GATE 2 — assessment (due Fri 28 Aug · **run late, Sat 29 Aug, by @Qeeyat**)
+
+> **Verdict: 🔴 NO-GO for onboarding Thu 3 Sep as the repo stands today.**
+>
+> Gate 2 asks one question — *"is every Tier-1 A-item evidenced or explicitly accepted in writing,
+> and is `beta.` ready pending only the `api-beta` variable?"* (sprint plan, Week 3). The plan is
+> explicit that **"If NO-GO, onboarding moves — decided here, not on 3 Sep."** This section is that
+> question being asked; **the decision itself needs @Bastoh and the owner.**
+>
+> It was not run on Fri 28. Run here instead, **four days before real PHI arrives.**
+>
+> 🎯 **The diagnosis is the opposite of Gate 1's, and that matters more than the verdict.** Gate 1
+> found work that did not exist — two dashboards unstarted. Gate 2 finds **eleven open PRs, six of
+> them approved and mergeable right now**, and almost every gap below closes when they land. **This is
+> a merge-throughput problem, not a build problem.** The verdict can flip over a weekend without
+> anyone writing a feature — which is exactly why it needs saying today rather than Wednesday.
+
+### Criteria, measured on `develop` @ `3765b62` (29 Aug)
+
+| Gate 2 criterion | Result | Evidence |
+|---|---|---|
+| `tsc --noEmit` clean | ✅ | exit 0 |
+| Suite green | ✅ | **155 passed / 19 files** |
+| `npm run build` green | ✅ | builds |
+| **Every Tier-1 A-item evidenced or accepted in writing** | ❌ | **2 of 8 open** — table below |
+| **`beta.` ready, pending only the `api-beta` variable** | ❌ | `beta.healthclouda.com` **does not resolve**, and `staging` still holds the **12 Apr vanilla-JS app** until #98 merges |
+| Week-3 test layers executed (T3/T4/T6/T7/T8) | ❌ | **0 of 5 complete** — table below |
+
+### Tier-1 A-items — measured, not reported
+
+| Item | State | Evidence |
+|---|---|---|
+| **A1** tier separation | 🟡 **partial** | `dev.healthclouda.com` → **200, valid TLS**, authenticates against `api-dev`. `beta.` **unresolvable**. Apex → 200, serving a **13 Jul** build (FLAG-018) |
+| **A2** stale host purge | ✅ | **0** hits for `railway.app` in the *served* HTML and JS chunk — checked on the deployed artifact, not the source |
+| **A3** cookie scoping | ✅ | signed in through the deployed proxy and read the jar: `hc_user`, `hc_access_token`, `hc_refresh_token` are **all host-only** (`dev.healthclouda.com`, no `Domain=`), all `Secure`. No cookie can cross to `beta.` or the apex |
+| **A4** fail loud on missing config | ✅ | evidenced the hard way — it is what failed every Vercel build from #65 until the env vars were set |
+| **A5 / FLAG-001** authz off the client-writable cookie | ❌ **OPEN** | **#99 is CHANGES_REQUESTED** — its server gate logs every user out after one hour (see FLAG-221). **This is the item the sprint plan marks "must close before PHI"** |
+| **A6** org-admin consent bypass removed | ✅ | merged 2026-08-12 |
+| **A7** `SECURITY_BASELINE.md` | ❌ **OPEN** | **the file does not exist on `develop`.** It is written and approved, in unmerged #102 |
+| **A8** backend tiers `FRONTEND_URL` | ✅ | backend **#107 CLOSED** |
+
+### 🔴 Added after the gate was first written: the dashboards have not been *looked at*
+
+Running the T5 harness against `dev.` on the night of 29 Aug — **the first time any of these
+dashboards had been rendered in a browser** — found a P1 in the first screenshot.
+
+**FLAG-222: three of four Superadmin stat cards read fields the API has never returned.** Measured
+live: the endpoint sends `total_orgs`, `active_records`, `monthly_revenue`; the UI reads
+`total_organizations`, `active_organizations`, `total_patients`. On screen the **Organisations tile
+renders `—` directly above a table listing three organisations.**
+
+Three things make this a gate-level finding rather than a bug report:
+
+1. **155 green tests did not catch it**, because the fixtures assert our own type. FLAG-221, a fourth
+   time.
+2. **The schema could not catch it** — `/superadmin/dashboard/` documents `200: No response body` and
+   only *claims* in prose to "match the frontend contract".
+3. **It is the third dashboard with this exact bug** — Org Admin (#85) and Nurse (NURSE-1) were the
+   first two. The remaining unverified dashboards are Doctor, Receptionist and Patient, and **nothing
+   currently in flight would find the same fault in them.**
+
+⚠️ **So "all six dashboards merged" was never the same claim as "all six dashboards work."** Gate 1
+measured the former. Nobody has yet measured the latter, four days out. **A T5 pass over the
+remaining five roles is now the cheapest high-value thing on the board** — it is one evening, it
+needs no new code, and it just paid for itself on the first run.
+
+### The test layers week 3 was supposed to execute
+
+| Layer | State |
+|---|---|
+| **T3** role-gate & tenant isolation | 🟡 written, **unmerged** (#99). Covers DOCTOR only — one role of six |
+| **T4** PHI leakage | 🟡 partial. FLAG-203's client channel closed in unmerged #106; **the server-rendered channel is still open** — a phone still receives staff PII and aggregate clinical counts, byte-identical to a desktop |
+| **T6** role-journey UAT | ❌ **`docs/UAT-CHECKLIST-FE.md` was never written.** It was scheduled to be authored in week 2 and executed in week 3. Week 3 has passed |
+| **T7** live-env probes (the emailed-link tier test) | ❌ not run. It cannot be fully run until `beta.` exists |
+| **T8** accessibility & performance | ❌ not run |
+
+⚠️ **On T6 specifically, stated as a question rather than a claim:** the backend's UAT week (24–28 Aug)
+was scheduled to run role-by-role *through this UI*. **I cannot tell from this repo whether it
+happened** — the checklist that was meant to script it does not exist, and no defect log from it
+appears here. If it did run, its findings need to land somewhere before Thursday. **If it did not, we
+would be onboarding onto journeys nobody has walked end to end.** @Bastoh — this needs an answer from
+the backend team, not a guess from me.
+
+### 🔴 What actually stands between today and Thursday
+
+Ordered by what unblocks most, not by effort:
+
+1. 🔴 **Merge the six approved PRs.** #97, #98, #100, #102, #103, #104 are reviewed and mergeable
+   **today**. That alone closes **A7**, stands up `staging`, makes patients able to sign in, and gives
+   FLAG-005 observability. ⛓️ **#99 must merge as a merge commit, not a squash** — #100 is stacked on it.
+2. 🔴 **#99 needs its session fix.** A5 cannot close without it, and A5 is the "must close before PHI"
+   item. The regression is small and understood (`middleware.ts:49` documents the invariant it breaks);
+   the fix is an architecture choice about where the refresh happens.
+3. 🟠 **Then re-promote `staging` and attach `beta.`, in that order** — set the `staging`-scoped
+   `NEXT_PUBLIC_API_URL` to `api-beta` **before** attaching the domain, or `beta.` serves the beta host
+   against the dev backend. Both failure modes here are silent.
+4. 🟠 **Answer the T6 question above**, and land whatever UAT produced.
+5. 🟠 **FLAG-203's server channel** — closeable only after #99/#100 stop moving the six `page.tsx`
+   files, or explicitly accepted in `SECURITY_BASELINE.md` naming exactly what a phone still receives.
+
+### The decision this gate exists to force
+
+**The plan says onboarding slips or holds is decided here, not on onboarding morning.** On today's
+evidence I would not put real patient data on this build: authorization is still decided from a
+client-writable cookie on `develop`, and the security baseline that would let us accept the remaining
+risks in writing is not merged.
+
+**But the honest framing is that this is recoverable in days, not weeks**, and mostly by merging work
+that is already written and already reviewed. What is needed is a decision about **Sunday and Monday**
+— what merges, in what order, and who is available — rather than a decision to move 3 Sep.
+
+**That call is @Bastoh's and the owner's. I have measured; I have not chosen.**
+
+---
+
 ## 🚦 GATE 1 — assessment (due Fri 21 Aug · **run late, Sat 22 Aug, by @Qeeyat**)
 
 > **Verdict: 🔴 NO-GO for the backend's UAT week as scheduled.**
