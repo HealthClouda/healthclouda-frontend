@@ -34,6 +34,15 @@ export function Avatar({ firstName, lastName, src, size = 'md', className = '' }
 
   if (src) {
     return (
+      // FLAG-022 — deliberately a plain <img>, not next/image.
+      //
+      // `src` is an arbitrary URL served by the backend, so next/image would need
+      // `images.remotePatterns` in next.config.ts naming the API host. That host is
+      // PER TIER (api-dev / api-beta), and hardcoding a backend host into a config
+      // file is precisely what A2 purged and A4 exists to prevent. Fixing this
+      // properly is a tier-aware config change, not a component edit — so it is
+      // flagged and gated on, not silently rewritten four days before PHI.
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={abbr}

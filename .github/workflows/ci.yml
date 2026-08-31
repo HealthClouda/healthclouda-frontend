@@ -1,0 +1,141 @@
+name: CI
+
+# E8 / FLAG-006 — the three commands CLAUDE.md §5 calls non-negotiable, plus lint,
+# run automatically instead of by hand on every review.
+#
+# Until now every check in this repo was manual. That is not a theoretical cost:
+# on 2026-08-28 and again on 2026-08-30, six PRs each were re-verified by hand,
+# one at a time, because nothing else could say whether they were green.
+#
+# ⚠️ Adding this file does NOT by itself block a merge. Ruleset 11328360 enforces
+# one approving review on main/staging/develop, but these jobs only become a
+# MERGE GATE once they are added to that ruleset's required status checks. Until
+# someone does that in repo settings, they run for signal. Say so out loud rather
+# than let a green tick imply a gate that isn't wired up.
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Node 22 matches the machines this is developed on and satisfies the
+  # `engines.node` floor (>=20.9.0) that Next 15 requires.
+  NODE_VERSION: "22"
+
+  # 🔴 A deliberately UNROUTABLE placeholder, not a real tier.
+  #
+  # `next build` bakes NEXT_PUBLIC_API_URL in, so the job has to supply one — but it
+  # must never be a real host. `.invalid` is reserved by RFC 2606 and can never
+  # resolve, so a CI artefact can never accidentally talk to api-dev, and nobody can
+  # mistake a CI build for a deployable one. (Same instinct as the backend's
+  # `*@hcl-fixture.invalid` test logins.)
+  CI_PLACEHOLDER_API_URL: "https://api-ci.invalid/api/v1"
+  CI_PLACEHOLDER_SITE_URL: "https://ci.invalid"
+
+jobs:
+  verify:
+    name: tsc + tests + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci`, never `npm install`: it installs exactly the lockfile and fails
+      # if package.json and package-lock.json have drifted apart.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ env.CI_PLACEHOLDER_API_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.CI_PLACEHOLDER_SITE_URL }}
+        run: npm run build
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    # This job GATES rather than advises, which it can only do because the debt is
+    # zero. The backend learned the alternative the hard way (FLAG-370): a
+    # `continue-on-error` lint job carrying 79 findings is "a permanently-red check
+    # nobody could read, which also masked any NEW lint issue a PR introduced."
+    #
+    # `npm run lint` is `eslint . --max-warnings=0` — the SAME command locally and
+    # here, so a dev can never be green on their machine and red in CI.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+  tier-guard:
+    name: Build fails loud without a tier URL
+    runs-on: ubuntu-latest
+    # 🔴 This job protects A4, and A4 is what stands between us and the single
+    # failure mode the whole tier plan exists to prevent.
+    #
+    # `src/lib/config.ts` throws when NEXT_PUBLIC_API_URL is unset outside
+    # development, so a misconfigured deployment fails at BUILD time instead of
+    # shipping a UI that silently calls localhost and presents as "the backend is
+    # down". Nothing currently proves that guard still works — and it is exactly the
+    # kind of safety net a later refactor removes by accident, because deleting it
+    # makes builds *easier*.
+    #
+    # ⚠️ Note it asserts WHY the build failed, not merely that it did. A job that
+    # only checked the exit code would go green on any unrelated build breakage —
+    # a test that passes for the wrong reason, which is worse than no test.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with NEXT_PUBLIC_API_URL unset — must fail on the A4 guard
+        run: |
+          set +e
+          output="$(npm run build 2>&1)"
+          rc=$?
+          set -e
+
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::A4 REGRESSION — the build SUCCEEDED with NEXT_PUBLIC_API_URL unset."
+            echo "A deployed build could now silently point at localhost. See src/lib/config.ts."
+            exit 1
+          fi
+
+          if ! echo "$output" | grep -q "NEXT_PUBLIC_API_URL is not set"; then
+            echo "::error::The build failed, but NOT on the A4 fail-loud guard."
+            echo "This job proves nothing until that is fixed. Last 40 lines:"
+            echo "$output" | tail -40
+            exit 1
+          fi
+
+          echo "✅ A4 holds: the build failed with the fail-loud config error, as designed."
