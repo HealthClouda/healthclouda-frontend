@@ -54,6 +54,52 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 
 ---
 
+## 📥 Cross-Lane Asks — what is waiting on the other dev (added 2026-09-01)
+
+> **The inbox.** 🚧 In Flight says *what I am doing*. This says *what is waiting on you.* They are
+> different questions, and until today **nothing in this repo answered the second one.**
+>
+> **The rule: an escalation is not delivered until a row exists here.** Writing it in
+> `CODEBASE_FLAGS.md` is a catalogue entry. Writing it in your own session log is narrative. Saying
+> it out loud is nothing at all — **the other dev's assistant has no memory of your session, only the
+> text you leave in a place they are told to look.** Adding a row is one line; skipping it is how a
+> gate goes unnoticed.
+>
+> **Raise a row when** the work belongs to the other lane: it needs infra, secrets or spend you don't
+> hold, it's a product or design call, or it blocks you. **One sentence and a link** to the detail
+> (FLAG-xxx, PR, issue) — don't restate it here.
+>
+> **The owner clears the row, not the raiser.** ✅ Mark it done *and say where it landed* (PR number,
+> doc section, FLAG). If the ask also has a GitHub issue, **closing the issue is part of clearing the
+> row** — a row marked done while its issue stays open means the tracker says finished and GitHub
+> says open, and GitHub is what sends the email.
+>
+> **Read your own rows at session start** — they arrive with `HANDOFF.md`, ritual step 2. An open row
+> may outrank whatever you planned to start.
+>
+> 🎯 **Why this exists, concretely.** On 29 Aug @Qeeyat's Gate 2 said of the T6 journeys: *"I cannot
+> tell from this repo whether it happened… this needs an answer from the backend team, not a guess
+> from me."* The answer was already written down — in the **backend** repo's `docs/UAT-CHECKLIST.md`,
+> by @Bastoh, four days earlier. She waited three days on something that existed the whole time, in a
+> folder she does not open. **Ported from the backend repo, which has had this table since
+> 2026-07-31.**
+
+| For | From | Ask | Why it's theirs | Blocking? | Raised | Status |
+|---|---|---|---|---|---|---|
+| @Bastoh | @Qeeyat | **Send `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD`** out-of-band (never into this repo — **it is public**) | Credentials only he holds | 🔴 **Nurse and Patient are the only two dashboards nobody has ever rendered.** Four of the other six turned out to be reading stat fields the API never sends | 2026-09-01 | **OPEN** |
+| @Bastoh | @Qeeyat | **Fix #99 (A5/FLAG-001)** — the server gate logs every user out hourly | His branch, his lane | 🔴 The sprint plan's **must-close before PHI**, and **#100 is approved and stuck behind it** — until it lands patients cannot sign in at all | 2026-08-30 | **OPEN** |
+| @Bastoh | @Qeeyat | **Rebase #111 onto `develop`**, and fix its now-false *"there is still no CI"* clause while in there | Another dev's branch — she resolved both conflicts locally but **refused to force-push someone else's branch unattended** | 🟠 Approved but CONFLICTING. The resolution is written up in her handover below | 2026-09-01 | **OPEN** |
+| @Bastoh | @Qeeyat | **Wire CI into ruleset `11328360`'s required status checks** | Repo settings — owner only | 🟠 #116 merged so CI runs, but **the ruleset requires no checks**, so a green tick implies a gate that does not exist | 2026-09-01 | **OPEN** |
+| @Bastoh | @Qeeyat | **Decide #98** (`develop` → `staging`) | `[INFRA]` lane, and the beta runbook ordering is his call | 🟠 Held deliberately, **not forgotten**: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second | 2026-08-31 | **OPEN** |
+| @Qeeyat | @Bastoh | **Re-review #99** once the logout fix is pushed | Her change request stands until she clears it | 🔴 `dismiss_stale_reviews_on_push = false` — **pushing the fix did not clear the block**, and GitHub refuses a merge over a standing change request. Nothing behind #99 moves until she re-reviews | 2026-08-30 | **OPEN** |
+| @Qeeyat | @Bastoh | **#118 fix incoming** — her block was correct; "13/13" was the `chromium` project alone | His PR, his error | 🟢 Not blocking her | 2026-09-01 | **OPEN** |
+| 🔌 backend | @Bastoh | **Does `api-beta` exist?** Both `api-beta.healthclouda.com` and `beta.healthclouda.com` were **NXDOMAIN** on 2026-09-01 | Their infra | 🔴 **Blocks the beta promotion.** We will not point `beta.` at `api-dev` — that is the tier-crossing that presents as *"the invite is broken"* | 2026-09-01 | **OPEN** — asked in backend [PR #160](https://github.com/HealthClouda/healthclouda-backend/pull/160) §7 |
+| 🔌 backend | @Bastoh | **Publish response bodies in the schema** — of the 84 GETs documenting a `200`, **48 document no body** (57%), including `/auth/me/` and every dashboard stats endpoint | Only `drf-spectacular` annotations on their serializers can fix it | 🔴 **This is the root cause of four dashboards shipping stat tiles bound to fields the API never sends** | 2026-09-01 | **OPEN** — backend PR #160 §7 |
+| 🔌 backend | @Bastoh | **A grace window for just-rotated refresh tokens** | SimpleJWT blacklist behaviour — **unfixable from our side**: the loser's request was already in flight before the winner's new token existed | 🟠 Symptom is a user logged out mid-consultation | 2026-09-01 | **OPEN** — backend PR #160 §7 |
+| 🔌 backend | @Bastoh | **Tell them the UI half of T6 was never walked** — their `docs/UAT-CHECKLIST.md` records 20 blocked steps → 6, but **those steps are API-level `curl`** | Shared — they believe the journeys are proven end to end | 🟠 They may go into onboarding believing the UI is exercised | 2026-09-01 | **OPEN** — stated in backend PR #160 §7 |
+
+---
+
 ## 🚦 GATE 2 — assessment (due Fri 28 Aug · **run late, Sat 29 Aug, by @Qeeyat**)
 
 > **Verdict: 🔴 NO-GO for onboarding Thu 3 Sep as the repo stands today.**
