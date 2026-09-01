@@ -230,6 +230,26 @@ When reviewing anything — including your own work before you open the PR — p
 
 ---
 
+### Your AI assistant's config — `.claude/`
+
+Both of us drive this repo through an AI assistant, so the assistant's setup is project setup.
+
+| File | Committed? | What it is |
+|---|---|---|
+| `.claude/settings.json` | ✅ **yes** | **Shared** project config. Pre-approves the read-only commands this repo runs constantly — `tsc --noEmit`, `npm test`, `npm run build`, lint, Playwright, read-only `git`/`gh`, and fetching the public API schema — so neither dev spends their session approving the same six commands. |
+| `.claude/settings.local.json` | ❌ gitignored | **Yours alone.** Personal grants. Never commit it — your permission decisions must not silently become the other dev's. |
+
+**The deny list is the part to read before you change anything.** It blocks reading `.env*` and
+`API-doc.md` (both gitignored and both carrying values that must not enter a transcript — **this repo
+is public**), blocks `git push --force`, and blocks `playwright test --update-snapshots`, because
+silently rewriting a design baseline turns a real visual regression into a green check.
+
+**Adding to the allow list:** read-only and verification commands are fine — add them and say so in
+your PR. Anything that writes, deploys, or spends money stays out, and belongs in your own
+`settings.local.json` if you want it at all.
+
+---
+
 ## 6. Where things live
 
 ```
