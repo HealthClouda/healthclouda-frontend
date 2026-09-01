@@ -173,8 +173,44 @@ for (const vp of VIEWPORTS) {
 }
 ```
 
+
+### Coverage, and what is NOT covered
+
+| Spec | Roles | State |
+|---|---|---|
+| `superadmin.spec.ts` | Superadmin (DASH-1) | ✅ |
+| `roles.spec.ts` | Org Admin (DASH-2), Receptionist (DASH-4), Doctor (DASH-5) | ✅ added 2026-08-31 |
+| `smallscreen.spec.ts` | FLAG-203 gate, with real CSS | ✅ |
+| — | **Nurse (DASH-3)** | ❌ **no `E2E_NURSE_*` credentials exist** |
+| — | **Patient (DASH-6)** | ❌ no credentials, **and** a patient cannot sign in until FLAG-210 (#100) merges |
+
+⚠️ **Two dashboards have therefore still never been rendered by anyone.** Nothing currently proves
+they are free of the stat-tile contract bug that has now been found on four of the six
+(FLAG-222, FLAG-227). Do not read a green harness run as "the dashboards are verified" — read it as
+"the four we can log into are."
+
+### The assertion that matters more than the pixels
+
+`roles.spec.ts` checks that **no stat tile renders `—` or `NaN` once data has loaded.**
+
+`StatCard` renders `{value ?? '—'}`, so an em dash is the signature of the component reading a field
+the backend never sent. That fault is invisible to both other layers we have: unit fixtures are typed
+from the same wrong interface and agree with the bug, and the schema documents `200: No response body`
+for all eleven stats endpoints (FLAG-225). **A live render is the only layer that can see it** — which
+is why this check found FLAG-227 on the first Doctor run.
+
+When it fails, **capture the live payload and retype the interface. Never add the field to the
+fixture** — that is precisely how the bug survives a green suite.
+
 **Mask anything that legitimately changes** — timestamps, "2 minutes ago", live counts — or the
 harness cries wolf on every run and you'll start ignoring it.
+
+🚨 **Never run this harness against `api-beta`, and never commit a baseline captured from it.**
+These PNGs are screenshots of patient records. Today that is safe — `api-dev` is synthetic seed data
+and this repo is **public**. From **3 Sep** `api-beta` carries **real PHI**, and a baseline captured
+against it would commit patient data to a public git history, where deleting the file does not remove
+it. `NEXT_PUBLIC_API_URL` in your `.env.local` decides which backend you just photographed — check it
+before `--update-snapshots`, not after.
 
 **Commit the reference screenshots.** They're the record of what "correct" looked like; a diff in a
 later PR is then a real signal.
