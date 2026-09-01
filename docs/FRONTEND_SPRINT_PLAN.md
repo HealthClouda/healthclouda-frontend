@@ -62,29 +62,36 @@ builds the design on top of already-correct behaviour.
 
 ## Part 1 — Everything that needs to be done
 
+> 📅 **State columns refreshed 2026-08-30.** They had read as they did on 10 Aug — every A-item
+> "open", every dashboard unbuilt — for three weeks, which made this table look like a backlog when
+> most of it had shipped. Each cell below now names the PR or the measurement it rests on. Anything
+> marked ✅ was verified, not assumed; anything 🔄 is written and in review, not done. **`HANDOFF.md`
+> is still the live view** — this is a plan with its progress recorded, not a status board.
+
+
 ### A. 🔴 Tier 1 — the gate (nothing real enters until these are green)
 
 | # | Item | Lane | State |
 |---|---|---|---|
-| A1 | **Tier separation live** — `dev.` → `api-dev`, `beta.` → `api-beta`, apex marketing-only. Per-env var, never hardcoded | infra | ❗ open — **the E5 hard gate** |
-| A2 | **Stale host purge** — `next.config.ts:3` (dead railway host in CSP), `src/app/layout.tsx:12` (`metadataBase`), `.env.example`, `design_handoff_prelogin/README.md` | infra | open — half a day |
-| A3 | **Cookie scoping** — do **NOT** set `COOKIE_DOMAIN=.healthclouda.com`. A dot-prefixed parent shares cookies across every subdomain, so a dev session cookie would be sent to beta and production. Host-only (current default) keeps tiers isolated. Documented in `.env.example` but never read in code → delete the footgun | infra | open — 🔴 security |
-| A4 | **Fail loudly on missing config** — `config.ts:16` falls back to `http://localhost:8000/api/v1`. In a deployed build that fails silently. Must throw at build time outside development | infra | open — small |
-| A5 | **FLAG-001 — authorization decided from a client-writable cookie.** `hc_user` is `httpOnly:false` yet every role gate reads it (`[slug]/doctor/page.tsx:11` + 5 siblings, `middleware.ts:68`). A tampered cookie reaches another org's dashboard shell | infra | open — 🔴 must close before PHI |
-| A6 | **Remove the org-admin consent bypass** — `OrgAdminDashboard.tsx:260` still calls `ORG_ADMIN_ACCESS_REVIEW`, which the backend **removed as a security fix** because it bypassed patient consent (audit ORGADMIN-1). Keep the read-only list | infra | open — 🔴 small, ship early |
-| A7 | **`SECURITY_BASELINE.md`** — the PHI baseline scoped 2026-08-09. Drives `BETA_READINESS.md` Tier 1 | infra | open |
-| A8 | **Backend must tier `FRONTEND_URL` too** — cross-repo `api-request` issue. Tier separation only works if both sides are tiered | infra | ❗ **file day one — their work, our blocker** |
+| A1 | **Tier separation live** — `dev.` → `api-dev`, `beta.` → `api-beta`, apex marketing-only. Per-env var, never hardcoded | infra | 🟡 **partial (30 Aug)** — `dev.` live and authenticating against `api-dev`; **`beta.` does not resolve**; apex serves a 13 Jul build (FLAG-018). Still the E5 hard gate |
+| A2 | **Stale host purge** — `next.config.ts:3` (dead railway host in CSP), `src/app/layout.tsx:12` (`metadataBase`), `.env.example`, `design_handoff_prelogin/README.md` | infra | ✅ **done** — PR #65 (12 Aug). Re-verified at Gate 2 against the *served* artifact: 0 hits for `railway.app` |
+| A3 | **Cookie scoping** — do **NOT** set `COOKIE_DOMAIN=.healthclouda.com`. A dot-prefixed parent shares cookies across every subdomain, so a dev session cookie would be sent to beta and production. Host-only (current default) keeps tiers isolated. Documented in `.env.example` but never read in code → delete the footgun | infra | ✅ **done** — PR #65. Verified live: all three cookies host-only and `Secure`, no `Domain=` on any of them |
+| A4 | **Fail loudly on missing config** — `config.ts:16` falls back to `http://localhost:8000/api/v1`. In a deployed build that fails silently. Must throw at build time outside development | infra | ✅ **done** — PR #65. Evidenced the hard way: it is what failed every Vercel build until the env vars were set |
+| A5 | **FLAG-001 — authorization decided from a client-writable cookie.** `hc_user` is `httpOnly:false` yet every role gate reads it (`[slug]/doctor/page.tsx:11` + 5 siblings, `middleware.ts:68`). A tampered cookie reaches another org's dashboard shell | infra | 🔄 **fix written, in review — PR #99.** Server-trusted role **and** tenant gate, plus the session-resume fix. 🔴 Still the one "must close before PHI" item |
+| A6 | **Remove the org-admin consent bypass** — `OrgAdminDashboard.tsx:260` still calls `ORG_ADMIN_ACCESS_REVIEW`, which the backend **removed as a security fix** because it bypassed patient consent (audit ORGADMIN-1). Keep the read-only list | infra | ✅ **done** — PR #65 (12 Aug) |
+| A7 | **`SECURITY_BASELINE.md`** — the PHI baseline scoped 2026-08-09. Drives `BETA_READINESS.md` Tier 1 | infra | ✅ **done** — `docs/SECURITY_BASELINE.md`, PR #102, merged 30 Aug |
+| A8 | **Backend must tier `FRONTEND_URL` too** — cross-repo `api-request` issue. Tier separation only works if both sides are tiered | infra | ✅ **done** — backend [#107](https://github.com/HealthClouda/healthclouda-backend/issues/107) closed. Needs re-checking per tier when `api-beta` exists |
 
 ### B. 🟠 Standing up the tiers (infra)
 
 | # | Item | Notes |
 |---|---|---|
-| B1 | Vercel Domains: `dev.` → branch `develop`, `beta.` → branch `staging`, apex + `www` → `main` | Branch-mapped via the "Git Branch" field |
-| B2 | **DNS records requested day one** — DNS is held outside Vercel (Cloudflare/registrar) | 🔴 **longest lead item.** Propagation gates the 24 Aug target |
-| B3 | Env vars per environment: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` | `api-beta` does not exist until 31 Aug — beta must be **deployable before it exists** |
-| B4 | `staging` branch cut from `develop` post-Gate-2 | Mirrors the backend's B1 promotion |
-| B5 | Confirm Vercel deployment protection doesn't block the beta org's testers | Preview URLs currently 401 |
-| B6 | Settle `hello@healthclouda.ng` vs `.com` — app and designs say `.ng`, infra is `.com` | `src/app/page.tsx:518` + design files |
+| B1 | Vercel Domains: `dev.` → branch `develop`, `beta.` → branch `staging`, apex + `www` → `main` | ✅ **done** — `dev.` → `develop` is live. `beta.` blocked on B4 + DNS |
+| B2 | **DNS records requested day one** — DNS is held outside Vercel (Cloudflare/registrar) | ✅ **done for `dev.` and the apex.** `beta.healthclouda.com` still NXDOMAIN as of 30 Aug — the remaining half |
+| B3 | Env vars per environment: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` | 🟡 **dev tier set and live.** The `staging`-scoped value waits on `api-beta` (31 Aug). ⚠️ Set the var **before** attaching `beta.`, or the beta host serves against the dev backend — both failure modes are silent |
+| B4 | `staging` branch cut from `develop` post-Gate-2 | 🔄 **PR #98 open, approved.** Until it merges, `staging` still holds the **12 Apr vanilla-JS app** |
+| B5 | Confirm Vercel deployment protection doesn't block the beta org's testers | ❗ **open — FLAG-017.** Deployment protection is currently OFF; decided to re-enable at beta stand-up rather than today |
+| B6 | Settle `hello@healthclouda.ng` vs `.com` — app and designs say `.ng`, infra is `.com` | open — `src/app/page.tsx:518` + design files |
 
 **The tier map:**
 
@@ -111,25 +118,25 @@ first, RED-first tests where replacing broken behaviour, **screenshots in the PR
 
 | # | Item | Carries these workflows | Notes |
 |---|---|---|---|
-| D1 | **DASH-1 Superadmin + the shared shell** — `DashboardShell`, `StatCard`, `DataTable`, `Badge`, `SlidePanel`, `Modal`, `Toast`, `EmptyState`, `SmallScreenGate`, avatars | pending-invite resend | 🔴 **DASH-2…6 all depend on this.** Hard checkpoint Fri 14 |
-| D2 | **DASH-2 Org Admin** | **staff invite** (`full_name`, **lowercase** role), access-request list **read-only** | Lands *after* A6 removes the bypass |
-| D3 | **DASH-3 Nurse** | vitals (exists), ward/bed/admission | Lowest contract risk — good confidence builder |
-| D4 | **DASH-4 Receptionist** | 🔴 **registration (email OPTIONAL, phone REQUIRED when omitted)**, HCL-ID handout, **`has_portal_account` + send-portal-invite**, patient email edit, check-ins, appointments | The densest PHI-facing PR |
-| D5 | **DASH-5 Doctor** | episode create, prescription create, referrals | ⚠️ Referral workflow becomes ORG_ADMIN-managed **~20 Aug** — re-read Swagger first, don't build deep |
-| D6 | **DASH-6 Patient** | 🔴 **in-app consent approve/deny**, notifications, appointments | ⚠️ The **only** mobile-responsive dashboard — must NOT get `SmallScreenGate` |
+| D1 | **DASH-1 Superadmin + the shared shell** — `DashboardShell`, `StatCard`, `DataTable`, `Badge`, `SlidePanel`, `Modal`, `Toast`, `EmptyState`, `SmallScreenGate`, avatars | pending-invite resend | ✅ **merged** — PRs #67 (shell), #69 (overlays), #76 (Superadmin pages + T5 harness) |
+| D2 | **DASH-2 Org Admin** | **staff invite** (`full_name`, **lowercase** role), access-request list **read-only** | ✅ **merged** — #78, with the payload-shape fixes in #85 |
+| D3 | **DASH-3 Nurse** | vitals (exists), ward/bed/admission | ✅ **merged** — #86, including `useAllPages()` so the ward board stops capping at 20 beds |
+| D4 | **DASH-4 Receptionist** | 🔴 **registration (email OPTIONAL, phone REQUIRED when omitted)**, HCL-ID handout, **`has_portal_account` + send-portal-invite**, patient email edit, check-ins, appointments | ✅ **merged** — #94. The HCL-ID handout followed in **#107** (in review) once FLAG-216 was disproven |
+| D5 | **DASH-5 Doctor** | episode create, prescription create, referrals | ✅ **merged** — #90/#91/#95. ⚠️ Referral accept/decline moved to **ORG_ADMIN** (FLAG-220) and was built there in #104, not here |
+| D6 | **DASH-6 Patient** | 🔴 **in-app consent approve/deny**, notifications, appointments | ⚠️ **built, never rendered by anyone.** Patients cannot sign in until **#100** lands (FLAG-210). Audited against the schema instead — FLAG-223/224/226 in #110 |
 
 ### E. 🟢 Contract & app layer (default @Bastoh, lands ahead of the DASH PR that styles it)
 
 | # | Item | Notes |
 |---|---|---|
-| E1 | **FLAG-004 — invented query params.** `DoctorDashboard.tsx:56` `?today=true` is silently ignored; `:58` `?status=OPEN` — enum is `ACTIVE`, so the panel is always empty | Small, verifiable → 🎓 **Qeeyat's first PR** |
-| E2 | Registration + portal-invite data layer — endpoints, types, proxy routes, 400/404/409 handling | Ahead of D4 |
-| E3 | Patient consent data layer — `PATIENT_ACCESS_REQUEST` PATCH wiring | Ahead of D6 |
-| E4 | Announcements — re-add `ORG_ANNOUNCEMENTS` (public, paged, `is_public`), wire into the existing empty state | Endpoint now exists |
-| E5 | Notifications — staff + patient lists, unread count, mark-read, read-all (`STAFF_NOTIFS`, `PATIENT_READ_ALL`: **zero uses** today) | Backend delivery goes live this sprint |
-| E6 | Envelope type narrowing — `useApi<Ward[] \| Paginated<Ward>>` hedges resolved against Swagger | |
-| E7 | `serverFetch` swallows all failures as `null` (FLAG-005) — error ≠ empty, nothing logged | Production incidents would be invisible |
-| E8 | ESLint config + GitHub Actions CI (FLAG-006) — `next lint` has **never run**; there is **no `.github/`** | Every check is manual today |
+| E1 | **FLAG-004 — invented query params.** `DoctorDashboard.tsx:56` `?today=true` is silently ignored; `:58` `?status=OPEN` — enum is `ACTIVE`, so the panel is always empty | ✅ **done** — #90 (`?status=ACTIVE`, and the invented `?today=true` removed) |
+| E2 | Registration + portal-invite data layer — endpoints, types, proxy routes, 400/404/409 handling | ✅ **absorbed into D4** (#94) rather than landing ahead of it — the contract-first order slipped here, recorded rather than hidden |
+| E3 | Patient consent data layer — `PATIENT_ACCESS_REQUEST` PATCH wiring | 🟡 `PATIENT_ACCESS_REQUEST` is wired at one call site, but **nobody has ever rendered the patient dashboard** (FLAG-210), so the flow is unverified end to end |
+| E4 | Announcements — re-add `ORG_ANNOUNCEMENTS` (public, paged, `is_public`), wire into the existing empty state | ❗ **open** — `ORG_ANNOUNCEMENTS` still has **zero** uses outside `config.ts` (measured 30 Aug) |
+| E5 | Notifications — staff + patient lists, unread count, mark-read, read-all (`STAFF_NOTIFS`, `PATIENT_READ_ALL`: **zero uses** today) | ❗ **open** — `STAFF_NOTIFS` and `PATIENT_READ_ALL` still have **zero** uses outside `config.ts` (measured 30 Aug) |
+| E6 | Envelope type narrowing — `useApi<Ward[] \| Paginated<Ward>>` hedges resolved against Swagger | 🟡 partly — `useAllPages` resolved the ward hedge. ⚠️ FLAG-223 says three patient endpoints return **bare arrays** while the code reads `.results` |
+| E7 | `serverFetch` swallows all failures as `null` (FLAG-005) — error ≠ empty, nothing logged | ✅ **done** — #103. `serverFetchResult()` reports why, and logs status + path only, never the body |
+| E8 | ESLint config + GitHub Actions CI (FLAG-006) — `next lint` has **never run**; there is **no `.github/`** | ❗ **open — FLAG-006.** There is still no `.github/`, `next lint` has still never run, and every gate is a dev running three commands locally |
 
 **Already handled — no work needed** (verified in code 2026-08-10): `setup-password/resend` +
 expired-link UI · `validate` org branding · consent `reason`/`requested_at` (typed, rendered
@@ -139,8 +146,8 @@ conditionally, light up automatically when the backend ships them) ·
 
 ### F. 🟢 Docs (everyone)
 
-`HANDOFF.md` restructure (durable state + 🚧 In Flight + BACKEND CONTRACT NOTES) · migrate narrative
-to `HANDOFF-Bastoh.md` · `ARCHITECTURE.md` rewrite (still describes the deleted vanilla app) ·
+✅ `HANDOFF.md` restructure (durable state + 🚧 In Flight + BACKEND CONTRACT NOTES) · ✅ migrate narrative
+to `HANDOFF-Bastoh.md` · ✅ **`ARCHITECTURE.md` rewritten 30 Aug and moved to `docs/` (ARCH-7 closed)** ·
 `TARGET_ARCHITECTURE_CHECKLIST.md` · `BETA_READINESS.md` · `ONBOARDING.md` updated with the new
 backend URL the moment it's confirmed.
 

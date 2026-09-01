@@ -91,7 +91,7 @@ the result to pick the correct session log and FLAG number range.
 | `HANDOFF-<Name>.md` | **Owner only** | That dev's session log — narrative, findings, decisions |
 | `CODEBASE_FLAGS.md` | Everyone, own range | Issues found and shortcuts logged |
 | `ONBOARDING.md` | Everyone | New-dev orientation |
-| `ARCHITECTURE.md` | Everyone | What is **actually built** |
+| `docs/ARCHITECTURE.md` | Everyone | What is **actually built** |
 | `TARGET_ARCHITECTURE_CHECKLIST.md` | Everyone | Current → target, dependency-ordered |
 | `BETA_READINESS.md` | Everyone | Prioritised backlog, Tier 1 → Tier 5 |
 
@@ -154,9 +154,9 @@ Slack, not a doc in this repo, not an assumption in code.
    ⚠️ Reading only your own **fails silently.** Nothing errors; you simply miss what the other dev
    did, duplicate their work, or contradict a decision they already made. This is the single
    easiest way to break the multi-dev workflow.
-4. **Read `ARCHITECTURE.md`** — what actually exists. ⚠️ Currently **stale wholesale** (ARCH-7): it
-   still describes the vanilla-JS app that was deleted in July. Read it for history, not for truth,
-   until it is rewritten.
+4. **Read `docs/ARCHITECTURE.md`** — what actually exists. ✅ **Rewritten 2026-08-30**, closing
+   ARCH-7: it had described the vanilla-JS app deleted in July for eleven weeks. It now documents
+   `develop` as it stands, and marks what is approved-but-unmerged as pending rather than done.
 5. **Read `docs/FRONTEND_SPRINT_PLAN.md`** — the dated plan to the 3 Sep beta onboarding, and the
    nearest thing this repo has to a live backlog. Read the current week's row.
 6. **Read `CODEBASE_FLAGS.md`** — open issues and logged shortcuts, including anyone else's range.
@@ -186,7 +186,7 @@ It is written for both of you.
 2. **Update `HANDOFF-<YourName>.md`** — new dated entry at the top.
 3. **Update `HANDOFF.md`** if durable state changed (In Flight rows, env/deploy facts, backend
    contract notes).
-4. **Update `ARCHITECTURE.md`** if routes, components, state, or the API layer changed.
+4. **Update `docs/ARCHITECTURE.md`** if routes, components, state, or the API layer changed.
 5. **Update `CODEBASE_FLAGS.md`** with anything noticed but not fixed.
 6. **Tick off `TARGET_ARCHITECTURE_CHECKLIST.md` / `BETA_READINESS.md`** items that are now done —
    only where the "Done when" is genuinely satisfied.

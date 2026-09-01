@@ -1,5 +1,15 @@
 # Contract Audit — Frontend vs Backend (2026-07-03)
 
+> ⚠️ **HISTORICAL — a point-in-time audit, partly superseded. Do not treat as the contract.**
+>
+> Captured 2026-07-11 against the API as it was then. Several claims in it have since been
+> disproven against the live schema, and it predates the backend host move, the ORG_ADMIN referral
+> change, and the seeding of the dev tier. It is preserved because it records *how* the contract
+> seam was first mapped, and several flags cite it.
+>
+> 🔑 **The single source of truth is the live `/api/v1/schema/`**, which needs no authentication.
+> Never resolve a contract question from this file. Archived 2026-08-30 (FLAG-009).
+
 > Phase 1 deliverable: every finding from the 5-lens audit of the Next.js rewrite against the
 > backend contract (FRONTEND_HANDOFF.pdf 2026-07-03 + live OpenAPI schema + live Docker backend).
 > This is the Phase 2 work queue. Check items off as PRs land.
