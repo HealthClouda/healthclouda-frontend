@@ -60,6 +60,86 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-08-31 / 2026-09-01 — nine PRs merged, the T5 pass found FLAG-227, and a full review round (branches: docs/clear-in-flight-2026-08-31, feat/t5-remaining-dashboards)
+
+**Goal:** clear the merge backlog Gate 2 called the real blocker, then extend the T5 harness past
+Superadmin. Both happened. Ended up also reviewing all seven of @Bastoh's open PRs.
+
+**What I did:**
+- **Merged nine PRs.** 31 Aug: #106, #110, #108, #105. 1 Sep: #116, #117, #113, #119, #112. Every
+  one trial-merged locally and re-verified before merging rather than trusted from the PR body.
+  `develop` ends at **tsc clean · lint clean · 192/192 · build green · middleware 35.4 kB**.
+- **Built the T5 pass for Org Admin, Receptionist and Doctor** (`e2e/design/roles.spec.ts`, PR #115).
+  23 tests, green across three consecutive runs. **Found FLAG-227 on the first Doctor render.**
+- **Reviewed all seven of @Bastoh's PRs**: approved #116, #117, #111, #112, #113, #119; requested
+  changes on #118.
+- Recorded the schedule change (onboarding → Sat 5 Sep, still working to Thu 3 Sep).
+
+**What I found:**
+
+- 🎯 **The em dash is the assertion, not the screenshot.** `StatCard` renders `{value ?? '—'}`, so an
+  em dash in a tile *is* the signature of reading a field the backend never sent. That class is
+  invisible to unit tests (fixtures typed from the same wrong interface) and to the schema
+  (`200: No response body` on all eleven stats endpoints). **A live render is the only layer that can
+  see it.** It found FLAG-227 immediately: Doctor's `appointments_today` is really
+  `todays_appointments`, and `active_prescriptions` **has no equivalent field at all**. Fourth
+  dashboard with this bug. Org Admin and Receptionist verified correct against live payloads.
+- 🎯 **My first version of that test under-reported, and the reason generalises.** It asserted inside
+  the loop, so it stopped at the first bad tile — "Appointments Today" masked "Prescriptions" being
+  broken the same way. **A test that aborts on the first failure tells you there is a problem, not
+  how big it is.** Now it collects all failures and reports them together.
+- 🎯 **My locator matched a *correct* tile.** `> p` caught the delta paragraph as well as the value,
+  so the receptionist's "Pending Assignment" failed with `count: 2`. I nearly filed it as a product
+  bug; the live payload proved the tile was right and my selector was wrong. **`> p.tabular-nums`.**
+- 🎯 **Three times in the review I nearly filed a false finding, and every time the tooling was
+  wrong, not his code.** `actions/checkout@v7` "doesn't exist" (it does — the runs are green);
+  coverage at 5.12% (I had chained the run behind `npm install`; two clean runs both give 55.64%);
+  four broken markdown links in #112 (my resolver worked from the repo root instead of each file's
+  directory — all four resolve). **On this repo, measure before you report — including measuring your
+  own measurement.** I put each false alarm in the review record rather than quietly dropping it.
+- 🪤 **`gh pr merge --delete-branch` on a stack parent CLOSES the stacked child.** #106's merge
+  deleted its branch and GitHub closed #109 two seconds later. Recovery is a deadlock until you see
+  it: a closed PR cannot be reopened while its base branch is missing, and its base cannot be changed
+  while it is closed. Restore the ref from the merge commit's second parent, reopen, retarget, delete
+  again. #109 came back with its review history intact. **Later verified the fix: merging a stack
+  parent WITHOUT `--delete-branch` retargets the child properly** — #116→#117 and #113→#119 both did.
+- **#118 claims 13/13; the default command gives 24/26.** `playwright.config.ts` has two projects and
+  `mobile` only ignores `e2e/design/`, so it runs the landing/auth specs too. Blocked it, because
+  that PR exists to unblock e2e-in-CI and would have put the next person into a red-on-day-one suite.
+- **CI exists now but gates nothing.** Ruleset 11328360 carries no required status checks. @Bastoh
+  says so honestly in the YAML, but it means a green tick implies a gate that isn't wired up.
+- **FLAG-021 is a fair hit on my #106.** The gate can't stop a `useApi` in the *parent* of
+  `DashboardShell`. My "React doesn't run hooks until rendered" reasoning is true of `children` and
+  not of the component doing the rendering. Took it.
+
+**Decisions:**
+- **Logged FLAG-227 rather than fixing it**, per §6 — with `test.fail()` carrying the flag number, so
+  the suite stays honest instead of permanently red **and turns red when someone fixes the source**.
+  A knowingly-red test is how FLAG-221 survived two weeks.
+- **Held #98** (B4 promotion) rather than merging it: `[INFRA]` lane, and the beta runbook needs the
+  `staging` env override before the domain. Approved and waiting on @Bastoh, not forgotten.
+- **Blocked #118 rather than filing the gap.** @Bastoh's own 28 Aug reversal argues for caution about
+  blocking — but the claim in the PR title was measurably wrong in the direction that matters.
+- **Did not push my #111 rebase to his branch.** I resolved it locally and it works; force-pushing
+  another dev's branch unattended isn't mine to do. The resolution is written into `HANDOFF.md`.
+- **Added a warning against running the T5 harness against `api-beta`** — the baselines are
+  screenshots of patient records, this repo is public, and from 5 Sep that backend holds real PHI.
+
+**Verified:** `develop` after all nine merges — tsc clean, **lint clean** (the new gate), **192/192**,
+build green, middleware 35.4 kB. `roles.spec.ts` 23/23 green three runs running. FLAG-227 confirmed
+against a live capture of `/doctor/dashboard/stats/`, not inferred from the schema.
+
+**Left undone / next:**
+- [ ] 🔴 **Everything now needs @Bastoh** — see the handover block at the top of `HANDOFF.md`.
+- [ ] 🔴 **#99 → #100.** The must-close-before-PHI item, and a whole role blocked behind it.
+- [ ] 🔴 **Nurse credentials.** Nurse and Patient still rendered by nobody. Asked in #115, #116, #119.
+- [ ] 🟠 **FLAG-227** — fold into #109, or sequence after it. Both PRs are the same bug class.
+- [ ] 🟠 **FLAG-226** — still needs a live patient token, and is P0 if the capture shows unscoped
+      results. Blocked on #100 landing.
+- [ ] 🟠 **Gate 3 is Wed 2 Sep** — tomorrow. @Bastoh's #119 supplies the T6 answer I couldn't
+      evidence: the UAT steps are API-level curl, **not journeys through this UI**.
+
+
 ### 2026-08-29 — #96 unblocked at its source, then the whole review queue (branches: docs/schema-contract-guidance #96, docs/session-log-qeeyat-2026-08-29)
 
 **Goal:** clear @Bastoh's changes-requested on #96, then stop being the bottleneck — seven of his PRs
