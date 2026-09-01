@@ -697,6 +697,36 @@ Dropping `unsafe-eval` alone is a valid, smaller first step.
 
 ---
 
+### FLAG-022 — `Avatar` renders a remote `<img>`; next/image needs a per-tier host in `next.config.ts`
+**Severity:** P3 · **Area:** Performance / Config · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-31, landing the ESLint gate (E8 / FLAG-006)
+
+`src/components/ui/Avatar.tsx:37` renders a plain `<img src={src}>` when a user has an avatar URL.
+`@next/next/no-img-element` fires on it: no lazy-loading, no responsive `srcset`, no format
+negotiation, and it counts against LCP on every dashboard that shows a staff list.
+
+**Why it was not fixed in the same PR.** `src` is an arbitrary URL served by the backend, so
+`next/image` requires `images.remotePatterns` in `next.config.ts` naming the host that serves it —
+and **that host is per tier** (`api-dev` today, `api-beta` from 31 Aug, a production host later).
+Putting a backend host in `next.config.ts` is exactly what **A2** purged from that file and what
+**A4** exists to prevent: the file is not env-aware, so the value would either be hardcoded (wrong on
+two tiers out of three) or need a fourth environment variable that nothing else reads.
+
+So the real fix is a small tier-aware config decision, not a component edit — and it is not worth
+making that decision in the week real PHI arrives, on a P3.
+
+⚠️ **The rule is disabled at that single line, not repo-wide**, with a comment pointing here. The
+lint job gates at `--max-warnings=0`, so an undocumented `<img>` added later still fails CI. This is
+the one deliberate exception and it is visible in the diff.
+
+**Done when:** either `Avatar` uses `next/image` with `remotePatterns` derived from the same
+per-environment value as `NEXT_PUBLIC_API_URL` (never a literal host), **or** a written decision here
+records that a plain `<img>` is correct for avatars and the disable comment is made permanent with
+that reasoning. Verify by deleting the `eslint-disable-next-line` and running
+`npx eslint . --max-warnings=0`: it must pass.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
