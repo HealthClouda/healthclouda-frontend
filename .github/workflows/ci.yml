@@ -58,8 +58,15 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Tests
-        run: npm test
+      # B7: `--coverage` rather than a bare `npm test`. Same suite, same pass/fail
+      # behaviour, but the log now says WHICH parts of the app are exercised — the
+      # thing nobody could answer from "192 tests passed".
+      #
+      # No threshold is enforced yet. A number picked before anyone has seen the
+      # real one is either meaningless or red on day one, and FLAG-370 is the
+      # backend's record of what a red-from-day-one gate does to a team.
+      - name: Tests + coverage
+        run: npm run test:coverage
 
       - name: Build
         env:
