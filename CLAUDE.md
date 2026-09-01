@@ -160,14 +160,24 @@ Slack, not a doc in this repo, not an assumption in code.
 5. **Read `docs/FRONTEND_SPRINT_PLAN.md`** — the dated plan to the 3 Sep beta onboarding, and the
    nearest thing this repo has to a live backlog. Read the current week's row.
 6. **Read `CODEBASE_FLAGS.md`** — open issues and logged shortcuts, including anyone else's range.
-7. **Then ask the user what they want to work on.** Not before.
+7. **Read `BETA_READINESS.md`** — the prioritised Tier 1–5 backlog and the **governing PHI gate**.
+   Tier 1 is what must be green before real patient data reaches a browser. ✅ **Written 2026-09-01**
+   — it had been listed as required reading since this file was created while not existing, so every
+   session until now silently skipped it.
+8. **Then ask the user what they want to work on.** Not before.
 
-> ⚠️ **`TARGET_ARCHITECTURE_CHECKLIST.md` and `BETA_READINESS.md` do not exist yet.** They were
-> listed here as required reading from the day this file was written, so every session since has
-> silently skipped two steps — nothing errors, you just read nothing. They are still owed (sprint
-> plan section F; `BETA_READINESS.md` is also where A7's Tier-1 list is meant to land). Steps 5–6
-> above name what actually exists today. **When those two files are written, restore them here and
-> delete this note.**
+> ⚠️ **`TARGET_ARCHITECTURE_CHECKLIST.md` still does not exist.** It was listed here as required
+> reading from the day this file was written, so every session silently skipped it — nothing errors,
+> you just read nothing. **`BETA_READINESS.md` was the other half of that gap and is now written
+> (2026-09-01), restored as step 7 above.**
+>
+> The checklist is **derived from `BETA_READINESS.md`**, re-ordered by dependency and tagged to the
+> target pages in `docs/frontend-design.drawio` — that ordering is stated in the backend's own
+> checklist preamble, and it is why the two were not written together. **Do not port the backend's
+> copy of either file:** their architecture is Django/DRF and their gate is about data at rest in
+> Postgres; ours is about what reaches a browser and from which tier. Copying theirs would produce an
+> authoritative-looking document describing the wrong system. **When the checklist is written, add it
+> here and delete this note.**
 
 **If the dev is new to this repo, also read `ONBOARDING.md` in full** — and point them at it.
 It is written for both of you.
