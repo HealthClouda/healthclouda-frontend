@@ -39,6 +39,112 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-01 — Levelled the frontend against the backend: CI, lint, coverage, and the e2e suite nobody had run (branches: feat/e8-ci-eslint-gating, feat/b-test-infrastructure, fix/flag-024-stale-e2e-specs)
+
+**Goal:** started as the 31 Aug beta stand-up. Became a deliberate detour into tooling, after the
+owner asked what it would take to work both repos properly instead of alternating between them. The
+detour paid for itself before I wrote any code, and that is the useful part of this entry.
+
+**What I did:**
+- **PR #116 — E8/FLAG-006.** ESLint flat config + GitHub Actions CI, three jobs, gating at zero
+  findings. **This repo now has CI and it has run** — two green runs.
+- **PR #117 — B7 coverage** (stacked on #116). Baseline **55.64% statements**. Raised FLAG-023/024.
+- **PR #118 — FLAG-024.** e2e suite repaired, **9 failing → 13/13**. Raised FLAG-025.
+- **Held the required-status-checks flip** and wrote why on #116.
+- Read the backend repo properly for the first time from a frontend session.
+
+**What I found:**
+
+- 🎯 **The T6 answer Qeeyat needed was in my own backend repo.** Her Gate 2 said *"I cannot tell from
+  this repo whether it happened… this needs an answer from the backend team, not a guess from me."*
+  `docs/UAT-CHECKLIST.md`, last touched **27 Aug by me**: *"T6 re-run VERIFIED LIVE on api-dev — 20
+  blocked steps → 6."* And the precise answer is better than yes or no: **those steps are API-level
+  curl, not through this UI.** So the API journeys are walked and the **UI journeys are not.** She
+  waited three days on something that lived in the folder I was not in that day.
+- 🔴 **`FRONTEND_HANDOFF.md` — the designated cross-repo channel — is seven weeks stale** and still
+  names the dead Railway host as "SOURCE OF TRUTH". The one document whose entire job is crossing the
+  gap cannot be trusted by the person on the other side of it.
+- 🎯 **`BETA_READINESS.md` and `TARGET_ARCHITECTURE_CHECKLIST.md` exist — in the backend.** Frontend
+  `CLAUDE.md` has listed them as required reading since day one and says they do not exist. They do,
+  next door. We do not need to invent them; we need to port them.
+- **The backend was already ahead on every item I "discovered" the frontend needed:** `ci.yml`,
+  `ruff.toml`, 621 tests, `.claude/settings.local.json`. **I solved this once and it did not cross.**
+- 📊 **The lag has a direction.** Last 60 days: **207 backend commits, 77 frontend.** Roughly 73/27,
+  and the 27% side is the one with no CI, ten open PRs and A5 still open.
+- 🚨 **`next lint` was worse than "never run".** With no config it drops into an **interactive
+  prompt**, so in CI it would hang until the timeout rather than fail. FLAG-006 understated it.
+- 🔴 **FLAG-023: the proxy boundary has zero test coverage.** `/api/data` and `/api/action` — the
+  layer §5 says attaches the JWT server-side — are both 0%, as is every auth route. Nothing fails
+  today if the `if (!token)` guard is deleted. `security-headers.test.ts` mentions those paths, which
+  is exactly why a grep looks reassuring and coverage did not.
+- 🔴 **FLAG-024: 9 of 13 Playwright tests were failing on `develop`.** `npm test` is vitest only, the
+  e2e suite is in no ritual, so nothing reported it. Not environmental — identical result against
+  `api-dev` and against an unroutable host. The specs described the pre-redesign landing page.
+- **FLAG-025 is FLAG-203 one component over.** The mobile drawer is mounted unconditionally and
+  hidden with `translate-x-full`, so its controls stay in the accessibility tree and in tab order when
+  closed. No PHI, hence P3 — but the same mistake in two independently written components is a
+  pattern, not an accident, and the next instance may be somewhere that matters.
+- **Both devs commit under two git identities.** Qeeyat as `Qeeyat` and as `Mohammed Muteqeeyat
+  Wuraola` (34 of the last 60 days' commits), same email; Eric likewise. §4 identifies the dev via
+  `git config user.name`, so about a third of the time that returns a string matching no session log
+  and no FLAG range. It will not error — the assistant will simply guess. **Identify by email.**
+- **Eric authored this frontend** — phases 0–5 on 11 Jun, plus the initial commit in December. Last
+  touched it **12 Jun**. "Backend only" is true of today, not of history.
+
+**Decisions:**
+- **Held the required-status-checks flip rather than doing it when asked.** Measured first: `ci.yml`
+  is not on `develop`, so **0 of 3 checks report on any open PR**. Making them required would have
+  left all ten — including **#99** (the must-close-before-PHI item) and **#98** (beta promotion) —
+  stuck on *"Expected — waiting for status to be reported"*, two days before onboarding, and
+  unfixable until #116 merged, which needs a review I cannot give myself. Merge #116, then flip.
+  Written on the PR with the exact command so it is not rediscovered.
+- **Ignored `design_handoff_*/` in ESLint** — the directory where all 4 errors live. Verified rather
+  than assumed: all five `design_handoff` hits under `src/` are comments naming a design. Said
+  plainly in the config file, because ignoring the directory that contains every error looks like
+  hiding debt and deserves the reasoning next to it.
+- **Flagged Avatar's `<img>` instead of fixing it (FLAG-022).** `next/image` needs
+  `images.remotePatterns` naming a **per-tier** backend host in `next.config.ts` — precisely what A2
+  purged and A4 exists to prevent. A tier-aware config decision, not a component edit.
+- **Did not add e2e to CI in #117.** A 9/13-red suite is exactly FLAG-370's permanently-red check.
+  Fixed the specs first, in their own PR, so the job can be added to something green.
+- **Pinned `@vitest/coverage-v8` to 4.1.8.** Left uncapped, npm resolved ^4.1.11 and dragged **vitest
+  itself** from 4.1.8 to 4.1.11 — a test-runner bump two days before PHI, in exchange for a coverage
+  reporter.
+- **Restored the `libc` fields the local npm strips on every lockfile write** (44 packages). Verified
+  the JSON round-trip is byte-identical to npm's own formatting before touching it. Both lockfile
+  diffs are now pure additions, 0 deletions.
+- **#118 branched off `develop`, not stacked** — spec files only, no dependency. This log **is**
+  stacked on #113 so the entries stay chronological instead of both inserting at the top of one file.
+
+**Verified:** every claim above measured, not reported. #116: tsc clean · 192/192 · build green ·
+lint clean at `--max-warnings=0` · **CI green on its own PR, twice**. #117: the same, plus
+`npm ci --dry-run` exit 0. #118: **13/13 Playwright**, plus eslint run with #116's config borrowed so
+these files cannot turn that PR red on arrival. The A4 fail-loud guard is proved **in the real
+runner** — and my first local attempt at that test PASSED, because `.env.local` on disk supplied the
+value, so the job now asserts *why* the build failed rather than only that it did.
+
+**Left undone / next:**
+- [ ] 🔴 **Merge #116, THEN flip required status checks.** The exact command is on the PR. Until then
+      CI runs for signal only and nothing is actually gated.
+- [ ] 🔴 **`api-beta` and `beta.` are both still NXDOMAIN.** The 31 Aug row did not happen, and the
+      backend half does not exist either — confirm with them before spending a day on ours.
+- [ ] 🔴 **#99 still needs Qeeyat's re-review.** Unchanged since 30 Aug. A5 cannot close without it.
+- [ ] 🟠 **Tell the backend team the UI half of T6 was never walked.** I can answer their question now.
+- [ ] 🟠 **Refresh `FRONTEND_HANDOFF.md`** — the courier doc is the only thing that scales, since I am
+      the only person in both repos.
+- [ ] 🟠 **Port `BETA_READINESS.md` + `TARGET_ARCHITECTURE_CHECKLIST.md`** from the backend, then
+      restore them to `CLAUDE.md` §4 and delete the note saying they do not exist.
+- [ ] 🟠 **Parity list C–F** (docs, handoff structure, `.claude/` config, contract seam). **D15 — a
+      Cross-Lane Asks table in `HANDOFF.md`, which the backend already has — is the single highest
+      value item on it**, and is the exact hole the T6 answer fell through.
+- [ ] 🟠 **B8 second half** — the design specs need decisions, not fixes: real credentials in CI, and
+      baselines that are `*-chromium-win32.png` only.
+- [ ] 🟠 **B9 / FLAG-221 instance 3** still open, and it concerns #99.
+- [ ] 🟢 **Fix dev identification to key on email**, not `git config user.name`.
+- [ ] 🟢 Update **FLAG-024**'s status line once #117 and #118 have both landed.
+
+---
+
 ### 2026-08-30 — Fixed #99's hourly logout, reviewed Qeeyat's whole queue, and found out we have had a real merge gate all along (branches: fix/flag-001-server-trusted-auth, docs/branch-protection-and-flag-021, docs/stale-doc-sweep)
 
 **Goal:** unblock #99, merge #100 and #98 behind it, then clear Qeeyat's six open PRs. The first
