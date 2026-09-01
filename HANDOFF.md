@@ -18,24 +18,21 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **A5/FLAG-001** — server-trusted role **and** tenant gating | `fix/flag-001-server-trusted-auth` | `lib/auth-server.ts` (new), all six dashboard page gates | 2026-08-28 | 🔄 **PR #99**. ⛓️ **MUST merge as a merge commit, not a squash** — #100 is stacked on it |
-| @Bastoh | **FLAG-210** — slug-less `/patient` portal | `fix/flag-210-patient-portal` | `app/patient/*` (new), `app/[slug]/patient/*` (removed), `config.ts`, `router.ts`, `SigninForm`, `middleware` | 2026-08-28 | 🔄 **PR #100**, ⬆️ stacked on #99 |
-| @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion, fast-forward | 2026-08-28 | 🔄 **PR #98**. `staging` still holds the **12 Apr vanilla app** until this merges |
-| @Qeeyat | **Schema-reading guidance** | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🟡 **PR #96** — one bullet to reword; exact replacement text is in a comment on the PR |
-| @Qeeyat | **FLAG-203** — stop mounting staff dashboards below 768px + FLAG-221 | `fix/flag-203-small-screen-gate` | `SmallScreenGate`, all five staff dashboard gates, specs | 2026-08-29 | 🔄 **PR #106**. ⛓️ **MUST merge as a merge commit** — #109 is stacked on it |
-| @Qeeyat | **FLAG-222** — Superadmin stat tiles onto the fields the API sends | `fix/flag-222-dashboard-stats` | `SuperadminDashboard`, `types/dashboard.ts` | 2026-08-29 | 🔄 **PR #109**, ⬆️ stacked on #106 |
-| @Qeeyat | **Issue #101** — HCL-ID handout at registration | `feat/issue-101-hcl-id-handout` | `receptionist/*`, `types/dashboard.ts` | 2026-08-29 | 🔄 **PR #107**. Unblocked — FLAG-216 was derived from a schema documenting the request serializer as the response |
-| @Qeeyat | **Gate 2 assessment** (docs only) | `docs/gate-2-assessment` | `HANDOFF.md` | 2026-08-29 | 🔄 **PR #108** — 🔴 NO-GO verdict for 3 Sep as `develop` stood on 29 Aug |
-| @Qeeyat | **Session log 29 Aug** (docs only) | `docs/session-log-qeeyat-2026-08-29` | `HANDOFF-Qeeyat.md` | 2026-08-29 | 🔄 **PR #105** |
-| @Qeeyat | **Patient + Nurse contract audit** — FLAG-223/224/225/226 (docs only) | `docs/flags-patient-nurse-contract-audit` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-08-30 | 🔄 open. ✅ **Claimed before cutting the branch.** Docs only — **no source touched**, per `CLAUDE.md` §6 (review means flag, not fix). ⚠️ **FLAG-226 needs a live patient token to settle** and may be a P0 PHI leak |
-| @Bastoh | **E8 / FLAG-006** — CI + ESLint gating (parity item A1–A6) | `feat/e8-ci-eslint-gating` | `.github/workflows/ci.yml` (new), `eslint.config.mjs` (new), `package.json` | 2026-08-31 | 🔄 **PR #116** — ✅ CI green on its own run (3/3). ⚠️ **`next lint` is not merely unrun — it drops into an interactive prompt**, so it can never run in CI as-is; migrating to the ESLint CLI is part of the work. No source files touched |
-| @Bastoh | **B7** — coverage reporting (parity item B7) + FLAG-023/024 | `feat/b-test-infrastructure` | `vitest.config.ts`, `.github/workflows/ci.yml`, `package.json`, `.gitignore`, `CODEBASE_FLAGS.md` | 2026-09-01 | 🔄 open. ⬆️ **stacked on `feat/e8-ci-eslint-gating` (PR #116)** — needs its `ci.yml`. ⛓️ **#116 MUST merge as a merge commit, not a squash.** ⚠️ **B8 deliberately NOT built** — the e2e suite is 9/13 red (FLAG-024); adding it to CI would ship a permanently-red job |
-
+| @Bastoh | **A5/FLAG-001** — server-trusted role **and** tenant gating | `fix/flag-001-server-trusted-auth` | `lib/auth-server.ts` (new), all six dashboard page gates | 2026-08-28 | 🔴 **PR #99 — CHANGES_REQUESTED.** ⛓️ **MUST merge as a merge commit** — #100 is stacked. **The one item the sprint plan marks must-close before PHI, and the only thing blocking #100** |
+| @Bastoh | **FLAG-210** — slug-less `/patient` portal | `fix/flag-210-patient-portal` | `app/patient/*` (new), `config.ts`, `router.ts`, `SigninForm`, `middleware` | 2026-08-28 | ✅ **PR #100 APPROVED — cannot merge until #99 does.** Until it lands, patients cannot sign in and DASH-6 cannot be rendered by anyone |
+| @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held by @Qeeyat 31 Aug.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call, not mine** |
+| @Bastoh | **`CLAUDE.md` §3 branch-protection correction + FLAG-021** | `docs/branch-protection-and-flag-021` | `CLAUDE.md`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-08-30 | ✅ **PR #111 APPROVED but CONFLICTING** — needs a rebase onto `develop`. ⚠️ **@Bastoh must do this**: @Qeeyat rebased it locally and resolved both conflicts cleanly (additive, flag-number order), but pushing to another dev's branch was refused. See the note below |
+| @Bastoh | **FLAG-024** — repair the stale e2e specs | `fix/flag-024-stale-e2e-specs` | `e2e/auth.spec.ts`, `e2e/landing.spec.ts`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-01 | 🔴 **PR #118 — CHANGES_REQUESTED.** "13/13" is the `chromium` project alone; the default `npx playwright test` gives **24 passed / 2 failed** on the `mobile` project. Evidence on the PR |
+| @Qeeyat | **Schema-reading guidance** | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🔴 **PR #96 — CHANGES_REQUESTED.** One bullet to reword; replacement text is in a PR comment. **Open 7 days** |
+| @Qeeyat | **FLAG-222** — Superadmin stat tiles onto the fields the API sends | `fix/flag-222-dashboard-stats` | `SuperadminDashboard`, `types/dashboard.ts` | 2026-08-29 | 🔴 **PR #109 — CHANGES_REQUESTED.** ⚠️ No longer stacked — retargeted to `develop` 31 Aug after #106 merged. **Now also needs FLAG-227 (Doctor) folded in or sequenced after it** |
+| @Qeeyat | **Issue #101** — HCL-ID handout at registration | `feat/issue-101-hcl-id-handout` | `receptionist/*`, `types/dashboard.ts` | 2026-08-29 | 🔴 **PR #107 — CHANGES_REQUESTED** |
+| @Qeeyat | **T5 pass — Org Admin, Receptionist, Doctor** + **FLAG-227** | `feat/t5-remaining-dashboards` | `e2e/design/roles.spec.ts` (new) + 20 baselines, `CODEBASE_FLAGS.md`, `docs/DESIGN-VERIFICATION.md` | 2026-08-31 | 🟡 **PR #115 — awaiting @Bastoh's review.** Found **FLAG-227** on the first Doctor render. 🚨 **Nurse and Patient still unrendered by anyone** — needs `E2E_NURSE_*` credentials (@Bastoh) and #100 |
+| @Qeeyat | **In Flight cleanup + session log 31 Aug/1 Sep** | `docs/clear-in-flight-2026-08-31` | `HANDOFF.md`, `HANDOFF-Qeeyat.md` | 2026-08-31 | 🟡 **PR #114 — awaiting @Bastoh's review.** Docs only |
 > 📌 **Issue #101 is assigned to @Qeeyat:** the HCL-ID handout is buildable after all — `POST /patients/`
 > returns `{message, patient:{id, healthclouda_id}}`. FLAG-216 was derived from a schema that documents
 > the *request* serializer as the response.
 
-*Cleared on merge: **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
+*Cleared on merge: **#116** E8/FLAG-006 CI + ESLint gating · **#117** B7 coverage · **#113** + **#119** @Bastoh session logs · **#112** stale-doc sweep (ARCH-7 closed) — all five **reviewed and merged 2026-09-01 by @Qeeyat**, as merge commits. `develop` after all five: **tsc clean · lint clean (the new gate) · 192/192 · build green · middleware 35.4 kB**. Earlier the same round: **#106** FLAG-203/221 small-screen gate · **#110** FLAG-223/224/225/226 Patient contract audit · **#108** Gate 2 assessment · **#105** session log 29 Aug — merged 2026-08-31, each trial-merged and verified locally before merging rather than from the PR body (**192/192**). **#106 closed the worst PHI exposure in the repo** — staff dashboards no longer mount, fetch, or put records in the DOM below 768px. · **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
 (DashboardShell/StatCard/DataTable/Badge) — PR #67 · **D1 overlays**
 (SlidePanel/Modal/Toaster/EmptyState/SmallScreenGate) — PR #69 · In Flight row cleared — PR #70 ·
@@ -171,6 +168,50 @@ that is already written and already reviewed. What is needed is a decision about
 **That call is @Bastoh's and the owner's. I have measured; I have not chosen.**
 
 ---
+
+
+---
+
+## 🌙 Handed over to @Bastoh — end of @Qeeyat's session, 2026-09-01
+
+> Written because @Qeeyat is offline and everything below needs **@Bastoh**. Nothing here is
+> blocked on @Qeeyat returning; all of it is blocked on him.
+
+### 🔴 Do these first — in this order
+
+| # | Action | Why it's first |
+|---|---|---|
+| 1 | **Fix #99 (A5/FLAG-001)** — its server gate logs every user out after an hour | It is the item the sprint plan marks **must-close before PHI**, and **#100 is approved and stuck behind it**. Until #100 lands, patients cannot sign in at all and DASH-6 cannot be rendered by anyone. ⛓️ merge #99 as a **merge commit** |
+| 2 | **Send `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD`** (out-of-band, not in this repo) | **Nurse and Patient are the only two dashboards nobody has ever rendered.** Four of the other six turned out to be reading stat fields the API never sends. One message unblocks half of that gap |
+| 3 | **Rebase #111 onto `develop`** | Approved, but now CONFLICTING. See the note below — the resolution is already known |
+| 4 | **Wire CI into ruleset 11328360's required status checks** | #116 is merged, so CI runs — but the ruleset carries **no required status checks**, so a green tick currently implies a gate that does not exist. Repo settings; only you can do it |
+| 5 | **Decide #98 (B4 `develop` → `staging`)** | Approved and held deliberately, not forgotten — `[INFRA]` lane and beta-runbook ordering. The `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second |
+
+### 📌 #111 — the resolution is already worked out, you just have to apply it
+
+@Qeeyat rebased it locally onto `develop` and both conflicts resolved cleanly and **additively**:
+
+- **`HANDOFF.md`** — In Flight rows: keep both sides, nothing dropped.
+- **`CODEBASE_FLAGS.md`** — your FLAG-021 and the merged FLAG-022/023/024 collided. Keep both, **in flag-number order** (021 before 022).
+
+The rebase succeeded and preserved your authorship. **Pushing it to your branch was refused** — force-pushing another dev's branch is not something an assistant should do unattended — so it is yours to redo. It is five minutes.
+
+⚠️ **One thing to fix while you are in there:** #111's new `CLAUDE.md` text ends with *"there is still **no CI** (FLAG-006)"*. **#116 merged, so that clause is now false** before it has even landed.
+
+### 🔴 Two reviews came back CHANGES_REQUESTED — both yours
+
+- **#118** — "9 failing, now 13/13" is the `chromium` project alone. `npx playwright test` gives **24 passed / 2 failed** on the `mobile` project, reproducibly. It matters because this PR exists to unblock e2e-in-CI, and merged as green it puts the next person straight into a red-on-day-one suite. Two small fixes offered on the PR.
+- **#96** — still one bullet to reword, **open 7 days**.
+
+### 🟡 Two PRs of @Qeeyat's need your review
+
+**#115** (T5 pass + FLAG-227) and **#114** (this file). #115 is the one that matters: it found **FLAG-227** on the first-ever render of the Doctor dashboard — two of four stat tiles reading fields `/doctor/dashboard/stats/` does not return.
+
+### 🪤 A trap that cost real recovery work — do not repeat it
+
+**`gh pr merge --delete-branch` on a stack parent CLOSES the stacked child.** Merging #106 that way deleted its branch and GitHub closed #109 two seconds later. Recovery is possible but non-obvious (a closed PR cannot be reopened while its base is missing, and its base cannot be changed while it is closed) — the sequence is written up further down this file.
+
+✅ **Merging a stack parent WITHOUT `--delete-branch` retargets the child correctly.** Verified today on #116→#117 and #113→#119: both children auto-retargeted to `develop` and stayed open. **That is the pattern to use.**
 
 ## 🚦 GATE 1 — assessment (due Fri 21 Aug · **run late, Sat 22 Aug, by @Qeeyat**)
 
