@@ -869,6 +869,51 @@ should not be bundled into the same change.
 
 ---
 
+### FLAG-026 — The hourly-logout fix depends on a backend token lifetime we neither control nor can see
+**Severity:** P3 · **Area:** Auth / Session · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-02, reviewing PR #99 before its re-review
+
+PR #99's middleware resume fires on exactly one condition: the access **cookie** is absent and the
+refresh cookie is present (`middleware.ts`). That works because the cookie and the token it carries
+expire at the same time — and those two numbers are set in **different repositories**.
+
+```ts
+// src/lib/auth.ts:19
+maxAge: 60 * 60, // 1 hour — matches DRF default access token lifetime
+```
+
+The comment is honest about what it is: a **default** on the backend, changeable there with no
+signal here. Two consequences follow, and the second is the one that matters.
+
+**1. A narrow skew window exists today.** The token's clock starts when the backend mints it; the
+cookie's clock starts a few hundred milliseconds later, when our login route writes the response.
+The token therefore dies *first*, by the round-trip time. A request landing in that gap carries a
+live cookie and a dead token: middleware sees a cookie so it does not resume,
+`requireDashboardUser()` gets a 401 from `/auth/me/`, `serverFetch` returns `null` (FLAG-005), and
+the user is redirected to signin. Low probability — sub-second per hour per user — but it is the
+exact failure #99 exists to remove, not a new one.
+
+**2. If the backend ever shortens `ACCESS_TOKEN_LIFETIME`, the hourly logout returns in full.**
+The cookie would then outlive the token by the whole difference, and every request in that widening
+window takes the path above. Nothing here would change, no test would fail, and CI would stay green:
+the frontend has no way to observe the backend's token lifetime, and — per FLAG-225 — the schema
+does not publish it either. It would present as *"the app keeps logging me out"*, the same symptom
+@Qeeyat traced on this PR, arriving with no code change to blame.
+
+⚠️ **This is not a security hole and it is not a reason to hold #99.** It fails closed, which is the
+safe direction, and #99 is a large net improvement over authorizing from a client-writable cookie.
+It is logged rather than fixed because re-opening a settled security PR the week PHI arrives is the
+worse trade — `CLAUDE.md` §6: during a review, the output is a written record.
+
+**Done when:** middleware decides freshness from the token's **own `exp` claim** rather than from
+cookie presence — decode the access token (no signature verification needed; it is only a freshness
+hint, and authorization still comes from `/auth/me/`), treat expired-or-expiring-within-a-few-seconds
+as absent, and resume. A test asserting that a dashboard request carrying a **live cookie with an
+expired token** resumes rather than redirecting would fail today and pass after. That test is the
+real deliverable: it is what makes consequence 2 impossible to reintroduce silently.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
