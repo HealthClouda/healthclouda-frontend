@@ -19,13 +19,33 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
   },
+  // One project, deliberately.
+  //
+  // There used to be a second, `mobile` (Pixel 5), carrying
+  // `testIgnore: /e2e\/design\//`. That ignore excluded only the design
+  // directory, so `mobile` ran `landing.spec.ts` and `auth.spec.ts` — two
+  // desktop-shaped suites — at 393px, where the desktop nav does not render at
+  // all and its controls live in the drawer. Two assertions failed every run
+  // for that reason alone, which is why `npx playwright test` gave 24/2 while a
+  // single-project run gave 13/13.
+  //
+  // Silencing it by adding those two files to `testIgnore` would have left a
+  // project named `mobile` running *zero* tests and reporting green — a name
+  // that implies coverage nothing is checking. That is the same shape as a
+  // required-checks tick with no checks behind it, so the project is removed
+  // instead.
+  //
+  // Small-viewport behaviour is not lost: `e2e/design/smallscreen.spec.ts` owns
+  // it, at the design system's own explicit breakpoints (VIEWPORTS in
+  // e2e/design/helpers.ts) rather than a device emulation — which is the more
+  // precise predicate for `SmallScreenGate` anyway, since that gate tests the
+  // viewport and not the device.
+  //
+  // Bring a device project back when there are specs written *for* mobile to
+  // put in it. See FLAG-025 before writing them: the landing drawer is mounted
+  // even when closed, so `toBeVisible()` cannot tell open from shut.
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    // e2e/design sets its own explicit viewports per VIEWPORTS in
-    // e2e/design/helpers.ts (the design system's fixed breakpoints, not a
-    // device emulation) — running it again under Pixel 5 would just double
-    // every screenshot for no signal.
-    { name: 'mobile', use: { ...devices['Pixel 5'] }, testIgnore: /e2e\/design\// },
   ],
   webServer: {
     command: 'npm run dev',
