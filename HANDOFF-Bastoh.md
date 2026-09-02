@@ -39,6 +39,115 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-02 — Two agents, one repo each: #111 merged, #118 unblocked, and the backend's missing contract found (branches: `docs/branch-protection-and-flag-021`, `fix/flag-024-stale-e2e-specs`, `docs/cleanup-2026-09-02-flag-026`, `docs/dashboard-stats-response-schemas` (backend))
+
+**Goal:** started as a question about whether to run two AI assistants in parallel, one per repo, with a
+senior model reviewing both. Became the first session that actually did it. The useful part of this
+entry is what the split found, not that it worked.
+
+**What I did:**
+- **Merged #111** (`88ae5ad`, merge commit) after rebasing it off a 31-commit-stale base. `develop`
+  re-verified locally after the merge rather than trusted: **tsc 0 · lint 0 · 192/192 · build green**.
+- **Fixed and pushed #118**, addressing @Qeeyat's change request. The `mobile` Playwright project is
+  **removed**, not silenced.
+- **Opened #123** — clears #111 from In Flight, logs **FLAG-026**, records two measured facts.
+- **Ran a backend recon agent, then a backend work agent.** Backend #160 merged; the stats response
+  serializers are part-built on `docs/dashboard-stats-response-schemas`.
+
+**What I found:**
+
+- 🎯 **#99 was never waiting on me. It has been finished since 30 Aug and rebased since 1 Sep.** CI
+  green on all three jobs, 0 commits behind `develop`, `mergeable: MERGEABLE`, `mergeStateStatus:
+  BLOCKED` — blocked solely by a standing CHANGES_REQUESTED from **29 Aug**. The item the sprint plan
+  marks must-close-before-PHI sat done for three days while the docs described it as work to do.
+  **A blocked-on-review item and a blocked-on-work item look identical in a handoff table.** They are
+  not the same problem and they do not have the same fix.
+- 🔴 **FLAG-026 — #99's fix depends on a number in the other repository.** The middleware resume fires
+  on "access cookie absent, refresh cookie present", which works only because the cookie's `maxAge`
+  and the backend's `ACCESS_TOKEN_LIFETIME` are both 3600. `auth.ts:19` says so honestly: it matches
+  a DRF **default**. If the backend ever shortens it, the hourly logout @Qeeyat caught **returns in
+  full, silently** — no test fails, CI stays green, and it presents as "the app keeps logging me out"
+  with no code change to blame. Logged, not fixed: #99 is settled and fails closed, and re-opening a
+  security PR the week PHI arrives is the worse trade.
+- 🎯 **@Qeeyat's `HANDOFF.md` merge instruction had gone stale, and following it would have done
+  damage.** Her note on #111 said keep both sides of the In Flight table. That was true when she wrote
+  it; by today the branch's copy was the 30 Aug table and four of its rows (#97, #102, #103, #104) had
+  merged and been cleared. Keeping both would have **resurrected four cleared claims** into the table
+  whose own rule is that a stale claim is worse than no claim. Took `develop`'s table instead and said
+  so on the PR rather than silently. **A written conflict resolution has a shelf life, and it is
+  shorter than the PR it was written for.**
+- 🎯 **Option 1 on #118 would have left a project named `mobile` running zero tests.** Her suggested
+  fix — add `landing`/`auth` to the mobile project's `testIgnore` — is right about *why* (those suites
+  are desktop-shaped and fail at 393px because the nav lives in a drawer). But mobile already ignored
+  `e2e/design/`, and those two files are the only other specs in the repo. The project would have
+  reported green while asserting nothing. **That is the same shape as a required-checks tick with no
+  checks behind it**, which this repo already has one of. Removed the project, with the reasoning in
+  the config so it is not restored by reflex, and a pointer to FLAG-025 for whoever writes real mobile
+  specs.
+- 🔴 **The design specs cannot run on this machine, and they throw rather than skip.**
+  `e2e/design/helpers.ts` raises when `E2E_<ROLE>_EMAIL`/`_PASSWORD` are missing, so a bare
+  `npx playwright test` fails on credentials before it fails on anything else. `.env.local` has
+  `DEMO_DOCTOR_*` and `DEMO_RECEPTIONIST_*` and no `E2E_*` keys at all. So the number in #118 is still
+  a subset — stated as one this time, and it is exactly the subset FLAG-024's "Done when" names.
+- 🎯 **Backend #137 is closed and the frontend fix is one line — and I could only know that by being
+  in the other repo.** `apps/patients/views.py:171-182` re-serializes with `PatientDetailSerializer`,
+  which carries `id` and `healthclouda_id`. The body is `{message, patient:{id, healthclouda_id}}` —
+  **nested, not top-level**, which is almost certainly what produced the original misread. Put in
+  `HANDOFF.md`, not here, because @Qeeyat needs it for #107 and may never read this file.
+- 🚨 **The FLAG-222/227 bug class is structural, and nobody had filed it.** `DoctorDashboardStatsView`,
+  `NurseDashboardStatsView` and superadmin's `DashboardView`/`SystemStatsView` carry **no
+  `@extend_schema` at all**; org-admin's and receptionist's carry one with a **text description only**.
+  So no field-level response is published for any of them. Four dashboards shipped tiles reading fields
+  that were never sent, and **#158 only covers three named fields, not the class**. This is the single
+  highest-leverage backend item for the frontend and it existed as nobody's ticket.
+- 🔴 **`api-beta` and `beta.` are both still NXDOMAIN**, measured today, and the backend's `staging`
+  branch is still at its pre-sprint tip. The 31 Aug stand-up did not happen **on either side**.
+
+**Decisions:**
+- **Did not merge #99 over the standing change request, and did not dismiss it.** I have the admin
+  rights to dismiss. It would have spent the only mechanical quality gate this repo has, on a security
+  PR, the week real patient data arrives — and @Qeeyat is the reason this PR is safe: she caught the
+  hourly logout that a first approval missed. Pinged her instead.
+- **Deferred all staging work** until `develop` is finished. `api-beta` is the critical path for
+  onboarding, but standing up a tier on top of an unfinished `develop` is how silent tier-crossing
+  bugs get made, and both failure modes there are invisible.
+- **Ran two agents rather than four.** The original plan had two workers reporting to a senior
+  reviewer that was a third agent. Dropped that layer — every summary loses the detail that makes a
+  finding actionable, and this repo has a live example of why (three near-miss false findings last
+  week, each resolved by returning to the raw measurement, not by re-reading a summary).
+- **Kept the frontend work in my own context rather than delegating it.** A cold subagent would have
+  had to re-read 5,500 lines of handoff docs to judge a single PR. The backend was the right thing to
+  split off because it is genuinely separate ground.
+- **Committed the backend agent's partial work as an explicit WIP marked DO NOT MERGE**, listing what
+  was not done and stating plainly that nothing has been run. Stopping mid-task is fine; leaving work
+  that *looks* finished is not.
+- **Told the backend agent to keep #158 in a separate PR marked do-not-merge until frontend #109
+  lands.** Otherwise the frontend fixes the tiles onto today's payload while the backend changes the
+  payload, and one of the two gets done twice.
+
+**Verified:** every number above measured, not reported. `develop` @ `88ae5ad` after the #111 merge:
+**tsc 0 · 192/192 · build green, 27/27 pages**. #111 before merge: tsc 0 · lint 0 · 192/192 · build
+green. #118: tsc 0 · lint 0 · 192/192 · credential-free e2e **13/13, exit 0**, including the two tests
+that failed under `mobile`. Ruleset `11328360` read from the API: rules are `deletion`,
+`non_fast_forward`, `pull_request`, **`required_status_checks: []`**. Tier DNS checked by `curl`:
+`api-beta` and `beta.` unresolvable, `dev.` 200, `api-dev.` 404 at root.
+
+**Left undone / next:**
+- [ ] 🔴 **Finish the backend stats serializers.** `docs/dashboard-stats-response-schemas` is partial
+      and **unverified** — `PatientDashboardView` untouched, `my-patients` and `wards/overview` unchecked,
+      **nothing run**. Regenerate the schema and read it before believing any of it.
+- [ ] 🔴 **Send `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` out of band.** Nurse and Patient are still the
+      only two dashboards nobody has rendered, and four of the other six were wrong. It also unblocks
+      the design specs locally.
+- [ ] 🔴 **Flip required status checks on ruleset 11328360.** #116 merged, CI runs, and it gates nothing.
+      #111's new `CLAUDE.md` text now says so in writing.
+- [ ] 🟠 **Backend #158**, sequenced *after* frontend #109 — not alongside it.
+- [ ] 🟠 **`api-beta` + `beta.`**, once `develop` is finished. Env var **first**, domain second.
+- [ ] 🟢 Fix dev identification to key on email rather than `git config user.name` — still open from
+      1 Sep.
+
+---
+
 ### 2026-09-01 (evening) — Parity D/E/F, `BETA_READINESS.md`, and #99 rebased to MERGEABLE (branches: `feat/parity-d-e`, `docs/beta-readiness`, `docs/frontend-handoff-refresh` (backend), `fix/flag-001-server-trusted-auth`, `fix/flag-210-patient-portal`)
 
 **Goal:** the owner asked to continue the two-repo parity work — **D, E and F first because they are
