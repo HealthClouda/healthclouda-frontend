@@ -239,10 +239,28 @@ Both of us drive this repo through an AI assistant, so the assistant's setup is 
 | `.claude/settings.json` | ✅ **yes** | **Shared** project config. Pre-approves the read-only commands this repo runs constantly — `tsc --noEmit`, `npm test`, `npm run build`, lint, Playwright, read-only `git`/`gh`, and fetching the public API schema — so neither dev spends their session approving the same six commands. |
 | `.claude/settings.local.json` | ❌ gitignored | **Yours alone.** Personal grants. Never commit it — your permission decisions must not silently become the other dev's. |
 
-**The deny list is the part to read before you change anything.** It blocks reading `.env*` and
-`API-doc.md` (both gitignored and both carrying values that must not enter a transcript — **this repo
-is public**), blocks `git push --force`, and blocks `playwright test --update-snapshots`, because
-silently rewriting a design baseline turns a real visual regression into a green check.
+**The deny list is the part to read before you change anything.** It is grouped by what it protects,
+and every group exists because of something that already happened here:
+
+| Group | Blocks | Why |
+|---|---|---|
+| **Secrets** | reading `.env*` and `API-doc.md`, and `cat`/`head`/`tail` on `.env*` | Both are gitignored and carry values that must not enter a transcript — **this repo is public** |
+| **Review integrity** | `gh pr review`, `gh pr merge`, `gh pr close`, `gh ruleset`, and every writing `gh api` method | Ruleset 11328360's one-approval requirement is **the only quality gate this repo mechanically has.** An assistant that can approve, dismiss or merge can spend it |
+| **Shared branches** | pushing to `develop`/`main`/`staging`, all force-push forms, branch deletion, `reset --hard`, `--no-verify` | Nobody rewrites shared history, and a deleted branch closes any PR stacked on it |
+| **Baselines** | `playwright test --update-snapshots` / `-u` | Silently rewriting a design baseline turns a real visual regression into a green check |
+| **Infrastructure** | `vercel`, `wrangler`, `railway` | Infra has an **owner, not a PR**. Railway variables, Cloudflare DNS and Vercel env are not version controlled — an assistant reports what needs changing; the owner changes it |
+
+⚠️ **Two honest limits, so nobody mistakes this list for a sandbox:**
+
+1. **A `Read()` deny does not stop the shell.** `Read(./.env.local)` is blocked, but a sufficiently
+   creative `Bash` invocation can still print the same file — the named `cat`/`head`/`tail` patterns
+   close the obvious spellings, not the class. **This list raises the cost of a mistake; it does not
+   make one impossible.** Treat it as a guardrail, not a boundary.
+2. **Per-developer rules cannot live here.** The rule *"never edit another dev's session log"*
+   (`CLAUDE.md` §3) cannot be expressed in this file, because a deny on `HANDOFF-Qeeyat.md` would
+   block @Qeeyat from writing her own log. That one belongs in **your** `settings.local.json` —
+   deny the *other* dev's file, whoever that is for you. This is the same reason the personal file
+   is gitignored: your permission decisions must never gate the other dev's session.
 
 **Adding to the allow list:** read-only and verification commands are fine — add them and say so in
 your PR. Anything that writes, deploys, or spends money stays out, and belongs in your own
