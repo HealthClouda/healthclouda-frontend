@@ -35,6 +35,10 @@ function isDashboardRoute(pathname: string): boolean {
   if (parts.length === 0) return false;
   // /superadmin or /superadmin/*
   if (parts[0] === 'superadmin') return true;
+  // /patient or /patient/* — slug-less, like superadmin (FLAG-210). Without
+  // this, `patient` was read as an ORG SLUG and a logged-out visitor was sent
+  // to `/patient/signin`, a portal for an organisation that does not exist.
+  if (parts[0] === 'patient') return true;
   // /[slug]/doctor, /[slug]/nurse, etc.
   if (parts.length >= 2 && DASHBOARD_SEGMENTS.has(parts[1])) return true;
   return false;
@@ -171,11 +175,16 @@ export async function middleware(request: NextRequest) {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw)) as { role: Role; organization_slug?: string };
       const roleBase = ROLE_PATHS[user.role];
-      // Never build /undefined/... — only redirect when the destination is known
-      if (roleBase && (user.role === ROLES.SUPERADMIN || user.organization_slug)) {
+      // Never build /undefined/... — only redirect when the destination is known.
+      // SUPERADMIN and PATIENT are both slug-less: the superadmin sits above
+      // orgs, the patient outside them (FLAG-210).
+      const isSlugless = user.role === ROLES.SUPERADMIN || user.role === ROLES.PATIENT;
+      if (roleBase && (isSlugless || user.organization_slug)) {
         const dest = user.role === ROLES.SUPERADMIN
           ? '/superadmin'
-          : `/${user.organization_slug}/${roleBase}`;
+          : user.role === ROLES.PATIENT
+            ? '/patient'
+            : `/${user.organization_slug}/${roleBase}`;
         return NextResponse.redirect(new URL(dest, request.url));
       }
     } catch {

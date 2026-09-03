@@ -1227,7 +1227,7 @@ once credentials are usable in a session, or the backend documents the permissio
 ---
 
 ### FLAG-210 — A patient cannot sign in: they have no organization, but every patient route needs one
-**Severity:** P1 · **Area:** Auth / Routing / Multi-tenancy · **Owner:** @Bastoh · **Status:** OPEN —
+**Severity:** P1 · **Area:** Auth / Routing / Multi-tenancy · **Owner:** @Bastoh · **Status:** ✅ **FIXED 2026-08-28** — *stays here until the PR merges* · was OPEN —
 **needs an architecture decision, not a one-line fix**
 **Found:** 2026-08-19, first live click-through of the app against `api-dev` ·
 **Raised by** @Qeeyat, **assigned to** @Bastoh (auth/routing is the `[INFRA]` lane, and the fix
@@ -1381,6 +1381,33 @@ and hide it from whoever can fix it. This is a case where the honest render *is*
 grows an unassigned bucket), and Maternity's counts either reconcile with `/ward/beds/` or the
 discrepancy is explained. Likely a seed-data issue rather than a code one — worth checking before
 filing an `api-request`.
+
+---
+
+> ✅ **Fixed 2026-08-28, and the architecture question it was waiting on is now answered.**
+>
+> 🔑 **@Bastoh's decision:** the apex (`healthclouda.com`) is **marketing + the patient portal**;
+> organisation staff use `beta.`. So the answer is a **slug-less `/patient` route**, not a backend
+> home-org — which also means no `api-request` was needed and nothing waits on the backend.
+>
+> What changed: new `app/patient/page.tsx` · `app/[slug]/patient/` **removed** · `patient` added to
+> `RESERVED_PATHS` so no org slug can shadow the portal · `roleDashboardPath(PATIENT)` returns
+> `/patient` and **ignores any slug passed to it** · `middleware.ts` treats `/patient` as a top-level
+> dashboard (it was previously read as an *org slug*, so a logged-out visitor was sent to
+> `/patient/signin` — a portal for an organisation that does not exist) · `SigninForm` no longer
+> demands a slug for `PATIENT`.
+>
+> **The nuance this flag always had, now settled in code:** `organization: null` on a patient is the
+> *correct* answer, not missing data — records move with the patient between facilities
+> (`CLAUDE.md` §1). The bug was never the backend's; it was that every route we had needed an org.
+>
+> ⚠️ **This confirms FLAG-010's nuance too:** the backend's slug-less `redirect_to: "/patient/"` is
+> exactly right for patients, and now matches a route that exists.
+>
+> 📌 **Follow-up for the backend, not blocking:** the apex will point at `api-beta` from 3 Sep, so a
+> beta patient's invite email must link to the **apex**, while staff invites link to `beta.`.
+> `FRONTEND_URL` is one value per tier (A8 / backend #107), so that split needs raising with them
+> before onboarding.
 
 ---
 

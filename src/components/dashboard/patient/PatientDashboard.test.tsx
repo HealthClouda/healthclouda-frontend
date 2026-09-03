@@ -93,7 +93,7 @@ beforeEach(() => {
 
 describe('PATIENT-1 — overview upcoming-appointments query uses real filters', () => {
   it('requests ?status=scheduled (NOT the invented ?upcoming=, which DRF ignores)', async () => {
-    render(<PatientDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    render(<PatientDashboard user={user} initialStats={stats} />);
 
     await waitFor(() => {
       expect(dataGetMock).toHaveBeenCalledWith(
@@ -111,7 +111,7 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
   it('shows doctor, org name, scheduled date/time and reason from the live shape', async () => {
     mockAppointments([appointment]);
 
-    render(<PatientDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    render(<PatientDashboard user={user} initialStats={stats} />);
     fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
 
     expect(await screen.findByText('Emeka Okafor')).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
       cancellation_reason: 'Doctor unavailable',
     }]);
 
-    render(<PatientDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    render(<PatientDashboard user={user} initialStats={stats} />);
     fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
 
     expect(await screen.findByText(/Doctor unavailable/)).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
   it('filters by status via ?status= and resets to page 1', async () => {
     mockAppointments([appointment]);
 
-    render(<PatientDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    render(<PatientDashboard user={user} initialStats={stats} />);
     fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
     await screen.findByText('Emeka Okafor');
 

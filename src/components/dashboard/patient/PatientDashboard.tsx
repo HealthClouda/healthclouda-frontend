@@ -335,10 +335,9 @@ const PAGE_TITLES: Record<string, string> = {
 interface Props {
   user: User;
   initialStats: PatientDashboardData | null;
-  slug: string;
 }
 
-export function PatientDashboard({ user, initialStats, slug: _slug }: Props) {
+export function PatientDashboard({ user, initialStats }: Props) {
   const [page, setPage] = useState('overview');
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch instead of shimmering forever.

@@ -258,3 +258,44 @@ describe('middleware — server-side session resume (the hourly-logout regressio
     expect(location(res)).toBe('https://app.test/superadmin/signin?session=expired');
   });
 });
+
+/**
+ * FLAG-210 — the slug-less patient portal.
+ *
+ * The apex is marketing + the patient portal (decided 2026-08-28), so `/patient`
+ * is a top-level dashboard route with no org segment. Middleware knew only about
+ * `/[slug]/patient`, so `/patient` was neither guarded when logged out nor
+ * reachable as a redirect target when logged in.
+ */
+describe('FLAG-210 — /patient is a first-class dashboard route', () => {
+  // ⚠️ These three are `await`ed because #99 made `middleware` async (it can now
+  // resume a session server-side before deciding). They were written against the
+  // synchronous signature and were adjusted when #100 was rebased onto #99 —
+  // without the await, `location()` receives a Promise and every assertion here
+  // fails on a type error rather than on behaviour.
+  it('redirects an unauthenticated visitor off /patient to the general signin', async () => {
+    // The general portal IS the patient portal, so /signin is the right target
+    // here — unlike staff, who must go to their own org portal.
+    const res = await middleware(makeReq('/patient'));
+    expect(location(res)).toContain('/signin');
+  });
+
+  it('does not treat /patient as an org slug', async () => {
+    // If `patient` were read as an org slug, a logged-out visitor would be sent
+    // to `/patient/signin` — a portal for an organisation that does not exist.
+    const res = await middleware(makeReq('/patient'));
+    expect(location(res)).not.toContain('/patient/signin');
+  });
+
+  it('sends a signed-in patient from /signin to /patient, with no org slug', async () => {
+    const res = await middleware(
+      makeReq('/signin', {
+        hc_access_token: 'tok',
+        // A patient's organization_slug is absent — that is correct, not missing
+        // data: they belong to no org.
+        hc_user: userCookie({ role: 'PATIENT' }),
+      }),
+    );
+    expect(location(res)).toBe('https://app.test/patient');
+  });
+});

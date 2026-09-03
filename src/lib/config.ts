@@ -240,6 +240,9 @@ export const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 export const RESERVED_PATHS = new Set([
   'signin',
   'superadmin',
+  // FLAG-210: the patient portal is slug-less (the apex is marketing + patient
+  // login), so an org registering the slug `patient` would shadow it.
+  'patient',
   'assets',
   'forgot-password',
   'check-email',
