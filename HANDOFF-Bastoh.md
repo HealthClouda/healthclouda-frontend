@@ -134,10 +134,19 @@ flow. Ended with the first piece of backend work produced by a worker agent, ver
 a named component, **0 generation errors** on any of them, 124 warnings of which six are FLAG-554.
 
 **Left undone / next:**
-- [ ] 🔴 **Six frontend PRs are blocked on @Qeeyat alone** — #120, #121, #122, #123, #124, #125. All
-      `MERGEABLE`, none approvable by me. Frontend work is held until she returns, by the owner's call.
-- [ ] 🔴 **#99 needs a second rebase and a re-review**, then #100 behind it. Still the
-      must-close-before-PHI item.
+- [ ] 🟠 **Seven frontend PRs await @Qeeyat** — #120, #121, #122, #123, #124, #125, #127. All
+      `MERGEABLE`, none approvable by me. **She is back and working as of ~21:00 tonight**, so this
+      is a queue rather than a blockage.
+- [ ] 🟡 **Review her #126** (clears #99/#100, resolves FLAG-001/210, logs **FLAG-228**) — my turn as
+      reviewer, and it touches `docs/ARCHITECTURE.md`, whose §9 lists both flags as pending.
+- [x] ✅ **#99 and #100 MERGED by @Qeeyat at 21:09 and 21:13 tonight, both as merge commits** —
+      `develop` is now at `6429f5f`. **A5/FLAG-001 and FLAG-210 are closed.** The
+      must-close-before-PHI item is done and patients can sign in. Her **#126** clears both rows and
+      resolves the flags. ⚠️ **Struck through what this entry said an hour ago** — that #99 needed a
+      second rebase and a re-review. It did when written and it does not now; the correction is left
+      visible rather than edited away, because the underlying lesson stands: **a handoff table
+      records a moment, not a state, and both devs were working the same evening without seeing each
+      other.** I reported #99 as blocked while she was merging it.
 - [ ] 🔴 **Backend #162** — merge when CI is green; it carries FLAG-554.
 - [ ] 🔴 **The critical path to a PHI tier is entirely infra and entirely mine:** `staging` is still
       at `3c46297`/#28, `api-beta` is NXDOMAIN, and staging's own secrets
