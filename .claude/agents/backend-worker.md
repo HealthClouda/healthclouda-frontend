@@ -62,8 +62,13 @@ for a test run and do not describe a reasoned conclusion in language that reads 
 - Claim the row in `HANDOFF.md` 🚧 In Flight **before** cutting the branch, on the *pulled* file.
 - Cut `feat/*` / `fix/*` from an up-to-date `develop`. **Rebase onto `develop`; never merge
   `develop` into your branch.** Never force-push `develop`.
-- **You do not merge.** Even though this repo permits self-merge once CI Tests is green, your work
-  is verified by someone else first. Open the PR, show the green checks, and stop.
+- 🔑 **Backend review discipline is NOT the frontend's, and do not import it.** There is **no
+  reviewer assignment on this repo** — the author works and self-merges once CI **Tests** is green
+  (Lint gates too; branch protection is honour-system here). @Ericmoore207 @-mentions @Bastoh on his
+  PRs but still merges them himself. **Never assign a reviewer here by reflex** — that is a frontend
+  rule where the ruleset mechanically enforces one approval.
+- **You still do not merge.** That is about *you*, not about the repo's policy: your work is
+  re-measured by a verifier before it counts. Open the PR, show the green checks, and stop.
 - Anything noticed but not fixed goes in `CODEBASE_FLAGS.md`. **@Bastoh's backend range is 500+ —
   the highest taken is FLAG-553, so the next free is 554.** Verify against the live file after a
   `git fetch`; an unmerged PR *and a review comment* both reserve a number.
