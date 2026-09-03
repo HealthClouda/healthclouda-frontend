@@ -56,7 +56,7 @@ Every flag needs a **Done when** that someone else can verify without asking the
 ## Open flags
 
 ### FLAG-001 — Authorization is decided from a client-writable cookie
-**Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** ✅ **FIXED 2026-08-28** — *stays here until the PR merges; move to Resolved then*
 **Found:** 2026-08-08, codebase survey
 
 The `hc_user` cookie is set `httpOnly: false` (`src/lib/auth.ts:30`) so the UI can read the user's
@@ -79,6 +79,38 @@ moment PHI arrives.
 **Done when:** role/tenant gating decides from a server-trusted source (access token claims or a
 server-side lookup), the `hc_user` cookie is display-only, and a test proves a tampered `hc_user`
 cookie cannot render another role's or another org's dashboard.
+
+> ✅ **Fixed 2026-08-28.** All six page gates now call `requireDashboardUser()`
+> (`lib/auth-server.ts`), which resolves identity from `GET /auth/me/` using the **httpOnly** access
+> token. `hc_user` is annotated display-only at its definition and at `getUser()`.
+>
+> 🔍 **Access-token claims were the cheaper fix and are not available.** Decoded a real token from
+> `api-dev` rather than assuming: the payload is stock SimpleJWT —
+> `{ token_type, exp, iat, jti, user_id }`, **no role, no organisation**. So a server lookup is the
+> only server-trusted option today. It costs one round trip per gated render, held to one by React
+> `cache()`. If the backend later adds `role`/`organization` claims, `getAuthorizedUser()` is the
+> single function to change and the trip disappears — worth an `api-request`, but it is an
+> optimisation, not a blocker.
+>
+> 🚨 **A second hole was found while fixing the first, and it needed no tampering at all.** The gates
+> checked the *role* and never compared the route slug to the user's organisation, so a real doctor at
+> `demo-clinic` could open `/other-clinic/doctor` and get that org's dashboard shell by typing a URL.
+> Multi-tenancy is the core constraint of this product, so this is now asserted in the same gate and
+> covered by its own test.
+>
+> ⚠️ **The fix fails closed, deliberately.** `serverFetch` returns `null` for everything — no token,
+> 401, 500, network blip (FLAG-005) — and the gate treats every one as DENY. The cost is that a
+> backend wobble bounces people to signin rather than showing a stale shell. That is the right trade
+> for an authorization decision, but it does mean **FLAG-005 now has a UX consequence it did not have
+> before**, which is an argument for raising its priority.
+>
+> Also corrected in passing: the superadmin gate redirected to `/signin`, the **patients-only** portal
+> where the backend rejects staff — the same defect PR #84 fixed in `middleware.ts`, still live here.
+> It now goes to `/superadmin/signin`.
+>
+> **Not changed:** `middleware.ts` still reads `hc_user` for its signin-page redirect. That is a
+> convenience redirect, not an authorization decision — a tampered cookie can now only send the
+> attacker to a dashboard that refuses to render.
 
 ---
 
@@ -696,6 +728,47 @@ a passing build**, since CSP failures appear at runtime in the console and a bui
 Dropping `unsafe-eval` alone is a valid, smaller first step.
 
 ---
+
+### FLAG-020 — Two concurrent refreshes still cost a session, and now there are two refreshers
+**Severity:** P2 · **Area:** Auth / Session · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-08-30, fixing the hourly-logout regression on PR #99
+
+SimpleJWT **rotates and blacklists** refresh tokens: the moment one exchange succeeds, the token it
+consumed is dead. So two refreshes genuinely in flight at the same time end with one of them
+presenting a blacklisted token, and that user is signed out with a session that was perfectly alive.
+
+`client-api.ts` has always guarded this with a single-flight promise, and `CLAUDE.md` §5 calls that
+path load-bearing. **PR #99 adds a second refresher** — `middleware.ts` now resumes a server-rendered
+navigation whose access cookie has aged out, because a Server Component cannot set cookies and the
+A5 gate needs a live token *during* the render.
+
+**The two do not race in the common case**, which is why this is P2 and not P1:
+
+- `/api/*` returns from middleware before the resume ever runs, so the client's own refresh call is
+  never intercepted.
+- The client refreshes only after a 401 on a data call, i.e. on a page that has already rendered.
+  Middleware refreshes only on a navigation that has no access cookie at all. Those are different
+  moments.
+- Next does not fully render dynamic routes on `<Link>` prefetch, so a prefetch does not silently
+  fire a second resume.
+
+**The window that remains** is genuinely simultaneous requests that each arrive with no access
+cookie — most plausibly two browser tabs restored at once after an hour idle, or a hard reload
+racing an open tab's background call. The loser gets `rejected`, which clears the cookies, and the
+user is bounced to signin holding what *was* a good session. This is **the same class of race the
+client path already accepts**, not a new one; PR #99 widens it rather than opening it.
+
+⚠️ **It cannot be fixed by coordinating in middleware.** Middleware runs per-request on the edge with
+no shared state, and the loser's request was already sent before the winner's `Set-Cookie` existed —
+there is nothing for it to observe. A real fix belongs on the backend (a short grace window where a
+just-rotated token is still accepted, which SimpleJWT does not do today) or in a single serialising
+session store on our side. Both are architecture, not a patch.
+
+**Done when:** either the backend accepts a just-rotated refresh token inside a short grace window
+(needs a backend `api-request` issue), or refreshes are serialised through one server-side holder;
+and a test proves two simultaneous expired navigations leave the session intact. **Accepting it in
+writing is also a valid close** — say so in `SECURITY_BASELINE.md` with the window named.
+
 
 ### FLAG-021 — The small-screen gate cannot stop the one fetch that sits above it
 **Severity:** P3 · **Area:** Security / PHI · **Owner:** @Qeeyat · **Status:** OPEN

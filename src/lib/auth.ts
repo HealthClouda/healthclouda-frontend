@@ -25,9 +25,22 @@ export const REFRESH_COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24 * 7, // 7 days
 };
 
+/**
+ * ⚠️ DISPLAY ONLY — never authorize from this cookie.
+ *
+ * `httpOnly: false` is deliberate: the client reads it for UI state (a name in
+ * the header, which nav to show). It carries no token. But because the browser
+ * can read it, the browser can also WRITE it — so anything it says about role
+ * or organisation is a user-supplied claim, not a fact.
+ *
+ * Authorization decisions belong in `requireDashboardUser()`
+ * (`lib/auth-server.ts`), which asks `/auth/me/` using the httpOnly access
+ * token. That is FLAG-001; the gates used to read this cookie instead, and a
+ * tampered value rendered another role's or another org's dashboard.
+ */
 export const USER_COOKIE_OPTIONS = {
   ...BASE,
-  httpOnly: false, // Client needs to read this for UI state (no token, just user info)
+  httpOnly: false,
   maxAge: 60 * 60 * 24 * 7,
 };
 
@@ -41,6 +54,13 @@ export async function getRefreshToken(): Promise<string | null> {
   return store.get(AUTH_COOKIES.REFRESH)?.value ?? null;
 }
 
+/**
+ * The DISPLAY user, straight from the client-writable cookie.
+ *
+ * ⚠️ Do not use this to decide what someone may see — see
+ * `requireDashboardUser()` in `lib/auth-server.ts` (FLAG-001). Safe for
+ * rendering a name; unsafe for anything that grants access.
+ */
 export async function getUser(): Promise<User | null> {
   const store = await cookies();
   const raw = store.get(AUTH_COOKIES.USER)?.value;
