@@ -39,7 +39,8 @@ and why the dashboard gates check the organisation as well as the role.
 | `/superadmin/signin` | **Superadmin portal.** Distinct from `/signin`, which cannot log staff in |
 | `/[slug]` | Org landing page, branded from `GET /org/by-slug/<slug>/` |
 | `/[slug]/signin` | **Org portal** — staff *and* patients of that organisation |
-| `/[slug]/doctor` · `nurse` · `receptionist` · `org-admin` · `patient` | The five org-scoped dashboards |
+| `/[slug]/doctor` · `nurse` · `receptionist` · `org-admin` | The four org-scoped staff dashboards |
+| `/patient` | **The patient dashboard — slug-less on purpose (FLAG-210).** A patient belongs to no organisation (`/auth/me/` returns `organization: null`, correctly: records move *with* the patient), so there is no slug to scope them to. `patient` is in `RESERVED_PATHS` so no org can shadow it |
 | `/[slug]/forgot-password` · `reset-password` · `check-email` · `password-success` | Org-scoped password flows |
 
 ⚠️ **`RESERVED_PATHS` (`src/lib/config.ts`) must stay in sync with `src/app/`.** `[slug]` is a
@@ -143,15 +144,25 @@ Two layers, and only one of them is trusted:
 - **The UI gate**, which decides what to render. Historically it read `hc_user` — the client-writable
   cookie — which is FLAG-001.
 
-⏳ **Landing next, approved but not yet merged:** PR **#99** moves all six gates onto
-`requireDashboardUser()` (`src/lib/auth-server.ts`), which resolves identity from `GET /auth/me/`
-using the httpOnly token and checks **role *and* organisation** — a real doctor at one org could
-previously open another org's dashboard shell by typing the URL. PR **#100** gives patients a
-slug-less `/patient` portal, because a patient belongs to no organisation (`organization: null` is
-correct — records move with the patient) and every patient route currently requires a slug
-(FLAG-210). Until #100 lands, patients cannot sign in at all. Both are described here as pending on
-purpose; check `HANDOFF.md` before assuming either is live.
+✅ **Closed 2026-09-03 (PRs #99 + #100).** Every dashboard gate now calls `requireDashboardUser()`
+(`src/lib/auth-server.ts`), which resolves identity from `GET /auth/me/` using the **httpOnly** access
+token and checks **role *and* organisation** — a real doctor at one org could previously open another
+org's dashboard shell by typing the URL, which needed no cookie tampering at all. `hc_user` no longer
+decides access anywhere in the app; `getUser()` remains for display only and says so in its doc
+comment.
 
+The gate **fails closed**: `serverFetch` returns `null` for a missing token, a 401, a 500 or a network
+blip alike, and every one of those is read as DENY. That is the correct trade for an authorization
+decision, and it means FLAG-005's observability now has a UX consequence — a backend wobble bounces
+users to signin rather than rendering a shell.
+
+Because the gate needs a live access token *during* the server render, and the access cookie lives one
+hour while the refresh cookie lives seven days, **`middleware.ts` now resumes an aged-out session
+itself** (`lib/session-refresh.ts`) and hands the new token to that same render via a mutated request
+cookie. A Server Component cannot set cookies, so the gate could not repair this alone. Residual race:
+[FLAG-020](../CODEBASE_FLAGS.md).
+
+Patients reach `/patient` with no slug (#100) and can sign in for the first time.
 ---
 
 ## 6. UI composition
@@ -214,9 +225,9 @@ Tracked in [`../CODEBASE_FLAGS.md`](../CODEBASE_FLAGS.md); the ones that shape t
 
 | Flag | Gap |
 |---|---|
-| FLAG-001 | Authorization decided from a client-writable cookie — fix pending in #99 |
-| FLAG-210 | Patients cannot sign in: no organisation, but every patient route needs one — #100 |
-| FLAG-006 | No lint in CI, no `.github/` at all |
+| ~~FLAG-001~~ | ✅ **Resolved 2026-09-03 (#99)** — authorization is decided on the server from `/auth/me/`, role **and** tenant |
+| ~~FLAG-210~~ | ✅ **Resolved 2026-09-03 (#100)** — patients have a slug-less `/patient` portal and can sign in |
+| ~~FLAG-006~~ | ✅ **Resolved 2026-09-01 (#116)** — ESLint flat config + GitHub Actions CI, gating at zero findings |
 | FLAG-019 | CSP allows `unsafe-inline` / `unsafe-eval` on PHI pages |
 | FLAG-203 / FLAG-021 | Small-screen gate: client channel closed, server-rendered props still reach a phone |
 | FLAG-225 | ~2 in 5 GET endpoints document no response body, so most types are captured, not derived |
