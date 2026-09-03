@@ -60,6 +60,76 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-03 — A5 is closed: #99 and #100 reviewed, merged, and the docs caught up (branch: docs/merge-99-100-in-flight)
+
+**Goal:** re-review #99 now that @Bastoh had fixed my change request, and merge if it held up. It
+held up, so #100 went with it.
+
+**What I did:**
+- **Re-reviewed and merged #99 (A5/FLAG-001)** — the sprint plan's one *must-close-before-PHI* item,
+  open since the 8 Aug survey. Then **#100 (FLAG-210)** immediately after. Both as merge commits,
+  merged locally with the additive `CODEBASE_FLAGS.md` resolution.
+- **Verified on the merge commits, not the PR bodies:** tsc clean · eslint clean · **211/211 across
+  23 files** · build green · `/patient` in the route tree · middleware 35.8 kB.
+- Raised **FLAG-228** and updated `HANDOFF.md`, `CODEBASE_FLAGS.md` and `docs/ARCHITECTURE.md`.
+
+**What I found:**
+
+- 🎯 **The fix to my change request was right, and the load-bearing line is not the refresh call.**
+  It is `NextResponse.next({ request })` with a mutated request cookie — handing the new token to
+  *this* render. Without it the gate still sees no token on the very navigation that refreshed, and
+  the bug survives its own fix by one render. There is a test asserting `x-middleware-request-cookie`
+  directly, which is the right thing to assert.
+- 🎯 **I re-ran the RED-first claim rather than accepting it** — checked out the pre-fix
+  `middleware.ts` (`f4b4832`) against the new tests: **7 failed | 13 passed**, exactly his number.
+  Doing this twice now has cost me about four minutes total and is the single cheapest way I have
+  found to tell a real test from a test that would pass against anything.
+- 🔴 **FLAG-020's reasoning had a wrong step, though its conclusion was right.** It dismisses the
+  prefetch fan-out with *"Next does not fully render dynamic routes on `<Link>` prefetch"* — but that
+  is about **rendering**, and middleware runs on RSC prefetch requests regardless; the matcher does
+  not exclude them. The conclusion survives for a different reason: I grepped, and **no `<Link>`
+  points at a dashboard route anywhere** — dashboards are reached by `router.push` after signin and
+  navigate internally by client state. **A right answer with a wrong reason is a trap**: the day
+  someone writes `<Link href={roleDashboardPath(...)}>`, several in-viewport prefetches fire at once
+  against an expired cookie, and the flag records that case as already considered. Said so on the PR.
+- 🎯 **The stack merged safely, and the pattern is now evidenced twice.** GitHub retargeted #100 onto
+  `develop` *before* auto-deleting #99's branch, so the child survived. The trap written up in
+  `HANDOFF.md` is specifically `gh pr merge --delete-branch`, which deletes the base out from under
+  the child *first*. Auto-delete after a retarget is a different thing and is safe.
+- 🔴 **FLAG-228: a Google Fonts fetch inside `npm run build` can turn any CI run red.** #120 showed a
+  failing check that has nothing to do with its diff — `NextFontError: Failed to fetch 'Lato'`, in
+  the A4 fail-loud job. Now that #116 has made CI a gate, a check that fails randomly teaches people
+  to merge past red. Self-hosting the font removes the network call entirely.
+- 🟡 **`CODEBASE_FLAGS.md` has a filing bug: everything from FLAG-215 down sits BELOW the "Resolved
+  flags" heading while still being OPEN.** They were appended to the end of the file as they were
+  raised. I put #99's and #100's entries directly under the heading and left a note to read each
+  entry's Status line rather than its position — reordering other people's flags mid-session is
+  exactly the kind of tidying `CLAUDE.md` warns about, so it wants its own pass.
+
+**Decisions:**
+- **Merged locally rather than asking @Bastoh to rebase.** #99's only conflict was
+  `CODEBASE_FLAGS.md` (FLAG-020 vs FLAG-021) — no code conflict at all — and the same additive
+  resolution was already established on #93/#95. Last time this stalled three days waiting to push to
+  another dev's branch, four days before PHI. I proved nothing was dropped with a heading diff
+  against both parents (50 + 50 → 51) rather than eyeballing it.
+- **Did not re-run Gate 2.** Added a dated "what has closed since" note under it instead. The gate is
+  a record of what was true on 29 Aug; rewriting it would destroy the evidence trail. A5 and A7 are
+  now closed, but `beta.` still does not resolve and T6/T7/T8 are still unexecuted, so **the verdict
+  does not flip on this alone.**
+
+**Verified:** tsc clean · eslint clean · 211/211 (23 files) · build green, all on the merge commits
+themselves from a clean `.next`. RED-first re-confirmed against `f4b4832`.
+
+**Left undone / next:**
+- [ ] **Nurse and Patient have still never been rendered by anyone.** Patient is now *reachable* for
+      the first time — that is not the same as having looked at it. Nurse needs `E2E_NURSE_*` from
+      @Bastoh. Four of the six dashboards rendered so far had stat tiles reading fields the API never
+      sends.
+- [ ] Six of @Bastoh's PRs are waiting on me: **#120, #121, #122, #123, #124, #125.** #121 lands
+      `BETA_READINESS.md`, one of the two files `CLAUDE.md` §4 has demanded since day one.
+- [ ] My own two are still CHANGES_REQUESTED and untouched: **#109** (now conflicting) and **#107**.
+- [ ] **#98** — `develop` → `staging` — still held, still @Bastoh's call.
+
 ### 2026-08-31 / 2026-09-01 — nine PRs merged, the T5 pass found FLAG-227, and a full review round (branches: docs/clear-in-flight-2026-08-31, feat/t5-remaining-dashboards)
 
 **Goal:** clear the merge backlog Gate 2 called the real blocker, then extend the T5 harness past
