@@ -87,7 +87,7 @@ the result to pick the correct session log and FLAG number range.
 
 | File | Who writes | Contains |
 |---|---|---|
-| `HANDOFF.md` | Everyone | **Durable shared state only** — snapshot, branches, env/deploy facts, 🚧 In Flight table, BACKEND CONTRACT NOTES. **No session narrative.** |
+| `HANDOFF.md` | Everyone | **Durable shared state only** — snapshot, branches, env/deploy facts, 🚧 In Flight table, **📥 Cross-Lane Asks inbox**, BACKEND CONTRACT NOTES. **No session narrative.** |
 | `HANDOFF-<Name>.md` | **Owner only** | That dev's session log — narrative, findings, decisions |
 | `CODEBASE_FLAGS.md` | Everyone, own range | Issues found and shortcuts logged |
 | `ONBOARDING.md` | Everyone | New-dev orientation |
@@ -107,6 +107,27 @@ Lives at the top of `HANDOFF.md`. It is how devs avoid colliding.
 3. **Read it at session start**, every session.
 
 A stale claim is worse than no claim. If you abandon work, clear the row.
+
+### The 📥 Cross-Lane Asks table
+
+Also at the top of `HANDOFF.md`, under In Flight. **In Flight says what I am doing; this says what is
+waiting on you.** Two different questions — and until 2026-09-01 nothing in this repo answered the
+second.
+
+> **An escalation is not delivered until a row exists there.** A `CODEBASE_FLAGS.md` entry is a
+> catalogue. Your session log is narrative. Saying it out loud is nothing at all — **the other dev's
+> assistant cannot see your memory, only the text you leave where they are told to look.**
+
+- **Raise a row** when the work belongs to the other lane: it needs infra, secrets or spend you don't
+  hold, it's a product or design call, or it blocks you. One sentence plus a link — don't restate the
+  detail.
+- **The owner clears the row, not the raiser** — and says *where it landed* (PR, doc section, FLAG).
+- **If the ask has a GitHub issue, closing it is part of clearing the row.** Otherwise the tracker
+  says done while GitHub says open, and GitHub is what sends the email.
+- **Check your own rows before you pick work.** An open row may outrank what you planned to start.
+
+Cross-repo asks get a row here **and** a GitHub issue on the backend repo tagged `api-request`. The
+row is how the other frontend dev knows; the issue is how the backend knows.
 
 ### Branches
 
@@ -180,7 +201,9 @@ Slack, not a doc in this repo, not an assumption in code.
 ### Session start — in this exact order
 
 1. **Identify the dev** — `git config user.name`. Never ask.
-2. **Read `HANDOFF.md`** — shared state, In Flight claims, backend contract notes.
+2. **Read `HANDOFF.md`** — shared state, In Flight claims, backend contract notes, and the
+   **📥 Cross-Lane Asks inbox. Check your own rows there before picking work** — it is the only place
+   that answers *"is anything waiting on me?"*, and an open row may outrank your plan for the day.
 3. **Read _every_ per-dev log — `HANDOFF-<Name>.md` for ALL devs, not just this one.**
    ⚠️ Reading only your own **fails silently.** Nothing errors; you simply miss what the other dev
    did, duplicate their work, or contradict a decision they already made. This is the single
