@@ -39,6 +39,140 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-01 (evening) — Parity D/E/F, `BETA_READINESS.md`, and #99 rebased to MERGEABLE (branches: `feat/parity-d-e`, `docs/beta-readiness`, `docs/frontend-handoff-refresh` (backend), `fix/flag-001-server-trusted-auth`, `fix/flag-210-patient-portal`)
+
+**Goal:** the owner asked to continue the two-repo parity work — **D, E and F first because they are
+easy, then build C from frontend truth rather than porting it** — and then go at #99. That ordering
+instruction turned out to be the most load-bearing thing in the session, and it was his, not mine.
+
+**What I did:**
+- **PR #120 — parity D + E.** The 📥 Cross-Lane Asks inbox in `HANDOFF.md` (seeded with the eleven
+  asks that are actually live, not a template) plus its doctrine in `CLAUDE.md` §3, and a
+  **committed** `.claude/settings.json`.
+- **Backend PR #160 — parity F.** `FRONTEND_HANDOFF.md` refreshed against the live schema.
+- **PR #121 — parity C, first half.** `BETA_READINESS.md`, written from this repo's evidence.
+- **#99 rebased onto `develop`** (31 commits behind), **#100 replanted onto it**, both re-verified,
+  evidence posted, re-review requested. #99 is now **MERGEABLE**.
+- Ran a subagent to clear the review queue; it merged **#114** and **#115**.
+
+**What I found:**
+
+- 🎯 **The parity list was never written down, and I lost it.** A 22-item A–F list agreed on 31 Aug
+  existed only in one session's context — my own memory held a summary, this log held one line, and
+  neither repo held the table. I rebuilt C–F by diffing the two repos. **The artefact of the effort
+  to close the cross-repo seam fell through that seam.** Anything agreed in a session and not
+  committed does not exist.
+- 🪤 **A subagent and I shared one working tree, and it made me misreport.** I read
+  `.github/workflows/ci.yml` as missing and was seconds from raising that #116's CI had been lost
+  from `develop` — the files were fine; the fork's in-progress checkout had moved the tree under my
+  read. **Two agents doing git operations in one directory produce unstable reads that look exactly
+  like regressions.** Fixed by moving my own work into a `git worktree`. Worth a rule: if another
+  agent is operating the repo, isolate or wait — do not interleave.
+- 🪤 **And the isolation itself then destroyed `node_modules` — my own mistake, recorded because it
+  will happen to the next person.** A git worktree has no `node_modules` (it is gitignored), so to
+  run the suite against my branch I made a Windows **junction** pointing at the main repo's copy.
+  `git worktree remove --force` then failed with *"Filename too long"* — and in failing it **followed
+  the junction and deleted through it**, gutting `dist/` out of packages in the *main* repo. The
+  symptom is maximally misleading: `tsc` stays clean, `npm test` reports **"22 failed, no tests"**,
+  and every package directory still appears to be present. The real error is one level down —
+  `Failed to resolve import "@testing-library/jest-dom"` — from a package whose `package.json`
+  exists and whose `dist/` does not. **`npm install` did not fix it and quietly stripped 132 `libc`
+  lines from the lockfile** (the exact thing I fixed on 1 Sep); `npm ci` did fix it and leaves the
+  lockfile alone. **Never junction `node_modules` into a worktree — copy it, or run `npm ci` in the
+  worktree and accept the wait.**
+- 🔴 **This repo is PUBLIC and the backend's is PRIVATE, and that constrains the whole parity
+  effort.** It is why `FRONTEND_HANDOFF.md` (which carries demo credentials) must stay on their side
+  and can never simply be mirrored here, and it is why @Qeeyat's warning about never pointing the T5
+  harness at `api-beta` is a **gate** item and not a note. I had been treating the two repos as
+  symmetric. They are not.
+- 🎯 **Measured the schema, and it explains a whole bug class.** 125 paths, 170 operations. Of the
+  **84 GETs that document a `200`, only 36 document a response body — 48 do not (57%)**, including
+  `/auth/me/` and every dashboard stats endpoint. That is why four of six dashboards shipped stat
+  tiles bound to fields the API never sends: where the schema is silent the fields were typed by
+  guessing. `?page_size=` is documented on **2 of 125 paths**.
+- 🎯 **`FRONTEND_HANDOFF.md`'s own advice was the bug.** §5 told the frontend to *"generate a typed
+  client from the schema"*. Against 57% empty response bodies that yields empty interfaces the caller
+  fills in by guessing. **The courier document was actively teaching the failure mode**, from a host
+  it named "SOURCE OF TRUTH" that has returned HTTP 400 for seven weeks.
+- 🔧 **`POST /patients/` still documents its 201 as `PatientCreate`** — the *request* serializer, no
+  `id`, no `healthclouda_id`. That is FLAG-216's origin, and we stood down a buildable feature for a
+  week on it. The endpoint was always fine; **the documentation is wrong**, so backend #137 needs
+  re-scoping rather than implementing.
+- 🎯 **The backend's `TARGET_ARCHITECTURE_CHECKLIST.md` says in its own preamble it is "derived from
+  `BETA_READINESS.md`, re-ordered by dependency."** So the two are not siblings and cannot be written
+  together — writing the checklist first means inventing its inputs. That single sentence is why C
+  landed as one document tonight instead of two badly.
+- 🪤 **A conflict resolution that git called clean was semantically broken.** #99 makes `middleware`
+  **async**; #100's three FLAG-210 tests were written against the synchronous signature. The two
+  `describe` blocks do not overlap textually, so git merged them happily and the result failed with
+  `Promise<NextResponse> is not assignable to Response`. **Textual cleanliness is not correctness**,
+  and this is the third instance this week of a mechanical result passing while the semantic one did
+  not.
+- **#99's fix was pushed on 30 Aug and had never been shown to work.** Running the new middleware
+  tests against the pre-fix middleware: **7 failed / 13 passed of 20**, restored to 20/20. The
+  regression @Qeeyat caught is genuinely closed. It stayed blocked purely because
+  `dismiss_stale_reviews_on_push = false` and nobody re-reviewed.
+- **Her block on #118 was right** and I have not argued it: "13/13" was the `chromium` project alone.
+- 📅 **Onboarding moved to Sat 5 Sep**, still working to Thu 3 Sep. Gate 3 is **Wed 2 Sep**.
+- 🔴 **`api-beta` and `beta.` still do not resolve.** Both return a LAN address — the local resolver
+  hijacking NXDOMAIN, so a careless `nslookup` reads as success. **Four Tier-1 gate items are
+  PROVE-ON-BETA and cannot close until that tier exists.**
+
+**Decisions:**
+- **Derived C rather than porting it — the owner's call, and he was right to stop me.** I had listed
+  `BETA_READINESS.md` and `TARGET_ARCHITECTURE_CHECKLIST.md` as things to "port from the backend". He
+  pointed out their architecture and their needs are not ours. A target-architecture checklist
+  derived from Django/DRF concerns sitting in a Next.js repo would look authoritative and describe
+  the wrong system — **worse than having no document.** So the frontend gate is written in our terms:
+  authorization decided where the user cannot write to it; the browser talking to the tier we
+  intended; PHI not reaching a surface we do not control.
+- **Wrote `BETA_READINESS.md` and deliberately did NOT write the checklist**, per the derivation
+  order above. Recorded in `CLAUDE.md` §4 so the next session does not "helpfully" write it backwards.
+- **E does the opposite of the backend on purpose.** They gitignore all of `.claude/`, so nothing is
+  shared. I committed `settings.json` and ignored only `settings.local.json` — parity means matching
+  their *standard*, not copying a choice that was worse.
+- **Guardrailed the subagent before it merged anything**, specifically that **#98 must not merge**:
+  `staging` is a Vercel *preview* target inheriting the preview-wide `api-dev` value, so promoting
+  before the `staging`-scoped override exists points `beta.` at the dev backend. It held: it merged
+  #114/#115 and left #98 and #100 alone.
+- **Rebased #99 rather than merging `develop` into it**, per §3, and replanted #100 with
+  `git rebase --onto`. Recorded both pre-rebase SHAs on the PR (`bf027e5`, `84d1048`) because a
+  force-push without a stated recovery point is not a reversible action.
+- **Amended the `await` fix into #100's own commit** rather than adding a fixup — it is part of
+  resolving the rebase, and the branch was being force-pushed regardless.
+- **Claimed the In Flight row for #120 AFTER cutting the branch** and said so in the row instead of
+  backdating it; **skipped the row entirely for #121** with the reason written on the PR, since #120
+  and #111 both already edit that table.
+
+**Verified:** every number measured, not reported. #120 — tsc 0 · eslint `--max-warnings=0` 0 ·
+192/192 · build green, middleware 35.2 kB. #121 — same, 192/192. **#99 — tsc 0 · lint 0 · 205/205
+across 23 files · build green, middleware 35.8 kB**, plus the RED proof above. **#100 — tsc 0 · lint 0
+· 211/211 · build green**, `/patient` at 4.1 kB, and its own change confirmed **byte-identical across
+the rebase** (11 files, 158 insertions, 30 deletions before and after). Backend #160 is docs-only.
+Schema facts pulled live from `api-dev` (200, unauthenticated, 391 KB).
+
+**Left undone / next:**
+- [ ] 🔴 **#99 needs @Qeeyat's re-review — that is now the entire blocker.** It is MERGEABLE. ⛓️ merge
+      commit, **not** a squash, and **without `--delete-branch`**; #100 lands behind it.
+- [ ] 🔴 **Wire CI into ruleset `11328360`'s required status checks.** #116 is merged so the reason I
+      held it is gone. A green tick currently implies a gate that does not exist.
+- [ ] 🔴 **Send `E2E_NURSE_*` credentials out-of-band.** Nurse and Patient are the only dashboards
+      nobody has rendered, and four of the other six were wrong when someone finally looked.
+- [ ] 🔴 **Chase the backend on `api-beta`** — asked in #160 §7. Four Tier-1 items wait on it.
+- [ ] 🟠 **Rebase #111** and fix its now-false *"there is still no CI"* clause.
+- [ ] 🟠 **Fix #118** — add `landing`/`auth` to the `mobile` project's `testIgnore`, and quote the
+      full `npx playwright test` output next time.
+- [ ] 🟠 **`TARGET_ARCHITECTURE_CHECKLIST.md`** — now derivable from `BETA_READINESS.md`, tagged to
+      `docs/frontend-design.drawio` (*App Shell & Routing — target*, *Auth & Session — target*).
+- [ ] 🟠 **T3 and T4 do not exist**, and T3 is what makes #99's fix falsifiable. Its "Done when" asks
+      for a test **proven able to fail**, the way the backend sabotaged their own cross-org rule.
+- [ ] 🟢 **Re-verify `FRONTEND_HANDOFF.md` §4 endpoint by endpoint** — it is labelled *carried
+      forward, not re-verified*, which is honest but is not evidence.
+- [ ] 🟢 **Fix dev identification to key on email**, not `git config user.name`. Still open from this
+      morning.
+
+---
+
 ### 2026-09-01 — Levelled the frontend against the backend: CI, lint, coverage, and the e2e suite nobody had run (branches: feat/e8-ci-eslint-gating, feat/b-test-infrastructure, fix/flag-024-stale-e2e-specs)
 
 **Goal:** started as the 31 Aug beta stand-up. Became a deliberate detour into tooling, after the
