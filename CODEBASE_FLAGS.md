@@ -1958,7 +1958,7 @@ organisation appears — asserted positively, not as "not an em dash" (the FLAG-
 ---
 
 ### FLAG-225 — No dashboard stats endpoint in the entire API documents a response body
-**Severity:** P1 · **Area:** Contract / Schema · **Owner:** @Qeeyat (frontend) · **Status:** OPEN
+**Severity:** P1 · **Area:** Contract / Schema · **Owner:** @Qeeyat (frontend) · **Status:** ✅ **RESOLVED 2026-09-03 by backend #161** — verified against the live schema 2026-09-04, see the note at the end of this entry
 **Found:** 2026-08-30, generalising from FLAG-222
 
 FLAG-222 (three of four Superadmin stat cards read fields the API has never returned) is not a
@@ -1988,6 +1988,45 @@ class — *publish response serializers for the stats endpoints* — needs its o
 failing that — every stat tile in the app has a live-captured payload recorded next to its type, per
 role, with the capture date.
 
+
+> ✅ **RESOLVED by backend #161, merged 2026-09-03. Verified against the live schema 2026-09-04** —
+> re-fetched and parsed here, not taken from the PR:
+>
+> ```
+> /api/v1/doctor/dashboard/stats/        HAS BODY   → DoctorDashboardStats
+> /api/v1/nurse/dashboard/stats/         HAS BODY   → NurseDashboardStats
+> /api/v1/org-admin/dashboard/stats/     HAS BODY   → OrgAdminDashboardStats
+> /api/v1/receptionist/dashboard/stats/  HAS BODY   → ReceptionistDashboardStats
+> /api/v1/patients/me/dashboard/         HAS BODY   → PatientDashboard
+> /api/v1/superadmin/dashboard/          HAS BODY   → SuperadminDashboardStats
+> /api/v1/superadmin/stats/              HAS BODY   → SystemStats
+> ```
+>
+> **Seven for seven.** The sentence this flag is named for is no longer true.
+>
+> 🎯 **It immediately paid for itself twice, on the same day.**
+> - It **confirmed [[FLAG-227]] from a second, independent source**: `DoctorDashboardStats` publishes
+>   `todays_appointments` (not `appointments_today`) and carries **no `active_prescriptions`** — the
+>   phantom field, absent exactly as the live capture said.
+> - It **found [[FLAG-231]] on a dashboard nobody can log into.** Two of four Patient tiles read
+>   fields `PatientDashboard` does not publish. That check was impossible the day before this landed,
+>   and it needed no credentials.
+>
+> ✅ It also **cleared Nurse from a third source**: `NurseDashboardStats` publishes exactly the eleven
+> fields `NurseStats` declares, matching the live capture taken the same day.
+>
+> ⚠️ **Do not read this as "the schema can now be trusted."** Two limits, both live:
+> 1. **[[FLAG-554]] (backend)** — six nested `SerializerMethodField`s in this same batch publish as
+>    `string` where the value is an integer or an object. **A published wrong type is more dangerous
+>    than a documented absence**, because absence makes a consumer go and measure, and that measuring
+>    is what caught FLAG-222 and FLAG-227. Confidence removes the reason to check.
+> 2. **This closes the *stats* class only.** The wider count — of the 84 GETs documenting a `200`,
+>    48 documented no body — was measured across the whole API on 2026-09-01. Only these seven paths
+>    are known to have changed.
+>
+> **So the rule stands: the schema is a lead, not a verdict.** What changed is that the lead now
+> exists for stats endpoints, and a *presence* check against it is cheap and does not need a token —
+> which is exactly how FLAG-231 was found.
 ---
 
 ### FLAG-226 — `?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes
@@ -2374,3 +2413,79 @@ status to be reported".
 - [ ] Required status checks are added to the ruleset, so a PR with no checks cannot merge silently.
 - [ ] `HANDOFF.md`'s stacking guidance says out loud that a stacked child gets no CI until it is
       retargeted **and** pushed to.
+
+---
+
+### FLAG-231 — Two Patient stat tiles read fields `/patients/me/dashboard/` does not return
+**Severity:** P1 · **Area:** Contract / Patient dashboard · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-04, from the **newly published schema** — not from a render, because nobody can render this dashboard yet
+
+The **fifth** dashboard with this bug, after Org Admin (#85), Nurse (NURSE-1), Superadmin
+([[FLAG-222]]) and Doctor ([[FLAG-227]]). **The count is now five of seven, not four of six** — and
+DASH-6 is the one nobody has ever looked at.
+
+🎯 **This was found without credentials, and that is the point.** Backend **#161** (merged 2026-09-03)
+published response bodies for all seven dashboard/stats endpoints, closing the [[FLAG-225]] class.
+`GET /api/v1/patients/me/dashboard/` now `$ref`s a complete `PatientDashboard` component:
+
+```
+required: active_episodes, active_instructions, active_prescriptions, completed_episodes,
+          current_admission, last_visit_date, last_visit_organization, organizations_visited,
+          total_episodes, unread_notifications
+```
+
+`PatientDashboard.tsx:70-73` reads:
+
+| Tile | Component reads | Published? |
+|---|---|---|
+| **Upcoming Appts** | `upcoming_appointments` | ❌ **not in the component** |
+| Active Episodes | `active_episodes` | ✅ |
+| **Access Requests** | `pending_access_requests` | ❌ **not in the component** |
+| Notifications | `unread_notifications` | ✅ |
+
+**Nothing appointment-shaped or access-request-shaped is published on this endpoint at all** — the
+two missing names have no near neighbour to be a rename of. Per the [[FLAG-222]] reasoning, do
+**not** point them at a plausible-looking field: this is a screen a patient reads their own care
+from, and an invisible wrong number is worse than a visible gap.
+
+⚠️ **Two tiles will render `—`** the moment anyone signs in, because `StatCard` renders
+`{value ?? '—'}`. `Notifications` is masked by `?? 0` in the component and would show `0` even if the
+field vanished — worth noting as a second, quieter instance of the same class.
+
+`src/types/dashboard.ts:72-77` declares the wrong interface:
+
+```ts
+export interface PatientDashboardData {
+  upcoming_appointments: number;      // ❌ never sent
+  active_episodes: number;            // ✅
+  pending_access_requests: number;    // ❌ never sent
+  unread_notifications?: number;      // ✅
+}
+```
+
+**Seven published fields nothing renders:** `total_episodes`, `completed_episodes`,
+`last_visit_date`, `last_visit_organization`, `current_admission`, `active_prescriptions`,
+`organizations_visited`. 🎯 **`current_admission` and `active_prescriptions` are real clinical
+information being thrown away** on the patient's own portal — and note `active_prescriptions` **does**
+exist here, while [[FLAG-227]]'s doctor-side `active_prescriptions` does not. There is a
+prescriptions concept; it is published on the patient endpoint and nowhere else.
+
+⚠️ **Evidence standard — read this before acting.** This is **schema evidence, not a live capture**,
+and `CLAUDE.md` is explicit that the schema is a lead and not a verdict. Three things make it strong
+anyway: the component is newly generated from the view's own serializer, its `required` list is
+complete rather than partial, and the two names are absent entirely rather than mistyped.
+[[FLAG-554]] (backend) warns that six nested fields in this batch publish as `string` where the value
+is an integer or object — **that is a wrong *type*, not a wrong *presence***, so it does not weaken
+this finding. **Still: confirm against a live payload the first time a patient token exists.**
+
+**Currently annotated, not fixed.** `roles.spec.ts` carries `knownStatBug: 'FLAG-231'` on the patient
+entry, so when credentials land the suite stays honest instead of going red, and turns red when
+someone fixes the source.
+
+**Done when:**
+- [ ] A live capture as a real patient confirms (or refutes) the two absences.
+- [ ] `PatientDashboardData` is re-typed from that payload — **not from the fixture**, which is how
+      this class survives a green unit suite ([[FLAG-221]]).
+- [ ] The two tiles are repointed at real fields, or removed rather than shown blank. `total_episodes`
+      is a plausible honest substitute for one of them; that is a **design call**, not a rename.
+- [ ] `knownStatBug` deleted from the patient entry in `e2e/design/roles.spec.ts`, and that test passes.
