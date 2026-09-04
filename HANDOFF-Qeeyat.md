@@ -129,7 +129,47 @@ one of the two, for a reason worth writing down.
   workflow is also the one that skips CI**, and the two facts had never been written next to each
   other. Added the caveat beside that guidance rather than weakening it.
 
+**Then cleared the whole review queue — eight PRs, and it produced the session's biggest finding:**
+
+- ✅ **Approved #120, #121, #122, #123, #124, #125, #127**, and **cleared my standing
+  CHANGES_REQUESTED on #118** — which had blocked it since 2 Sep for a fix @Bastoh pushed the same
+  day. His own #124 names the cost: *"a blocked-on-review item and a blocked-on-work item look
+  identical in a handoff table."* Mine was the former, and only I could clear it.
+- 🎯 **#127's log led me to FLAG-231, and that is the argument for the read-every-log ritual.** He
+  recorded that backend **#161** (merged 3 Sep) published the stats response bodies. I re-fetched the
+  live schema: **seven of seven now carry one**, so **FLAG-225 is resolved** — and
+  `PatientDashboard` does **not** publish `upcoming_appointments` or `pending_access_requests`, which
+  two of four Patient tiles read. **Five of seven, not four of six**, and I found it on the dashboard
+  I had spent the morning saying I was blocked on. **I was right that I could not render it and wrong
+  that I could not check it.** The thing that changed was in his repo, reported in his log.
+- 🎯 **My own morning's comment was already stale by the afternoon.** I wrote "only a live render can
+  see this class" into `roles.spec.ts` and `DESIGN-VERIFICATION.md` today; #161 had made it untrue the
+  day before. Corrected both: **check the schema first because it is free, then render** — and per
+  backend FLAG-554, never treat a published *type* as settled, because a confidently wrong schema
+  removes the reason to measure.
+- 🪤 **#118 cost me three false measurements before a true one**, all mine: an orphaned `next dev`
+  from another branch that Playwright reused (`reuseExistingServer`), then a **cold** server where
+  every `page.goto` blew the default 30s timeout — `13 failed / 0 passed`. Warm: **13/13**. That third
+  one is a real finding *about* #118, since it exists to unblock e2e-in-CI and **CI is always cold**;
+  `e2e/design/helpers.ts` already solved it with 45s and said why. Reported, not blocked.
+- **Two errors of mine that his PRs caught:** my #118 Option 1 would have left a project named
+  `mobile` running **zero** tests; and my #111 merge instruction went stale, so following it would
+  have resurrected four cleared In Flight rows. *"A written conflict resolution has a shelf life, and
+  it is shorter than the PR it was written for"* — which applies to the merge guidance I wrote today
+  on #123 and #128.
+- **Corrected `HANDOFF.md`**: it credited #114/#115 as "merged by @Qeeyat". I authored both, so I
+  could not have approved them — `mergedBy=Bastoh` on both, verified via the API. Found by reading
+  his #122 log, which had it right.
+
 **Decisions:**
+- **Approved #121 rather than blocking on its two stale Tier-1 rows.** `BETA_READINESS.md` opens with
+  A5/FLAG-001 and FLAG-210 as open; both merged 3 Sep. It went stale **because it sat three days
+  waiting on me**, and a CHANGES_REQUESTED cannot be cleared by a push — blocking the file the day
+  before PHI, over two status lines, costs more than it protects. Committed to reconciling it myself
+  if he merges as-is.
+- **Re-ran #120's flaked CI job rather than reporting the red.** It was FLAG-228 again — the job log
+  says *"the build failed, but NOT on the A4 fail-loud guard"*, then `NextFontError`. All three
+  checks pass on the re-run.
 - **Stacked on `docs/merge-99-100-in-flight` rather than branching from `develop`.** Merging #126
   first was not actually available to anyone — the ruleset requires one approving review with an
   empty bypass list — and the In Flight table is only accurate on that branch, so claiming on
