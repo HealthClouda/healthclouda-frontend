@@ -194,8 +194,15 @@ for (const vp of VIEWPORTS) {
 | `smallscreen.spec.ts` | FLAG-203 gate, with real CSS | ✅ |
 
 🎉 **Nurse came back clean** — the first dashboard whose stats interface matches the live payload
-exactly (11 of 11 fields). The stat-tile bug stands at **four of the six rendered**, not five of
-seven. The same run did find FLAG-212 has worsened into two disagreeing bed totals on one screen.
+exactly (11 of 11 fields), now confirmed from a third source: the published `NurseDashboardStats`
+component lists those same eleven. The same run found FLAG-212 has worsened into two disagreeing bed
+totals on one screen.
+
+🔴 **But the count went up, not down, and it was Patient that moved it.** Later the same day the
+newly published schema showed **two of four Patient tiles read fields `/patients/me/dashboard/` does
+not return** (`upcoming_appointments`, `pending_access_requests` — **FLAG-231**). So the class now
+stands at **five of seven**, and the one nobody has rendered is one of them. Found without a single
+credential, which is the whole argument for checking the schema *and* rendering rather than choosing.
 
 ⏸️ **Patient is now the only dashboard nobody has ever rendered.** It has been *reachable* since
 #100 merged, which is not the same as having looked at it — it needs one pair of credentials and
@@ -231,10 +238,22 @@ quoted; the newly added one was not.**
 `roles.spec.ts` checks that **no stat tile renders `—` or `NaN` once data has loaded.**
 
 `StatCard` renders `{value ?? '—'}`, so an em dash is the signature of the component reading a field
-the backend never sent. That fault is invisible to both other layers we have: unit fixtures are typed
-from the same wrong interface and agree with the bug, and the schema documents `200: No response body`
-for all eleven stats endpoints (FLAG-225). **A live render is the only layer that can see it** — which
-is why this check found FLAG-227 on the first Doctor run.
+the backend never sent. Unit fixtures are typed from the same wrong interface and agree with the bug,
+so they cannot see it — which is why this check found FLAG-227 on the first Doctor run.
+
+> 🔄 **Updated 2026-09-04 — the schema half of that argument has changed.** This section used to say
+> the schema documents `200: No response body` for all eleven stats endpoints (FLAG-225) and so
+> "a live render is the only layer that can see it". **Backend #161 (merged 3 Sep) published response
+> bodies for all seven dashboard/stats endpoints**, verified against the live schema. So a **presence**
+> check — does the component actually publish the field this tile reads? — is now possible, costs one
+> `curl`, and **needs no credentials**. That is how **FLAG-231** was found on the Patient dashboard,
+> which still nobody can sign into.
+>
+> **Do both, and in this order:** check the schema first because it is free and needs no token, then
+> render, because two things a schema still cannot tell you are whether the field arrives *populated*
+> and what actually reached the screen. And per **FLAG-554**, six fields in that same backend batch
+> publish with the wrong *type* — a confidently wrong schema is worse than a silent one, because it
+> removes the reason to measure.
 
 When it fails, **capture the live payload and retype the interface. Never add the field to the
 fixture** — that is precisely how the bug survives a green suite.

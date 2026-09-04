@@ -14,16 +14,25 @@ import { signInAs, VIEWPORTS, type E2ERole } from './helpers';
  * fields the API has never returned, so the Organisations tile showed an em dash
  * directly above a table listing three organisations.
  *
- * That bug class is invisible to every other layer we have:
+ * That bug class was invisible to every other layer we had:
  *   - unit tests assert our own fixtures, typed from the same wrong interface,
  *     so they agree with the bug (FLAG-221, four times now);
- *   - the schema documents `200: No response body` for all eleven dashboard
- *     stats endpoints (FLAG-225), so it cannot adjudicate either.
+ *   - the schema documented `200: No response body` for every dashboard stats
+ *     endpoint (FLAG-225), so it could not adjudicate either.
  *
- * Only a live render can see it. `StatCard` renders `{value ?? '—'}`, so an em
- * dash in a tile IS the signature of reading a field the backend never sent.
- * `assertTilesCarryValues` below is therefore the assertion with teeth here —
- * the screenshots are the secondary benefit, not the point.
+ * ⚠️ **The second half changed on 2026-09-03 and this comment must not go stale
+ * the way the last one did.** Backend #161 published response bodies for all
+ * seven dashboard/stats endpoints, so a *presence* check against the schema is
+ * now possible and needs no credentials — that is how FLAG-231 was found on the
+ * Patient dashboard, which nobody can still log into.
+ *
+ * That does NOT retire this file, for two reasons. FLAG-554 (backend) shows six
+ * fields in that same batch published with the wrong *type*, and a confidently
+ * wrong schema is worse than a silent one because it removes the reason to
+ * measure. And a schema cannot tell you what actually rendered: `StatCard`
+ * renders `{value ?? '—'}`, so an em dash in a tile IS the signature of reading
+ * a field the backend never sent. `assertTilesCarryValues` below remains the
+ * assertion with teeth — the screenshots are the secondary benefit.
  *
  * Signs in for real against `NEXT_PUBLIC_API_URL`; credentials come from
  * `.env.local` and never from this repo. See `docs/DESIGN-VERIFICATION.md`.
@@ -145,6 +154,13 @@ const ROLES: readonly RoleSpec[] = [
     ],
     tiles: ['Upcoming Appts', 'Active Episodes', 'Access Requests', 'Notifications'],
     mobile: 'responsive',
+    // Predicted from the newly published `PatientDashboard` component rather
+    // than observed, because this dashboard still cannot be signed into:
+    // `upcoming_appointments` and `pending_access_requests` are not in it, and
+    // nothing appointment- or access-shaped is published at all. Confirm
+    // against a live payload the first time a patient token exists — if this
+    // test XPASSes, the prediction was wrong and FLAG-231 should say so.
+    knownStatBug: 'FLAG-231',
   },
 ];
 
