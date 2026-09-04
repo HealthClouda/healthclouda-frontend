@@ -173,7 +173,14 @@ body` for these endpoints anyway (FLAG-225).
 - [ ] 🔴 **Six of @Bastoh's PRs still await my review** — #120, #121, #122, #123, #124, #125.
       Unchanged from yesterday, and #121 lands `BETA_READINESS.md`.
 - [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107.
-- [ ] 🟠 **#126 needs @Bastoh's review** — this PR is stacked on it.
+- [ ] 🟠 **#126 needs @Bastoh's review** — this PR is stacked on it. **Tried to merge it at the end of
+      the session and could not**, which is worth recording because it is the first time the gate has
+      actually been tested rather than described: `mergeStateStatus: BLOCKED`,
+      `reviewDecision: REVIEW_REQUIRED`, zero reviews — and **my account has `admin: true` and it
+      made no difference**, because `bypass_actors` is `[]`. `CLAUDE.md` §3 says "for everyone, with
+      no bypass list"; that is now measured, from the admin side, not just read off the API. The only
+      routes through are @Bastoh approving, or deliberately disabling the ruleset — declined, on my
+      own PR, the day before PHI. Pinged him on #126 instead with what is blocked behind it.
 
 ### 2026-09-03 — A5 is closed: #99 and #100 reviewed, merged, and the docs caught up (branch: docs/merge-99-100-in-flight)
 
