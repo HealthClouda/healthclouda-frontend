@@ -256,6 +256,69 @@ dashboards that *have* been rendered turned out to be reading stat fields the AP
 
 ---
 
+## 🌙 Session close — @Qeeyat, 2026-09-03. **Start here next session.**
+
+> The 1 Sep handover below is now **spent**: its item 1 (fix #99) is done and merged. Read this
+> block first, then that one only for the #111/#118/#96 history.
+
+### ✅ What changed on `develop` on 2026-09-03
+
+**A5/FLAG-001 is closed.** #99 then #100, merged in that order as merge commits by @Qeeyat, each
+verified on the merge commit itself from a clean `.next` rather than from the PR body:
+
+```
+tsc clean · eslint clean · 211/211 across 23 files · build green
+/patient present in the route tree · middleware 35.8 kB · CI green on develop
+```
+
+- Authorization no longer comes from the client-writable `hc_user` cookie **anywhere** in the app.
+  Every dashboard gate calls `requireDashboardUser()`, which resolves identity from `GET /auth/me/`
+  using the httpOnly token and checks **role *and* tenant**.
+- `middleware.ts` now **resumes an aged-out session** itself and hands the new token to that same
+  render — the hourly-logout regression @Qeeyat caught on 29 Aug, fixed and re-proven RED-first
+  against the pre-fix middleware (`f4b4832`): **7 failed | 13 passed**.
+- **Patients can sign in for the first time** (`/patient`, slug-less).
+
+### 🔴 Do these first — in this order
+
+| # | Action | Why it's first |
+|---|---|---|
+| 1 | **Merge #126** (this PR — docs, In Flight, FLAG-001/210 resolved, FLAG-228) | Everything below is written down there. Until it merges, `HANDOFF.md` on `develop` still shows #99 and #100 as open work, and the next reader plans around a blocker that no longer exists. Needs @Bastoh's review |
+| 2 | 🚨 **Render Nurse and Patient — nobody ever has** | **Four of the six dashboards that HAVE been rendered turned out to be reading stat fields the API never sends** (FLAG-222, FLAG-227 and two before them). Patient is now *reachable* for the first time (#100); that is not the same as having looked at it. **Nurse needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh, out of band.** This is the cheapest high-value thing on the board and it has paid for itself on every run so far |
+| 3 | **Six of @Bastoh's PRs await @Qeeyat's review** — #120, #121, #122, #123, #124, #125 | #121 lands `BETA_READINESS.md`, one of the **two files `CLAUDE.md` §4 has demanded as required reading since day one and that have never existed here**. ⛓️ #124 is stacked on #122's branch — merge #122 as a merge commit, **without `--delete-branch`** |
+| 4 | **@Qeeyat's own two are stale and still CHANGES_REQUESTED** — #109 (now conflicting, `CODEBASE_FLAGS.md` only) and #107 | Untouched since 30/31 Aug. #109 also needs FLAG-227 folded in or sequenced after it |
+| 5 | **#98 — `develop` → `staging`** | Approved and **deliberately held**, not forgotten. `[INFRA]` lane: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
+| 6 | **Wire CI into ruleset 11328360's required status checks** | Still outstanding from 1 Sep. CI runs, but the ruleset carries no required checks, so a green tick implies a gate that does not exist. Repo settings — only @Bastoh can do it |
+
+### 📌 Three things worth knowing before touching anything
+
+1. ⛓️ **Merging a stack parent by pushing a merge commit to `develop` is safe.** GitHub retargeted
+   **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in
+   this file is specifically **`gh pr merge --delete-branch`**, which removes the base out from under
+   the child *first*. Two data points now: #116→#117 and #99→#100.
+2. 🔴 **A red CI check is not automatically a real failure — see FLAG-228.** `npm run build` fetches
+   `Lato` from Google Fonts at build time, and when that call flakes the **A4 fail-loud job** dies
+   with `NextFontError`. It killed a check on #120 that has nothing to do with that diff. **Read the
+   job log before believing a red X**, and self-host the font to end it.
+3. 🟡 **`CODEBASE_FLAGS.md` is mis-filed from FLAG-215 down** — those entries sit *below* the
+   "Resolved flags" heading while still being OPEN, because they were appended as raised. **Read each
+   entry's Status line, not its position.** Left deliberately unsorted; it wants its own pass.
+
+### ⚠️ What is still NOT true, so nobody reads the win too widely
+
+- **Gate 2's verdict has not been re-run and does not flip on this.** A5 and A7 are closed, but
+  `beta.healthclouda.com` **still does not resolve**, #98 is still held, and **T6 / T7 / T8 remain
+  unexecuted**. What changed is that the remaining gap is deployment and test layers rather than
+  authorization.
+- **Nothing in #99 has been exercised against a live browser session on `dev.healthclouda.com`.**
+  Every hour-boundary claim is asserted by unit tests against a mocked `fetch`. A click-through on
+  the deployed dev tier is the cheapest remaining check on the highest-value change in the repo.
+- **FLAG-020 (concurrent refreshes) is open and its residual window is real** — two tabs restored
+  after an hour idle can still cost a session. Its *reasoning* about `<Link>` prefetch is wrong even
+  though its conclusion holds today; the detail is on #99 and in `HANDOFF-Qeeyat.md`.
+
+---
+
 ## 🌙 Handed over to @Bastoh — end of @Qeeyat's session, 2026-09-01
 
 > Written because @Qeeyat is offline and everything below needs **@Bastoh**. Nothing here is
