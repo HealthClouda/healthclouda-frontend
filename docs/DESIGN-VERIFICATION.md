@@ -151,6 +151,15 @@ Any spec whose role credentials aren't set **skips itself** with a clear message
 failing — see `e2e/design/helpers.ts`. That means `npx playwright test e2e/design` is always safe
 to run, even before you have credentials for every role.
 
+🪤 **Run `npm test` with the harness's dev server stopped.** Playwright starts `npm run dev` and
+leaves it running, and vitest forks a worker per test file. With both alive, workers time out
+waiting to start and the suite reports **failures that are pure resource contention** — measured on
+2026-09-04: **40 failed / 211**, and on a worse run only 8 of 23 files loaded at all. The same
+suite, with the dev server stopped, is **211/211 in 16 seconds**. Nothing was wrong with the code.
+If `npm test` goes red right after a harness run, kill the dev server and stray browsers and re-run
+**before** believing it — the failure text (`Timeout waiting for worker to respond`) names the cause
+if you scroll up past the assertion noise.
+
 Shape of a spec:
 
 ```ts
@@ -180,14 +189,42 @@ for (const vp of VIEWPORTS) {
 |---|---|---|
 | `superadmin.spec.ts` | Superadmin (DASH-1) | ✅ |
 | `roles.spec.ts` | Org Admin (DASH-2), Receptionist (DASH-4), Doctor (DASH-5) | ✅ added 2026-08-31 |
+| `roles.spec.ts` | **Nurse (DASH-3)** | ✅ **added 2026-09-04 — rendered for the first time, 6/6 green** |
+| `roles.spec.ts` | **Patient (DASH-6)** | ⏸️ **wired and skipping** — no `E2E_PATIENT_*` credentials exist |
 | `smallscreen.spec.ts` | FLAG-203 gate, with real CSS | ✅ |
-| — | **Nurse (DASH-3)** | ❌ **no `E2E_NURSE_*` credentials exist** |
-| — | **Patient (DASH-6)** | ❌ no credentials, **and** a patient cannot sign in until FLAG-210 (#100) merges |
 
-⚠️ **Two dashboards have therefore still never been rendered by anyone.** Nothing currently proves
-they are free of the stat-tile contract bug that has now been found on four of the six
-(FLAG-222, FLAG-227). Do not read a green harness run as "the dashboards are verified" — read it as
-"the four we can log into are."
+🎉 **Nurse came back clean** — the first dashboard whose stats interface matches the live payload
+exactly (11 of 11 fields). The stat-tile bug stands at **four of the six rendered**, not five of
+seven. The same run did find FLAG-212 has worsened into two disagreeing bed totals on one screen.
+
+⏸️ **Patient is now the only dashboard nobody has ever rendered.** It has been *reachable* since
+#100 merged, which is not the same as having looked at it — it needs one pair of credentials and
+nothing else. Its entry is already in `roles.spec.ts`, including the two things that make it
+structurally unlike the staff roles: it signs in at the slug-less general portal, and at 390px it
+must render **responsively with no gate** (asserting the gate there would be asserting a bug).
+
+⚠️ **Do not read a green harness run as "the dashboards are verified", for two separate reasons.**
+One is Patient, above. The other is **FLAG-229: the harness photographs each page's landing state
+only.** Every form, modal, slide panel and row action — including the Nurse record-vitals form,
+which is the only write workflow that role has — is behind a second interaction and is rendered by
+nobody. A green run means "each dashboard's front page loads and its tiles carry real values."
+
+### ⚠️ Quoting credentials in `.env.local` — this looks exactly like a wrong password
+
+**If a value contains `#`, it must be quoted.** dotenv treats an unquoted `#` as the start of a
+comment and silently truncates the rest of the line:
+
+```bash
+E2E_NURSE_PASSWORD=abc#1234      # ← the browser receives "abc"
+E2E_NURSE_PASSWORD="abc#1234"    # ← correct
+```
+
+This cost a diagnostic cycle on 2026-09-04. The credential was correct; only its first four
+characters were ever sent, the backend answered *"Invalid email or password"*, and the harness
+reported a bare 45-second `waitForURL` timeout — which reads as "the dashboard never loaded", so
+you go and look at the dashboard. `signInAs` now races the form error against the navigation and
+says which one happened, naming this trap in the message. **The four roles that already worked were
+quoted; the newly added one was not.**
 
 ### The assertion that matters more than the pixels
 
