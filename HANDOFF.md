@@ -251,6 +251,16 @@ at it. Nurse still needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh. 
 dashboards that *have* been rendered turned out to be reading stat fields the API never sends
 (FLAG-222, FLAG-227, and two before them).
 
+> 📌 **Update 2026-09-04 — half of this is now done.** **Nurse has been rendered** (T5, `roles.spec.ts`,
+> 6/6 green) and its stats contract is **clean**: `NurseStats`' eleven fields are eleven for eleven
+> against a live `GET /nurse/dashboard/stats/`. **So the count stays "four of six", not five of
+> seven** — the first dashboard to break the streak. `E2E_NURSE_*` did arrive; the value simply
+> needed quoting in `.env.local` (an unquoted `#` truncates it — see `docs/DESIGN-VERIFICATION.md`).
+>
+> ⏸️ **Patient is now the ONLY dashboard nobody has ever rendered.** It is wired into the harness and
+> skips cleanly; it needs `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` and nothing else. **One
+> message from @Bastoh closes the last of this gap.**
+
 ---
 
 
@@ -284,7 +294,7 @@ tsc clean · eslint clean · 211/211 across 23 files · build green
 | # | Action | Why it's first |
 |---|---|---|
 | 1 | **Merge #126** (this PR — docs, In Flight, FLAG-001/210 resolved, FLAG-228) | Everything below is written down there. Until it merges, `HANDOFF.md` on `develop` still shows #99 and #100 as open work, and the next reader plans around a blocker that no longer exists. Needs @Bastoh's review |
-| 2 | 🚨 **Render Nurse and Patient — nobody ever has** | **Four of the six dashboards that HAVE been rendered turned out to be reading stat fields the API never sends** (FLAG-222, FLAG-227 and two before them). Patient is now *reachable* for the first time (#100); that is not the same as having looked at it. **Nurse needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh, out of band.** This is the cheapest high-value thing on the board and it has paid for itself on every run so far |
+| 2 | ✅ **Nurse: DONE 2026-09-04** · ⏸️ **Patient: still nobody** | **Nurse rendered, 6/6 green, stats contract CLEAN** (11/11 fields) — the streak stays four of six. The run raised **FLAG-229** and re-measured **FLAG-212** to P2. **Patient is now the only dashboard nobody has ever rendered**: it is wired into `roles.spec.ts` and skips cleanly, and needs only `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` from @Bastoh, out of band. *(Original row, for the record: "Render Nurse and Patient — nobody ever has … the cheapest high-value thing on the board and it has paid for itself on every run so far." It did again.)* |
 | 3 | **Six of @Bastoh's PRs await @Qeeyat's review** — #120, #121, #122, #123, #124, #125 | #121 lands `BETA_READINESS.md`, one of the **two files `CLAUDE.md` §4 has demanded as required reading since day one and that have never existed here**. ⛓️ #124 is stacked on #122's branch — merge #122 as a merge commit, **without `--delete-branch`** |
 | 4 | **@Qeeyat's own two are stale and still CHANGES_REQUESTED** — #109 (now conflicting, `CODEBASE_FLAGS.md` only) and #107 | Untouched since 30/31 Aug. #109 also needs FLAG-227 folded in or sequenced after it |
 | 5 | **#98 — `develop` → `staging`** | Approved and **deliberately held**, not forgotten. `[INFRA]` lane: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |

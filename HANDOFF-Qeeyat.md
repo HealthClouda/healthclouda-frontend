@@ -60,6 +60,102 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-04 — Nurse rendered for the first time and came back CLEAN; Patient is now the only one left (branch: feat/t5-nurse-patient)
+
+**Goal:** extend the T5 harness to the two dashboards nobody has ever rendered, and render them. Got
+one of the two, for a reason worth writing down.
+
+**What I did:**
+- **Generalised `roles.spec.ts`** from three roles to five, and rendered **Nurse (DASH-3) for the
+  first time** — 6/6 green, six baselines committed, verified across three consecutive runs (the
+  first run *writes* snapshots, so a single green run proves nothing).
+- **Wired Patient (DASH-6) fully** — 6 tests, skipping cleanly, runs the moment credentials exist.
+- Raised **FLAG-229**, re-measured **FLAG-212** (P3 → **P2**), added a second sighting to
+  **FLAG-228**, ticked off **FLAG-227**'s Nurse item.
+- Fixed a stale "there is **no CI**" claim in `docs/ARCHITECTURE.md` — false since #116 merged 1 Sep.
+
+**What I found:**
+
+- 🎯 **Nurse is clean, and it is the first dashboard that has been.** All four tiles carry real
+  values, and the live payload has **all eleven** `NurseStats` fields. **The headline number does not
+  move: still four of six, not five of seven.** I went in expecting a fifth instance — four of six
+  had it, `CLAUDE.md` warns about it, the session brief predicted it — and the honest result is that
+  the bug was not there. Worth saying plainly, because "the streak continues" is a much easier
+  sentence to write than "the streak stopped", and only one of them is true.
+- 🔴 **FLAG-212 got worse while half of it fixed itself, and only a render could show that.** The
+  Maternity inconsistency is gone (seed data changed, nothing of ours). But the `ward: null` bed is
+  still there, and now that Maternity has beds **it is the only difference between the two sources** —
+  so the Nurse dashboard shows **two disagreeing bed totals on one screen**: the Overview tile says
+  "2 of **11** beds occupied · 18.2%", the ward board sums to **10** (20%). Neither is labelled.
+  Captured live: stats `total_beds 11`, wards-overview sum `10`, `/ward/beds/` count `11` with one
+  `ward: null`. **The tile is not wrong and must not be "fixed" to 20%** — recomputing it client-side
+  would hide the orphan bed a second time and put an invented statistic on a clinical screen.
+- 🪤 **The credentials were fine; `.env.local` ate them.** The first nurse run failed with a 45s
+  `waitForURL` timeout, which reads as "the dashboard is broken", so that is where I looked. The page
+  snapshot showed the password field containing `Demo` — **an unquoted `#` in the value, which dotenv
+  treats as the start of a comment.** The four roles that already worked were quoted; the new one was
+  not. @Bastoh sent a correct credential and I nearly reported it as broken. **The harness now races
+  the form error against the navigation and says which happened**, naming this trap in the message.
+  Generalises: *a timeout is not a diagnosis — make the failure say which of the two things went
+  wrong before you go looking.*
+- 🪤 **`npm test` gave me 40 failures that were not real, twice.** Playwright leaves `npm run dev`
+  running; vitest forks a worker per file; with both alive the workers time out and the suite reports
+  `40 failed / 211` — and on the worse run only **8 of 23 files loaded at all**, which looks like a
+  catastrophic regression. Dev server stopped: **211/211 in 16 seconds.** My diff touches only `e2e/`
+  and docs, and `vitest.config.ts` includes `src/**` only, so it could not have been mine **by
+  construction** — that reasoning is what stopped me chasing it. Now in `docs/DESIGN-VERIFICATION.md`.
+  Same family as FLAG-228: a red that does not mean what it looks like.
+- 🎯 **FLAG-228 reproduced locally, which narrows the fix.** The build died on `NextFontError`, and
+  `fonts.googleapis.com` answered **200 in 1.33s** immediately afterwards; the retry was green. So it
+  is not an outage — **a "check the host is up" retry guard would not have caught it**, because the
+  host *was* up. Only removing the build-time network call does. It is also not CI-specific, which is
+  the more expensive version: on a laptop it presents as "my build is broken", with no job log.
+- 🔴 **FLAG-229 — the harness photographs landing states only.** Rendering Nurse made this concrete:
+  `nurse-vitals-desktop` is a screenshot of an empty "Select a patient" panel, because
+  `RecordVitalsForm` mounts only after a selection. **The one write workflow a nurse has — eight
+  numeric inputs that `PATCH` clinical data — has still never been looked at**, and the dashboard
+  reads as verified because four pages are green. The FLAG-222 argument (only a live render can see a
+  field the backend never sent) does not stop at the front page.
+
+**Decisions:**
+- **Stacked on `docs/merge-99-100-in-flight` rather than branching from `develop`.** Merging #126
+  first was not actually available to anyone — the ruleset requires one approving review with an
+  empty bypass list — and the In Flight table is only accurate on that branch, so claiming on
+  `develop`'s copy would have written my row into a table that still shows #99/#100 as open work.
+- **Did not probe `api-dev` for a patient account or create a test patient.** Both were on the table
+  and both were declined; creating one would also have written junk into shared seed data the day
+  before onboarding, which is the reasoning FLAG-216 already used. So Patient is wired and waiting
+  rather than rendered — the part of the scope I could not complete, stated rather than quietly
+  dropped.
+- **Logged FLAG-229 rather than extending the harness into interaction states.** Per §6, and because
+  the real question inside it is a decision, not a fix: a write-workflow test that submits would
+  mutate `api-dev` from a screenshot test. A form can be *opened* and photographed without submitting,
+  which gets most of the value with none of the writes — but that is its own PR.
+- **Updated FLAG-212 in place instead of raising a new number for the disagreeing totals.** Same root
+  cause, one bed; a second flag would have been noise pointing at the same fix.
+- **Fixed the stale "no CI" line in `ARCHITECTURE.md`** even though I did not make it stale. It is two
+  lines from the test section I was editing, and #111 had the identical clause caught before it
+  landed. Kept the nuance: CI runs, but the ruleset has no required checks, so it gates nothing.
+
+**Verified:** `npx tsc --noEmit` exit 0 · `npm test` **211/211 across 23 files** (on a quiet machine —
+see the trap above) · `npm run build` green from a clean `.next`, `/patient` in the route tree,
+middleware **35.8 kB** · `npx eslint . --max-warnings=0` clean. `roles.spec.ts` nurse **6/6 green**
+across three consecutive runs; patient **6 skipped** with its credential message. The bed figures were
+captured live against `api-dev`, not inferred from the schema — which documents `200: No response
+body` for these endpoints anyway (FLAG-225).
+
+**Left undone / next:**
+- [ ] ⏸️ **Patient (DASH-6) — the last dashboard nobody has rendered.** Needs `E2E_PATIENT_EMAIL` /
+      `E2E_PATIENT_PASSWORD` from @Bastoh, out of band. Everything else is done and waiting.
+- [ ] 🔴 **FLAG-212 is P2 now** — two disagreeing bed totals on the screen nurses read bed
+      availability from. Needs the backend, not us.
+- [ ] 🟠 **FLAG-229** — decide read-only vs. mutating interaction coverage, then render the
+      record-vitals form and one `SlidePanel`.
+- [ ] 🔴 **Six of @Bastoh's PRs still await my review** — #120, #121, #122, #123, #124, #125.
+      Unchanged from yesterday, and #121 lands `BETA_READINESS.md`.
+- [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107.
+- [ ] 🟠 **#126 needs @Bastoh's review** — this PR is stacked on it.
+
 ### 2026-09-03 — A5 is closed: #99 and #100 reviewed, merged, and the docs caught up (branch: docs/merge-99-100-in-flight)
 
 **Goal:** re-review #99 now that @Bastoh had fixed my change request, and merge if it held up. It
