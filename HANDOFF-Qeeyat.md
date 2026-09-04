@@ -117,11 +117,27 @@ one of the two, for a reason worth writing down.
   reads as verified because four pages are green. The FLAG-222 argument (only a live render can see a
   field the backend never sent) does not stop at the front page.
 
+- 🔴 **FLAG-230 — stacked PRs never run CI, and I only saw it because my own PR had no checks.**
+  `gh pr checks 128` said "no checks reported". `ci.yml` triggers on
+  `pull_request: branches: [develop, staging, main]`, and my base is the stack parent, so it matches
+  nothing. Then I checked the merged ones: **#100, #117 and #119 each merged into `develop` with
+  Vercel checks only — no `verify`, no `lint`, no `tier-guard`, ever.** Retargeting does not rescue
+  it, because a base change fires `pull_request`/`edited` and the default activity types are
+  `opened`/`synchronize`/`reopened`. **#100 is the patient portal, merged two days before real PHI,
+  and no CI job ever saw it.** The sharp part: `HANDOFF.md` teaches stacking as *the* safe merge
+  pattern — correctly, after `--delete-branch` closed a stacked child — so **the recommended
+  workflow is also the one that skips CI**, and the two facts had never been written next to each
+  other. Added the caveat beside that guidance rather than weakening it.
+
 **Decisions:**
 - **Stacked on `docs/merge-99-100-in-flight` rather than branching from `develop`.** Merging #126
   first was not actually available to anyone — the ruleset requires one approving review with an
   empty bypass list — and the In Flight table is only accurate on that branch, so claiming on
   `develop`'s copy would have written my row into a table that still shows #99/#100 as open work.
+  ⚠️ **I would make the same call again, but it is no longer free:** stacking is what surfaced
+  FLAG-230, and it means **this PR itself has no CI run**. I verified all four commands locally and
+  put the results in the PR body, which is what the repo did before #116 existed — but a reviewer
+  should know the green tick is absent rather than passing.
 - **Did not probe `api-dev` for a patient account or create a test patient.** Both were on the table
   and both were declined; creating one would also have written junk into shared seed data the day
   before onboarding, which is the reasoning FLAG-216 already used. So Patient is wired and waiting
@@ -151,6 +167,9 @@ body` for these endpoints anyway (FLAG-225).
       availability from. Needs the backend, not us.
 - [ ] 🟠 **FLAG-229** — decide read-only vs. mutating interaction coverage, then render the
       record-vitals form and one `SlidePanel`.
+- [ ] 🔴 **FLAG-230 — stacked PRs get no CI, and three have already merged that way.** One-line fix
+      in `ci.yml` (`branches: ['**']`). @Bastoh's, alongside the required-status-checks flip that has
+      been outstanding since 1 Sep — the two together are what make a green tick mean something.
 - [ ] 🔴 **Six of @Bastoh's PRs still await my review** — #120, #121, #122, #123, #124, #125.
       Unchanged from yesterday, and #121 lands `BETA_READINESS.md`.
 - [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107.

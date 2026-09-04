@@ -2327,3 +2327,50 @@ That is its own PR, not a rider on the one that first rendered Nurse.
 - [ ] At minimum the Nurse record-vitals form and one `SlidePanel` rendered and baselined.
 - [ ] The empty and error states captured deliberately rather than incidentally.
 - [ ] `docs/DESIGN-VERIFICATION.md`'s "what is NOT covered" table says *landing states only*.
+
+---
+
+### FLAG-230 — Stacked PRs never run CI, and the repo's safe-merge pattern is exactly what stacks them
+**Severity:** P2 · **Area:** CI / process · **Owner:** @Bastoh (repo settings + workflow) · **Status:** OPEN
+**Found:** 2026-09-04, opening #128 onto a stack parent and noticing it had no checks at all
+
+`ci.yml` triggers on `pull_request: branches: [develop, staging, main]`. **A PR whose base is
+another feature branch matches none of those, so none of the three jobs run** — not `verify`, not
+`lint`, not `tier-guard`. `gh pr checks` reports "no checks reported", which is easy to read as
+"nothing has run yet" rather than "nothing will ever run".
+
+**Measured on merged PRs, 2026-09-04** — every stacked child in the repo's history:
+
+| PR | Base now | CI jobs that ran |
+|---|---|---|
+| **#100** patient portal (stacked on #99, merged 3 Sep) | `develop` (retargeted) | **none** — Vercel only |
+| **#117** B7 coverage (stacked on #116) | `develop` (retargeted) | **none** — Vercel only |
+| **#119** session log (stacked on #113) | `develop` (retargeted) | **none** — Vercel only |
+| **#124** session log (stacked on #122, still open) | a docs branch | **none** — Vercel only |
+
+🔑 **Retargeting does not save it.** When the parent merges, GitHub moves the child's base to
+`develop` — but a base change fires `pull_request` with action `edited`, and the default activity
+types for that event are `opened`, `synchronize` and `reopened`. So the workflow does not run on the
+retarget, and unless someone pushes another commit afterwards **the child merges into `develop`
+having never been checked.** That is what the table above shows: all three are on `develop` now, and
+none of them ever ran a job.
+
+🔴 **Why this is worse than it sounds.** `HANDOFF.md` teaches stacking as *the* safe pattern —
+"merge the parent as a merge commit, **without `--delete-branch`**", evidenced twice (#116→#117,
+#99→#100) after `--delete-branch` closed a stacked child. That guidance is correct and should stay.
+But it means **the repo's recommended workflow is also the one that skips CI**, and the two facts
+have never been stated next to each other. #100 — the patient portal, merged two days before real
+PHI — is a stacked PR that no CI job ever saw.
+
+Compounding: ruleset 11328360 carries **no required status checks** (FLAG-006's remaining half), so
+nothing notices the absence. A required check would at least have blocked on "Expected — waiting for
+status to be reported".
+
+**Done when** — one of:
+- [ ] `ci.yml` also triggers on `pull_request: branches: ['**']` (simplest; runs CI on every PR
+      regardless of base), **or** adds `types: [opened, synchronize, reopened, edited]` so a
+      retarget re-runs it. The first is the more honest fix — it checks the child *before* it is
+      retargeted, not after.
+- [ ] Required status checks are added to the ruleset, so a PR with no checks cannot merge silently.
+- [ ] `HANDOFF.md`'s stacking guidance says out loud that a stacked child gets no CI until it is
+      retargeted **and** pushed to.
