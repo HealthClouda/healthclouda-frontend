@@ -18,21 +18,22 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **A5/FLAG-001** — server-trusted role **and** tenant gating | `fix/flag-001-server-trusted-auth` | `lib/auth-server.ts` (new), all six dashboard page gates | 2026-08-28 | 🔴 **PR #99 — CHANGES_REQUESTED.** ⛓️ **MUST merge as a merge commit** — #100 is stacked. **The one item the sprint plan marks must-close before PHI, and the only thing blocking #100** |
-| @Bastoh | **FLAG-210** — slug-less `/patient` portal | `fix/flag-210-patient-portal` | `app/patient/*` (new), `config.ts`, `router.ts`, `SigninForm`, `middleware` | 2026-08-28 | ✅ **PR #100 APPROVED — cannot merge until #99 does.** Until it lands, patients cannot sign in and DASH-6 cannot be rendered by anyone |
-| @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held by @Qeeyat 31 Aug.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call, not mine** |
-| @Bastoh | **In Flight cleanup + FLAG-026** | `docs/cleanup-2026-09-02-flag-026` | `HANDOFF.md`, `CODEBASE_FLAGS.md` | 2026-09-02 | 🟡 **open — docs only.** Clears #111 on merge, logs **FLAG-026**, and records two things measured today: backend #137 is closed and the tier DNS check. ⚠️ **Will conflict with #118** on `CODEBASE_FLAGS.md` — additive, **FLAG-025 then FLAG-026** |
-| @Bastoh | **FLAG-024** — repair the stale e2e specs | `fix/flag-024-stale-e2e-specs` | `e2e/auth.spec.ts`, `e2e/landing.spec.ts`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-01 | 🔴 **PR #118 — CHANGES_REQUESTED.** "13/13" is the `chromium` project alone; the default `npx playwright test` gives **24 passed / 2 failed** on the `mobile` project. Evidence on the PR |
-| @Bastoh | **Agent definitions** — the two-repo Sonnet-worker / Opus-verifier flow | `chore/claude-agent-definitions` | `.claude/agents/*` (new), `HANDOFF.md` | 2026-09-03 | 🟡 **open — config + docs only, no source touched.** ⚠️ **Claimed late:** the branch was cut on 2 Sep before this row existed, which is the rule this table's own header names. Recorded rather than backdated. Committed so both devs' assistants get the same rules — an agent definition that lives on one machine is the seam `CLAUDE.md` §1 exists to close |
-| @Qeeyat | **Schema-reading guidance** | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md` | 2026-08-25 | 🔴 **PR #96 — CHANGES_REQUESTED.** One bullet to reword; replacement text is in a PR comment. **Open 7 days** |
-| @Qeeyat | **FLAG-222** — Superadmin stat tiles onto the fields the API sends | `fix/flag-222-dashboard-stats` | `SuperadminDashboard`, `types/dashboard.ts` | 2026-08-29 | 🔴 **PR #109 — CHANGES_REQUESTED.** ⚠️ No longer stacked — retargeted to `develop` 31 Aug after #106 merged. **Now also needs FLAG-227 (Doctor) folded in or sequenced after it** |
-| @Qeeyat | **Issue #101** — HCL-ID handout at registration | `feat/issue-101-hcl-id-handout` | `receptionist/*`, `types/dashboard.ts` | 2026-08-29 | 🔴 **PR #107 — CHANGES_REQUESTED** |
-| @Qeeyat | **T5 pass — Org Admin, Receptionist, Doctor** + **FLAG-227** | `feat/t5-remaining-dashboards` | `e2e/design/roles.spec.ts` (new) + 20 baselines, `CODEBASE_FLAGS.md`, `docs/DESIGN-VERIFICATION.md` | 2026-08-31 | 🟡 **PR #115 — awaiting @Bastoh's review.** Found **FLAG-227** on the first Doctor render. 🚨 **Nurse and Patient still unrendered by anyone** — needs `E2E_NURSE_*` credentials (@Bastoh) and #100 |
-| @Qeeyat | **In Flight cleanup + session log 31 Aug/1 Sep** | `docs/clear-in-flight-2026-08-31` | `HANDOFF.md`, `HANDOFF-Qeeyat.md` | 2026-08-31 | 🟡 **PR #114 — awaiting @Bastoh's review.** Docs only |
-| @Bastoh | **Two-repo parity D + E** — the Cross-Lane Asks inbox, and committed `.claude/` config | `feat/parity-d-e` | `HANDOFF.md`, `CLAUDE.md`, `ONBOARDING.md`, `.claude/settings.json` (new), `.gitignore` | 2026-09-01 | 🔄 open. **Docs + config only, no source.** ⚠️ **Claimed after cutting, not before** — the working tree was held by another agent merging #114/#115 at the time, so this branch was cut in a separate `git worktree`. Recording the deviation rather than backdating it. ⚠️ **Touches `CLAUDE.md` §3 adjacent to PR #111's edit** — whoever rebases #111 should expect an additive conflict there |
+| @Qeeyat | **T5 harness — Nurse (DASH-3) rendered; Patient (DASH-6) wired** | `feat/t5-nurse-patient` | `e2e/design/roles.spec.ts` (+5 baselines), `e2e/design/helpers.ts`, `docs/DESIGN-VERIFICATION.md`, `docs/ARCHITECTURE.md`, `CODEBASE_FLAGS.md`, `.env.example` | 2026-09-04 | 🟡 **PR #128 — awaiting @Bastoh's review.** **Nurse rendered for the first time; its stats contract is CLEAN** (11/11). Raised **FLAG-229/230/231**, re-measured **FLAG-212** (P3→P2), resolved **FLAG-225**. ⛓️ Based on `docs/merge-99-100-in-flight` |
+| @Qeeyat | **Clear #99/#100 + the 3 Sep handover** | `docs/merge-99-100-in-flight` | `HANDOFF.md`, `CODEBASE_FLAGS.md`, `docs/ARCHITECTURE.md`, `HANDOFF-Qeeyat.md` | 2026-09-03 | 🟡 **PR #126 — awaiting @Bastoh's review.** Docs only. Rebased onto `develop` 2026-09-04 after six merges |
+| @Qeeyat | **FLAG-222** — Superadmin stat tiles onto the fields the API sends | `fix/flag-222-dashboard-stats` | `SuperadminDashboard`, `types/dashboard.ts` | 2026-08-29 | 🔴 **PR #109 — CHANGES_REQUESTED**, and **CONFLICTING**. **Needs FLAG-227 (Doctor) and FLAG-231 (Patient) folded in or sequenced after** — all three are the same bug class |
+| @Qeeyat | **Issue #101** — HCL-ID handout at registration | `feat/issue-101-hcl-id-handout` | `receptionist/*`, `types/dashboard.ts` | 2026-08-29 | 🔴 **PR #107 — CHANGES_REQUESTED.** 🎯 **The fix is probably known now** — #123 recorded that `POST /patients/` returns the identifiers **nested**: `response.patient.healthclouda_id`, not `response.healthclouda_id` |
+| @Bastoh | **FLAG-024** — repair the stale e2e specs | `fix/flag-024-stale-e2e-specs` | `e2e/auth.spec.ts`, `e2e/landing.spec.ts`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-01 | ✅ **PR #118 — APPROVED 2026-09-04** (@Qeeyat's change request cleared: verified **13/13** on a trial merge). 🔴 **Now CONFLICTING — needs a rebase.** ⚠️ Also flaky on a **cold** `next dev` (30s default timeout); matters because CI is always cold |
+| @Bastoh | **Session log 3 Sep** | `docs/session-log-bastoh-2026-09-03` | `HANDOFF-Bastoh.md` | 2026-09-03 | ✅ **PR #127 — APPROVED 2026-09-04.** 🔴 **Now CONFLICTING** with #122/#124 on `HANDOFF-Bastoh.md` — needs a rebase; @Bastoh's branch, not mine to force-push |
+| @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
 > 📌 **Issue #101 is assigned to @Qeeyat:** the HCL-ID handout is buildable after all — `POST /patients/`
 > returns `{message, patient:{id, healthclouda_id}}`. FLAG-216 was derived from a schema that documents
 > the *request* serializer as the response.
+
+🎉 **A5/FLAG-001 is closed on `develop`.** **#99** and **#100** were reviewed and merged **2026-09-03 by @Qeeyat**, in that order, as merge commits — the sprint plan's one *must-close-before-PHI* item and the patient portal stacked behind it. `develop` after both: **tsc clean · lint clean · 211/211 across 23 files · build green · middleware 35.8 kB**, verified on the merge commits themselves from a clean `.next`, not from either PR body. Authorization is no longer decided from the client-writable `hc_user` cookie anywhere in the app, the route slug is now checked against the user's own organisation, and **patients can sign in for the first time.**
+
+> ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
+
+*Cleared on merge: **#99** A5/FLAG-001 server-trusted auth · **#100** FLAG-210 patient portal (both merged 2026-09-03 by @Qeeyat, locally, with the `CODEBASE_FLAGS.md` conflict resolved additively in flag-number order — both sides kept, proven by a heading diff against each parent) · **#111** `CLAUDE.md` §3 branch-protection correction + FLAG-021 (merged 2026-09-02 by @Bastoh) · **#114** In Flight cleanup + session log · **#115** T5 pass + FLAG-227 (both merged 2026-09-01 by @Qeeyat) · **#96** schema-reading guidance — **CLOSED 2026-08-31, not merged**: fixed at source instead. · Earlier: **#116** E8/FLAG-006 CI + ESLint gating · **#117** B7 coverage · **#113** + **#119** @Bastoh session logs · **#112** stale-doc sweep (ARCH-7 closed) — all five **reviewed and merged 2026-09-01 by @Qeeyat**, as merge commits. `develop` after all five: **tsc clean · lint clean (the new gate) · 192/192 · build green · middleware 35.4 kB**. Earlier the same round: **#106** FLAG-203/221 small-screen gate · **#110** FLAG-223/224/225/226 Patient contract audit · **#108** Gate 2 assessment · **#105** session log 29 Aug — merged 2026-08-31, each trial-merged and verified locally before merging rather than from the PR body (**192/192**). **#106 closed the worst PHI exposure in the repo** — staff dashboards no longer mount, fetch, or put records in the DOM below 768px. · **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 
 *Cleared on merge: **#111** `CLAUDE.md` §3 branch-protection correction + FLAG-021 — **merged 2026-09-02 by @Bastoh as a merge commit** (`88ae5ad`) after a rebase off a 31-commit-stale base; `develop` after it: **tsc clean · lint clean · 192/192 · build green**. · **#116** E8/FLAG-006 CI + ESLint gating · **#117** B7 coverage · **#113** + **#119** @Bastoh session logs · **#112** stale-doc sweep (ARCH-7 closed) — all five **reviewed and merged 2026-09-01 by @Qeeyat**, as merge commits. `develop` after all five: **tsc clean · lint clean (the new gate) · 192/192 · build green · middleware 35.4 kB**. Earlier the same round: **#106** FLAG-203/221 small-screen gate · **#110** FLAG-223/224/225/226 Patient contract audit · **#108** Gate 2 assessment · **#105** session log 29 Aug — merged 2026-08-31, each trial-merged and verified locally before merging rather than from the PR body (**192/192**). **#106 closed the worst PHI exposure in the repo** — staff dashboards no longer mount, fetch, or put records in the DOM below 768px. · **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
@@ -88,17 +89,27 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 
 | For | From | Ask | Why it's theirs | Blocking? | Raised | Status |
 |---|---|---|---|---|---|---|
-| @Bastoh | @Qeeyat | **Send `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD`** out-of-band (never into this repo — **it is public**) | Credentials only he holds | 🔴 **Nurse and Patient are the only two dashboards nobody has ever rendered.** Four of the other six turned out to be reading stat fields the API never sends | 2026-09-01 | **OPEN** |
-| @Bastoh | @Qeeyat | **Fix #99 (A5/FLAG-001)** — the server gate logs every user out hourly | His branch, his lane | 🔴 The sprint plan's **must-close before PHI**, and **#100 is approved and stuck behind it** — until it lands patients cannot sign in at all | 2026-08-30 | **OPEN** |
-| @Bastoh | @Qeeyat | **Rebase #111 onto `develop`**, and fix its now-false *"there is still no CI"* clause while in there | Another dev's branch — she resolved both conflicts locally but **refused to force-push someone else's branch unattended** | 🟠 Approved but CONFLICTING. The resolution is written up in her handover below | 2026-09-01 | **OPEN** |
-| @Bastoh | @Qeeyat | **Wire CI into ruleset `11328360`'s required status checks** | Repo settings — owner only | 🟠 #116 merged so CI runs, but **the ruleset requires no checks**, so a green tick implies a gate that does not exist | 2026-09-01 | **OPEN** |
+| @Bastoh | @Qeeyat | **Send `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD`** out-of-band (never into this repo — **it is public**) | Credentials only he holds | 🔴 **Nurse and Patient are the only two dashboards nobody has ever rendered.** Four of the other six turned out to be reading stat fields the API never sends | 2026-09-01 | ✅ **DONE 2026-09-04.** Sent, and they worked — the one failure was ours: an unquoted `#` in `.env.local` truncated the value (dotenv comment). **Nurse rendered, 6/6, stats contract CLEAN.** #128 |
+| @Bastoh | @Qeeyat | **Fix #99 (A5/FLAG-001)** — the server gate logs every user out hourly | His branch, his lane | 🔴 The sprint plan's **must-close before PHI**, and **#100 is approved and stuck behind it** — until it lands patients cannot sign in at all | 2026-08-30 | ✅ **DONE.** Fixed 30 Aug, merged 3 Sep. A5 closed |
+| @Bastoh | @Qeeyat | **Rebase #111 onto `develop`**, and fix its now-false *"there is still no CI"* clause while in there | Another dev's branch — she resolved both conflicts locally but **refused to force-push someone else's branch unattended** | 🟠 Approved but CONFLICTING. The resolution is written up in her handover below | 2026-09-01 | ✅ **DONE.** Merged 2026-09-02 (`88ae5ad`) |
+| @Bastoh | @Qeeyat | **Wire CI into ruleset `11328360`'s required status checks** | Repo settings — owner only | 🟠 #116 merged so CI runs, but **the ruleset requires no checks**, so a green tick implies a gate that does not exist | 2026-09-01 | **OPEN** — and now **worse than thought**: see **FLAG-230**, stacked PRs run **no CI at all** (#100, #117, #119 each merged unchecked) |
 | @Bastoh | @Qeeyat | **Decide #98** (`develop` → `staging`) | `[INFRA]` lane, and the beta runbook ordering is his call | 🟠 Held deliberately, **not forgotten**: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second | 2026-08-31 | **OPEN** |
-| @Qeeyat | @Bastoh | **Re-review #99** once the logout fix is pushed | Her change request stands until she clears it | 🔴 `dismiss_stale_reviews_on_push = false` — **pushing the fix did not clear the block**, and GitHub refuses a merge over a standing change request. Nothing behind #99 moves until she re-reviews | 2026-08-30 | **OPEN** |
-| @Qeeyat | @Bastoh | **#118 fix incoming** — her block was correct; "13/13" was the `chromium` project alone | His PR, his error | 🟢 Not blocking her | 2026-09-01 | **OPEN** |
+| @Qeeyat | @Bastoh | **Re-review #99** once the logout fix is pushed | Her change request stands until she clears it | 🔴 `dismiss_stale_reviews_on_push = false` — **pushing the fix did not clear the block**, and GitHub refuses a merge over a standing change request. Nothing behind #99 moves until she re-reviews | 2026-08-30 | ✅ **DONE 2026-09-03** — re-reviewed, approved, #99 then #100 merged as merge commits |
+| @Qeeyat | @Bastoh | **#118 fix incoming** — her block was correct; "13/13" was the `chromium` project alone | His PR, his error | 🟢 Not blocking her | 2026-09-01 | ✅ **DONE 2026-09-04** — @Qeeyat re-reviewed and **APPROVED**; verified 13/13 on a trial merge. Now needs a rebase (CONFLICTING) |
 | 🔌 backend | @Bastoh | **Does `api-beta` exist?** Both `api-beta.healthclouda.com` and `beta.healthclouda.com` were **NXDOMAIN** on 2026-09-01 | Their infra | 🔴 **Blocks the beta promotion.** We will not point `beta.` at `api-dev` — that is the tier-crossing that presents as *"the invite is broken"* | 2026-09-01 | **OPEN** — asked in backend [PR #160](https://github.com/HealthClouda/healthclouda-backend/pull/160) §7 |
 | 🔌 backend | @Bastoh | **Publish response bodies in the schema** — of the 84 GETs documenting a `200`, **48 document no body** (57%), including `/auth/me/` and every dashboard stats endpoint | Only `drf-spectacular` annotations on their serializers can fix it | 🔴 **This is the root cause of four dashboards shipping stat tiles bound to fields the API never sends** | 2026-09-01 | **OPEN** — backend PR #160 §7 |
 | 🔌 backend | @Bastoh | **A grace window for just-rotated refresh tokens** | SimpleJWT blacklist behaviour — **unfixable from our side**: the loser's request was already in flight before the winner's new token existed | 🟠 Symptom is a user logged out mid-consultation | 2026-09-01 | **OPEN** — backend PR #160 §7 |
 | 🔌 backend | @Bastoh | **Tell them the UI half of T6 was never walked** — their `docs/UAT-CHECKLIST.md` records 20 blocked steps → 6, but **those steps are API-level `curl`** | Shared — they believe the journeys are proven end to end | 🟠 They may go into onboarding believing the UI is exercised | 2026-09-01 | **OPEN** — stated in backend PR #160 §7 |
+| @Bastoh | @Qeeyat | **Send `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD`** out-of-band (never into this repo — **it is public**) | Credentials only he holds | 🔴 **Patient is the ONLY dashboard nobody has ever rendered.** Also confirms **FLAG-231** and settles **FLAG-226**, the candidate P0 in `BETA_READINESS.md`'s own Tier 1 | 2026-09-04 | **OPEN** — asked on #115, #116, #119, #121, #126 before this table existed |
+| @Bastoh | @Qeeyat | **Rebase #127 and #118** — both approved, both now CONFLICTING | His branches; force-pushing another dev's branch is not something to do unattended | 🟠 Both are approved and ready otherwise. #118 also wants a longer timeout before it goes into CI — it is flaky on a **cold** `next dev` | 2026-09-04 | **OPEN** |
+| @Bastoh | @Qeeyat | **One-line `ci.yml` fix for FLAG-230** — `branches: ['**']` | His lane, and it pairs with the required-checks flip | 🔴 Today every stacked PR reaches `develop` unchecked. **Tomorrow is PHI day and hotfixes are exactly the PRs that get stacked** | 2026-09-04 | **OPEN** |
+
+> 📌 **Rows closed by the raiser, not the owner — 2026-09-04, deliberately and named here.** The rule
+> above says *the owner clears the row*. @Qeeyat closed three of @Bastoh's rows (nurse credentials,
+> fix #99, rebase #111) because all three are **verifiably landed** — merged commits and a rendered
+> dashboard — and leaving them **OPEN** on the day before PHI would have been the more misleading
+> error. Recording the deviation rather than making it silently, which is what the row above about
+> claiming In Flight late does too. **@Bastoh: correct any of these if I have read them wrong.**
 
 ---
 
@@ -215,8 +226,96 @@ that is already written and already reviewed. What is needed is a decision about
 
 **That call is @Bastoh's and the owner's. I have measured; I have not chosen.**
 
+### 📌 Update 2026-09-03 — what has closed since this gate was measured
+
+> The tables above are a **record of what was true on 29 Aug** and are deliberately not rewritten.
+> This is what has changed since, so nobody re-reads the verdict as current.
+
+| Gate 2 finding | Then (29 Aug) | Now (3 Sep) |
+|---|---|---|
+| **A5 / FLAG-001** — authz off the client-writable cookie | ❌ OPEN, #99 CHANGES_REQUESTED | ✅ **CLOSED** — #99 merged today, hourly-logout regression fixed and evidenced |
+| **A7** `SECURITY_BASELINE.md` | ❌ "does not exist on `develop`" | ✅ **CLOSED** — #102 merged 2026-08-30 |
+| **FLAG-210** — patients cannot sign in | blocking, #100 stuck behind #99 | ✅ **CLOSED** — #100 merged today |
+| Suite green | 155 passed | **211 passed / 23 files**, plus lint and CI gating (#116) |
+| Merge backlog — *"eleven open PRs, six approved and mergeable"* | the stated root cause | **11 open**, but only **#98** is approved-and-waiting; six are @Bastoh's, opened 1–3 Sep, awaiting @Qeeyat |
+
+**The verdict itself has not been re-run, and this note does not flip it.** Gate 2's second criterion
+— *`beta.` ready pending only the `api-beta` variable* — is still ❌: `beta.healthclouda.com` does not
+resolve, and #98 is still held. **T6/T7/T8 remain unexecuted.** What has changed is that the item the
+sprint plan marked *must-close before PHI* is now closed, so the remaining gap is deployment and test
+layers rather than authorization.
+
+⚠️ **Two dashboards — Nurse and Patient — have still never been rendered by anyone.** Patient is now
+*reachable* for the first time (#100), which removes the blocker but is not the same as having looked
+at it. Nurse still needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh. Four of the six
+dashboards that *have* been rendered turned out to be reading stat fields the API never sends
+(FLAG-222, FLAG-227, and two before them).
+
 ---
 
+
+---
+
+## 🌙 Session close — @Qeeyat, 2026-09-03. **Start here next session.**
+
+> The 1 Sep handover below is now **spent**: its item 1 (fix #99) is done and merged. Read this
+> block first, then that one only for the #111/#118/#96 history.
+
+### ✅ What changed on `develop` on 2026-09-03
+
+**A5/FLAG-001 is closed.** #99 then #100, merged in that order as merge commits by @Qeeyat, each
+verified on the merge commit itself from a clean `.next` rather than from the PR body:
+
+```
+tsc clean · eslint clean · 211/211 across 23 files · build green
+/patient present in the route tree · middleware 35.8 kB · CI green on develop
+```
+
+- Authorization no longer comes from the client-writable `hc_user` cookie **anywhere** in the app.
+  Every dashboard gate calls `requireDashboardUser()`, which resolves identity from `GET /auth/me/`
+  using the httpOnly token and checks **role *and* tenant**.
+- `middleware.ts` now **resumes an aged-out session** itself and hands the new token to that same
+  render — the hourly-logout regression @Qeeyat caught on 29 Aug, fixed and re-proven RED-first
+  against the pre-fix middleware (`f4b4832`): **7 failed | 13 passed**.
+- **Patients can sign in for the first time** (`/patient`, slug-less).
+
+### 🔴 Do these first — in this order
+
+| # | Action | Why it's first |
+|---|---|---|
+| 1 | **Merge #126** (this PR — docs, In Flight, FLAG-001/210 resolved, FLAG-228) | Everything below is written down there. Until it merges, `HANDOFF.md` on `develop` still shows #99 and #100 as open work, and the next reader plans around a blocker that no longer exists. Needs @Bastoh's review |
+| 2 | 🚨 **Render Nurse and Patient — nobody ever has** | **Four of the six dashboards that HAVE been rendered turned out to be reading stat fields the API never sends** (FLAG-222, FLAG-227 and two before them). Patient is now *reachable* for the first time (#100); that is not the same as having looked at it. **Nurse needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh, out of band.** This is the cheapest high-value thing on the board and it has paid for itself on every run so far |
+| 3 | **Six of @Bastoh's PRs await @Qeeyat's review** — #120, #121, #122, #123, #124, #125 | #121 lands `BETA_READINESS.md`, one of the **two files `CLAUDE.md` §4 has demanded as required reading since day one and that have never existed here**. ⛓️ #124 is stacked on #122's branch — merge #122 as a merge commit, **without `--delete-branch`** |
+| 4 | **@Qeeyat's own two are stale and still CHANGES_REQUESTED** — #109 (now conflicting, `CODEBASE_FLAGS.md` only) and #107 | Untouched since 30/31 Aug. #109 also needs FLAG-227 folded in or sequenced after it |
+| 5 | **#98 — `develop` → `staging`** | Approved and **deliberately held**, not forgotten. `[INFRA]` lane: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
+| 6 | **Wire CI into ruleset 11328360's required status checks** | Still outstanding from 1 Sep. CI runs, but the ruleset carries no required checks, so a green tick implies a gate that does not exist. Repo settings — only @Bastoh can do it |
+
+### 📌 Three things worth knowing before touching anything
+
+1. ⛓️ **Merging a stack parent by pushing a merge commit to `develop` is safe.** GitHub retargeted
+   **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in
+   this file is specifically **`gh pr merge --delete-branch`**, which removes the base out from under
+   the child *first*. Two data points now: #116→#117 and #99→#100.
+2. 🔴 **A red CI check is not automatically a real failure — see FLAG-228.** `npm run build` fetches
+   `Lato` from Google Fonts at build time, and when that call flakes the **A4 fail-loud job** dies
+   with `NextFontError`. It killed a check on #120 that has nothing to do with that diff. **Read the
+   job log before believing a red X**, and self-host the font to end it.
+3. 🟡 **`CODEBASE_FLAGS.md` is mis-filed from FLAG-215 down** — those entries sit *below* the
+   "Resolved flags" heading while still being OPEN, because they were appended as raised. **Read each
+   entry's Status line, not its position.** Left deliberately unsorted; it wants its own pass.
+
+### ⚠️ What is still NOT true, so nobody reads the win too widely
+
+- **Gate 2's verdict has not been re-run and does not flip on this.** A5 and A7 are closed, but
+  `beta.healthclouda.com` **still does not resolve**, #98 is still held, and **T6 / T7 / T8 remain
+  unexecuted**. What changed is that the remaining gap is deployment and test layers rather than
+  authorization.
+- **Nothing in #99 has been exercised against a live browser session on `dev.healthclouda.com`.**
+  Every hour-boundary claim is asserted by unit tests against a mocked `fetch`. A click-through on
+  the deployed dev tier is the cheapest remaining check on the highest-value change in the repo.
+- **FLAG-020 (concurrent refreshes) is open and its residual window is real** — two tabs restored
+  after an hour idle can still cost a session. Its *reasoning* about `<Link>` prefetch is wrong even
+  though its conclusion holds today; the detail is on #99 and in `HANDOFF-Qeeyat.md`.
 
 ---
 
