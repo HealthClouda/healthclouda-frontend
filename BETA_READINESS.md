@@ -95,6 +95,27 @@ builds `/${orgSlug}/patient`, so login is refused rather than navigating to `/un
 **Done when:** a patient signs in on the general portal and reaches their dashboard, verified against
 `api-dev` with a real patient token.
 
+> ⚠️ **Status note, 2026-09-05 (@Qeeyat) — the code landed but this "Done when" is NOT satisfied, and
+> the two are recorded differently elsewhere.** #100 merged 2026-09-03, and `CODEBASE_FLAGS.md` and
+> `HANDOFF.md` both mark **FLAG-210 resolved**. Measured against *this* criterion it is not:
+> **no patient has ever signed in**, because no `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` exists.
+> The bullet above — *"DASH-6 has never been rendered by anyone"* — is still **literally true today**,
+> on onboarding day.
+>
+> 🎯 **The distinction is the point of this file:** #100 removed the *blocker*, which is not the same
+> as meeting the *criterion*. "Reachable" and "verified" are different facts, and only this document
+> asks for the second one. **Left OPEN deliberately** rather than ticked to match the other files —
+> the other files are describing the merge, this one is describing the gate.
+>
+> 🔴 **And the gap is no longer only unverified — it is known-bad.** **FLAG-231** (2026-09-04): the
+> newly published `PatientDashboard` schema component does **not** carry `upcoming_appointments` or
+> `pending_access_requests`, which two of the four Patient stat tiles read. So the first patient to
+> sign in will see **two em dashes**. Found from the schema without credentials; needs one live
+> capture to confirm.
+>
+> **One out-of-band message closes this item, FLAG-231 and item 6 (FLAG-226) together.** It is the
+> cheapest remaining Tier-1 action in this file. Row raised in `HANDOFF.md`'s 📥 Cross-Lane Asks.
+
 ---
 
 ### 3. **A1 / B3 — tier separation, and the ordering trap inside it** · 🎯 PROVE-ON-BETA
@@ -242,9 +263,9 @@ in the repo and it has one root cause, so it is one item repeated seven times.
 
 | Flag | What | State |
 |---|---|---|
-| **FLAG-225** | No dashboard stats endpoint in the entire API documents a response body | ❗ open — the parent |
+| **FLAG-225** | No dashboard stats endpoint in the entire API documents a response body | ✅ **RESOLVED 2026-09-03 by backend #161** — verified against the live schema 2026-09-04: **7 of 7** now publish one. The parent is closed; the children below are not |
 | **FLAG-222** | 3 of 4 **Superadmin** stat cards read fields the API never returns | 🔄 PR #109, CHANGES_REQUESTED |
-| **FLAG-227** | 2 **Doctor** stat tiles do the same — `appointments_today` is really `todays_appointments`; `active_prescriptions` has **no equivalent field at all** | ❗ open — found on the first-ever Doctor render |
+| **FLAG-227** | 2 **Doctor** stat tiles do the same — `appointments_today` is really `todays_appointments`; `active_prescriptions` has **no equivalent field at all** | ❗ open — **now confirmed twice**: the live capture, and the published `DoctorDashboardStats`, which carries `todays_appointments` and **no** `active_prescriptions` |
 | **FLAG-213** | `Appointment` and `CheckIn` describe shapes the API does not return | ❗ open |
 | **FLAG-223** | Three Patient endpoints return **bare arrays**; the dashboard reads `.results` | ❗ open |
 | **FLAG-224** | The patient "Requested By" column reads a field that does not exist | ❗ open |
@@ -254,7 +275,9 @@ in the repo and it has one root cause, so it is one item repeated seven times.
 
 **Done when (the tier, not each row):** every dashboard's stat tiles and tables are typed from a
 **captured live payload** pasted into the PR, and the em-dash render is asserted against — the T5
-harness is what catches this class and it now covers four of six roles.
+harness is what catches this class and it now covers **five of six** roles — Nurse was added 2026-09-04 and **came back clean** (11/11 fields). Only **Patient** is uncovered, for want of credentials.
+
+🔄 **Update 2026-09-04 — the count went UP, and the method changed.** Backend #161 published the stats response bodies, so a **presence check needs no credentials any more**. That found **FLAG-231**: two of four Patient tiles read fields `/patients/me/dashboard/` does not return. **The class now stands at five of seven, not four of six.** Check the schema first because it is free, then render — a schema still cannot say what reached the screen, and per backend **FLAG-554** six fields in that same batch publish with the wrong *type*, which is more dangerous than an absence because it removes the reason to measure.
 
 ---
 
@@ -263,7 +286,7 @@ harness is what catches this class and it now covers four of six roles.
 | Item | State |
 |---|---|
 | **FLAG-006 / E8 — ESLint + CI** | ✅ **DONE** — PR #116. CI exists and has run green |
-| 🔴 **Required status checks are not wired** | ❗ **OPEN.** Ruleset `11328360` carries **no** required status checks, so a green tick implies a gate that does not exist. Repo settings, owner-only. #116 is merged, so the blocker named on that PR is gone |
+| 🔴 **Required status checks are not wired** · **and FLAG-230: stacked PRs run NO CI at all** | ❗ **OPEN — and worse than this row originally recorded.** Ruleset `11328360` carries **no** required status checks, so a green tick implies a gate that does not exist (repo settings, owner-only; #116 is merged so that blocker is gone). **On top of that, `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`**, and a retarget fires an event type it does not listen for — so **#100, #117 and #119 each reached `develop` with no CI job ever running**, #100 being item 2 of this very file. One-line fix: `branches: ['**']` |
 | **B7 — coverage** | ✅ reporting exists. Baseline **55.64% statements** |
 | **FLAG-024 — e2e specs** | 🔄 [PR #118](https://github.com/HealthClouda/healthclouda-frontend/pull/118), CHANGES_REQUESTED — correctly. "13/13" was the `chromium` project alone; the default command gives **24 passed / 2 failed** on `mobile` |
 | **FLAG-221 — tests assert the layer, not the property** | 🟡 two instances open. One was **green while the bug was live** |

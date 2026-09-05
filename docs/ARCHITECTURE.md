@@ -217,7 +217,7 @@ covered only where credentials exist:
 | DASH-1 Superadmin | ✅ | own spec (bespoke audit-log masking) |
 | DASH-2 Org Admin · DASH-4 Receptionist · DASH-5 Doctor | ✅ 2026-08-31 | `roles.spec.ts` |
 | DASH-3 Nurse | ✅ **2026-09-04** | first render; stats contract **clean** |
-| DASH-6 Patient | ⏸️ **never rendered** | wired and skipping — no `E2E_PATIENT_*` credentials |
+| DASH-6 Patient | ⏸️ **never rendered** | wired and skipping — no `E2E_PATIENT_*` credentials. 🔴 **Known-bad without being seen**: two of four stat tiles read fields the published `PatientDashboard` schema does not carry (**FLAG-231**) |
 
 ⚠️ The harness captures each page's **landing state only** — every form, modal and row action is
 unrendered (FLAG-229).
