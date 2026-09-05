@@ -64,11 +64,18 @@ const user = {
   is_on_duty: true,
 } as unknown as User;
 
+// CAPTURED LIVE 2026-08-29 (FLAG-222) — GET /doctor/dashboard/stats/.
+// The previous fixture used `appointments_today` and `active_prescriptions`,
+// neither of which this endpoint sends, so two stat tiles were permanently '—'
+// on real data while these tests stayed green. Values below are the real
+// payload's field names; only the numbers are adjusted for readability.
 const stats = {
   active_episodes: 4,
-  appointments_today: 2,
+  todays_appointments: 2,
   pending_referrals: 1,
-  active_prescriptions: 3,
+  patients_in_queue: 0,
+  admissions_under_care: 3,
+  completed_episodes_this_week: 0,
 };
 
 // Real appointment shape — FLAG-213, captured live 2026-08-19.
@@ -95,12 +102,21 @@ function appointmentAt(iso: string, id = 'appt-1') {
 // renders appointments and episodes side by side, so a shared name makes every
 // name assertion ambiguous rather than wrong — it fails as "found multiple
 // elements", which reads like a component bug and isn't one.
+// CAPTURED LIVE 2026-08-29 (FLAG-222). The date field is `episode_start` —
+// there is no `created_at` on this endpoint, which is why the "Opened" column
+// rendered '—' for every row on the real dashboard while this fixture (which
+// used `created_at`) kept the tests green.
 const episode = {
   id: 'ep-1',
   patient: { id: 'p9', first_name: 'Ifeoma', last_name: 'Nwachukwu' },
+  episode_type: 'INPATIENT',
+  episode_type_display: 'Inpatient',
   chief_complaint: 'High blood pressure follow-up',
+  diagnosis: 'Provisional diagnosis pending investigations.',
   status: 'ACTIVE',
-  created_at: '2026-08-20T08:15:00Z',
+  episode_start: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  episode_end: null,
+  has_admission: false,
 };
 
 /** Local midday today, so the client-side "today" filter is timezone-stable. */
@@ -363,5 +379,36 @@ describe('D5 — referral accept/decline is NOT the doctor’s to make', () => {
     // and cannot understand.
     expect(screen.queryByRole('button', { name: /accept/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /decline/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('FLAG-222 — stat tiles must read the fields the API actually sends', () => {
+  it('renders Appointments Today from `todays_appointments`, not `appointments_today`', async () => {
+    // Same two words, other order. The tile was permanently '—' on real data
+    // and every test here passed, because the fixture agreed with our type.
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+    expect(await screen.findByText('Appointments Today')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();  // todays_appointments
+    expect(screen.getByText('4')).toBeInTheDocument();  // active_episodes
+    expect(screen.getByText('3')).toBeInTheDocument();  // admissions_under_care
+
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
+  });
+});
+
+describe('FLAG-222 — the episode "Opened" column reads `episode_start`', () => {
+  it('renders a relative date, not the empty placeholder', async () => {
+    // /doctor/episodes/ sends `episode_start`; the column read `created_at`,
+    // which the endpoint has never sent, so timeAgo(undefined) rendered '—' for
+    // every episode. Found by looking at the dashboard, not by a test — the
+    // fixture used to carry `created_at` and so agreed with the bug.
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+    expect(await screen.findByText('Ifeoma Nwachukwu')).toBeInTheDocument();
+    // `timeAgo` renders "2d ago" — and crucially NOT the em dash it produced
+    // for every row while the column read a field the endpoint never sends.
+    expect(screen.getByText("2d ago")).toBeInTheDocument();
   });
 });

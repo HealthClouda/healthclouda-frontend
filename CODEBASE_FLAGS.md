@@ -2118,8 +2118,47 @@ cause.
   this class of bug started. Renaming the read to `active_records` would replace a visible gap with
   an invisible wrong number, which is strictly worse on a dashboard someone makes decisions from.
 
+## The full sweep — it was never only Superadmin
+
+Every dashboard stats endpoint measured live 2026-08-29, comparing our declared type against the
+payload:
+
+| Dashboard | We read but the API does NOT send | Verdict |
+|---|---|---|
+| **Superadmin** | `total_organizations`, `active_organizations`, `total_patients` | 🔴 3 of 4 tiles blank |
+| **Doctor** | `appointments_today`, `active_prescriptions` | 🔴 2 of 4 tiles blank |
+| Org Admin | — | ✅ clean |
+| Receptionist | — | ✅ clean |
+| Nurse / Patient | not measured — no credentials; patients still cannot sign in (FLAG-210) | ⏳ |
+
+**Org Admin and Receptionist are clean because #85 and #94 captured their payloads live before
+building.** The two broken ones were typed from assumption. That is the whole difference.
+
+**And a third instance in the same dashboard, found by looking at it:** the doctor Episodes table
+read `ep.created_at` for its "Opened" column. `/doctor/episodes/` sends **`episode_start`** —
+there is no `created_at` — so every row rendered `—`.
+
+## What was fixed, and what could not be
+
+✅ **Fixed, exact and verified:** `total_orgs` (= 3, matches `/org/` count) · `todays_appointments`
+(same two words, other order) · `episode_start`.
+
+❌ **Could not be fixed without the backend**, and deliberately not guessed:
+
+- **`active_organizations`** — no such field, and `/org/?is_active=` is **silently ignored**
+  (measured: `true` → 3, `false` → 3, unfiltered → 3). Counting `is_active` over the list would
+  read page 1 only (FLAG-013) — the ward-board cap bug again.
+- **`total_patients`** — `active_records` is **not** it: 18 versus `/patients/` count **30**.
+- **`active_prescriptions`** — no candidate field. `/doctor/prescriptions/` does carry
+  `count: 10`, but reading it means pulling ~20 prescription records — PHI — into a page that
+  displays none of them, to render one integer. That contradicts the FLAG-203 argument and was not
+  done.
+
+Those three tiles now show real fields under the backend's own names (**Active Records**,
+**Admissions Under Care**) or were removed, rather than rendering `—` forever. **Filed upstream: backend [#158](https://github.com/HealthClouda/healthclouda-backend/issues/158).**
+
 **Done when:**
-- [ ] `total_orgs` wired to the Organisations tile.
+- [x] `total_orgs` wired to the Organisations tile.
 - [ ] An `api-request` filed for a real `active_organizations` and a real patient count — or the two
       tiles are removed rather than shown permanently blank.
 - [ ] A test that fails against the **captured** payload above rather than against our own type.
@@ -2177,3 +2216,37 @@ starts passing, the source has been fixed — delete the annotation.**
 - [ ] `knownStatBug` deleted from the doctor entry in `e2e/design/roles.spec.ts`, and that test passes.
 - [ ] The two remaining unverified dashboards — **Nurse and Patient** — rendered the same way. Nothing
       yet proves they are clean; nobody has been able to run them (no credentials / [[FLAG-210]]).
+
+---
+
+### FLAG-233 — The test guarding FLAG-001 times out under normal `npm test` load
+**Severity:** P2 · **Area:** Test reliability · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-05, while verifying an unrelated change and having to prove the failure was not mine
+
+`src/app/dashboard-gate.test.tsx` → *"redirects when the cookie claims DOCTOR but the server says
+NURSE"* fails with `Error: Test timed out in 5000ms` on a full-suite run, and **passes in isolation
+in 2.3s**. Reproduced on **clean `develop`** (`109fbd0`): **210 passed / 1 failed**, same test, so it
+is not caused by any open branch.
+
+**Why it is slow:** the test does `await import('./[slug]/doctor/page')` inside the case. That pulls
+a Next server component and its whole import graph through the transform pipeline at assertion time,
+against vitest's **5s default** `testTimeout`. Under parallel workers on a loaded machine it does not
+finish.
+
+🔴 **Why it matters more than an ordinary flake.** This is the RED-first test from #99 that proves a
+**tampered `hc_user` cookie cannot escalate role** — the control for **FLAG-001 / A5**, the one item
+the sprint plan marks *must close before PHI*. A guard that fails intermittently for reasons having
+nothing to do with the property it guards is one people learn to re-run rather than read. That is the
+same habit [[FLAG-228]] describes, on a more important test.
+
+⚠️ **It also cost real time today.** A full-suite run on a feature branch showed this failing, and
+because that branch touches `DoctorDashboard` — which is in this test's import graph — it looked like
+a plausible regression. Ruling it out meant checking out `develop` and re-running the whole suite.
+
+**Done when** — one of:
+- [ ] The dynamic `await import(...)` is hoisted out of the test body, so module resolution is not
+      inside the timed region.
+- [ ] An explicit per-test timeout, or a global `testTimeout` in `vitest.config.ts` sized for
+      dynamic-import cases. **A global bump is the weaker fix** — it hides the next slow test too.
+- [ ] Either way, **run the full suite three times and confirm it is green three times.** A single
+      green run is exactly what this flag is about.

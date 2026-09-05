@@ -66,12 +66,29 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard loading={!stats} label="Upcoming Appts"    value={stats?.upcoming_appointments}    icon={<CalIcon />}  color="teal"   onClick={() => onNavigate('appointments')} />
-        <StatCard loading={!stats} label="Active Episodes"   value={stats?.active_episodes}           icon={<DocIcon />}  color="blue"   onClick={() => onNavigate('health')} />
-        <StatCard loading={!stats} label="Access Requests"   value={stats?.pending_access_requests}   icon={<KeyIcon />}  color="amber"  onClick={() => onNavigate('access')} />
-        <StatCard loading={!stats} label="Notifications"     value={stats?.unread_notifications ?? 0} icon={<BellIcon />} color="purple" />
+      {/* Stats — FLAG-231. Two tiles read fields `/patients/me/dashboard/` has
+          never published (`upcoming_appointments`, `pending_access_requests`),
+          so both were guaranteed em dashes. Nothing appointment-shaped or
+          access-shaped is published on that endpoint at all, so per the FLAG-222
+          rule neither was repointed at a plausible-looking neighbour.
+
+          "Upcoming Appts" survives because a REAL count was already on this page:
+          the list below fetches `?status=scheduled`, and DRF returns the total in
+          the envelope. So this is `apptData.count` — the true number of scheduled
+          appointments, from a request the page already makes and already displays.
+          No extra fetch, no extra PHI. It tracks `apptLoading`, not `stats`,
+          because it no longer comes from the stats payload.
+
+          "Access Requests" was REMOVED rather than reconstructed: the only source
+          is `/patients/me/access-requests/`, which the overview does not fetch,
+          and pulling it here to render one integer is the same trade the
+          Superadmin tiles refused. Asked for upstream. `lg:grid-cols-3` matches
+          the three that remain — a four-column row with three children renders an
+          empty cell, which reads as a tile that failed to load. */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard loading={apptLoading} label="Upcoming Appts"  value={apptData?.count}                  icon={<CalIcon />}  color="teal"   onClick={() => onNavigate('appointments')} />
+        <StatCard loading={!stats} label="Active Episodes"      value={stats?.active_episodes}           icon={<DocIcon />}  color="blue"   onClick={() => onNavigate('health')} />
+        <StatCard loading={!stats} label="Notifications"        value={stats?.unread_notifications ?? 0} icon={<BellIcon />} color="purple" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -166,7 +183,7 @@ function HealthPage() {
                   <Td><span className="font-mono text-xs text-gray-500">#{ep.id.slice(0, 8)}</span></Td>
                   <Td className="font-medium text-gray-900 max-w-xs">{truncate(ep.chief_complaint ?? '—', 50)}</Td>
                   <Td><StatusBadge status={ep.status} /></Td>
-                  <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.created_at)}</Td>
+                  <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.episode_start ?? ep.created_at)}</Td>
                   <Td className="text-xs text-gray-400 whitespace-nowrap">{ep.closed_at ? formatDate(ep.closed_at) : '—'}</Td>
                 </tr>
               ))}

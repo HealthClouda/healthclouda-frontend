@@ -27,6 +27,11 @@ function DocIcon()     { return <svg viewBox="0 0 24 24" fill="none" stroke="cur
 function CalIcon()     { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>; }
 function ArrowIcon()   { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>; }
 function BeakerIcon()  { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>; }
+// Admissions. Same path as NurseDashboard's BedIcon, deliberately — the two
+// dashboards render the same concept and should not draw it two ways. The
+// beaker that was here is the PRESCRIPTIONS icon and stayed behind when this
+// tile was repurposed, which read as the leftover it was.
+function BedIcon()     { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>; }
 
 const NAV: NavItem[] = [
   { id: 'overview',      label: 'Overview',      icon: <GridIcon /> },
@@ -120,7 +125,7 @@ const REFERRAL_TABS = [
 const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
   { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
   { key: 'complaint', header: 'Complaint', className: 'max-w-[160px]', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 30)}</span> },
-  { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
+  { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
 ];
 
 function patientColumns(onStartEpisode: (p: PatientSummary) => void): DataTableColumn<PatientSummary>[] {
@@ -160,7 +165,7 @@ function episodeColumns(onComplete: (ep: Episode) => void): DataTableColumn<Epis
     { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
     { key: 'complaint', header: 'Chief Complaint', className: 'max-w-xs', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 50)}</span> },
     { key: 'status', header: 'Status', render: ep => <StatusBadge status={ep.status} /> },
-    { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.created_at)}</span> },
+    { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
     {
       key: 'actions',
       header: 'Actions',
@@ -266,9 +271,27 @@ function OverviewPage({
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard loading={!stats} label="Active Episodes"    value={stats?.active_episodes}     icon={<DocIcon />}    color="blue"   onClick={() => onNavigate('episodes')} />
-        <StatCard loading={!stats} label="Appointments Today" value={stats?.appointments_today}   icon={<CalIcon />}    color="indigo" onClick={() => onNavigate('appointments')} />
+        {/* FLAG-222: the field is `todays_appointments`, not `appointments_today`
+            — same two words, other order, and this tile was blank because of it. */}
+        <StatCard loading={!stats} label="Appointments Today" value={stats?.todays_appointments}  icon={<CalIcon />}    color="indigo" onClick={() => onNavigate('appointments')} />
         <StatCard loading={!stats} label="Pending Referrals"  value={stats?.pending_referrals}    icon={<ArrowIcon />}  color="amber"  onClick={stats?.pending_referrals ? () => onNavigate('referrals') : undefined} />
-        <StatCard loading={!stats} label="Prescriptions"      value={stats?.active_prescriptions} icon={<BeakerIcon />} color="purple" onClick={() => onNavigate('prescriptions')} />
+        {/* Was "Prescriptions" reading `active_prescriptions`, which this endpoint
+            has never sent — permanently blank. There is no prescriptions count in
+            the payload; `/doctor/prescriptions/` has one, but reading it would pull
+            ~20 prescription records (PHI) into a page that shows none of them just
+            to render an integer. Asked for upstream. Meanwhile this tile shows a
+            real field, and Prescriptions stays reachable from the sidebar.
+
+            🔴 **Deliberately NOT clickable, and that is the point of the fix.** The
+            substitution first shipped with `onNavigate('episodes')` carried over
+            from the tile it replaced: the doctor's NAV has six pages and none of
+            them is admissions, so the click landed on Episodes — a different
+            dataset with a different count, under a label promising this one.
+            `StatCard` takes an undefined `onClick` (Pending Referrals above does it
+            conditionally), so the tile is honest and inert rather than pointing
+            somewhere it is not. Give it a destination when an admissions page
+            exists, not before. */}
+        <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BedIcon />} color="purple" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
