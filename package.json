@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "lint:fix": "eslint . --fix",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "audit:contracts": "node scripts/audit-stat-contracts.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

@@ -1270,7 +1270,7 @@ nurse one, and Tuesday's row is corrected to say so.
 ---
 
 ### FLAG-212 — The two bed sources disagree, and one bed belongs to no ward
-**Severity:** P3 · **Area:** Backend contract / data · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** ~~P3~~ **P2** (raised 2026-09-04) · **Area:** Backend contract / data · **Owner:** @Qeeyat · **Status:** **OPEN — half of it closed by itself; read the 2026-09-04 re-measurement below before acting**
 **Found:** 2026-08-19, building the D3 ward board — visible only once real beds were rendered
 
 Measured live as `nurse@demo.test`, 2026-08-19:
@@ -1300,6 +1300,45 @@ and hide it from whoever can fix it. This is a case where the honest render *is*
 grows an unassigned bucket), and Maternity's counts either reconcile with `/ward/beds/` or the
 discrepancy is explained. Likely a seed-data issue rather than a code one — worth checking before
 filing an `api-request`.
+
+> 🔄 **Re-measured 2026-09-04**, on the first-ever T5 render of the Nurse dashboard
+> (`e2e/design/roles.spec.ts`). Live capture as the nurse against `api-dev` — payloads, not the
+> schema:
+>
+> ```
+> GET /nurse/dashboard/stats/   total_beds 11 · occupied_beds 2 · occupancy_rate 18.2
+> GET /nurse/wards/overview/    General Ward 6/2/4 · Maternity Ward 4/0/4   → sum total_beds = 10
+> GET /ward/beds/               count 11 → General Ward 6, Maternity Ward 4, ward: null 1
+> ```
+>
+> **Half of this flag has closed on its own, and half has not.**
+>
+> - ✅ **Problem 2 (Maternity) is gone.** It now reports `total 4, occupied 0, available 4`, which
+>   adds up on its own terms, and `/ward/beds/` lists four maternity beds (MW-01…04) that render on
+>   the board. Nothing in this repo changed — the seed data did, which is what this flag guessed.
+> - ❌ **Problem 1 (the `ward: null` bed) is unchanged**, still exactly one.
+>
+> 🔴 **What is new is the consequence, and it is worse than "a bed renders nowhere".** Now that
+> Maternity has beds, the orphan bed is the *only* difference between the two sources, so the Nurse
+> dashboard displays **two bed totals that disagree, on the same screen, both unlabelled**:
+>
+> | Where | What it says | Denominator |
+> |---|---|---|
+> | Overview → **Bed Occupancy** tile | **18.2%**, delta "2 of **11** beds occupied" | stats, counts the orphan |
+> | Ward Overview → the board | General 6 + Maternity 4 = **10** beds, 2 occupied → **20%** | wards, cannot see the orphan |
+>
+> A nurse who reads the tile and then counts the board finds a bed that does not exist on any ward.
+> **This is not a rounding difference and there is no view in the app that reconciles them** — the
+> orphan is unreachable from the ward board by construction.
+>
+> ⚠️ **The tile is not wrong and must not be "fixed" to 20%.** `occupancy_rate: 18.2` is the
+> backend's own number over its own denominator; recomputing it client-side from the ward sum would
+> hide the orphan bed a second time and put a locally-invented statistic on a clinical screen. The
+> fault is upstream — one bed with no ward — and it stays visible until the backend resolves it.
+>
+> **Severity raised P3 → P2.** It was P3 as "one invisible bed in seed data". It is now a visible
+> numerical contradiction on a dashboard a nurse reads bed availability from, four days after this
+> tier's data model goes near real patients.
 
 ---
 
@@ -1568,6 +1607,20 @@ sits on, so it wants deciding before that branch is cut rather than during it.
 **Done when:** a patient can sign in at `/signin` and land on a working dashboard URL that contains
 no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.md`, and a
 regression test covering a `PATIENT` whose `organization` is `null`.
+
+> ⚠️ **Scope note, 2026-09-05 (@Qeeyat) — "resolved" here means the routing bug, not a working
+> dashboard.** #100 merged 3 Sep and this flag's own "Done when" is met: `/patient` exists, carries no
+> slug and no `undefined`, and the regression test for a `PATIENT` with `organization: null` is in the
+> suite. **But `BETA_READINESS.md` item 2 asks a harder question** — *"a patient signs in on the
+> general portal and reaches their dashboard, verified with a real patient token"* — and **that has
+> never happened**, because no `E2E_PATIENT_*` credentials exist. Item 2 is deliberately still OPEN.
+>
+> 🔴 **And we now know what the first patient will see:** [[FLAG-231]] — two of four stat tiles read
+> fields the published `PatientDashboard` component does not carry, so they will render em dashes.
+>
+> **Both records are correct; they answer different questions.** Closing the routing bug is not the
+> same as the portal working, and this entry should not be read as the second. **DASH-6 has still
+> never been rendered by anyone.**
 
 ---
 
@@ -1919,7 +1972,7 @@ organisation appears — asserted positively, not as "not an em dash" (the FLAG-
 ---
 
 ### FLAG-225 — No dashboard stats endpoint in the entire API documents a response body
-**Severity:** P1 · **Area:** Contract / Schema · **Owner:** @Qeeyat (frontend) · **Status:** OPEN
+**Severity:** P1 · **Area:** Contract / Schema · **Owner:** @Qeeyat (frontend) · **Status:** ✅ **RESOLVED 2026-09-03 by backend #161** — verified against the live schema 2026-09-04, see the note at the end of this entry
 **Found:** 2026-08-30, generalising from FLAG-222
 
 FLAG-222 (three of four Superadmin stat cards read fields the API has never returned) is not a
@@ -1949,6 +2002,45 @@ class — *publish response serializers for the stats endpoints* — needs its o
 failing that — every stat tile in the app has a live-captured payload recorded next to its type, per
 role, with the capture date.
 
+
+> ✅ **RESOLVED by backend #161, merged 2026-09-03. Verified against the live schema 2026-09-04** —
+> re-fetched and parsed here, not taken from the PR:
+>
+> ```
+> /api/v1/doctor/dashboard/stats/        HAS BODY   → DoctorDashboardStats
+> /api/v1/nurse/dashboard/stats/         HAS BODY   → NurseDashboardStats
+> /api/v1/org-admin/dashboard/stats/     HAS BODY   → OrgAdminDashboardStats
+> /api/v1/receptionist/dashboard/stats/  HAS BODY   → ReceptionistDashboardStats
+> /api/v1/patients/me/dashboard/         HAS BODY   → PatientDashboard
+> /api/v1/superadmin/dashboard/          HAS BODY   → SuperadminDashboardStats
+> /api/v1/superadmin/stats/              HAS BODY   → SystemStats
+> ```
+>
+> **Seven for seven.** The sentence this flag is named for is no longer true.
+>
+> 🎯 **It immediately paid for itself twice, on the same day.**
+> - It **confirmed [[FLAG-227]] from a second, independent source**: `DoctorDashboardStats` publishes
+>   `todays_appointments` (not `appointments_today`) and carries **no `active_prescriptions`** — the
+>   phantom field, absent exactly as the live capture said.
+> - It **found [[FLAG-231]] on a dashboard nobody can log into.** Two of four Patient tiles read
+>   fields `PatientDashboard` does not publish. That check was impossible the day before this landed,
+>   and it needed no credentials.
+>
+> ✅ It also **cleared Nurse from a third source**: `NurseDashboardStats` publishes exactly the eleven
+> fields `NurseStats` declares, matching the live capture taken the same day.
+>
+> ⚠️ **Do not read this as "the schema can now be trusted."** Two limits, both live:
+> 1. **[[FLAG-554]] (backend)** — six nested `SerializerMethodField`s in this same batch publish as
+>    `string` where the value is an integer or an object. **A published wrong type is more dangerous
+>    than a documented absence**, because absence makes a consumer go and measure, and that measuring
+>    is what caught FLAG-222 and FLAG-227. Confidence removes the reason to check.
+> 2. **This closes the *stats* class only.** The wider count — of the 84 GETs documenting a `200`,
+>    48 documented no body — was measured across the whole API on 2026-09-01. Only these seven paths
+>    are known to have changed.
+>
+> **So the rule stands: the schema is a lead, not a verdict.** What changed is that the lead now
+> exists for stats endpoints, and a *presence* check against it is cheap and does not need a token —
+> which is exactly how FLAG-231 was found.
 ---
 
 ### FLAG-226 — `?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes
@@ -2079,6 +2171,7 @@ a control with no failing test is a claim, not a control.
 ---
 
 ### FLAG-222 — Three of four Superadmin stat cards read fields the API has never returned
+> 🔴 **Understated — see [[FLAG-232]] (2026-09-05).** This counted *tiles*. The **interface** is worse: **5 of 6 `SuperadminStats` fields are phantom**, only `total_users` survives, and the endpoint publishes **11 fields nothing renders** — including eight `*_trend` / `*_trend_up` values that pair a delta with a direction, i.e. exactly what `StatCard`'s `delta` prop was built for. **The backend has been sending superadmin trend data all along.**
 **Severity:** P1 · **Area:** Backend contract / D1 · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-29, the first time anyone rendered this dashboard in a browser
 
@@ -2180,8 +2273,16 @@ starts passing, the source has been fixed — delete the annotation.**
 - [ ] `todays_appointments` wired to the Appointments Today tile.
 - [ ] An `api-request` filed for a prescriptions count — or the tile removed rather than shown blank.
 - [ ] `knownStatBug` deleted from the doctor entry in `e2e/design/roles.spec.ts`, and that test passes.
-- [ ] The two remaining unverified dashboards — **Nurse and Patient** — rendered the same way. Nothing
-      yet proves they are clean; nobody has been able to run them (no credentials / [[FLAG-210]]).
+- [x] ~~The two remaining unverified dashboards — **Nurse and Patient** — rendered the same way.~~
+      **Nurse: done 2026-09-04 and it is CLEAN** — the first dashboard whose stats interface matches
+      the live payload exactly. All four tiles carry real values; `NurseStats`' eleven fields are
+      eleven for eleven against `GET /nurse/dashboard/stats/`. **The streak was four of six, not
+      five of six.** (The run did find [[FLAG-212]] worsening and raised [[FLAG-229]] — just not
+      this bug class.)
+- [ ] **Patient (DASH-6) is still unrendered — it is now the only one.** It is *reachable* since
+      #100, but no `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` exists, so it remains the one
+      dashboard nobody has ever seen. It is wired into `roles.spec.ts` and skips cleanly; it renders
+      the moment credentials land. **This is now the single cheapest unverified thing in the repo.**
 ### FLAG-228 — A Google Fonts fetch inside `npm run build` can turn any CI run red
 **Severity:** P3 · **Area:** CI / Build · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-09-03, reviewing why PR #120 showed a failing check
@@ -2213,5 +2314,269 @@ documented fix and removes the network call entirely), **or** the CI build step 
 `NextFontError`. Self-hosting is the better answer — it also removes a render-blocking third-party
 request from every page load.
 
+> 📌 **Second sighting, 2026-09-04 — and this one was reproduced locally, which narrows the cause.**
+> `npm run build` from a clean `.next` died with the identical `NextFontError`. Immediately after,
+> the host was fine:
+>
+> ```
+> curl https://fonts.googleapis.com/css2?family=Lato:wght@400   → 200 in 1.33s
+> npm run build (retried, no other change)                      → green, middleware 35.8 kB
+> ```
+>
+> **So it is not an outage and not a DNS failure** — the host was reachable a second either side of
+> the failure. That leaves a transient refusal (rate limiting or a connection reset under load) as
+> the likely cause, which matters for the fix: **a "check the host is up" retry guard would not have
+> caught this**, because the host *was* up. Only removing the build-time network call does.
+>
+> It also confirms the flag is **not CI-specific** — it fails on a developer's machine, where it
+> presents as "my build is broken" rather than "the runner flaked", and there is no job log naming
+> the cause. That is the more expensive version of this bug.
+
 ---
 
+### FLAG-229 — The T5 harness photographs only the landing state, so every write workflow is unrendered
+**Severity:** P2 · **Area:** Test coverage / design verification · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-04, rendering the Nurse dashboard (DASH-3) for the first time
+
+`e2e/design/roles.spec.ts` clicks each sidebar nav item and screenshots what appears. Anything
+behind a *second* interaction — a row action, a selection, a modal, a slide panel — is never
+rendered, by anyone, at any point in our process.
+
+**The Nurse dashboard is where this stops being theoretical.** Recording vitals is the one write
+workflow a nurse has, and `RecordVitalsForm` only mounts after a patient is picked from the Vitals
+picker. So the T5 baseline `nurse-vitals-desktop` is a screenshot of an **empty "Select a patient"
+panel**, and the form itself — 8 numeric inputs with live backend validation bounds, a notes field,
+a submit that `PATCH`es real clinical data — has still never been looked at. The dashboard reads as
+verified because four pages are green.
+
+This generalises to every role:
+
+| Never rendered | Where |
+|---|---|
+| Record-vitals form (8 inputs + notes + submit) | Nurse → Vitals, after selecting a patient |
+| Every `SlidePanel` / `Modal` | staff invite, episode create, access review, … |
+| Every row action | "Record vitals", suspend/activate, assign doctor |
+| Pagination beyond page 1 | seed data fits on one page everywhere |
+| The `error` and `empty` states | `docs/DESIGN-VERIFICATION.md` §3 asks for all three; the harness captures one |
+
+🔑 **Why this is P2 and not a nice-to-have.** The stat-tile check exists because a *live render* is
+the only layer that can see a field the backend never sent ([[FLAG-222]], [[FLAG-227]],
+[[FLAG-221]]). That argument does not stop at the landing state — a form binding a field the API
+does not accept, or a panel reading a key off a serialiser that renamed it, is the **same bug class
+in the half of the UI the harness cannot see.** We have been reasoning as though a green harness
+covered a dashboard. It covers a dashboard's front page.
+
+⚠️ **`docs/DESIGN-VERIFICATION.md` already warns not to read a green run as "the dashboards are
+verified" — but only about the roles with no credentials.** The same sentence needs to say it about
+the pages we *do* run.
+
+**Not fixed here, deliberately.** Extending the harness into interaction states is real design work
+(what to click, what to mask, how not to `PATCH` seed data from a screenshot test — a write workflow
+test that actually submits would mutate `api-dev`, which is precisely what [[FLAG-216]] refused).
+That is its own PR, not a rider on the one that first rendered Nurse.
+
+**Done when:**
+- [ ] A decision on read-only vs. mutating interaction coverage — a form can be *opened* and
+      screenshotted without submitting, which gets most of the value with none of the writes.
+- [ ] At minimum the Nurse record-vitals form and one `SlidePanel` rendered and baselined.
+- [ ] The empty and error states captured deliberately rather than incidentally.
+- [ ] `docs/DESIGN-VERIFICATION.md`'s "what is NOT covered" table says *landing states only*.
+
+---
+
+### FLAG-230 — Stacked PRs never run CI, and the repo's safe-merge pattern is exactly what stacks them
+**Severity:** P2 · **Area:** CI / process · **Owner:** @Bastoh (repo settings + workflow) · **Status:** OPEN
+**Found:** 2026-09-04, opening #128 onto a stack parent and noticing it had no checks at all
+
+`ci.yml` triggers on `pull_request: branches: [develop, staging, main]`. **A PR whose base is
+another feature branch matches none of those, so none of the three jobs run** — not `verify`, not
+`lint`, not `tier-guard`. `gh pr checks` reports "no checks reported", which is easy to read as
+"nothing has run yet" rather than "nothing will ever run".
+
+**Measured on merged PRs, 2026-09-04** — every stacked child in the repo's history:
+
+| PR | Base now | CI jobs that ran |
+|---|---|---|
+| **#100** patient portal (stacked on #99, merged 3 Sep) | `develop` (retargeted) | **none** — Vercel only |
+| **#117** B7 coverage (stacked on #116) | `develop` (retargeted) | **none** — Vercel only |
+| **#119** session log (stacked on #113) | `develop` (retargeted) | **none** — Vercel only |
+| **#124** session log (stacked on #122, still open) | a docs branch | **none** — Vercel only |
+
+🔑 **Retargeting does not save it.** When the parent merges, GitHub moves the child's base to
+`develop` — but a base change fires `pull_request` with action `edited`, and the default activity
+types for that event are `opened`, `synchronize` and `reopened`. So the workflow does not run on the
+retarget, and unless someone pushes another commit afterwards **the child merges into `develop`
+having never been checked.** That is what the table above shows: all three are on `develop` now, and
+none of them ever ran a job.
+
+🔴 **Why this is worse than it sounds.** `HANDOFF.md` teaches stacking as *the* safe pattern —
+"merge the parent as a merge commit, **without `--delete-branch`**", evidenced twice (#116→#117,
+#99→#100) after `--delete-branch` closed a stacked child. That guidance is correct and should stay.
+But it means **the repo's recommended workflow is also the one that skips CI**, and the two facts
+have never been stated next to each other. #100 — the patient portal, merged two days before real
+PHI — is a stacked PR that no CI job ever saw.
+
+Compounding: ruleset 11328360 carries **no required status checks** (FLAG-006's remaining half), so
+nothing notices the absence. A required check would at least have blocked on "Expected — waiting for
+status to be reported".
+
+**Done when** — one of:
+- [ ] `ci.yml` also triggers on `pull_request: branches: ['**']` (simplest; runs CI on every PR
+      regardless of base), **or** adds `types: [opened, synchronize, reopened, edited]` so a
+      retarget re-runs it. The first is the more honest fix — it checks the child *before* it is
+      retargeted, not after.
+- [ ] Required status checks are added to the ruleset, so a PR with no checks cannot merge silently.
+- [ ] `HANDOFF.md`'s stacking guidance says out loud that a stacked child gets no CI until it is
+      retargeted **and** pushed to.
+
+---
+
+### FLAG-231 — Two Patient stat tiles read fields `/patients/me/dashboard/` does not return
+**Severity:** P1 · **Area:** Contract / Patient dashboard · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-04, from the **newly published schema** — not from a render, because nobody can render this dashboard yet
+
+The **fifth** dashboard with this bug, after Org Admin (#85), Nurse (NURSE-1), Superadmin
+([[FLAG-222]]) and Doctor ([[FLAG-227]]). **The count is now five of six, not four of six** — and
+DASH-6 is the one nobody has ever looked at.
+
+🎯 **This was found without credentials, and that is the point.** Backend **#161** (merged 2026-09-03)
+published response bodies for all seven dashboard/stats endpoints, closing the [[FLAG-225]] class.
+`GET /api/v1/patients/me/dashboard/` now `$ref`s a complete `PatientDashboard` component:
+
+```
+required: active_episodes, active_instructions, active_prescriptions, completed_episodes,
+          current_admission, last_visit_date, last_visit_organization, organizations_visited,
+          total_episodes, unread_notifications
+```
+
+`PatientDashboard.tsx:70-73` reads:
+
+| Tile | Component reads | Published? |
+|---|---|---|
+| **Upcoming Appts** | `upcoming_appointments` | ❌ **not in the component** |
+| Active Episodes | `active_episodes` | ✅ |
+| **Access Requests** | `pending_access_requests` | ❌ **not in the component** |
+| Notifications | `unread_notifications` | ✅ |
+
+**Nothing appointment-shaped or access-request-shaped is published on this endpoint at all** — the
+two missing names have no near neighbour to be a rename of. Per the [[FLAG-222]] reasoning, do
+**not** point them at a plausible-looking field: this is a screen a patient reads their own care
+from, and an invisible wrong number is worse than a visible gap.
+
+⚠️ **Two tiles will render `—`** the moment anyone signs in, because `StatCard` renders
+`{value ?? '—'}`. `Notifications` is masked by `?? 0` in the component and would show `0` even if the
+field vanished — worth noting as a second, quieter instance of the same class.
+
+`src/types/dashboard.ts:72-77` declares the wrong interface:
+
+```ts
+export interface PatientDashboardData {
+  upcoming_appointments: number;      // ❌ never sent
+  active_episodes: number;            // ✅
+  pending_access_requests: number;    // ❌ never sent
+  unread_notifications?: number;      // ✅
+}
+```
+
+**Seven published fields nothing renders:** `total_episodes`, `completed_episodes`,
+`last_visit_date`, `last_visit_organization`, `current_admission`, `active_prescriptions`,
+`organizations_visited`. 🎯 **`current_admission` and `active_prescriptions` are real clinical
+information being thrown away** on the patient's own portal — and note `active_prescriptions` **does**
+exist here, while [[FLAG-227]]'s doctor-side `active_prescriptions` does not. There is a
+prescriptions concept; it is published on the patient endpoint and nowhere else.
+
+⚠️ **Evidence standard — read this before acting.** This is **schema evidence, not a live capture**,
+and `CLAUDE.md` is explicit that the schema is a lead and not a verdict. Three things make it strong
+anyway: the component is newly generated from the view's own serializer, its `required` list is
+complete rather than partial, and the two names are absent entirely rather than mistyped.
+[[FLAG-554]] (backend) warns that six nested fields in this batch publish as `string` where the value
+is an integer or object — **that is a wrong *type*, not a wrong *presence***, so it does not weaken
+this finding. **Still: confirm against a live payload the first time a patient token exists.**
+
+**Currently annotated, not fixed.** `roles.spec.ts` carries `knownStatBug: 'FLAG-231'` on the patient
+entry, so when credentials land the suite stays honest instead of going red, and turns red when
+someone fixes the source.
+
+**Done when:**
+- [ ] A live capture as a real patient confirms (or refutes) the two absences.
+- [ ] `PatientDashboardData` is re-typed from that payload — **not from the fixture**, which is how
+      this class survives a green unit suite ([[FLAG-221]]).
+- [ ] The two tiles are repointed at real fields, or removed rather than shown blank. `total_episodes`
+      is a plausible honest substitute for one of them; that is a **design call**, not a rename.
+- [ ] `knownStatBug` deleted from the patient entry in `e2e/design/roles.spec.ts`, and that test passes.
+
+---
+
+### FLAG-232 — The complete stat-contract audit: 9 phantom fields across 3 dashboards, and 23 published fields nothing renders
+**Severity:** P1 · **Area:** Contract / all dashboards · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-05, first full audit of every stats interface against the published schema
+
+This is the **parent measurement** for [[FLAG-222]], [[FLAG-227]] and [[FLAG-231]]. Until 2026-09-03
+it could not be taken: the schema documented `200: No response body` for every stats endpoint
+([[FLAG-225]]), so each dashboard had to be caught one at a time by rendering it, which needed
+credentials per role. **Backend #161 published the response bodies, so the whole class can now be
+measured in one pass, for free, with no credentials and no logins.**
+
+Every `*Stats` / `*DashboardData` interface in `src/types/dashboard.ts` parsed from source and diffed
+against the component its endpoint actually `$ref`s. Schema fetched 2026-09-05 10:14Z.
+
+| Dashboard | Interface | Fields matching | Verdict |
+|---|---|---|---|
+| **DASH-1 Superadmin** | `SuperadminStats` | **1 / 6** | 🔴 **5 phantom** · 11 published-unused |
+| DASH-2 Org Admin | `OrgAdminStats` | 6 / 6 | ✅ clean |
+| DASH-3 Nurse | `NurseStats` | 11 / 11 | ✅ clean |
+| DASH-4 Receptionist | `ReceptionistStats` | 13 / 13 | ✅ clean |
+| **DASH-5 Doctor** | `DoctorStats` | 2 / 4 | 🔴 **2 phantom** · 4 published-unused |
+| **DASH-6 Patient** | `PatientDashboardData` | 2 / 4 | 🔴 **2 phantom** · 8 published-unused |
+
+**9 phantom fields. 3 dashboards. 23 published fields nothing renders.**
+
+#### 🔴 Superadmin is far worse than [[FLAG-222]] recorded
+
+FLAG-222 counted **3 of 4 stat tiles**. The *interface* is **5 of 6 fields phantom** — only
+`total_users` survives:
+
+```
+we read      : total_organizations, active_organizations, total_patients,
+               new_orgs_this_month, total_staff          ← none published
+API publishes: total_orgs, active_records, monthly_revenue, total_users,
+               users_trend, users_trend_up, orgs_trend, orgs_trend_up,
+               revenue_trend, revenue_trend_up, records_trend, records_trend_up
+```
+
+🎯 **The eight `*_trend` / `*_trend_up` fields are a designed feature nobody knew existed.** They pair
+a delta with a direction — exactly what `StatCard`'s `delta` prop renders. The backend has been
+sending trend data for the superadmin dashboard the whole time and the UI has never read one.
+
+#### The other two, confirmed from a second source
+
+- **Doctor** — `appointments_today` ❌ (published as **`todays_appointments`**, a straight rename) and
+  `active_prescriptions` ❌ with **no equivalent published**. Exactly [[FLAG-227]].
+- **Patient** — `upcoming_appointments` ❌ and `pending_access_requests` ❌, nothing
+  appointment- or access-shaped published. Exactly [[FLAG-231]].
+
+⚠️ **`active_prescriptions` exists on `PatientDashboard` but not on `DoctorDashboardStats`.** So there
+is a prescriptions concept; it is published on the patient endpoint only. That is a **backend scope
+question, not a rename** — do not point the Doctor tile at the patient field.
+
+#### 📌 Correcting a number I put into five files yesterday
+
+I wrote *"five of seven"*. **There are six dashboards; seven is the number of stats endpoints**
+(superadmin has two). Corrected everywhere. The accurate statement:
+
+> **Five of the six dashboards have carried this bug at some point** — Org Admin (fixed in #85), Nurse
+> (fixed in NURSE-1), Superadmin, Doctor, Patient. **Three still carry it today.** Receptionist is the
+> only dashboard never affected.
+
+**Done when:**
+- [ ] `SuperadminStats`, `DoctorStats` and `PatientDashboardData` are re-typed from these components,
+      and each tile bound to a field that exists — or removed rather than shown blank.
+- [ ] A decision on the 23 unused fields. The superadmin `*_trend` set and the patient's
+      `current_admission` / `active_prescriptions` / `active_instructions` are **real information
+      currently discarded**; the rest may be genuinely unwanted. This is a **design call**.
+- [ ] An `api-request` for a doctor-side prescriptions count, or the Doctor tile comes out.
+- [ ] ⚠️ **Confirm against live payloads before shipping the retype.** Per backend [[FLAG-554]] six
+      nested fields in this batch publish with the wrong *type*. This audit checks **presence**, which
+      is what the phantom-field bug is about — but a published type is not yet trustworthy.
+- [ ] The audit re-runnable: it is ~60 lines and should live in the repo so this cannot silently
+      regress. Candidate for a CI job once [[FLAG-230]] is fixed.

@@ -2,10 +2,11 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAs, VIEWPORTS, type E2ERole } from './helpers';
 
 /**
- * T5 design fidelity — DASH-2 Org Admin, DASH-4 Receptionist, DASH-5 Doctor.
+ * T5 design fidelity — DASH-2 Org Admin, DASH-3 Nurse, DASH-4 Receptionist,
+ * DASH-5 Doctor, DASH-6 Patient.
  *
  * Superadmin (DASH-1) keeps its own spec because its audit log needs bespoke
- * masking. These three are structurally alike enough to share one table.
+ * masking. These five share one table.
  *
  * ⚠️ **Why this file exists, and what it is actually for.**
  * Gate 2 recorded that the first time anyone rendered a dashboard in a browser,
@@ -13,16 +14,25 @@ import { signInAs, VIEWPORTS, type E2ERole } from './helpers';
  * fields the API has never returned, so the Organisations tile showed an em dash
  * directly above a table listing three organisations.
  *
- * That bug class is invisible to every other layer we have:
+ * That bug class was invisible to every other layer we had:
  *   - unit tests assert our own fixtures, typed from the same wrong interface,
  *     so they agree with the bug (FLAG-221, four times now);
- *   - the schema documents `200: No response body` for all eleven dashboard
- *     stats endpoints (FLAG-225), so it cannot adjudicate either.
+ *   - the schema documented `200: No response body` for every dashboard stats
+ *     endpoint (FLAG-225), so it could not adjudicate either.
  *
- * Only a live render can see it. `StatCard` renders `{value ?? '—'}`, so an em
- * dash in a tile IS the signature of reading a field the backend never sent.
- * `assertTilesCarryValues` below is therefore the assertion with teeth here —
- * the screenshots are the secondary benefit, not the point.
+ * ⚠️ **The second half changed on 2026-09-03 and this comment must not go stale
+ * the way the last one did.** Backend #161 published response bodies for all
+ * seven dashboard/stats endpoints, so a *presence* check against the schema is
+ * now possible and needs no credentials — that is how FLAG-231 was found on the
+ * Patient dashboard, which nobody can still log into.
+ *
+ * That does NOT retire this file, for two reasons. FLAG-554 (backend) shows six
+ * fields in that same batch published with the wrong *type*, and a confidently
+ * wrong schema is worse than a silent one because it removes the reason to
+ * measure. And a schema cannot tell you what actually rendered: `StatCard`
+ * renders `{value ?? '—'}`, so an em dash in a tile IS the signature of reading
+ * a field the backend never sent. `assertTilesCarryValues` below remains the
+ * assertion with teeth — the screenshots are the secondary benefit.
  *
  * Signs in for real against `NEXT_PUBLIC_API_URL`; credentials come from
  * `.env.local` and never from this repo. See `docs/DESIGN-VERIFICATION.md`.
@@ -36,9 +46,35 @@ interface RoleSpec {
    * page titled "Today's Check-ins". Modelling them as one field silently
    * skipped that page when this was first written.
    */
-  pages: readonly { nav: string; title: string }[];
+  pages: readonly {
+    nav: string;
+    title: string;
+    /**
+     * Heading level of `title`. Defaults to 1 — the <h1> `DashboardHeader`
+     * renders from the shell's `pageTitle` prop, which is what every staff
+     * dashboard uses on every page.
+     *
+     * The **patient overview is the one page in the product that passes no
+     * `pageTitle`** (`PatientDashboard.tsx`: `page === 'overview' ? undefined
+     * : …`), so it has no <h1> at all and a level-1 lookup there fails on a
+     * page that rendered perfectly. It anchors on a page-level <h2> instead.
+     */
+    titleLevel?: 1 | 2;
+  }[];
   /** Every StatCard label on the overview, exactly as it appears in the DOM. */
   tiles: readonly string[];
+  /**
+   * What 390px must show — and the two roles want OPPOSITE assertions, so this
+   * cannot be inferred.
+   *
+   * `gate`       — DASH-1…5, staff. The dashboard must not be in the DOM at
+   *                all, only `SmallScreenGate` (FLAG-203).
+   * `responsive` — DASH-6 Patient, and only Patient. Patients are on phones;
+   *                `DashboardShell`'s own prop doc says this dashboard "must
+   *                omit" the gate. Asserting the gate here would be asserting
+   *                a bug.
+   */
+  mobile: 'gate' | 'responsive';
   /**
    * Set when this role's tiles are KNOWN to be reading fields the API does not
    * send, with the flag that records it. The tile test is then marked
@@ -67,6 +103,18 @@ const ROLES: readonly RoleSpec[] = [
       // a placeholder rather than a page. Nothing to verify.
     ],
     tiles: ['Total Staff', 'Active Patients', 'Bed Occupancy', 'Pending Access'],
+    mobile: 'gate',
+  },
+  {
+    role: 'nurse',
+    pages: [
+      { nav: 'Overview', title: 'Overview' },
+      { nav: 'My Patients', title: 'My Patients' },
+      { nav: 'Vitals', title: 'Vitals' },
+      { nav: 'Ward Overview', title: 'Ward Overview' },
+    ],
+    tiles: ['Active Admissions', 'Patients in Queue', 'Bed Occupancy', 'Admitted Today'],
+    mobile: 'gate',
   },
   {
     role: 'receptionist',
@@ -78,6 +126,7 @@ const ROLES: readonly RoleSpec[] = [
       { nav: 'Referrals', title: 'Referrals' },
     ],
     tiles: ['Check-ins Today', 'Pending Assignment', 'Avail. Beds', 'Pending Referrals'],
+    mobile: 'gate',
   },
   {
     role: 'doctor',
@@ -90,7 +139,28 @@ const ROLES: readonly RoleSpec[] = [
       { nav: 'Prescriptions', title: 'Prescriptions' },
     ],
     tiles: ['Active Episodes', 'Appointments Today', 'Pending Referrals', 'Prescriptions'],
+    mobile: 'gate',
     knownStatBug: 'FLAG-227',
+  },
+  {
+    role: 'patient',
+    pages: [
+      // No <h1>: the patient overview is the only page that passes no
+      // `pageTitle`. See `titleLevel` on the interface above.
+      { nav: 'Overview', title: 'Upcoming Appointments', titleLevel: 2 },
+      { nav: 'My Health', title: 'My Health' },
+      { nav: 'Appointments', title: 'Appointments' },
+      { nav: 'Access & Referrals', title: 'Access & Referrals' },
+    ],
+    tiles: ['Upcoming Appts', 'Active Episodes', 'Access Requests', 'Notifications'],
+    mobile: 'responsive',
+    // Predicted from the newly published `PatientDashboard` component rather
+    // than observed, because this dashboard still cannot be signed into:
+    // `upcoming_appointments` and `pending_access_requests` are not in it, and
+    // nothing appointment- or access-shaped is published at all. Confirm
+    // against a live payload the first time a patient token exists — if this
+    // test XPASSes, the prediction was wrong and FLAG-231 should say so.
+    knownStatBug: 'FLAG-231',
   },
 ];
 
@@ -111,10 +181,20 @@ async function waitForData(page: Page): Promise<void> {
  * The FLAG-222 check. `StatCard` renders `{value ?? '—'}`, so an em dash means
  * the component read a key the payload does not carry.
  *
- * `NaN` is checked too, and is not hypothetical: the receptionist's "Avail.
- * Beds" tile computes `total_beds - occupied_beds`, so a missing field there
- * renders the string "NaN" rather than an em dash — the same contract fault
- * wearing a different mask, which an em-dash-only assertion would wave through.
+ * Three masks, not one, and each was found the hard way:
+ *
+ *   `—`          the plain case — `value={stats?.some_field}`.
+ *   `NaN`        the receptionist's "Avail. Beds" computes
+ *                `total_beds - occupied_beds`, so a missing field there is
+ *                arithmetic on `undefined`.
+ *   `undefined`  a tile built with a template literal. The nurse's "Bed
+ *                Occupancy" is `` `${stats.occupancy_rate}%` ``, which renders
+ *                the literal string **"undefined%"** when the field is absent
+ *                — not an em dash, not NaN, and a `?? '—'` fallback can never
+ *                fire because the template already produced a non-null string.
+ *
+ * All three are the same contract fault wearing different masks, so the match
+ * is a substring for the last two rather than a whole-value test.
  */
 async function assertTilesCarryValues(page: Page, tiles: readonly string[]): Promise<void> {
   const broken: string[] = [];
@@ -133,7 +213,7 @@ async function assertTilesCarryValues(page: Page, tiles: readonly string[]): Pro
     await expect(value, `stat tile "${label}" should exist exactly once`).toHaveCount(1);
 
     const text = (await value.innerText()).trim();
-    if (/^(—|NaN)$/.test(text)) broken.push(`${label} → "${text}"`);
+    if (text === '—' || /NaN|undefined/.test(text)) broken.push(`${label} → "${text}"`);
   }
 
   // Collected, not thrown per tile. Asserting inside the loop stops at the first
@@ -210,7 +290,9 @@ for (const spec of ROLES) {
           // did for Superadmin's 'Audit Logs'.
           await page.getByRole('button', { name: p.nav, exact: true }).click();
         }
-        await expect(page.getByRole('heading', { level: 1, name: p.title })).toBeVisible();
+        await expect(
+          page.getByRole('heading', { level: p.titleLevel ?? 1, name: p.title }),
+        ).toBeVisible();
         await waitForData(page);
         await expect(page).toHaveScreenshot(baselineName(spec.role, p.nav, 'desktop'), {
           fullPage: true,
@@ -220,20 +302,43 @@ for (const spec of ROLES) {
     }
   });
 
-  test.describe(`${spec.role} — mobile shows SmallScreenGate, not the shell`, () => {
+  test.describe(`${spec.role} — mobile @ ${VIEWPORTS[1].width}px`, () => {
     test.skip(!hasCreds, skipReason);
     test.use({ viewport: { width: VIEWPORTS[1].width, height: VIEWPORTS[1].height } });
 
-    test('gate renders below 768px; the dashboard is absent, not hidden', async ({ page }) => {
-      test.setTimeout(150_000); // see the desktop beforeEach
-      await signInAs(page, spec.role);
-      await expect(page.getByText('This dashboard needs a bigger screen')).toBeVisible();
-      // Absent, not merely invisible — FLAG-203 was exactly the case where the
-      // records sat in the DOM behind a polite notice.
-      await expect(page.getByRole('navigation')).toHaveCount(0);
-      await expect(page).toHaveScreenshot(baselineName(spec.role, 'gate', 'mobile'), {
-        mask: [page.locator('nextjs-portal')],
-      });
-    });
+    test(
+      spec.mobile === 'gate'
+        ? 'gate renders below 768px; the dashboard is absent, not hidden'
+        : 'the dashboard renders responsively; there is no gate',
+      async ({ page }) => {
+        test.setTimeout(150_000); // see the desktop beforeEach
+        await signInAs(page, spec.role);
+
+        if (spec.mobile === 'gate') {
+          await expect(page.getByText('This dashboard needs a bigger screen')).toBeVisible();
+          // Absent, not merely invisible — FLAG-203 was exactly the case where
+          // the records sat in the DOM behind a polite notice.
+          await expect(page.getByRole('navigation')).toHaveCount(0);
+        } else {
+          // The exact inverse, and it has to be asserted rather than assumed:
+          // `smallScreenGateFor` is one omitted prop away from silently turning
+          // the patient portal into a "get a bigger screen" notice on the only
+          // device patients use. `docs/DESIGN-VERIFICATION.md` calls this "the
+          // mistake most likely to reach review".
+          await expect(page.getByText('This dashboard needs a bigger screen')).toHaveCount(0);
+          // Present in the DOM at 390px, off-canvas behind the menu button —
+          // that is FLAG-025 (the drawer is mounted unconditionally and hidden
+          // with `-translate-x-full`), so count is 1, not 0. No PHI concern
+          // here: this dashboard shows the signed-in patient their own records.
+          await expect(page.getByRole('navigation')).toHaveCount(1);
+          await waitForData(page);
+        }
+
+        await expect(page).toHaveScreenshot(
+          baselineName(spec.role, spec.mobile === 'gate' ? 'gate' : 'overview', 'mobile'),
+          { mask: masksFor(page) },
+        );
+      },
+    );
   });
 }

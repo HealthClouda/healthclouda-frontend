@@ -206,15 +206,38 @@ beta or production. Full posture and what is accepted in writing: [`SECURITY_BAS
 
 | Layer | Where |
 |---|---|
-| Unit + component (Vitest, jsdom) | `src/**/*.test.ts(x)` |
+| Unit + component (Vitest, jsdom) | `src/**/*.test.ts(x)` — **211 tests / 23 files** |
 | Browser (Playwright) | `e2e/`, including the design-fidelity harness in `e2e/design/` |
+
+**T5 design harness coverage** (`e2e/design/`) — it signs in for real against `api-dev`, so a role is
+covered only where credentials exist:
+
+| Dashboard | Rendered | Note |
+|---|---|---|
+| DASH-1 Superadmin | ✅ | own spec (bespoke audit-log masking) |
+| DASH-2 Org Admin · DASH-4 Receptionist · DASH-5 Doctor | ✅ 2026-08-31 | `roles.spec.ts` |
+| DASH-3 Nurse | ✅ **2026-09-04** | first render; stats contract **clean** |
+| DASH-6 Patient | ⏸️ **never rendered** | wired and skipping — no `E2E_PATIENT_*` credentials. 🔴 **Known-bad without being seen**: two of four stat tiles read fields the published `PatientDashboard` schema does not carry (**FLAG-231**) |
+
+⚠️ The harness captures each page's **landing state only** — every form, modal and row action is
+unrendered (FLAG-229).
 
 **The convention that matters: a test must fail against the pre-fix code.** A test written after a
 fix, that would have passed before it, proves nothing. Two bug classes in this repo were invisible to
 a green suite because the fixtures asserted our own assumptions rather than captured payloads — see
 FLAG-221 and FLAG-222.
 
-There is **no CI** (FLAG-006): every check is a developer running three commands locally and
+⚠️ **Corrected 2026-09-04 — this paragraph used to read "There is **no CI** (FLAG-006)". That has
+been false since #116 merged on 1 Sep**, and the correction matters in both directions:
+
+- **CI exists and runs.** `.github/workflows/ci.yml` runs three jobs on every PR — `verify` (tsc,
+  the suite, the build), `lint` at `--max-warnings=0`, and `tier-guard` (the A4 fail-loud check).
+  FLAG-006 is closed.
+- **CI still gates nothing.** Ruleset 11328360 carries **no required status checks**, so a red run
+  does not block a merge. A green tick therefore implies a gate that is not wired up. Making the
+  three jobs required is a repo-settings change only @Bastoh can make.
+
+So the honest statement is: every check is *also* a developer running three commands locally and
 choosing to report them honestly.
 
 ---

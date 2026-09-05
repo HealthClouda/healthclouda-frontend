@@ -60,6 +60,278 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-04 → 05 — Nurse rendered (clean), FLAG-231 found without credentials, review queue cleared, six PRs merged (branches: feat/t5-nurse-patient, docs/merge-99-100-in-flight)
+
+**Goal:** extend the T5 harness to the two dashboards nobody has ever rendered, and render them. Got
+one of the two, for a reason worth writing down.
+
+**What I did:**
+- **Generalised `roles.spec.ts`** from three roles to five, and rendered **Nurse (DASH-3) for the
+  first time** — 6/6 green, six baselines committed, verified across three consecutive runs (the
+  first run *writes* snapshots, so a single green run proves nothing).
+- **Wired Patient (DASH-6) fully** — 6 tests, skipping cleanly, runs the moment credentials exist.
+- Raised **FLAG-229**, re-measured **FLAG-212** (P3 → **P2**), added a second sighting to
+  **FLAG-228**, ticked off **FLAG-227**'s Nurse item.
+- Fixed a stale "there is **no CI**" claim in `docs/ARCHITECTURE.md` — false since #116 merged 1 Sep.
+
+**What I found:**
+
+- 🎯 **Nurse is clean, and it is the first dashboard that has been.** All four tiles carry real
+  values, and the live payload has **all eleven** `NurseStats` fields. **The headline number does not
+  move: still four of six, not five of six.** I went in expecting a fifth instance — four of six
+  had it, `CLAUDE.md` warns about it, the session brief predicted it — and the honest result is that
+  the bug was not there. Worth saying plainly, because "the streak continues" is a much easier
+  sentence to write than "the streak stopped", and only one of them is true.
+- 🔴 **FLAG-212 got worse while half of it fixed itself, and only a render could show that.** The
+  Maternity inconsistency is gone (seed data changed, nothing of ours). But the `ward: null` bed is
+  still there, and now that Maternity has beds **it is the only difference between the two sources** —
+  so the Nurse dashboard shows **two disagreeing bed totals on one screen**: the Overview tile says
+  "2 of **11** beds occupied · 18.2%", the ward board sums to **10** (20%). Neither is labelled.
+  Captured live: stats `total_beds 11`, wards-overview sum `10`, `/ward/beds/` count `11` with one
+  `ward: null`. **The tile is not wrong and must not be "fixed" to 20%** — recomputing it client-side
+  would hide the orphan bed a second time and put an invented statistic on a clinical screen.
+- 🪤 **The credentials were fine; `.env.local` ate them.** The first nurse run failed with a 45s
+  `waitForURL` timeout, which reads as "the dashboard is broken", so that is where I looked. The page
+  snapshot showed the password field containing `Demo` — **an unquoted `#` in the value, which dotenv
+  treats as the start of a comment.** The four roles that already worked were quoted; the new one was
+  not. @Bastoh sent a correct credential and I nearly reported it as broken. **The harness now races
+  the form error against the navigation and says which happened**, naming this trap in the message.
+  Generalises: *a timeout is not a diagnosis — make the failure say which of the two things went
+  wrong before you go looking.*
+- 🪤 **`npm test` gave me 40 failures that were not real, twice.** Playwright leaves `npm run dev`
+  running; vitest forks a worker per file; with both alive the workers time out and the suite reports
+  `40 failed / 211` — and on the worse run only **8 of 23 files loaded at all**, which looks like a
+  catastrophic regression. Dev server stopped: **211/211 in 16 seconds.** My diff touches only `e2e/`
+  and docs, and `vitest.config.ts` includes `src/**` only, so it could not have been mine **by
+  construction** — that reasoning is what stopped me chasing it. Now in `docs/DESIGN-VERIFICATION.md`.
+  Same family as FLAG-228: a red that does not mean what it looks like.
+- 🎯 **FLAG-228 reproduced locally, which narrows the fix.** The build died on `NextFontError`, and
+  `fonts.googleapis.com` answered **200 in 1.33s** immediately afterwards; the retry was green. So it
+  is not an outage — **a "check the host is up" retry guard would not have caught it**, because the
+  host *was* up. Only removing the build-time network call does. It is also not CI-specific, which is
+  the more expensive version: on a laptop it presents as "my build is broken", with no job log.
+- 🔴 **FLAG-229 — the harness photographs landing states only.** Rendering Nurse made this concrete:
+  `nurse-vitals-desktop` is a screenshot of an empty "Select a patient" panel, because
+  `RecordVitalsForm` mounts only after a selection. **The one write workflow a nurse has — eight
+  numeric inputs that `PATCH` clinical data — has still never been looked at**, and the dashboard
+  reads as verified because four pages are green. The FLAG-222 argument (only a live render can see a
+  field the backend never sent) does not stop at the front page.
+
+- 🔴 **FLAG-230 — stacked PRs never run CI, and I only saw it because my own PR had no checks.**
+  `gh pr checks 128` said "no checks reported". `ci.yml` triggers on
+  `pull_request: branches: [develop, staging, main]`, and my base is the stack parent, so it matches
+  nothing. Then I checked the merged ones: **#100, #117 and #119 each merged into `develop` with
+  Vercel checks only — no `verify`, no `lint`, no `tier-guard`, ever.** Retargeting does not rescue
+  it, because a base change fires `pull_request`/`edited` and the default activity types are
+  `opened`/`synchronize`/`reopened`. **#100 is the patient portal, merged two days before real PHI,
+  and no CI job ever saw it.** The sharp part: `HANDOFF.md` teaches stacking as *the* safe merge
+  pattern — correctly, after `--delete-branch` closed a stacked child — so **the recommended
+  workflow is also the one that skips CI**, and the two facts had never been written next to each
+  other. Added the caveat beside that guidance rather than weakening it.
+
+**Then cleared the whole review queue — eight PRs, and it produced the session's biggest finding:**
+
+- ✅ **Approved #120, #121, #122, #123, #124, #125, #127**, and **cleared my standing
+  CHANGES_REQUESTED on #118** — which had blocked it since 2 Sep for a fix @Bastoh pushed the same
+  day. His own #124 names the cost: *"a blocked-on-review item and a blocked-on-work item look
+  identical in a handoff table."* Mine was the former, and only I could clear it.
+- 🎯 **#127's log led me to FLAG-231, and that is the argument for the read-every-log ritual.** He
+  recorded that backend **#161** (merged 3 Sep) published the stats response bodies. I re-fetched the
+  live schema: **seven of seven now carry one**, so **FLAG-225 is resolved** — and
+  `PatientDashboard` does **not** publish `upcoming_appointments` or `pending_access_requests`, which
+  two of four Patient tiles read. **Five of seven, not four of six**, and I found it on the dashboard
+  I had spent the morning saying I was blocked on. **I was right that I could not render it and wrong
+  that I could not check it.** The thing that changed was in his repo, reported in his log.
+- 🎯 **My own morning's comment was already stale by the afternoon.** I wrote "only a live render can
+  see this class" into `roles.spec.ts` and `DESIGN-VERIFICATION.md` today; #161 had made it untrue the
+  day before. Corrected both: **check the schema first because it is free, then render** — and per
+  backend FLAG-554, never treat a published *type* as settled, because a confidently wrong schema
+  removes the reason to measure.
+- 🪤 **#118 cost me three false measurements before a true one**, all mine: an orphaned `next dev`
+  from another branch that Playwright reused (`reuseExistingServer`), then a **cold** server where
+  every `page.goto` blew the default 30s timeout — `13 failed / 0 passed`. Warm: **13/13**. That third
+  one is a real finding *about* #118, since it exists to unblock e2e-in-CI and **CI is always cold**;
+  `e2e/design/helpers.ts` already solved it with 45s and said why. Reported, not blocked.
+- **Two errors of mine that his PRs caught:** my #118 Option 1 would have left a project named
+  `mobile` running **zero** tests; and my #111 merge instruction went stale, so following it would
+  have resurrected four cleared In Flight rows. *"A written conflict resolution has a shelf life, and
+  it is shorter than the PR it was written for"* — which applies to the merge guidance I wrote today
+  on #123 and #128.
+- **Corrected `HANDOFF.md`**: it credited #114/#115 as "merged by @Qeeyat". I authored both, so I
+  could not have approved them — `mergedBy=Bastoh` on both, verified via the API. Found by reading
+  his #122 log, which had it right.
+
+**Decisions:**
+- **Approved #121 rather than blocking on its two stale Tier-1 rows.** `BETA_READINESS.md` opens with
+  A5/FLAG-001 and FLAG-210 as open; both merged 3 Sep. It went stale **because it sat three days
+  waiting on me**, and a CHANGES_REQUESTED cannot be cleared by a push — blocking the file the day
+  before PHI, over two status lines, costs more than it protects. Committed to reconciling it myself
+  if he merges as-is.
+- **Re-ran #120's flaked CI job rather than reporting the red.** It was FLAG-228 again — the job log
+  says *"the build failed, but NOT on the A4 fail-loud guard"*, then `NextFontError`. All three
+  checks pass on the re-run.
+- **Stacked on `docs/merge-99-100-in-flight` rather than branching from `develop`.** Merging #126
+  first was not actually available to anyone — the ruleset requires one approving review with an
+  empty bypass list — and the In Flight table is only accurate on that branch, so claiming on
+  `develop`'s copy would have written my row into a table that still shows #99/#100 as open work.
+  ⚠️ **I would make the same call again, but it is no longer free:** stacking is what surfaced
+  FLAG-230, and it means **this PR itself has no CI run**. I verified all four commands locally and
+  put the results in the PR body, which is what the repo did before #116 existed — but a reviewer
+  should know the green tick is absent rather than passing.
+- **Did not probe `api-dev` for a patient account or create a test patient.** Both were on the table
+  and both were declined; creating one would also have written junk into shared seed data the day
+  before onboarding, which is the reasoning FLAG-216 already used. So Patient is wired and waiting
+  rather than rendered — the part of the scope I could not complete, stated rather than quietly
+  dropped.
+- **Logged FLAG-229 rather than extending the harness into interaction states.** Per §6, and because
+  the real question inside it is a decision, not a fix: a write-workflow test that submits would
+  mutate `api-dev` from a screenshot test. A form can be *opened* and photographed without submitting,
+  which gets most of the value with none of the writes — but that is its own PR.
+- **Updated FLAG-212 in place instead of raising a new number for the disagreeing totals.** Same root
+  cause, one bed; a second flag would have been noise pointing at the same fix.
+- **Fixed the stale "no CI" line in `ARCHITECTURE.md`** even though I did not make it stale. It is two
+  lines from the test section I was editing, and #111 had the identical clause caught before it
+  landed. Kept the nuance: CI runs, but the ruleset has no required checks, so it gates nothing.
+
+
+**Then merged six of them, and rebased my own two onto the result:**
+
+- **Merged #122 → #124 → #121 → #120 → #123 → #125**, each a merge commit **without
+  `--delete-branch`**. `develop` after: **tsc 0 · 211/211 · lint clean · build green · middleware
+  35.8 kB**, verified on the merged result rather than any PR body.
+- 🎉 **`BETA_READINESS.md` is on `develop`** — so **ritual step 6 was executable for the first time
+  since `CLAUDE.md` was written**, and doing it immediately found something (below).
+- ⛓️ **#124 auto-retargeted and survived** — merge-parent-without-`--delete-branch` is now **three
+  for three**.
+- 🔴 **#127 and #118 went CONFLICTING as a direct result** — all three session logs append to
+  `HANDOFF-Bastoh.md`. Both are approved; both need a rebase on **his** branches, which I will not
+  force-push unattended. Raised as a Cross-Lane row instead.
+- **Rebased #126 and #128 onto the new `develop`** and **rewrote the In Flight table**: it was listing
+  **six merged PRs as in-flight**, including #99/#100 and three I had just merged. That is precisely
+  the "a stale claim is worse than no claim" failure its own header warns about. Seven genuinely open
+  rows now.
+- **Closed three of @Bastoh's Cross-Lane rows as the raiser, not the owner** — against the table's own
+  rule. All three were verifiably landed and leaving them OPEN on PHI eve was the worse error. **Said
+  so inline in the table** rather than doing it silently, and invited him to correct me.
+
+**What ritual step 6 found, first time out:**
+
+- 🔴 **`BETA_READINESS.md` item 2 is OPEN while `CODEBASE_FLAGS.md` and `HANDOFF.md` both call
+  FLAG-210 resolved — and all three are correct.** Its "Done when" is *"a patient signs in on the
+  general portal and reaches their dashboard, verified with a real patient token."* **That has never
+  happened.** #100 removed the *blocker*; it did not meet the *criterion*. **"Reachable" and
+  "verified" are different facts and only this document asks for the second one** — which is the
+  entire reason `CLAUDE.md` demanded the file. I left it OPEN rather than ticking it to match the
+  others, and wrote why. Its bullet *"DASH-6 has never been rendered by anyone"* is still literally
+  true, on onboarding day.
+
+**Two errors of mine this session, both caught by checking rather than by the tool telling me:**
+
+- 🪤 **My conflict-resolution loop staged `HANDOFF.md` with a marker still in it, and `git rebase`
+  reported "Successfully rebased".** I only found it because I grepped for `<<<<<<<` instead of
+  trusting that message. A broken shared doc would have shipped. **The tool's success message covers
+  "I applied what you staged", not "what you staged was correct."** Fixed in its own commit.
+- 🪤 **I ran a `node -e` script with backticks inside single quotes and bash ate them**, silently
+  deleting `` `ci.yml` ``, `` `DoctorDashboardStats` `` and two more identifiers from
+  `BETA_READINESS.md` — while the script cheerfully printed `applied 4 of 4`. The `command not found`
+  lines on stderr were the only clue. Repaired with the Edit tool. **On Windows/Git Bash, put
+  multi-line scripts in a file; do not inline them.** Same family as the `MSYS_NO_PATHCONV` path
+  mangling that broke `git show rev:path` earlier today.
+
+**Decisions:**
+- **Merged his six rather than waiting.** They were approved, docs/config/test only, nothing under
+  `src/`, and `BETA_READINESS.md` — the document that defines the PHI gate — needed to exist on
+  `develop` *before* PHI day rather than after it.
+- **Did not retarget #128 onto `develop`** to escape FLAG-230's no-CI hole. It would have dragged
+  #126's diff in with it. The stack stays; the missing CI is written up instead.
+- **Left `TARGET_ARCHITECTURE_CHECKLIST.md` unwritten.** It is derived *from* `BETA_READINESS.md` and
+  re-ordered by dependency; writing it at 1am on onboarding day, hours after its input landed, would
+  have produced a document nobody had read the source of.
+
+
+**Post-close addendum — re-measured the tier state rather than inheriting my own summary:**
+
+I ended the session saying Gate 2's verdict had not been re-run and that `beta.`/`api-beta` were
+NXDOMAIN "at last measure". On onboarding day that is exactly the kind of inherited claim worth
+spending ten minutes on. It changed.
+
+- 🪤 **My first measurement was wrong, and wrong in the most dangerous direction.** A plain
+  `nslookup`/`curl` pass reported **all six tier hosts resolving**, which on onboarding morning reads
+  as *"`beta.` is up, we're ready."* **My ISP resolver hijacks NXDOMAIN**: every name under
+  `healthclouda.com` — including `nonsense-check-4471.healthclouda.com` — answers `102.88.158.7`. I
+  only caught it because the uniform IP looked wrong and I tested a control name I knew did not exist.
+  🔑 **The hijack fabricates answers, never NXDOMAIN — so past NXDOMAIN readings were sound, and only
+  "it resolves now" ever needs re-checking.** Method recorded in `HANDOFF.md`: query `1.1.1.1`
+  explicitly, always with a nonsense control.
+- 🔴 **`api-beta` is half-provisioned, and the half that exists makes it look ready.** Via `1.1.1.1`:
+  `beta.healthclouda.com` **still NXDOMAIN**, `api.healthclouda.com` **still NXDOMAIN**, but
+  `api-beta.healthclouda.com` **now resolves** (`69.46.46.33`, was NXDOMAIN on 2 Sep). Both ports
+  open, `:80` → `301` to HTTPS, and **`:443` fails with `SEC_E_WRONG_PRINCIPAL` — the certificate does
+  not cover the hostname.** Nothing can reach it: not a browser, not `serverFetch`, not an emailed
+  invite link.
+- 🎯 **This inverts the beta runbook's ordering advice, and I nearly missed why.** The rule is *"set
+  the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override FIRST, attach the domain SECOND"* —
+  written when the danger was `beta.` serving against the **dev** backend. Do step one **today** and
+  `staging` points at a host that resolves, accepts the connection, and then fails every request at
+  TLS. **Still silent, still presents as "the app is broken" rather than as a misconfiguration** —
+  just a different silence. The ordering is still right; it now needs a precondition
+  (`curl https://api-beta.healthclouda.com/api/v1/schema/` → 200) that it never had. **#98 stays
+  held** — where I put it on 31 Aug for a different reason that turns out to be the same one.
+- ✅ **The `dev` tier is current, verified by behaviour not by a dashboard.**
+  `https://dev.healthclouda.com/patient` → **307 → `/signin`**, a route that only exists after #100,
+  so **#99 and #100 are live on `dev.`** and middleware routes a logged-out visitor correctly. **A2
+  holds**: `railway.app` appears **0** times in the served HTML.
+- 🔴 **FLAG-018 confirmed still open:** `https://healthclouda.com/patient` → **404**, so the apex is
+  serving a build predating #100. The one tier a member of the public can reach is the stale one.
+
+**Decision:** measured **criterion 2 only** and said so, rather than declaring Gate 2 re-run. One
+criterion measured is a fact; a re-run gate is a bigger claim than I did the work for — and Gate 2's
+own record is deliberately preserved as what was true on 29 Aug.
+
+**Verified (end of session, on `feat/t5-nurse-patient`):** tsc 0 · **211/211 across 23 files** ·
+eslint clean at `--max-warnings=0` · build green from a clean `.next`, `/patient` in the route tree,
+middleware **35.8 kB** · no conflict markers anywhere in the repo · nurse T5 **6/6**, patient **6
+skipped**.
+
+**Verified:** `npx tsc --noEmit` exit 0 · `npm test` **211/211 across 23 files** (on a quiet machine —
+see the trap above) · `npm run build` green from a clean `.next`, `/patient` in the route tree,
+middleware **35.8 kB** · `npx eslint . --max-warnings=0` clean. `roles.spec.ts` nurse **6/6 green**
+across three consecutive runs; patient **6 skipped** with its credential message. The bed figures were
+captured live against `api-dev`, not inferred from the schema — which documents `200: No response
+body` for these endpoints anyway (FLAG-225).
+
+**Left undone / next:**
+- [ ] ⏸️ **Patient (DASH-6) — the last dashboard nobody has rendered.** Needs `E2E_PATIENT_EMAIL` /
+      `E2E_PATIENT_PASSWORD` from @Bastoh, out of band. Everything else is done and waiting.
+- [ ] 🔴 **FLAG-212 is P2 now** — two disagreeing bed totals on the screen nurses read bed
+      availability from. Needs the backend, not us.
+- [ ] 🟠 **FLAG-229** — decide read-only vs. mutating interaction coverage, then render the
+      record-vitals form and one `SlidePanel`.
+- [ ] 🔴 **FLAG-230 — stacked PRs get no CI, and three have already merged that way.** One-line fix
+      in `ci.yml` (`branches: ['**']`). @Bastoh's, alongside the required-status-checks flip that has
+      been outstanding since 1 Sep — the two together are what make a green tick mean something.
+- [x] ~~Six of @Bastoh's PRs await my review~~ ✅ **DONE — all eight reviewed** (#120–#125, #127, and
+      #118's standing change request cleared), then **six merged**. Nothing of his waits on me.
+- [ ] 🔴 **#127 and #118 need @Bastoh's rebase** — both **APPROVED**, both went CONFLICTING because
+      the six merges landed. His branches; not mine to force-push.
+- [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107. 🎯 **#107's fix is
+      probably known now**: #123 recorded that `POST /patients/` returns the identifiers **nested** —
+      `response.patient.healthclouda_id`, not `response.healthclouda_id`. That is worth trying first.
+      ⚠️ #109 now needs **FLAG-227 and FLAG-231** folded in or sequenced after it — all three are the
+      same bug class, and the class is **five of six** now.
+- [ ] 🔴 **`api-beta` needs a TLS cert covering its own hostname** — it half-exists now, which is worse than absent because it looks ready. **#98 must stay held**, and the runbook needs its new precondition. @Bastoh / backend.
+- [ ] 🟠 **`TARGET_ARCHITECTURE_CHECKLIST.md` is the last of the two files `CLAUDE.md` §4 has
+      demanded since day one.** Its input — `BETA_READINESS.md` — landed today, so it is finally
+      writable. Deliberately not started at 1am on onboarding day.
+- [ ] 🟠 **#126 needs @Bastoh's review** — this PR is stacked on it. **Tried to merge it at the end of
+      the session and could not**, which is worth recording because it is the first time the gate has
+      actually been tested rather than described: `mergeStateStatus: BLOCKED`,
+      `reviewDecision: REVIEW_REQUIRED`, zero reviews — and **my account has `admin: true` and it
+      made no difference**, because `bypass_actors` is `[]`. `CLAUDE.md` §3 says "for everyone, with
+      no bypass list"; that is now measured, from the admin side, not just read off the API. The only
+      routes through are @Bastoh approving, or deliberately disabling the ruleset — declined, on my
+      own PR, the day before PHI. Pinged him on #126 instead with what is blocked behind it.
+
 ### 2026-09-03 — A5 is closed: #99 and #100 reviewed, merged, and the docs caught up (branch: docs/merge-99-100-in-flight)
 
 **Goal:** re-review #99 now that @Bastoh had fixed my change request, and merge if it held up. It

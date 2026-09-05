@@ -151,6 +151,15 @@ Any spec whose role credentials aren't set **skips itself** with a clear message
 failing — see `e2e/design/helpers.ts`. That means `npx playwright test e2e/design` is always safe
 to run, even before you have credentials for every role.
 
+🪤 **Run `npm test` with the harness's dev server stopped.** Playwright starts `npm run dev` and
+leaves it running, and vitest forks a worker per test file. With both alive, workers time out
+waiting to start and the suite reports **failures that are pure resource contention** — measured on
+2026-09-04: **40 failed / 211**, and on a worse run only 8 of 23 files loaded at all. The same
+suite, with the dev server stopped, is **211/211 in 16 seconds**. Nothing was wrong with the code.
+If `npm test` goes red right after a harness run, kill the dev server and stray browsers and re-run
+**before** believing it — the failure text (`Timeout waiting for worker to respond`) names the cause
+if you scroll up past the assertion noise.
+
 Shape of a spec:
 
 ```ts
@@ -180,24 +189,83 @@ for (const vp of VIEWPORTS) {
 |---|---|---|
 | `superadmin.spec.ts` | Superadmin (DASH-1) | ✅ |
 | `roles.spec.ts` | Org Admin (DASH-2), Receptionist (DASH-4), Doctor (DASH-5) | ✅ added 2026-08-31 |
+| `roles.spec.ts` | **Nurse (DASH-3)** | ✅ **added 2026-09-04 — rendered for the first time, 6/6 green** |
+| `roles.spec.ts` | **Patient (DASH-6)** | ⏸️ **wired and skipping** — no `E2E_PATIENT_*` credentials exist |
 | `smallscreen.spec.ts` | FLAG-203 gate, with real CSS | ✅ |
-| — | **Nurse (DASH-3)** | ❌ **no `E2E_NURSE_*` credentials exist** |
-| — | **Patient (DASH-6)** | ❌ no credentials, **and** a patient cannot sign in until FLAG-210 (#100) merges |
 
-⚠️ **Two dashboards have therefore still never been rendered by anyone.** Nothing currently proves
-they are free of the stat-tile contract bug that has now been found on four of the six
-(FLAG-222, FLAG-227). Do not read a green harness run as "the dashboards are verified" — read it as
-"the four we can log into are."
+🎉 **Nurse came back clean** — the first dashboard whose stats interface matches the live payload
+exactly (11 of 11 fields), now confirmed from a third source: the published `NurseDashboardStats`
+component lists those same eleven. The same run found FLAG-212 has worsened into two disagreeing bed
+totals on one screen.
+
+🔴 **But the count went up, not down, and it was Patient that moved it.** Later the same day the
+newly published schema showed **two of four Patient tiles read fields `/patients/me/dashboard/` does
+not return** (`upcoming_appointments`, `pending_access_requests` — **FLAG-231**). So the class now
+stands at **five of six**, and the one nobody has rendered is one of them. Found without a single
+credential, which is the whole argument for checking the schema *and* rendering rather than choosing.
+
+⏸️ **Patient is now the only dashboard nobody has ever rendered.** It has been *reachable* since
+#100 merged, which is not the same as having looked at it — it needs one pair of credentials and
+nothing else. Its entry is already in `roles.spec.ts`, including the two things that make it
+structurally unlike the staff roles: it signs in at the slug-less general portal, and at 390px it
+must render **responsively with no gate** (asserting the gate there would be asserting a bug).
+
+⚠️ **Do not read a green harness run as "the dashboards are verified", for two separate reasons.**
+One is Patient, above. The other is **FLAG-229: the harness photographs each page's landing state
+only.** Every form, modal, slide panel and row action — including the Nurse record-vitals form,
+which is the only write workflow that role has — is behind a second interaction and is rendered by
+nobody. A green run means "each dashboard's front page loads and its tiles carry real values."
+
+### ⚠️ Quoting credentials in `.env.local` — this looks exactly like a wrong password
+
+**If a value contains `#`, it must be quoted.** dotenv treats an unquoted `#` as the start of a
+comment and silently truncates the rest of the line:
+
+```bash
+E2E_NURSE_PASSWORD=abc#1234      # ← the browser receives "abc"
+E2E_NURSE_PASSWORD="abc#1234"    # ← correct
+```
+
+This cost a diagnostic cycle on 2026-09-04. The credential was correct; only its first four
+characters were ever sent, the backend answered *"Invalid email or password"*, and the harness
+reported a bare 45-second `waitForURL` timeout — which reads as "the dashboard never loaded", so
+you go and look at the dashboard. `signInAs` now races the form error against the navigation and
+says which one happened, naming this trap in the message. **The four roles that already worked were
+quoted; the newly added one was not.**
 
 ### The assertion that matters more than the pixels
 
 `roles.spec.ts` checks that **no stat tile renders `—` or `NaN` once data has loaded.**
 
 `StatCard` renders `{value ?? '—'}`, so an em dash is the signature of the component reading a field
-the backend never sent. That fault is invisible to both other layers we have: unit fixtures are typed
-from the same wrong interface and agree with the bug, and the schema documents `200: No response body`
-for all eleven stats endpoints (FLAG-225). **A live render is the only layer that can see it** — which
-is why this check found FLAG-227 on the first Doctor run.
+the backend never sent. Unit fixtures are typed from the same wrong interface and agree with the bug,
+so they cannot see it — which is why this check found FLAG-227 on the first Doctor run.
+
+> 🔄 **Updated 2026-09-04 — the schema half of that argument has changed.** This section used to say
+> the schema documents `200: No response body` for all eleven stats endpoints (FLAG-225) and so
+> "a live render is the only layer that can see it". **Backend #161 (merged 3 Sep) published response
+> bodies for all seven dashboard/stats endpoints**, verified against the live schema. So a **presence**
+> check — does the component actually publish the field this tile reads? — is now possible, costs one
+> `curl`, and **needs no credentials**. That is how **FLAG-231** was found on the Patient dashboard,
+> which still nobody can sign into.
+>
+> **Do both, and in this order:** check the schema first because it is free and needs no token, then
+> render, because two things a schema still cannot tell you are whether the field arrives *populated*
+> and what actually reached the screen. And per **FLAG-554**, six fields in that same backend batch
+> publish with the wrong *type* — a confidently wrong schema is worse than a silent one, because it
+> removes the reason to measure.
+>
+> ✅ **The schema half is now one command, and it needs no credentials:**
+>
+> ```bash
+> npm run audit:contracts
+> ```
+>
+> It parses every `*Stats` interface out of `src/types/dashboard.ts` and diffs it against the
+> component its endpoint actually publishes, then exits with the number of phantom fields — so it can
+> gate CI once FLAG-230 is fixed. **Run it before you build a tile, not after.** Current output:
+> **9 phantom fields across Superadmin, Doctor and Patient; Org Admin, Nurse and Receptionist clean**
+> (FLAG-232).
 
 When it fails, **capture the live payload and retype the interface. Never add the field to the
 fixture** — that is precisely how the bug survives a green suite.

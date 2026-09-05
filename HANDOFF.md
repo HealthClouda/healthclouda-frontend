@@ -32,10 +32,11 @@
 🎉 **A5/FLAG-001 is closed on `develop`.** **#99** and **#100** were reviewed and merged **2026-09-03 by @Qeeyat**, in that order, as merge commits — the sprint plan's one *must-close-before-PHI* item and the patient portal stacked behind it. `develop` after both: **tsc clean · lint clean · 211/211 across 23 files · build green · middleware 35.8 kB**, verified on the merge commits themselves from a clean `.next`, not from either PR body. Authorization is no longer decided from the client-writable `hc_user` cookie anywhere in the app, the route slug is now checked against the user's own organisation, and **patients can sign in for the first time.**
 
 > ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
+> 🔴 **2026-09-04 — this stacking guidance has a cost nobody had measured: a stacked child gets NO CI.** `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`, and a base change on retarget fires an event type the workflow does not listen for. **#100, #117 and #119 all merged into `develop` without a single CI job ever running on them** — verified 2026-09-04. Keep stacking; it is still the right pattern. But see **FLAG-230**, and do not read "no checks reported" as "not yet".
+
+*Cleared on merge: **#99** A5/FLAG-001 server-trusted auth · **#100** FLAG-210 patient portal (both merged 2026-09-03 by @Qeeyat, locally, with the `CODEBASE_FLAGS.md` conflict resolved additively in flag-number order — both sides kept, proven by a heading diff against each parent) · **#111** `CLAUDE.md` §3 branch-protection correction + FLAG-021 (merged 2026-09-02 by @Bastoh) · **#114** In Flight cleanup + session log · **#115** T5 pass + FLAG-227 (both authored by @Qeeyat, **reviewed and merged 2026-09-01 by @Bastoh** — corrected 2026-09-04: this line previously credited @Qeeyat, who cannot approve her own PRs; verified via the GitHub API, `mergedBy=Bastoh` on both) · **#96** schema-reading guidance — **CLOSED 2026-08-31, not merged**: fixed at source instead. · Earlier: **#116** E8/FLAG-006 CI + ESLint gating · **#117** B7 coverage · **#113** + **#119** @Bastoh session logs · **#112** stale-doc sweep (ARCH-7 closed) — all five **reviewed and merged 2026-09-01 by @Qeeyat**, as merge commits. `develop` after all five: **tsc clean · lint clean (the new gate) · 192/192 · build green · middleware 35.4 kB**. Earlier the same round: **#106** FLAG-203/221 small-screen gate · **#110** FLAG-223/224/225/226 Patient contract audit · **#108** Gate 2 assessment · **#105** session log 29 Aug — merged 2026-08-31, each trial-merged and verified locally before merging rather than from the PR body (**192/192**). **#106 closed the worst PHI exposure in the repo** — staff dashboards no longer mount, fetch, or put records in the DOM below 768px. · **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 
 *Cleared on merge: **#99** A5/FLAG-001 server-trusted auth · **#100** FLAG-210 patient portal (both merged 2026-09-03 by @Qeeyat, locally, with the `CODEBASE_FLAGS.md` conflict resolved additively in flag-number order — both sides kept, proven by a heading diff against each parent) · **#111** `CLAUDE.md` §3 branch-protection correction + FLAG-021 (merged 2026-09-02 by @Bastoh) · **#114** In Flight cleanup + session log · **#115** T5 pass + FLAG-227 (both merged 2026-09-01 by @Qeeyat) · **#96** schema-reading guidance — **CLOSED 2026-08-31, not merged**: fixed at source instead. · Earlier: **#116** E8/FLAG-006 CI + ESLint gating · **#117** B7 coverage · **#113** + **#119** @Bastoh session logs · **#112** stale-doc sweep (ARCH-7 closed) — all five **reviewed and merged 2026-09-01 by @Qeeyat**, as merge commits. `develop` after all five: **tsc clean · lint clean (the new gate) · 192/192 · build green · middleware 35.4 kB**. Earlier the same round: **#106** FLAG-203/221 small-screen gate · **#110** FLAG-223/224/225/226 Patient contract audit · **#108** Gate 2 assessment · **#105** session log 29 Aug — merged 2026-08-31, each trial-merged and verified locally before merging rather than from the PR body (**192/192**). **#106 closed the worst PHI exposure in the repo** — staff dashboards no longer mount, fetch, or put records in the DOM below 768px. · **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
-
-*Cleared on merge: **#111** `CLAUDE.md` §3 branch-protection correction + FLAG-021 — **merged 2026-09-02 by @Bastoh as a merge commit** (`88ae5ad`) after a rebase off a 31-commit-stale base; `develop` after it: **tsc clean · lint clean · 192/192 · build green**. · **#116** E8/FLAG-006 CI + ESLint gating · **#117** B7 coverage · **#113** + **#119** @Bastoh session logs · **#112** stale-doc sweep (ARCH-7 closed) — all five **reviewed and merged 2026-09-01 by @Qeeyat**, as merge commits. `develop` after all five: **tsc clean · lint clean (the new gate) · 192/192 · build green · middleware 35.4 kB**. Earlier the same round: **#106** FLAG-203/221 small-screen gate · **#110** FLAG-223/224/225/226 Patient contract audit · **#108** Gate 2 assessment · **#105** session log 29 Aug — merged 2026-08-31, each trial-merged and verified locally before merging rather than from the PR body (**192/192**). **#106 closed the worst PHI exposure in the repo** — staff dashboards no longer mount, fetch, or put records in the DOM below 768px. · **#97** In Flight cleanup + FLAG-017/018/019 · **#102** `SECURITY_BASELINE.md` (A7) · **#103** E7/FLAG-005 server-fetch observability · **#104** FLAG-220 Org Admin referrals page — all four **reviewed and merged 2026-08-30 by @Qeeyat**, as merge commits, each re-verified locally before merging rather than from the PR body (`develop` after all four: tsc clean, **171/171**, build green, middleware 35.4 kB). #104 closes the referral hole FLAG-220 described — the journey can now be accepted. · **A2/A3/A4/A6** Tier-1 infra batch — PR #65 · **FLAG-010** — PR #66 · **FLAG-011
 logged** (docs only — see the correction below) — PR #68 · **D1 shared shell**
 (DashboardShell/StatCard/DataTable/Badge) — PR #67 · **D1 overlays**
 (SlidePanel/Modal/Toaster/EmptyState/SmallScreenGate) — PR #69 · In Flight row cleared — PR #70 ·
@@ -96,7 +97,8 @@ A design PR built on the wrong data shape is a rewrite — if that order slips, 
 | @Bastoh | @Qeeyat | **Decide #98** (`develop` → `staging`) | `[INFRA]` lane, and the beta runbook ordering is his call | 🟠 Held deliberately, **not forgotten**: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second | 2026-08-31 | **OPEN** |
 | @Qeeyat | @Bastoh | **Re-review #99** once the logout fix is pushed | Her change request stands until she clears it | 🔴 `dismiss_stale_reviews_on_push = false` — **pushing the fix did not clear the block**, and GitHub refuses a merge over a standing change request. Nothing behind #99 moves until she re-reviews | 2026-08-30 | ✅ **DONE 2026-09-03** — re-reviewed, approved, #99 then #100 merged as merge commits |
 | @Qeeyat | @Bastoh | **#118 fix incoming** — her block was correct; "13/13" was the `chromium` project alone | His PR, his error | 🟢 Not blocking her | 2026-09-01 | ✅ **DONE 2026-09-04** — @Qeeyat re-reviewed and **APPROVED**; verified 13/13 on a trial merge. Now needs a rebase (CONFLICTING) |
-| 🔌 backend | @Bastoh | **Does `api-beta` exist?** Both `api-beta.healthclouda.com` and `beta.healthclouda.com` were **NXDOMAIN** on 2026-09-01 | Their infra | 🔴 **Blocks the beta promotion.** We will not point `beta.` at `api-dev` — that is the tier-crossing that presents as *"the invite is broken"* | 2026-09-01 | **OPEN** — asked in backend [PR #160](https://github.com/HealthClouda/healthclouda-backend/pull/160) §7 |
+| 🔌 backend | @Bastoh | **Does `api-beta` exist?** Both `api-beta.healthclouda.com` and `beta.healthclouda.com` were **NXDOMAIN** on 2026-09-01 | Their infra | 🔴 **Blocks the beta promotion.** We will not point `beta.` at `api-dev` — that is the tier-crossing that presents as *"the invite is broken"* | 2026-09-01 | 🔄 **UPDATED 2026-09-05: it now half-exists.** DNS record present, ports open, `:80` redirects — but `:443` has no valid certificate for the name. **Worse than absent, because it looks present.** See the row below |
+| 🔌 backend | @Qeeyat | **`api-beta` needs a TLS certificate covering its own hostname** — it resolves and listens, but `:443` fails `SEC_E_WRONG_PRINCIPAL` | Their infra; nothing on our side can work around a cert that does not match | 🔴 **Blocks #98, T9 and Gate 2 criterion 2.** And it now *looks* provisioned, so the risk is someone setting the `staging` override on the strength of DNS alone | 2026-09-05 | **OPEN** — measured today, see the 2026-09-05 contract note |
 | 🔌 backend | @Bastoh | **Publish response bodies in the schema** — of the 84 GETs documenting a `200`, **48 document no body** (57%), including `/auth/me/` and every dashboard stats endpoint | Only `drf-spectacular` annotations on their serializers can fix it | 🔴 **This is the root cause of four dashboards shipping stat tiles bound to fields the API never sends** | 2026-09-01 | **OPEN** — backend PR #160 §7 |
 | 🔌 backend | @Bastoh | **A grace window for just-rotated refresh tokens** | SimpleJWT blacklist behaviour — **unfixable from our side**: the loser's request was already in flight before the winner's new token existed | 🟠 Symptom is a user logged out mid-consultation | 2026-09-01 | **OPEN** — backend PR #160 §7 |
 | 🔌 backend | @Bastoh | **Tell them the UI half of T6 was never walked** — their `docs/UAT-CHECKLIST.md` records 20 blocked steps → 6, but **those steps are API-level `curl`** | Shared — they believe the journeys are proven end to end | 🟠 They may go into onboarding believing the UI is exercised | 2026-09-01 | **OPEN** — stated in backend PR #160 §7 |
@@ -245,18 +247,107 @@ resolve, and #98 is still held. **T6/T7/T8 remain unexecuted.** What has changed
 sprint plan marked *must-close before PHI* is now closed, so the remaining gap is deployment and test
 layers rather than authorization.
 
+> 🔬 **Criterion 2 re-measured 2026-09-05 (@Qeeyat) — it is still ❌, and now for a sharper reason.**
+> The phrase *"pending only the `api-beta` variable"* has quietly stopped being accurate. `api-beta`
+> is no longer missing — it is **half-provisioned**: it resolves, both ports are open, `:80` redirects
+> to HTTPS, and **`:443` fails TLS because the certificate does not cover the hostname**
+> (`SEC_E_WRONG_PRINCIPAL`). `beta.healthclouda.com` is still NXDOMAIN.
+>
+> **So setting the variable is no longer sufficient, and doing it now would make things worse, not
+> better** — `staging` would point at a host that answers and then fails every request. The criterion
+> needs a precondition it never had: **`curl https://api-beta.healthclouda.com/api/v1/schema/` returns
+> 200 first.** Full evidence in the 2026-09-05 contract notes below. **The verdict still has not been
+> re-run in full; this is one criterion, measured.**
+
 ⚠️ **Two dashboards — Nurse and Patient — have still never been rendered by anyone.** Patient is now
 *reachable* for the first time (#100), which removes the blocker but is not the same as having looked
 at it. Nurse still needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh. Four of the six
 dashboards that *have* been rendered turned out to be reading stat fields the API never sends
 (FLAG-222, FLAG-227, and two before them).
 
+> 📌 **Update 2026-09-04 — half of this is now done.** **Nurse has been rendered** (T5, `roles.spec.ts`,
+> 6/6 green) and its stats contract is **clean**: `NurseStats`' eleven fields are eleven for eleven
+> against a live `GET /nurse/dashboard/stats/`. **So the count stays "four of six", not five of
+> seven** — the first dashboard to break the streak. `E2E_NURSE_*` did arrive; the value simply
+> needed quoting in `.env.local` (an unquoted `#` truncates it — see `docs/DESIGN-VERIFICATION.md`).
+>
+> ⏸️ **Patient is now the ONLY dashboard nobody has ever rendered.** It is wired into the harness and
+> skips cleanly; it needs `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` and nothing else. **One
+> message from @Bastoh closes the last of this gap.**
+
 ---
 
 
 ---
 
-## 🌙 Session close — @Qeeyat, 2026-09-03. **Start here next session.**
+
+---
+
+## 🌙 Session close — @Qeeyat, 2026-09-04 → 05. **Onboarding day. Start here.**
+
+> The 3 Sep block below is **spent**: its items 1–3 are done. Read this first.
+
+### ✅ What changed on `develop`
+
+**Six PRs merged 2026-09-04 by @Qeeyat**, in order, each as a merge commit **without
+`--delete-branch`**: **#122 → #124 → #121 → #120 → #123 → #125**. `develop` verified on the result,
+not from any PR body:
+
+```
+tsc 0 · 211/211 across 23 files · eslint clean at --max-warnings=0 · build green · middleware 35.8 kB
+```
+
+- 🎉 **`BETA_READINESS.md` exists** (#121) — one of the two files `CLAUDE.md` §4 has demanded as
+  required session reading **since the day it was written**. Ritual step 6 is now executable.
+  `TARGET_ARCHITECTURE_CHECKLIST.md` is still owed.
+- 📥 **The Cross-Lane Asks inbox exists** (#120), plus committed `.claude/settings.json` and
+  `.claude/agents/` (#125). ⚠️ **`settings.json` denies `gh pr review` / `gh pr merge` to an
+  assistant** — deliberate, and it changes how this repo has been running. Expect review latency up.
+- ⛓️ **#124 auto-retargeted and survived** — the merge-without-`--delete-branch` pattern is now
+  **three for three** (#116→#117, #99→#100, #122→#124).
+
+### 🔴 Do these first — in this order
+
+| # | Action | Why it's first |
+|---|---|---|
+| 1 | ⏸️ **Send `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD`** (@Bastoh, out of band) | **The single cheapest Tier-1 action in the repo.** One message closes `BETA_READINESS.md` **item 2**, confirms **FLAG-231**, and settles **FLAG-226** (candidate P0). Patient is the only dashboard nobody has ever rendered, and it is now **known-bad**, not merely unverified |
+| 2 | 🔴 **One-line `ci.yml` fix — FLAG-230** (`branches: ['**']`) | **Stacked PRs run no CI at all.** #100, #117, #119 each reached `develop` unchecked — #100 is the patient portal. **Today is PHI day and hotfixes are exactly the PRs that get stacked** |
+| 3 | **Review #126 and #128** (@Bastoh) | Both are @Qeeyat's and blocked purely on review. Ruleset `bypass_actors: []` — **verified from an admin account: admin does not help.** #128 carries the Nurse render, FLAG-229/230/231 |
+| 4 | **Rebase #127 and #118** (@Bastoh) | Both **APPROVED**, both went CONFLICTING when the six merged. His branches; force-pushing another dev's is not something to do unattended |
+| 5 | **Wire required status checks** (@Bastoh, repo settings) | Outstanding since 1 Sep. With FLAG-230 unfixed, a green tick means even less than it did |
+| 6 | **#98** — `develop` → `staging` | Approved, deliberately held. `[INFRA]`: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes **first**, domain second |
+
+### 📌 Four things worth knowing
+
+1. 🎯 **The stat-tile class is FIVE of SIX, not four of six — and the method changed.** Backend
+   **#161** (3 Sep) published response bodies for **all seven** dashboard/stats endpoints, so
+   **FLAG-225 is RESOLVED** and a *presence* check now costs one `curl` and **no credentials**. That
+   is how **FLAG-231** was found on the dashboard nobody can sign into. **Nurse came back clean**
+   (11/11) — the first one that has. ⚠️ Per backend **FLAG-554**, six fields in that batch publish
+   with the **wrong type**: a confidently wrong schema is worse than a silent one, because it removes
+   the reason to measure. **Check the schema first, then still render.**
+2. 🔴 **`BETA_READINESS.md` item 2 is OPEN while `CODEBASE_FLAGS.md` and this file call FLAG-210
+   resolved — and both are right.** #100 removed the *blocker*; the *criterion* is "a patient signs in
+   and reaches their dashboard", which has never happened. **"Reachable" and "verified" are different
+   facts**, and only `BETA_READINESS.md` asks for the second. Do not reconcile them by ticking it.
+3. 🪤 **`npm test` gives ~40 false failures if the harness's dev server is still running** — vitest
+   forks a worker per file and they time out. Stopped: **211/211 in 16s**. Same family as FLAG-228,
+   whose Google-Fonts flake struck twice more today (once locally, once on #120 — cleared by a
+   re-run). **Read the log before believing a red.**
+4. ⚠️ **The In Flight table was listing six merged PRs as in-flight** before this session rewrote it
+   — the exact "a stale claim is worse than no claim" failure its own header names. It is accurate as
+   of now; keep it that way.
+
+### ⚠️ Still NOT true
+
+- **`beta.healthclouda.com` and `api-beta` were both NXDOMAIN** at last measure (2026-09-02).
+  **Re-measure before trusting it** — Gate 2's second criterion still fails, and T6/T7/T8 remain
+  unexecuted. The Gate 2 verdict has not been re-run.
+- **Nothing in #99 has been exercised against a live browser session on `dev.`** Every hour-boundary
+  claim rests on unit tests against a mocked `fetch`.
+- **FLAG-020** (concurrent refreshes) and **FLAG-026** (the hourly-logout fix depends on a token
+  lifetime set in the *other* repo, invisible from here) are both open and both fail closed.
+## 🌙 Session close — @Qeeyat, 2026-09-03. ~~**Start here next session.**~~ **SUPERSEDED by the 4–5 Sep block above** — its items 1–3 are done. Kept for the #99/#100 history.
 
 > The 1 Sep handover below is now **spent**: its item 1 (fix #99) is done and merged. Read this
 > block first, then that one only for the #111/#118/#96 history.
@@ -284,7 +375,7 @@ tsc clean · eslint clean · 211/211 across 23 files · build green
 | # | Action | Why it's first |
 |---|---|---|
 | 1 | **Merge #126** (this PR — docs, In Flight, FLAG-001/210 resolved, FLAG-228) | Everything below is written down there. Until it merges, `HANDOFF.md` on `develop` still shows #99 and #100 as open work, and the next reader plans around a blocker that no longer exists. Needs @Bastoh's review |
-| 2 | 🚨 **Render Nurse and Patient — nobody ever has** | **Four of the six dashboards that HAVE been rendered turned out to be reading stat fields the API never sends** (FLAG-222, FLAG-227 and two before them). Patient is now *reachable* for the first time (#100); that is not the same as having looked at it. **Nurse needs `E2E_NURSE_EMAIL` / `E2E_NURSE_PASSWORD` from @Bastoh, out of band.** This is the cheapest high-value thing on the board and it has paid for itself on every run so far |
+| 2 | ✅ **Nurse: DONE 2026-09-04** · ⏸️ **Patient: still nobody** | **Nurse rendered, 6/6 green, stats contract CLEAN** (11/11 fields) — the streak stays four of six. The run raised **FLAG-229** and re-measured **FLAG-212** to P2. **Patient is now the only dashboard nobody has ever rendered**: it is wired into `roles.spec.ts` and skips cleanly, and needs only `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` from @Bastoh, out of band. *(Original row, for the record: "Render Nurse and Patient — nobody ever has … the cheapest high-value thing on the board and it has paid for itself on every run so far." It did again.)* |
 | 3 | **Six of @Bastoh's PRs await @Qeeyat's review** — #120, #121, #122, #123, #124, #125 | #121 lands `BETA_READINESS.md`, one of the **two files `CLAUDE.md` §4 has demanded as required reading since day one and that have never existed here**. ⛓️ #124 is stacked on #122's branch — merge #122 as a merge commit, **without `--delete-branch`** |
 | 4 | **@Qeeyat's own two are stale and still CHANGES_REQUESTED** — #109 (now conflicting, `CODEBASE_FLAGS.md` only) and #107 | Untouched since 30/31 Aug. #109 also needs FLAG-227 folded in or sequenced after it |
 | 5 | **#98 — `develop` → `staging`** | Approved and **deliberately held**, not forgotten. `[INFRA]` lane: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
@@ -477,7 +568,7 @@ while requiring ORG_ADMIN. Anyone deciding scope from path names gets it exactly
 | Host | Git branch | Backend tier | State |
 |---|---|---|---|
 | **`dev.healthclouda.com`** | `develop` | `api-dev` | ✅ **LIVE 2026-08-28** — first working frontend tier |
-| `beta.healthclouda.com` | `staging` | `api-beta` | ❌ **not created.** Re-measured 2026-09-02: **NXDOMAIN**, and so is `api-beta`. Held deliberately — see the note below and the 2026-09-02 contract note |
+| `beta.healthclouda.com` | `staging` | `api-beta` | ❌ **still NXDOMAIN 2026-09-05.** ⚠️ **`api-beta` has CHANGED and it is a trap: it now resolves (69.46.46.33) but its TLS certificate does not cover the hostname**, so every HTTPS client fails. Half-provisioned, not ready. See the 2026-09-05 contract note before touching #98 |
 | `healthclouda.com` (apex) | `main` | — | ⚠️ **serving a 13 Jul build cut from `develop`** — see **FLAG-018** |
 
 **How `dev.` was verified — end to end, not by the dashboard saying "Ready":**
@@ -524,6 +615,9 @@ unavailable on the Hobby plan** (*"Advanced Deployment Protection is not enabled
 
 | Date | Note | Status |
 |---|---|---|
+| 2026-09-05 | 🔴 **`api-beta` is half-provisioned, and the half that exists makes it LOOK ready — measured today, on onboarding day.** It was NXDOMAIN on 2 Sep; it now has an A record (`69.46.46.33`), both ports open, and `:80` issuing a `301` to `https://`. **But `:443` fails TLS: `SEC_E_WRONG_PRINCIPAL` — the certificate does not cover `api-beta.healthclouda.com`.** So nothing can talk to it: not a browser, not `serverFetch`, not an emailed invite link. `beta.healthclouda.com` itself is **still NXDOMAIN**, and so is `api.healthclouda.com`. 🪤 **Why this is worse than plain NXDOMAIN:** the beta runbook says *"set the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override FIRST, attach the domain SECOND"* — written when the risk was pointing `beta.` at the **dev** backend. Do that today and `staging` points at a host that resolves, listens, and then fails TLS on every request. **It presents as "the app is broken", not as a config error** — the same silent class the sprint plan named. ⛔ **#98 must stay held, and the runbook now needs a precondition: `curl https://api-beta.healthclouda.com/api/v1/schema/` must return 200 BEFORE the override is set.** | 🔴 **OPEN — @Bastoh / backend.** Blocks B4/#98, T9 and Gate 2 criterion 2 |
+| 2026-09-05 | ⚠️ **Do not measure DNS for this project from a plain `nslookup`/`curl` on a hijacked resolver — it manufactures false positives.** On @Qeeyat's connection every name under `healthclouda.com` — including `nonsense-check-4471.healthclouda.com` — resolves to `102.88.158.7`. A first pass today therefore reported **all six tier hosts resolving**, which would have read as *"`beta.` is up, we are ready"* on onboarding morning. Re-queried against `1.1.1.1`, with a known-bad control name to prove the resolver was honest, the real answers are the ones in the row above. 🔑 **The hijack fabricates answers; it does not fabricate NXDOMAIN — so previous NXDOMAIN readings (2 Sep) were sound, and only "it resolves now" needs re-checking.** Always: `nslookup <host> 1.1.1.1`, plus a nonsense control. | ✅ **method recorded** |
+| 2026-09-05 | ✅ **The `dev` tier is serving current `develop`, verified by behaviour rather than by a dashboard.** `https://dev.healthclouda.com/patient` returns **307 → `/signin`**, which only exists after #100 (merged 3 Sep) — so **#99 and #100 are live on `dev.`**, and middleware routes a logged-out visitor to the patient portal correctly. **A2 still holds**: `railway.app` appears **0** times in the served HTML. ⚠️ **The apex is still stale — FLAG-018 confirmed open:** `https://healthclouda.com/patient` returns **404**, i.e. a build predating #100. | ✅ dev verified · 🔴 FLAG-018 open |
 | 2026-09-02 | ✅ **Backend #137 is CLOSED and `POST /patients/` DOES return the identifiers — the frontend fix is one line.** Verified by reading the backend source on 2026-09-02, not the closing comment: `apps/patients/views.py:171-182` re-serializes the created row with **`PatientDetailSerializer`** (not the request serializer the original issue quoted), and that serializer carries `id` and `healthclouda_id` as read-only fields (`apps/patients/serializers.py:20,33,49-64`). The 201 body is `{message, patient: {id, healthclouda_id, …}}` — **nested, not top-level**, which is almost certainly what produced the original misread: `response.healthclouda_id` is `undefined`, `response.patient.healthclouda_id` is the real value. 🎯 **@Qeeyat — this is most likely what PR #107 needs.** ⚠️ Separately, the **class** behind FLAG-222/227 is confirmed structural: `DoctorDashboardStatsView`, `NurseDashboardStatsView` and superadmin's `DashboardView`/`SystemStatsView` carry **no `@extend_schema` at all**, and org-admin's + receptionist's carry one with a **text description only**, so no field-level response is published for any of them. That is why four dashboards shipped tiles reading fields that were never sent. | ✅ **#137 settled — no backend action.** FLAG-216 can close once #107 lands · the serializer class is being worked in the backend repo (see @Bastoh's log) |
 | 2026-09-02 | 🔴 **`api-beta` and `beta.` are both still NXDOMAIN — measured, not reported.** `curl https://api-beta.healthclouda.com/` and `https://beta.healthclouda.com/` both fail to resolve; `dev.healthclouda.com` returns **200** and `api-dev.healthclouda.com` returns **404** at the root (host alive, no route there). The backend's `staging` branch is still at its pre-sprint tip, so the 31 Aug stand-up did not happen on either side. **Nothing on the beta path can start until this does** — T9, the DB wipe, and frontend #98 all queue behind it. | ⏳ **deliberately deferred by @Bastoh 2026-09-02** — `develop` gets finished first, then staging |
 | 2026-08-30 | 🚨 **The live schema documents no response body for ANY of the eleven dashboard stats endpoints** — `/superadmin/stats/`, `/superadmin/dashboard/`, `/{doctor,nurse,org-admin,receptionist}/dashboard/stats/`, `/patients/me/dashboard/`, `/{doctor,nurse}/my-patients/`, `/{nurse,org-admin}/wards/overview/`. So **no stat tile on any of the six dashboards can be verified from the schema** — every `*Stats` / `*DashboardData` interface in `types/dashboard.ts` is an unverified guess, and the only way to check one is to capture it live per role. This is why FLAG-222 (three of four Superadmin tiles reading fields that were never sent) was not bad luck, and why three of the four dashboards anyone has examined carried a contract bug. ⚠️ **Read this before trusting any tile.** | logged as **FLAG-225** · backend [#158](https://github.com/HealthClouda/healthclouda-backend/issues/158) covers the three missing Superadmin *fields* — the **class** (publish the stats response serializers) still needs its own `api-request` issue |
