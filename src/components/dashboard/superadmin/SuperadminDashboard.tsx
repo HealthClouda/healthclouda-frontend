@@ -142,7 +142,11 @@ function OverviewPage({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* `lg:grid-cols-3`, not 4 — there are three tiles since two were removed.
+          At `lg:grid-cols-4` the row rendered an empty fourth cell, which reads as
+          a tile that failed to load: precisely the '—' visual this change exists
+          to remove, reintroduced as whitespace. Update this if a tile returns. */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {/* FLAG-222 — every tile here now shows a number the endpoint actually
             sends, under the backend's own name for it. Two tiles were removed
             rather than left permanently blank:

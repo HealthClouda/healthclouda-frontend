@@ -55,11 +55,25 @@ const user = {
   organization_slug: 'demo-clinic',
 } as unknown as User;
 
+// FLAG-231 / FLAG-232 — this fixture is the PUBLISHED `PatientDashboard`
+// component (backend #161), not our old interface.
+//
+// 🔴 It used to read `{upcoming_appointments, active_episodes,
+// pending_access_requests, unread_notifications}` — two of which this endpoint
+// has never sent. That is FLAG-221 in miniature: the fixture was typed from the
+// same wrong assumption as the component, so the suite agreed with the bug and
+// stayed green while two tiles were guaranteed to render an em dash.
+//
+// ⚠️ `tsc` could not catch it either. The extra keys live on a named const
+// rather than an inline object literal, so excess-property checking never
+// applies, and the two fields the interface *does* require are present.
 const stats = {
-  upcoming_appointments: 1,
   active_episodes: 1,
-  pending_access_requests: 0,
   unread_notifications: 2,
+  total_episodes: 4,
+  completed_episodes: 3,
+  last_visit_date: '2026-08-27',
+  last_visit_organization: 'Demo Clinic',
 };
 
 const emptyPage = { count: 0, next: null, previous: null, results: [] };
@@ -156,5 +170,75 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
       /status=cancelled.*[?&]page=/.test(String(c[0])),
     );
     expect(pagedFilterCalls).toHaveLength(0);
+  });
+});
+
+/**
+ * FLAG-231 / FLAG-232 — the stat-tile contract, asserted against the PUBLISHED
+ * payload shape rather than against our own interface.
+ *
+ * 🔴 **This is the test that was missing.** `StatCard` renders `{value ?? '—'}`,
+ * so a tile bound to a field the API never sends is an em dash, not an error —
+ * and every other layer agreed with the bug: the old fixture carried the same
+ * two phantom keys as the component (FLAG-221), and `tsc` cannot help because
+ * excess-property checking does not apply to a named const.
+ *
+ * ⚠️ It must fail against the pre-fix component. It does: with `stats` shaped
+ * like the real payload, "Upcoming Appts" read `stats.upcoming_appointments`,
+ * got `undefined`, and rendered '—'. That is the RED this repo requires before
+ * a fix counts (CLAUDE.md §5, and the discipline FLAG-221 exists to enforce).
+ */
+describe('FLAG-231 — overview stat tiles read fields the endpoint actually publishes', () => {
+  // span(label) -> div.flex -> the StatCard root, which holds p.tabular-nums.
+  //
+  // `getAllByText` + a tag/class filter, not `getByText`: "Notifications" is BOTH
+  // a tile label and the <h2> of the panel below it, so a bare lookup matches two
+  // elements and throws. Only the tile label is an uppercase <span>.
+  function tileValue(label: string): string {
+    const span = screen
+      .getAllByText(label)
+      .find((el) => el.tagName === 'SPAN' && el.className.includes('uppercase'));
+    if (!span) throw new Error(`no stat tile labelled "${label}"`);
+    const tile = span.parentElement!.parentElement!;
+    return tile.querySelector('p.tabular-nums')?.textContent?.trim() ?? '';
+  }
+
+  it('renders a real number in every tile — no em dash, no NaN', async () => {
+    mockAppointments([appointment, { ...appointment, id: 'a2' }, { ...appointment, id: 'a3' }]);
+    render(<PatientDashboard user={user} initialStats={stats} />);
+
+    // "Upcoming Appts" is the envelope count of the list this page already
+    // fetches and displays, not a stats field — so it settles asynchronously.
+    await waitFor(() => expect(tileValue('Upcoming Appts')).toBe('3'));
+
+    expect(tileValue('Active Episodes')).toBe('1');
+    expect(tileValue('Notifications')).toBe('2');
+
+    for (const label of ['Upcoming Appts', 'Active Episodes', 'Notifications']) {
+      expect(tileValue(label), `tile "${label}" is bound to a field the API does not send`)
+        .not.toMatch(/^(—|NaN|undefined)$/);
+    }
+  });
+
+  it('does not render the two tiles whose fields this endpoint never published', () => {
+    render(<PatientDashboard user={user} initialStats={stats} />);
+    // `pending_access_requests` has no published equivalent and was not
+    // repointed at a plausible neighbour (the FLAG-222 rule). Access & Referrals
+    // stays reachable from the sidebar nav, which is why removing the tile costs
+    // the patient nothing.
+    expect(screen.queryByText('Access Requests')).toBeNull();
+  });
+
+  it('reads no field that the published PatientDashboard component lacks', () => {
+    // Guards the regression directly: if someone re-adds a phantom key to the
+    // fixture to make a tile "work", this fails and says why.
+    const published = new Set([
+      'total_episodes', 'active_episodes', 'completed_episodes', 'last_visit_date',
+      'last_visit_organization', 'current_admission', 'active_prescriptions',
+      'active_instructions', 'organizations_visited', 'unread_notifications',
+    ]);
+    for (const key of Object.keys(stats)) {
+      expect(published.has(key), `fixture key "${key}" is not in the published component`).toBe(true);
+    }
   });
 });

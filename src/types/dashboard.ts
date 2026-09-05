@@ -103,11 +103,37 @@ export interface DoctorStats {
   completed_episodes_this_week?: number;
 }
 
+// GET /patients/me/dashboard/ — typed from the PUBLISHED `PatientDashboard`
+// component (backend #161, 2026-09-03), verified against the live schema
+// 2026-09-05. See FLAG-231 and the full audit in FLAG-232.
+//
+// It previously declared `upcoming_appointments` and `pending_access_requests`.
+// The endpoint publishes NEITHER, and nothing appointment-shaped or
+// access-request-shaped either — so two of the four stat tiles were guaranteed
+// to render '—' the moment any patient signed in.
+//
+// ⚠️ This is the ONE stats interface not confirmed against a live capture,
+// because no patient credentials exist and DASH-6 has still never been rendered
+// by anyone. Presence comes from the schema; per backend FLAG-554 a published
+// *type* in this batch can still be wrong. **Capture and re-check the first time
+// a patient token exists** — that is FLAG-231's open "Done when".
+//
+// Everything below `unread_notifications` is published and currently unrendered.
+// Typed rather than omitted so the next person can see what is available instead
+// of re-inventing names: `current_admission` and `active_prescriptions` in
+// particular are real clinical information the portal throws away today.
 export interface PatientDashboardData {
-  upcoming_appointments: number;
   active_episodes: number;
-  pending_access_requests: number;
   unread_notifications?: number;
+  total_episodes?: number;
+  completed_episodes?: number;
+  last_visit_date?: string | null;
+  last_visit_organization?: string | null;
+  // Shapes deliberately left loose: published as object/array, never captured.
+  current_admission?: unknown;
+  active_prescriptions?: unknown[];
+  active_instructions?: unknown[];
+  organizations_visited?: unknown[];
 }
 
 // ─── Entities ────────────────────────────────────────────────
