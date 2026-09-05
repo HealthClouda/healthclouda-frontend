@@ -201,7 +201,7 @@ totals on one screen.
 🔴 **But the count went up, not down, and it was Patient that moved it.** Later the same day the
 newly published schema showed **two of four Patient tiles read fields `/patients/me/dashboard/` does
 not return** (`upcoming_appointments`, `pending_access_requests` — **FLAG-231**). So the class now
-stands at **five of seven**, and the one nobody has rendered is one of them. Found without a single
+stands at **five of six**, and the one nobody has rendered is one of them. Found without a single
 credential, which is the whole argument for checking the schema *and* rendering rather than choosing.
 
 ⏸️ **Patient is now the only dashboard nobody has ever rendered.** It has been *reachable* since
@@ -254,6 +254,18 @@ so they cannot see it — which is why this check found FLAG-227 on the first Do
 > and what actually reached the screen. And per **FLAG-554**, six fields in that same backend batch
 > publish with the wrong *type* — a confidently wrong schema is worse than a silent one, because it
 > removes the reason to measure.
+>
+> ✅ **The schema half is now one command, and it needs no credentials:**
+>
+> ```bash
+> npm run audit:contracts
+> ```
+>
+> It parses every `*Stats` interface out of `src/types/dashboard.ts` and diffs it against the
+> component its endpoint actually publishes, then exits with the number of phantom fields — so it can
+> gate CI once FLAG-230 is fixed. **Run it before you build a tile, not after.** Current output:
+> **9 phantom fields across Superadmin, Doctor and Patient; Org Admin, Nurse and Receptionist clean**
+> (FLAG-232).
 
 When it fails, **capture the live payload and retype the interface. Never add the field to the
 fixture** — that is precisely how the bug survives a green suite.
