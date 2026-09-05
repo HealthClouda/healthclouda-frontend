@@ -60,7 +60,7 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
-### 2026-09-04 — Nurse rendered for the first time and came back CLEAN; Patient is now the only one left (branch: feat/t5-nurse-patient)
+### 2026-09-04 → 05 — Nurse rendered (clean), FLAG-231 found without credentials, review queue cleared, six PRs merged (branches: feat/t5-nurse-patient, docs/merge-99-100-in-flight)
 
 **Goal:** extend the T5 harness to the two dashboards nobody has ever rendered, and render them. Got
 one of the two, for a reason worth writing down.
@@ -193,6 +193,66 @@ one of the two, for a reason worth writing down.
   lines from the test section I was editing, and #111 had the identical clause caught before it
   landed. Kept the nuance: CI runs, but the ruleset has no required checks, so it gates nothing.
 
+
+**Then merged six of them, and rebased my own two onto the result:**
+
+- **Merged #122 → #124 → #121 → #120 → #123 → #125**, each a merge commit **without
+  `--delete-branch`**. `develop` after: **tsc 0 · 211/211 · lint clean · build green · middleware
+  35.8 kB**, verified on the merged result rather than any PR body.
+- 🎉 **`BETA_READINESS.md` is on `develop`** — so **ritual step 6 was executable for the first time
+  since `CLAUDE.md` was written**, and doing it immediately found something (below).
+- ⛓️ **#124 auto-retargeted and survived** — merge-parent-without-`--delete-branch` is now **three
+  for three**.
+- 🔴 **#127 and #118 went CONFLICTING as a direct result** — all three session logs append to
+  `HANDOFF-Bastoh.md`. Both are approved; both need a rebase on **his** branches, which I will not
+  force-push unattended. Raised as a Cross-Lane row instead.
+- **Rebased #126 and #128 onto the new `develop`** and **rewrote the In Flight table**: it was listing
+  **six merged PRs as in-flight**, including #99/#100 and three I had just merged. That is precisely
+  the "a stale claim is worse than no claim" failure its own header warns about. Seven genuinely open
+  rows now.
+- **Closed three of @Bastoh's Cross-Lane rows as the raiser, not the owner** — against the table's own
+  rule. All three were verifiably landed and leaving them OPEN on PHI eve was the worse error. **Said
+  so inline in the table** rather than doing it silently, and invited him to correct me.
+
+**What ritual step 6 found, first time out:**
+
+- 🔴 **`BETA_READINESS.md` item 2 is OPEN while `CODEBASE_FLAGS.md` and `HANDOFF.md` both call
+  FLAG-210 resolved — and all three are correct.** Its "Done when" is *"a patient signs in on the
+  general portal and reaches their dashboard, verified with a real patient token."* **That has never
+  happened.** #100 removed the *blocker*; it did not meet the *criterion*. **"Reachable" and
+  "verified" are different facts and only this document asks for the second one** — which is the
+  entire reason `CLAUDE.md` demanded the file. I left it OPEN rather than ticking it to match the
+  others, and wrote why. Its bullet *"DASH-6 has never been rendered by anyone"* is still literally
+  true, on onboarding day.
+
+**Two errors of mine this session, both caught by checking rather than by the tool telling me:**
+
+- 🪤 **My conflict-resolution loop staged `HANDOFF.md` with a marker still in it, and `git rebase`
+  reported "Successfully rebased".** I only found it because I grepped for `<<<<<<<` instead of
+  trusting that message. A broken shared doc would have shipped. **The tool's success message covers
+  "I applied what you staged", not "what you staged was correct."** Fixed in its own commit.
+- 🪤 **I ran a `node -e` script with backticks inside single quotes and bash ate them**, silently
+  deleting `` `ci.yml` ``, `` `DoctorDashboardStats` `` and two more identifiers from
+  `BETA_READINESS.md` — while the script cheerfully printed `applied 4 of 4`. The `command not found`
+  lines on stderr were the only clue. Repaired with the Edit tool. **On Windows/Git Bash, put
+  multi-line scripts in a file; do not inline them.** Same family as the `MSYS_NO_PATHCONV` path
+  mangling that broke `git show rev:path` earlier today.
+
+**Decisions:**
+- **Merged his six rather than waiting.** They were approved, docs/config/test only, nothing under
+  `src/`, and `BETA_READINESS.md` — the document that defines the PHI gate — needed to exist on
+  `develop` *before* PHI day rather than after it.
+- **Did not retarget #128 onto `develop`** to escape FLAG-230's no-CI hole. It would have dragged
+  #126's diff in with it. The stack stays; the missing CI is written up instead.
+- **Left `TARGET_ARCHITECTURE_CHECKLIST.md` unwritten.** It is derived *from* `BETA_READINESS.md` and
+  re-ordered by dependency; writing it at 1am on onboarding day, hours after its input landed, would
+  have produced a document nobody had read the source of.
+
+**Verified (end of session, on `feat/t5-nurse-patient`):** tsc 0 · **211/211 across 23 files** ·
+eslint clean at `--max-warnings=0` · build green from a clean `.next`, `/patient` in the route tree,
+middleware **35.8 kB** · no conflict markers anywhere in the repo · nurse T5 **6/6**, patient **6
+skipped**.
+
 **Verified:** `npx tsc --noEmit` exit 0 · `npm test` **211/211 across 23 files** (on a quiet machine —
 see the trap above) · `npm run build` green from a clean `.next`, `/patient` in the route tree,
 middleware **35.8 kB** · `npx eslint . --max-warnings=0` clean. `roles.spec.ts` nurse **6/6 green**
@@ -210,9 +270,18 @@ body` for these endpoints anyway (FLAG-225).
 - [ ] 🔴 **FLAG-230 — stacked PRs get no CI, and three have already merged that way.** One-line fix
       in `ci.yml` (`branches: ['**']`). @Bastoh's, alongside the required-status-checks flip that has
       been outstanding since 1 Sep — the two together are what make a green tick mean something.
-- [ ] 🔴 **Six of @Bastoh's PRs still await my review** — #120, #121, #122, #123, #124, #125.
-      Unchanged from yesterday, and #121 lands `BETA_READINESS.md`.
-- [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107.
+- [x] ~~Six of @Bastoh's PRs await my review~~ ✅ **DONE — all eight reviewed** (#120–#125, #127, and
+      #118's standing change request cleared), then **six merged**. Nothing of his waits on me.
+- [ ] 🔴 **#127 and #118 need @Bastoh's rebase** — both **APPROVED**, both went CONFLICTING because
+      the six merges landed. His branches; not mine to force-push.
+- [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107. 🎯 **#107's fix is
+      probably known now**: #123 recorded that `POST /patients/` returns the identifiers **nested** —
+      `response.patient.healthclouda_id`, not `response.healthclouda_id`. That is worth trying first.
+      ⚠️ #109 now needs **FLAG-227 and FLAG-231** folded in or sequenced after it — all three are the
+      same bug class, and the class is **five of seven** now.
+- [ ] 🟠 **`TARGET_ARCHITECTURE_CHECKLIST.md` is the last of the two files `CLAUDE.md` §4 has
+      demanded since day one.** Its input — `BETA_READINESS.md` — landed today, so it is finally
+      writable. Deliberately not started at 1am on onboarding day.
 - [ ] 🟠 **#126 needs @Bastoh's review** — this PR is stacked on it. **Tried to merge it at the end of
       the session and could not**, which is worth recording because it is the first time the gate has
       actually been tested rather than described: `mergeStateStatus: BLOCKED`,

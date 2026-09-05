@@ -267,7 +267,74 @@ dashboards that *have* been rendered turned out to be reading stat fields the AP
 
 ---
 
-## 🌙 Session close — @Qeeyat, 2026-09-03. **Start here next session.**
+
+---
+
+## 🌙 Session close — @Qeeyat, 2026-09-04 → 05. **Onboarding day. Start here.**
+
+> The 3 Sep block below is **spent**: its items 1–3 are done. Read this first.
+
+### ✅ What changed on `develop`
+
+**Six PRs merged 2026-09-04 by @Qeeyat**, in order, each as a merge commit **without
+`--delete-branch`**: **#122 → #124 → #121 → #120 → #123 → #125**. `develop` verified on the result,
+not from any PR body:
+
+```
+tsc 0 · 211/211 across 23 files · eslint clean at --max-warnings=0 · build green · middleware 35.8 kB
+```
+
+- 🎉 **`BETA_READINESS.md` exists** (#121) — one of the two files `CLAUDE.md` §4 has demanded as
+  required session reading **since the day it was written**. Ritual step 6 is now executable.
+  `TARGET_ARCHITECTURE_CHECKLIST.md` is still owed.
+- 📥 **The Cross-Lane Asks inbox exists** (#120), plus committed `.claude/settings.json` and
+  `.claude/agents/` (#125). ⚠️ **`settings.json` denies `gh pr review` / `gh pr merge` to an
+  assistant** — deliberate, and it changes how this repo has been running. Expect review latency up.
+- ⛓️ **#124 auto-retargeted and survived** — the merge-without-`--delete-branch` pattern is now
+  **three for three** (#116→#117, #99→#100, #122→#124).
+
+### 🔴 Do these first — in this order
+
+| # | Action | Why it's first |
+|---|---|---|
+| 1 | ⏸️ **Send `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD`** (@Bastoh, out of band) | **The single cheapest Tier-1 action in the repo.** One message closes `BETA_READINESS.md` **item 2**, confirms **FLAG-231**, and settles **FLAG-226** (candidate P0). Patient is the only dashboard nobody has ever rendered, and it is now **known-bad**, not merely unverified |
+| 2 | 🔴 **One-line `ci.yml` fix — FLAG-230** (`branches: ['**']`) | **Stacked PRs run no CI at all.** #100, #117, #119 each reached `develop` unchecked — #100 is the patient portal. **Today is PHI day and hotfixes are exactly the PRs that get stacked** |
+| 3 | **Review #126 and #128** (@Bastoh) | Both are @Qeeyat's and blocked purely on review. Ruleset `bypass_actors: []` — **verified from an admin account: admin does not help.** #128 carries the Nurse render, FLAG-229/230/231 |
+| 4 | **Rebase #127 and #118** (@Bastoh) | Both **APPROVED**, both went CONFLICTING when the six merged. His branches; force-pushing another dev's is not something to do unattended |
+| 5 | **Wire required status checks** (@Bastoh, repo settings) | Outstanding since 1 Sep. With FLAG-230 unfixed, a green tick means even less than it did |
+| 6 | **#98** — `develop` → `staging` | Approved, deliberately held. `[INFRA]`: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes **first**, domain second |
+
+### 📌 Four things worth knowing
+
+1. 🎯 **The stat-tile class is FIVE of SEVEN, not four of six — and the method changed.** Backend
+   **#161** (3 Sep) published response bodies for **all seven** dashboard/stats endpoints, so
+   **FLAG-225 is RESOLVED** and a *presence* check now costs one `curl` and **no credentials**. That
+   is how **FLAG-231** was found on the dashboard nobody can sign into. **Nurse came back clean**
+   (11/11) — the first one that has. ⚠️ Per backend **FLAG-554**, six fields in that batch publish
+   with the **wrong type**: a confidently wrong schema is worse than a silent one, because it removes
+   the reason to measure. **Check the schema first, then still render.**
+2. 🔴 **`BETA_READINESS.md` item 2 is OPEN while `CODEBASE_FLAGS.md` and this file call FLAG-210
+   resolved — and both are right.** #100 removed the *blocker*; the *criterion* is "a patient signs in
+   and reaches their dashboard", which has never happened. **"Reachable" and "verified" are different
+   facts**, and only `BETA_READINESS.md` asks for the second. Do not reconcile them by ticking it.
+3. 🪤 **`npm test` gives ~40 false failures if the harness's dev server is still running** — vitest
+   forks a worker per file and they time out. Stopped: **211/211 in 16s**. Same family as FLAG-228,
+   whose Google-Fonts flake struck twice more today (once locally, once on #120 — cleared by a
+   re-run). **Read the log before believing a red.**
+4. ⚠️ **The In Flight table was listing six merged PRs as in-flight** before this session rewrote it
+   — the exact "a stale claim is worse than no claim" failure its own header names. It is accurate as
+   of now; keep it that way.
+
+### ⚠️ Still NOT true
+
+- **`beta.healthclouda.com` and `api-beta` were both NXDOMAIN** at last measure (2026-09-02).
+  **Re-measure before trusting it** — Gate 2's second criterion still fails, and T6/T7/T8 remain
+  unexecuted. The Gate 2 verdict has not been re-run.
+- **Nothing in #99 has been exercised against a live browser session on `dev.`** Every hour-boundary
+  claim rests on unit tests against a mocked `fetch`.
+- **FLAG-020** (concurrent refreshes) and **FLAG-026** (the hourly-logout fix depends on a token
+  lifetime set in the *other* repo, invisible from here) are both open and both fail closed.
+## 🌙 Session close — @Qeeyat, 2026-09-03. ~~**Start here next session.**~~ **SUPERSEDED by the 4–5 Sep block above** — its items 1–3 are done. Kept for the #99/#100 history.
 
 > The 1 Sep handover below is now **spent**: its item 1 (fix #99) is done and merged. Read this
 > block first, then that one only for the #111/#118/#96 history.

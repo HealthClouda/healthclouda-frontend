@@ -1608,6 +1608,20 @@ sits on, so it wants deciding before that branch is cut rather than during it.
 no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.md`, and a
 regression test covering a `PATIENT` whose `organization` is `null`.
 
+> ⚠️ **Scope note, 2026-09-05 (@Qeeyat) — "resolved" here means the routing bug, not a working
+> dashboard.** #100 merged 3 Sep and this flag's own "Done when" is met: `/patient` exists, carries no
+> slug and no `undefined`, and the regression test for a `PATIENT` with `organization: null` is in the
+> suite. **But `BETA_READINESS.md` item 2 asks a harder question** — *"a patient signs in on the
+> general portal and reaches their dashboard, verified with a real patient token"* — and **that has
+> never happened**, because no `E2E_PATIENT_*` credentials exist. Item 2 is deliberately still OPEN.
+>
+> 🔴 **And we now know what the first patient will see:** [[FLAG-231]] — two of four stat tiles read
+> fields the published `PatientDashboard` component does not carry, so they will render em dashes.
+>
+> **Both records are correct; they answer different questions.** Closing the routing bug is not the
+> same as the portal working, and this entry should not be read as the second. **DASH-6 has still
+> never been rendered by anyone.**
+
 ---
 
 
