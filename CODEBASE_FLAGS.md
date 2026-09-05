@@ -2171,6 +2171,7 @@ a control with no failing test is a claim, not a control.
 ---
 
 ### FLAG-222 — Three of four Superadmin stat cards read fields the API has never returned
+> 🔴 **Understated — see [[FLAG-232]] (2026-09-05).** This counted *tiles*. The **interface** is worse: **5 of 6 `SuperadminStats` fields are phantom**, only `total_users` survives, and the endpoint publishes **11 fields nothing renders** — including eight `*_trend` / `*_trend_up` values that pair a delta with a direction, i.e. exactly what `StatCard`'s `delta` prop was built for. **The backend has been sending superadmin trend data all along.**
 **Severity:** P1 · **Area:** Backend contract / D1 · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-29, the first time anyone rendered this dashboard in a browser
 
@@ -2276,7 +2277,7 @@ starts passing, the source has been fixed — delete the annotation.**
       **Nurse: done 2026-09-04 and it is CLEAN** — the first dashboard whose stats interface matches
       the live payload exactly. All four tiles carry real values; `NurseStats`' eleven fields are
       eleven for eleven against `GET /nurse/dashboard/stats/`. **The streak was four of six, not
-      five of seven.** (The run did find [[FLAG-212]] worsening and raised [[FLAG-229]] — just not
+      five of six.** (The run did find [[FLAG-212]] worsening and raised [[FLAG-229]] — just not
       this bug class.)
 - [ ] **Patient (DASH-6) is still unrendered — it is now the only one.** It is *reachable* since
       #100, but no `E2E_PATIENT_EMAIL` / `E2E_PATIENT_PASSWORD` exists, so it remains the one
@@ -2435,7 +2436,7 @@ status to be reported".
 **Found:** 2026-09-04, from the **newly published schema** — not from a render, because nobody can render this dashboard yet
 
 The **fifth** dashboard with this bug, after Org Admin (#85), Nurse (NURSE-1), Superadmin
-([[FLAG-222]]) and Doctor ([[FLAG-227]]). **The count is now five of seven, not four of six** — and
+([[FLAG-222]]) and Doctor ([[FLAG-227]]). **The count is now five of six, not four of six** — and
 DASH-6 is the one nobody has ever looked at.
 
 🎯 **This was found without credentials, and that is the point.** Backend **#161** (merged 2026-09-03)
@@ -2503,3 +2504,79 @@ someone fixes the source.
 - [ ] The two tiles are repointed at real fields, or removed rather than shown blank. `total_episodes`
       is a plausible honest substitute for one of them; that is a **design call**, not a rename.
 - [ ] `knownStatBug` deleted from the patient entry in `e2e/design/roles.spec.ts`, and that test passes.
+
+---
+
+### FLAG-232 — The complete stat-contract audit: 9 phantom fields across 3 dashboards, and 23 published fields nothing renders
+**Severity:** P1 · **Area:** Contract / all dashboards · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-05, first full audit of every stats interface against the published schema
+
+This is the **parent measurement** for [[FLAG-222]], [[FLAG-227]] and [[FLAG-231]]. Until 2026-09-03
+it could not be taken: the schema documented `200: No response body` for every stats endpoint
+([[FLAG-225]]), so each dashboard had to be caught one at a time by rendering it, which needed
+credentials per role. **Backend #161 published the response bodies, so the whole class can now be
+measured in one pass, for free, with no credentials and no logins.**
+
+Every `*Stats` / `*DashboardData` interface in `src/types/dashboard.ts` parsed from source and diffed
+against the component its endpoint actually `$ref`s. Schema fetched 2026-09-05 10:14Z.
+
+| Dashboard | Interface | Fields matching | Verdict |
+|---|---|---|---|
+| **DASH-1 Superadmin** | `SuperadminStats` | **1 / 6** | 🔴 **5 phantom** · 11 published-unused |
+| DASH-2 Org Admin | `OrgAdminStats` | 6 / 6 | ✅ clean |
+| DASH-3 Nurse | `NurseStats` | 11 / 11 | ✅ clean |
+| DASH-4 Receptionist | `ReceptionistStats` | 13 / 13 | ✅ clean |
+| **DASH-5 Doctor** | `DoctorStats` | 2 / 4 | 🔴 **2 phantom** · 4 published-unused |
+| **DASH-6 Patient** | `PatientDashboardData` | 2 / 4 | 🔴 **2 phantom** · 8 published-unused |
+
+**9 phantom fields. 3 dashboards. 23 published fields nothing renders.**
+
+#### 🔴 Superadmin is far worse than [[FLAG-222]] recorded
+
+FLAG-222 counted **3 of 4 stat tiles**. The *interface* is **5 of 6 fields phantom** — only
+`total_users` survives:
+
+```
+we read      : total_organizations, active_organizations, total_patients,
+               new_orgs_this_month, total_staff          ← none published
+API publishes: total_orgs, active_records, monthly_revenue, total_users,
+               users_trend, users_trend_up, orgs_trend, orgs_trend_up,
+               revenue_trend, revenue_trend_up, records_trend, records_trend_up
+```
+
+🎯 **The eight `*_trend` / `*_trend_up` fields are a designed feature nobody knew existed.** They pair
+a delta with a direction — exactly what `StatCard`'s `delta` prop renders. The backend has been
+sending trend data for the superadmin dashboard the whole time and the UI has never read one.
+
+#### The other two, confirmed from a second source
+
+- **Doctor** — `appointments_today` ❌ (published as **`todays_appointments`**, a straight rename) and
+  `active_prescriptions` ❌ with **no equivalent published**. Exactly [[FLAG-227]].
+- **Patient** — `upcoming_appointments` ❌ and `pending_access_requests` ❌, nothing
+  appointment- or access-shaped published. Exactly [[FLAG-231]].
+
+⚠️ **`active_prescriptions` exists on `PatientDashboard` but not on `DoctorDashboardStats`.** So there
+is a prescriptions concept; it is published on the patient endpoint only. That is a **backend scope
+question, not a rename** — do not point the Doctor tile at the patient field.
+
+#### 📌 Correcting a number I put into five files yesterday
+
+I wrote *"five of seven"*. **There are six dashboards; seven is the number of stats endpoints**
+(superadmin has two). Corrected everywhere. The accurate statement:
+
+> **Five of the six dashboards have carried this bug at some point** — Org Admin (fixed in #85), Nurse
+> (fixed in NURSE-1), Superadmin, Doctor, Patient. **Three still carry it today.** Receptionist is the
+> only dashboard never affected.
+
+**Done when:**
+- [ ] `SuperadminStats`, `DoctorStats` and `PatientDashboardData` are re-typed from these components,
+      and each tile bound to a field that exists — or removed rather than shown blank.
+- [ ] A decision on the 23 unused fields. The superadmin `*_trend` set and the patient's
+      `current_admission` / `active_prescriptions` / `active_instructions` are **real information
+      currently discarded**; the rest may be genuinely unwanted. This is a **design call**.
+- [ ] An `api-request` for a doctor-side prescriptions count, or the Doctor tile comes out.
+- [ ] ⚠️ **Confirm against live payloads before shipping the retype.** Per backend [[FLAG-554]] six
+      nested fields in this batch publish with the wrong *type*. This audit checks **presence**, which
+      is what the phantom-field bug is about — but a published type is not yet trustworthy.
+- [ ] The audit re-runnable: it is ~60 lines and should live in the repo so this cannot silently
+      regress. Candidate for a CI job once [[FLAG-230]] is fixed.

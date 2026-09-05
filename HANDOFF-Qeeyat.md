@@ -78,7 +78,7 @@ one of the two, for a reason worth writing down.
 
 - 🎯 **Nurse is clean, and it is the first dashboard that has been.** All four tiles carry real
   values, and the live payload has **all eleven** `NurseStats` fields. **The headline number does not
-  move: still four of six, not five of seven.** I went in expecting a fifth instance — four of six
+  move: still four of six, not five of six.** I went in expecting a fifth instance — four of six
   had it, `CLAUDE.md` warns about it, the session brief predicted it — and the honest result is that
   the bug was not there. Worth saying plainly, because "the streak continues" is a much easier
   sentence to write than "the streak stopped", and only one of them is true.
@@ -318,7 +318,7 @@ body` for these endpoints anyway (FLAG-225).
       probably known now**: #123 recorded that `POST /patients/` returns the identifiers **nested** —
       `response.patient.healthclouda_id`, not `response.healthclouda_id`. That is worth trying first.
       ⚠️ #109 now needs **FLAG-227 and FLAG-231** folded in or sequenced after it — all three are the
-      same bug class, and the class is **five of seven** now.
+      same bug class, and the class is **five of six** now.
 - [ ] 🔴 **`api-beta` needs a TLS cert covering its own hostname** — it half-exists now, which is worse than absent because it looks ready. **#98 must stay held**, and the runbook needs its new precondition. @Bastoh / backend.
 - [ ] 🟠 **`TARGET_ARCHITECTURE_CHECKLIST.md` is the last of the two files `CLAUDE.md` §4 has
       demanded since day one.** Its input — `BETA_READINESS.md` — landed today, so it is finally

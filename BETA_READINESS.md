@@ -293,7 +293,7 @@ in the repo and it has one root cause, so it is one item repeated seven times.
 **captured live payload** pasted into the PR, and the em-dash render is asserted against — the T5
 harness is what catches this class and it now covers **five of six** roles — Nurse was added 2026-09-04 and **came back clean** (11/11 fields). Only **Patient** is uncovered, for want of credentials.
 
-🔄 **Update 2026-09-04 — the count went UP, and the method changed.** Backend #161 published the stats response bodies, so a **presence check needs no credentials any more**. That found **FLAG-231**: two of four Patient tiles read fields `/patients/me/dashboard/` does not return. **The class now stands at five of seven, not four of six.** Check the schema first because it is free, then render — a schema still cannot say what reached the screen, and per backend **FLAG-554** six fields in that same batch publish with the wrong *type*, which is more dangerous than an absence because it removes the reason to measure.
+🔄 **Update 2026-09-04 — the count went UP, and the method changed.** Backend #161 published the stats response bodies, so a **presence check needs no credentials any more**. That found **FLAG-231**: two of four Patient tiles read fields `/patients/me/dashboard/` does not return. **The class now stands at five of six, not four of six.** Check the schema first because it is free, then render — a schema still cannot say what reached the screen, and per backend **FLAG-554** six fields in that same batch publish with the wrong *type*, which is more dangerous than an absence because it removes the reason to measure.
 
 ---
 

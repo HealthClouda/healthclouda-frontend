@@ -319,7 +319,7 @@ tsc 0 · 211/211 across 23 files · eslint clean at --max-warnings=0 · build gr
 
 ### 📌 Four things worth knowing
 
-1. 🎯 **The stat-tile class is FIVE of SEVEN, not four of six — and the method changed.** Backend
+1. 🎯 **The stat-tile class is FIVE of SIX, not four of six — and the method changed.** Backend
    **#161** (3 Sep) published response bodies for **all seven** dashboard/stats endpoints, so
    **FLAG-225 is RESOLVED** and a *presence* check now costs one `curl` and **no credentials**. That
    is how **FLAG-231** was found on the dashboard nobody can sign into. **Nurse came back clean**
