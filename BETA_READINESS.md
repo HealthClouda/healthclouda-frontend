@@ -138,6 +138,22 @@ in `HANDOFF.md`.
 served from `beta.` contains no `api-dev` string. 🔴 **No code change** — if this needs a code edit,
 the tiering is wrong.
 
+> 🔄 **Re-measured 2026-09-05 (@Qeeyat), on onboarding day — and the trap in this item has changed shape.**
+> `beta.healthclouda.com` is **still NXDOMAIN**. `api-beta.healthclouda.com` is **no longer** NXDOMAIN: it
+> resolves to `69.46.46.33`, both ports are open, and `:80` returns a `301` to HTTPS — but **`:443` fails
+> TLS with `SEC_E_WRONG_PRINCIPAL`, because the certificate does not cover that hostname.** Nothing can
+> reach it.
+>
+> 🪤 **This makes the ordering advice above actively dangerous as written.** It says set the
+> `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override **first** — written when the failure mode was
+> serving `beta.` against the **dev** backend. Today, doing step one points `staging` at a host that
+> resolves, accepts a connection, and then fails every request at TLS. **Still silent, still presents as
+> "the app is broken" rather than as a misconfiguration** — just a different silence.
+>
+> ✅ **The ordering is still right; it now needs a precondition.** Before the override goes in:
+> `curl https://api-beta.healthclouda.com/api/v1/schema/` **must return 200.** Until then #98 stays held —
+> which is where @Qeeyat already put it on 31 Aug, for a different reason that turned out to be the same one.
+
 ---
 
 ### 4. **T3 — the role-gate and tenant-isolation suite does not exist** · 🔨 BUILD-ON-DEVELOP

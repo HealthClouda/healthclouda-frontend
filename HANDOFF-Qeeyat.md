@@ -248,6 +248,46 @@ one of the two, for a reason worth writing down.
   re-ordered by dependency; writing it at 1am on onboarding day, hours after its input landed, would
   have produced a document nobody had read the source of.
 
+
+**Post-close addendum — re-measured the tier state rather than inheriting my own summary:**
+
+I ended the session saying Gate 2's verdict had not been re-run and that `beta.`/`api-beta` were
+NXDOMAIN "at last measure". On onboarding day that is exactly the kind of inherited claim worth
+spending ten minutes on. It changed.
+
+- 🪤 **My first measurement was wrong, and wrong in the most dangerous direction.** A plain
+  `nslookup`/`curl` pass reported **all six tier hosts resolving**, which on onboarding morning reads
+  as *"`beta.` is up, we're ready."* **My ISP resolver hijacks NXDOMAIN**: every name under
+  `healthclouda.com` — including `nonsense-check-4471.healthclouda.com` — answers `102.88.158.7`. I
+  only caught it because the uniform IP looked wrong and I tested a control name I knew did not exist.
+  🔑 **The hijack fabricates answers, never NXDOMAIN — so past NXDOMAIN readings were sound, and only
+  "it resolves now" ever needs re-checking.** Method recorded in `HANDOFF.md`: query `1.1.1.1`
+  explicitly, always with a nonsense control.
+- 🔴 **`api-beta` is half-provisioned, and the half that exists makes it look ready.** Via `1.1.1.1`:
+  `beta.healthclouda.com` **still NXDOMAIN**, `api.healthclouda.com` **still NXDOMAIN**, but
+  `api-beta.healthclouda.com` **now resolves** (`69.46.46.33`, was NXDOMAIN on 2 Sep). Both ports
+  open, `:80` → `301` to HTTPS, and **`:443` fails with `SEC_E_WRONG_PRINCIPAL` — the certificate does
+  not cover the hostname.** Nothing can reach it: not a browser, not `serverFetch`, not an emailed
+  invite link.
+- 🎯 **This inverts the beta runbook's ordering advice, and I nearly missed why.** The rule is *"set
+  the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override FIRST, attach the domain SECOND"* —
+  written when the danger was `beta.` serving against the **dev** backend. Do step one **today** and
+  `staging` points at a host that resolves, accepts the connection, and then fails every request at
+  TLS. **Still silent, still presents as "the app is broken" rather than as a misconfiguration** —
+  just a different silence. The ordering is still right; it now needs a precondition
+  (`curl https://api-beta.healthclouda.com/api/v1/schema/` → 200) that it never had. **#98 stays
+  held** — where I put it on 31 Aug for a different reason that turns out to be the same one.
+- ✅ **The `dev` tier is current, verified by behaviour not by a dashboard.**
+  `https://dev.healthclouda.com/patient` → **307 → `/signin`**, a route that only exists after #100,
+  so **#99 and #100 are live on `dev.`** and middleware routes a logged-out visitor correctly. **A2
+  holds**: `railway.app` appears **0** times in the served HTML.
+- 🔴 **FLAG-018 confirmed still open:** `https://healthclouda.com/patient` → **404**, so the apex is
+  serving a build predating #100. The one tier a member of the public can reach is the stale one.
+
+**Decision:** measured **criterion 2 only** and said so, rather than declaring Gate 2 re-run. One
+criterion measured is a fact; a re-run gate is a bigger claim than I did the work for — and Gate 2's
+own record is deliberately preserved as what was true on 29 Aug.
+
 **Verified (end of session, on `feat/t5-nurse-patient`):** tsc 0 · **211/211 across 23 files** ·
 eslint clean at `--max-warnings=0` · build green from a clean `.next`, `/patient` in the route tree,
 middleware **35.8 kB** · no conflict markers anywhere in the repo · nurse T5 **6/6**, patient **6
@@ -279,6 +319,7 @@ body` for these endpoints anyway (FLAG-225).
       `response.patient.healthclouda_id`, not `response.healthclouda_id`. That is worth trying first.
       ⚠️ #109 now needs **FLAG-227 and FLAG-231** folded in or sequenced after it — all three are the
       same bug class, and the class is **five of seven** now.
+- [ ] 🔴 **`api-beta` needs a TLS cert covering its own hostname** — it half-exists now, which is worse than absent because it looks ready. **#98 must stay held**, and the runbook needs its new precondition. @Bastoh / backend.
 - [ ] 🟠 **`TARGET_ARCHITECTURE_CHECKLIST.md` is the last of the two files `CLAUDE.md` §4 has
       demanded since day one.** Its input — `BETA_READINESS.md` — landed today, so it is finally
       writable. Deliberately not started at 1am on onboarding day.
