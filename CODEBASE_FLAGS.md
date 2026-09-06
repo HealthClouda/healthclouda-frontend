@@ -2219,14 +2219,38 @@ starts passing, the source has been fixed — delete the annotation.**
 
 ---
 
-### FLAG-233 — The test guarding FLAG-001 times out under normal `npm test` load
-**Severity:** P2 · **Area:** Test reliability · **Owner:** @Qeeyat · **Status:** OPEN
+### FLAG-233 — The suite's 5s default timeout fails ~24 tests on a loaded machine, starting with the FLAG-001 guard
+**Severity:** ~~P2~~ **P1** (raised 2026-09-05 — it is the whole suite, not one test) · **Area:** Test reliability · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-09-05, while verifying an unrelated change and having to prove the failure was not mine
 
 `src/app/dashboard-gate.test.tsx` → *"redirects when the cookie claims DOCTOR but the server says
 NURSE"* fails with `Error: Test timed out in 5000ms` on a full-suite run, and **passes in isolation
 in 2.3s**. Reproduced on **clean `develop`** (`109fbd0`): **210 passed / 1 failed**, same test, so it
 is not caused by any open branch.
+
+> 🔴 **Re-measured 2026-09-05 (later the same day) — this is NOT one flaky test. It is the suite's
+> default timeout, and on a loaded machine it fails about two dozen.** Measured on the same checkout,
+> minutes apart:
+>
+> ```
+> npm test                          28 failed | 183 passed   (24 x "Test timed out in 5000ms")
+> npx vitest run --testTimeout=30000   211 passed | 0 failed
+> ```
+>
+> **Every failure was the timeout; none was an assertion.** So the suite is green and the 5s default
+> is simply too tight for it on this hardware — dynamic `await import()` of Next route modules is the
+> expensive part, and `dashboard-gate.test.tsx` is only the first to cross the line.
+>
+> 🪤 **This is the trap, not the flake.** A run that reports `28 failed` reads as a catastrophic
+> regression, and the honest cost is real: it took a clean-`develop` run and a construction argument
+> (the branch changes **no** `src/` file, and vitest only includes `src/**`) to be sure it was not
+> mine. **Anyone who sees a big red number here should re-run with `--testTimeout=30000` before
+> believing it.**
+>
+> That also raises the severity of the fix choice: a **global** `testTimeout` in `vitest.config.ts`
+> now looks like the *right* answer rather than the weak one, because the problem is not one slow
+> test. It should still be paired with hoisting the dynamic imports, so the number does not just get
+> bigger next time.
 
 **Why it is slow:** the test does `await import('./[slug]/doctor/page')` inside the case. That pulls
 a Next server component and its whole import graph through the transform pipeline at assertion time,
