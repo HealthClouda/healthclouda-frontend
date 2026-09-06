@@ -53,7 +53,8 @@ not a doc committed here, not what a component currently assumes, and not this f
     names four (`?status=&date=&page=&page_size=`). Since DRF ignores unknown params *silently*, the
     description is often the only place a working filter is written down. **23 operations across 17
     of the 125 paths document params in prose; 12 of those declare none in `parameters`** (counted
-    against the live schema 2026-08-29). It appears in two formats — inline like the above, and a
+    against the live schema 2026-08-29, **re-verified unchanged 2026-09-06** — the document has grown
+    from 391 KB to 435 KB in between, so re-count rather than trusting these numbers indefinitely). It appears in two formats — inline like the above, and a
     literal `Query params:` block, as on `/ward/admissions/`. ⚠️ **The two sets are disjoint, not
     overlapping:** `/ward/admissions/` declares `ordering, page, search` *and* documents `status`,
     `ward_id`, `patient_id` in prose. Reading either alone gives you half the contract — and a
@@ -75,9 +76,15 @@ not a doc committed here, not what a component currently assumes, and not this f
   schema with **no request body and no response body** — every receptionist write endpoint, and all
   of `/doctor/episodes/`, `/doctor/prescriptions/` (FLAG-218). Where two endpoints do the same job,
   prefer the documented one: episode create goes to `POST /episodes/`, *not* `/doctor/episodes/`.
-- **Check the create response before you rely on it.** `POST /patients/` and `POST /episodes/` both
-  return the request echoed back with **no `id`** (FLAG-216, FLAG-219), so "create then navigate to
-  it" does not work by default.
+- **Check the create response before you rely on it — and check it *live*, not in the schema.**
+  The schema documents the 201 of both `POST /patients/` and `POST /episodes/` with the **request**
+  serializer (`PatientCreate`, 19 fields, no `id`; `EpisodeCreate`, likewise), so "create then
+  navigate to it" looks impossible. 🪤 **For `/patients/` that is simply wrong:** the endpoint
+  re-serialises the saved row and returns `{message, patient: {id, healthclouda_id, …}}` — **nested**
+  (backend #137, closed; read from backend source 2026-09-02 and consumed in #107). Reading the top
+  level yields `undefined`, which is **indistinguishable from the field not existing** — and that is
+  exactly how FLAG-216 stood as fact for four days, with the schema agreeing with the wrong answer.
+  `/episodes/` (FLAG-219) has **not** been measured live, so treat it as unverified, not as no-`id`.
 - Missing endpoint or field → **open a GitHub issue on the backend repo tagged `api-request`**
   stating what you need, why, and the shape you expect. Never guess; never silently work around it.
 - ⚠️ **When a gap has a tempting workaround, weigh what a wrong answer does to a patient.** The
@@ -436,5 +443,7 @@ redirect them to their org portal automatically.
 
 ---
 
-*Last updated 2026-08-25 (contract-seam section rewritten — the schema needs no auth, and it documents permissions and query params in prose). Previously 2026-08-09. This file is binding on humans and agents alike — if a rule here is
+*Last updated 2026-09-06 (contract-seam section rewritten — the schema needs no auth, and it documents
+permissions and query params in prose; every figure re-verified against the live schema that day).
+Previously 2026-08-09. This file is binding on humans and agents alike — if a rule here is
 wrong, change it deliberately and say so in your session log.*

@@ -181,7 +181,7 @@ that never reaches the structured parts. The patients viewset spells out its rol
 description — `CREATE (POST): SUPERADMIN, RECEPTIONIST only`, `RECEPTIONIST: contact info only` —
 and `/patients/me/appointments/` declares **no** parameters while its description names four
 (`?status=&date=&page=&page_size=`). Across the API, **23 operations on 17 paths document params in
-prose and 12 of those declare none in `parameters`** — sometimes inline like that, sometimes as a
+prose and 12 of those declare none in `parameters`** (re-verified 2026-09-06) — sometimes inline like that, sometimes as a
 `Query params:` block (`/ward/admissions/`). That matters because DRF **ignores an unknown query
 param silently**: you get 200, plausible-looking data, and no hint you filtered nothing.
 
@@ -209,13 +209,22 @@ And the part worth internalising early, because it is what makes this a medical 
 CRUD app: **when a gap has a tempting workaround, ask what a wrong answer does to a patient.**
 
 > Registering a patient is supposed to end with the receptionist reading them their HealthClouda ID.
-> The create response doesn't include it. The obvious fix is to search for the patient you just made
-> and show the first result — except two people with the same name registered minutes apart are
-> indistinguishable, so the desk could hand someone another patient's medical identifier with
-> nothing visibly wrong anywhere.
+> For a while we believed the create response didn't include it. The obvious fix is to search for the
+> patient you just made and show the first result — except two people with the same name registered
+> minutes apart are indistinguishable, so the desk could hand someone another patient's medical
+> identifier with nothing visibly wrong anywhere.
 >
-> We shipped the gap instead: the screen says the ID isn't available yet and offers a search where
-> the receptionist can *see* who they pick. **A gap the user can see beats a guess they cannot.**
+> We shipped the gap instead: the screen said the ID wasn't available and offered a search where the
+> receptionist can *see* who they pick. **A gap the user can see beats a guess they cannot.**
+>
+> 🎯 **The postscript is the better half of the lesson.** The response *did* carry the ID all along —
+> nested under `patient`, where reading the top level returns `undefined`, which looks exactly like
+> a field that was never sent. The belief survived four days because the schema agreed with it (it
+> documents the *request* serializer in the response slot). So the gap is now filled and the ID is
+> shown — **and the "can't show it" branch is deliberately kept** for the day it stops arriving.
+> Refusing to guess is what made that safe to discover late: had we shipped the search-and-guess,
+> the bug would have been silently handing out wrong identifiers for four days instead of showing
+> an honest blank.
 
 Nobody will be annoyed that you asked rather than guessed. Guessing in a records system is how
 someone else's data ends up attached to the wrong human being.
@@ -356,7 +365,8 @@ src/
 | `docs/ARCHITECTURE.md` | What is actually built. ✅ Rewritten 2026-08-30 (ARCH-7 closed) — it had described the vanilla-JS app deleted in July for eleven weeks. |
 | `docs/FRONTEND_SPRINT_PLAN.md` | The dated plan to beta onboarding — the nearest thing to a live backlog. Read the current week. |
 | `BETA_READINESS.md` | Prioritised backlog, Tier 1 (beta-blocking) → Tier 5 (roadmap), and the **governing PHI gate**. ✅ Written 2026-09-01, after being required reading that did not exist since day one. |
-| ~~`TARGET_ARCHITECTURE_CHECKLIST.md`~~ | ⚠️ **Still does not exist.** Listed here and in `CLAUDE.md` as required reading since day one, so every session silently skips it. Derived from `BETA_READINESS.md`, re-ordered by dependency (sprint plan §F). || `CODEBASE_FLAGS.md` | Known issues and logged shortcuts. Each dev owns a FLAG number range — see the top of that file. |
+| ~~`TARGET_ARCHITECTURE_CHECKLIST.md`~~ | ⚠️ **Still does not exist.** Listed here and in `CLAUDE.md` as required reading since day one, so every session silently skips it. Derived from `BETA_READINESS.md`, re-ordered by dependency (sprint plan §F). |
+| `CODEBASE_FLAGS.md` | Known issues and logged shortcuts. Each dev owns a FLAG number range — see the top of that file. |
 
 ---
 

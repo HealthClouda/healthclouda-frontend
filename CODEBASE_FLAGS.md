@@ -1706,7 +1706,8 @@ description says `GET /api/v1/patients/me/appointments/?status=&date=&page=&page
 heading. Given that inventing query params is a known bug class here (DRF ignores unknown params
 silently), **the descriptions are load-bearing and must be read** — they are frequently the only
 place a param is written down. Re-measured 2026-08-29: **23 operations across 17 of the 125 paths**,
-in two formats (inline `?x=`, and a `Query params:` block).
+in two formats (inline `?x=`, and a `Query params:` block). **Re-verified unchanged 2026-09-06**,
+against a schema that has grown 391 KB → 435 KB since — so re-count, do not inherit these numbers.
 
 > ⚠️ **Correction (2026-08-29, @Qeeyat — two errors of my own, both caught in review of PR #96):**
 >
