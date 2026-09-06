@@ -378,6 +378,17 @@ export interface PatientDetail {
  * because inventing a client-side rule the server may not share is how you get
  * a form that refuses valid data.
  */
+export interface NewPatient {
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  date_of_birth?: string;
+  gender?: string;
+  address?: string;
+  consent_given?: boolean;
+}
+
 /**
  * What `POST /patients/` actually returns — **the identifiers are NESTED.**
  *
@@ -406,18 +417,6 @@ export interface PatientCreateResponse {
     first_name?: string;
     last_name?: string;
   };
-}
-
-/** Request body for `POST /patients/` — response is `PatientCreateResponse`. */
-export interface NewPatient {
-  first_name: string;
-  last_name: string;
-  email?: string;
-  phone?: string;
-  date_of_birth?: string;
-  gender?: string;
-  address?: string;
-  consent_given?: boolean;
 }
 
 /**

@@ -398,6 +398,18 @@ const inputCls =
   'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
 
 /**
+ * What the desk needs after a successful registration.
+ *
+ * `id` is captured but not yet rendered: the next step of the journey
+ * (register → HCL-ID → portal invite) needs this `patient_id`, and today the
+ * desk has to search for a patient it just created to reach it. Kept
+ * deliberately so that follow-up does not have to re-derive it — the invite
+ * itself is not in this PR because it also needs an email address, which
+ * registration treats as optional.
+ */
+type RegisteredPatient = { name: string; id?: string; healthcloudaId?: string };
+
+/**
  * Pull the identifiers out of a `POST /patients/` response.
  *
  * 🪤 **They are nested under `patient`.** Reading the top level returns
@@ -413,9 +425,6 @@ const inputCls =
  * silently, at the desk. A gap the receptionist can see beats a guess they
  * cannot.
  */
-/** What the desk needs after a successful registration. */
-type RegisteredPatient = { name: string; id?: string; healthcloudaId?: string };
-
 function readCreatedPatient(response: unknown): { id?: string; healthcloudaId?: string } {
   const body = (response ?? {}) as PatientCreateResponse & { id?: string; healthclouda_id?: string };
   return {
@@ -691,12 +700,18 @@ function PatientSearchPage() {
         </button>
       </div>
 
-      {/* The HCL-ID handout, honestly. The create response has no identifiers
-          (backend #137), so rather than guessing which search result is the
-          patient just created, this says what happened and hands the desk the
-          one safe next step. */}
+      {/* The HCL-ID handout. `POST /patients/` DOES return the identifiers —
+          nested under `patient` (backend #137, closed; see readCreatedPatient).
+          The absent branch below is kept for the case where they do not arrive:
+          it says so plainly rather than guessing which search result is the
+          patient just created.
+
+          role="status" because this panel appears after an async action that
+          also closes the slide-over. Without it a screen-reader user is told
+          nothing at all — including the ID itself, which is the one thing this
+          whole flow exists to hand over. */}
       {justRegistered && (
-        <div className="bg-primary-soft border border-primary/20 rounded-xl px-4 py-3">
+        <div role="status" className="bg-primary-soft border border-primary/20 rounded-xl px-4 py-3">
           <p className="text-sm font-medium text-primary-dark">{justRegistered.name} has been registered.</p>
 
           {justRegistered.healthcloudaId ? (
@@ -713,8 +728,23 @@ function PatientSearchPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    void navigator.clipboard?.writeText(justRegistered.healthcloudaId ?? '');
-                    toast.success('HealthClouda ID copied');
+                    // Only claim "copied" if it actually copied. A missing
+                    // `navigator.clipboard` (non-secure context) or a rejected
+                    // write (denied permission) must not show success: the desk
+                    // would paste whatever was already on the clipboard and put
+                    // the WRONG identifier on a record — the same harm the
+                    // no-search rule above exists to prevent, arriving by
+                    // another route. On failure the ID stays on screen and is
+                    // `select-all`, so it can still be copied by hand.
+                    const id = justRegistered.healthcloudaId;
+                    if (!id || !navigator.clipboard) {
+                      toast.error('Could not copy — select the ID and copy it by hand');
+                      return;
+                    }
+                    navigator.clipboard.writeText(id).then(
+                      () => toast.success('HealthClouda ID copied'),
+                      () => toast.error('Could not copy — select the ID and copy it by hand'),
+                    );
                   }}
                   className="text-xs font-medium text-primary-dark hover:underline"
                 >

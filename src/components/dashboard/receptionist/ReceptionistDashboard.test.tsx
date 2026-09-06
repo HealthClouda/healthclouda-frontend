@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReceptionistDashboard } from './ReceptionistDashboard';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
+import { useToastStore } from '@/store/toast';
 
 /**
  * Pre-fix tests for CONTRACT-AUDIT PR 2 (error/pagination hygiene), written
@@ -105,6 +106,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default: every GET resolves to an empty page (individual tests override).
   dataGetMock.mockResolvedValue(emptyPage);
+  // The toast store is a real zustand store shared across tests — a leftover
+  // success from one test would make a "did NOT claim success" assertion pass
+  // or fail for the wrong reason.
+  useToastStore.setState({ toasts: [] });
 });
 
 describe('GLOBAL-1 — DRF pagination param', () => {
@@ -378,7 +383,9 @@ describe('PERF-1 — pagination UI', () => {
  *  - The same endpoint DEFAULTS TO TODAY and applies date before status, so
  *    the date must be sent explicitly or the queue silently shows one day.
  *  - POST /patients/ is RECEPTIONIST-allowed, requires only first/last name,
- *    and its 201 returns NO id and NO healthclouda_id (backend #137).
+ *    and its 201 DOES carry id and healthclouda_id — NESTED under `patient`
+ *    (backend #137, closed 2026-09-02; the schema still documents the request
+ *    serializer in the response slot, which is what FLAG-216 misread).
  *  - has_portal_account is on PatientDetail only, never on a list or search.
  */
 describe('D4 — the check-in queue reads the real payload', () => {
@@ -545,6 +552,82 @@ describe('D4 — registering a patient', () => {
     );
     expect(searches).toEqual([]);
     expect(screen.getByRole('button', { name: /Find Ada Bello/ })).toBeInTheDocument();
+  });
+
+  /**
+   * 🔴 The copy button must never claim success it did not achieve.
+   *
+   * The failure is specific and happens at a desk: the receptionist trusts
+   * "copied", pastes whatever was already on the clipboard, and a WRONG
+   * identifier enters a record — the same harm the no-search rule above
+   * prevents, arriving through the clipboard instead. `navigator.clipboard`
+   * is absent in any non-secure context and `writeText` rejects on denied
+   * permission, so both paths are real, not theoretical.
+   */
+  describe('the Copy button reports what actually happened', () => {
+    async function registerAndFindCopy() {
+      dataActionMock.mockResolvedValue({
+        message: 'Patient registered successfully',
+        patient: { id: 'p-1', healthclouda_id: 'HCL-5WO6SE', first_name: 'Ada', last_name: 'Bello' },
+      });
+      await openRegister();
+      await registerAda();
+      return screen.getByRole('button', { name: 'Copy' });
+    }
+
+    function setClipboard(value: unknown) {
+      Object.defineProperty(navigator, 'clipboard', {
+        value, configurable: true, writable: true,
+      });
+    }
+
+    it('says copied only when the write resolved', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      setClipboard({ writeText });
+      fireEvent.click(await registerAndFindCopy());
+
+      await waitFor(() =>
+        expect(useToastStore.getState().toasts.some((t) => t.type === 'success')).toBe(true),
+      );
+      expect(writeText).toHaveBeenCalledWith('HCL-5WO6SE');
+    });
+
+    it('says it failed when the write REJECTED, and leaves the ID on screen', async () => {
+      setClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denied')) });
+      fireEvent.click(await registerAndFindCopy());
+
+      await waitFor(() =>
+        expect(useToastStore.getState().toasts.some((t) => t.type === 'error')).toBe(true),
+      );
+      // The claim that must not appear.
+      expect(useToastStore.getState().toasts.some((t) => t.type === 'success')).toBe(false);
+      // It is select-all, so a failed copy still leaves it copyable by hand.
+      expect(screen.getByText('HCL-5WO6SE')).toBeInTheDocument();
+    });
+
+    it('says it failed when there is no clipboard API at all', async () => {
+      setClipboard(undefined);
+      fireEvent.click(await registerAndFindCopy());
+
+      await waitFor(() =>
+        expect(useToastStore.getState().toasts.some((t) => t.type === 'error')).toBe(true),
+      );
+      expect(useToastStore.getState().toasts.some((t) => t.type === 'success')).toBe(false);
+    });
+  });
+
+  it('announces the handout panel — it appears after an async action', async () => {
+    // The slide-over closes and this panel appears elsewhere on the page. With
+    // no live region a screen-reader user is told nothing, including the ID
+    // itself, which is the one thing this flow exists to hand over.
+    dataActionMock.mockResolvedValue({
+      message: 'Patient registered successfully',
+      patient: { id: 'p-1', healthclouda_id: 'HCL-5WO6SE', first_name: 'Ada', last_name: 'Bello' },
+    });
+    await openRegister();
+    await registerAda();
+
+    expect(await screen.findByRole('status')).toHaveTextContent('HCL-5WO6SE');
   });
 });
 
