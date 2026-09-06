@@ -1437,6 +1437,56 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
+### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
+
+**Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-06, while trying to "finish the one bullet left on #96"
+
+**#96 (schema-reading guidance) has been CLOSED since 2026-08-31 17:06 — by me, unmerged.** I found
+this only after rebasing it, re-verifying every figure in it against the live schema, fixing three
+things that had gone stale, force-pushing, and posting a comment telling @Bastoh he had been
+blocking it for nine days. He had not. **There was nothing to re-review because I had closed it.**
+
+**Every source the session-start ritual actually reads says the opposite:**
+
+| Source | What it says |
+|---|---|
+| `HANDOFF.md` 🚧 In Flight on `develop` | *"PR #96 — CHANGES_REQUESTED… **Open 7 days**"* |
+| @Bastoh's 1 Sep handover in `HANDOFF.md` | *"#96 — still one bullet to reword, open 7 days"* |
+| `HANDOFF.md` on the unmerged #126 branch | ✅ correct — *"CLOSED 2026-08-31, not merged: fixed at source instead"* |
+
+So the correction exists **only in an unmerged branch**, and the four words it offers as a reason
+(*"fixed at source instead"*) are not true in the sense they imply: **the content is on no merged
+branch.** Verified on `develop` 2026-09-06 — `CLAUDE.md` has no unauthenticated-schema bullet,
+`ONBOARDING.md` has no "Four habits", `CODEBASE_FLAGS.md` has no FLAG-217 correction. The guidance
+@Bastoh independently verified and called *"right, valuable"* — that the schema needs no token, and
+that this API documents role matrices and query params **in prose** — is currently nowhere a
+new dev or agent will ever read it.
+
+🎯 **The general fault is not the closure, it is that closing left no trace where anyone looks.**
+A merge writes itself into the log; **a close writes nothing anywhere.** No PR comment, no session-log
+entry, no In Flight update on a branch that merged. This repo's whole premise is that the other dev's
+assistant sees only what is written down — and a closed PR is invisible to *both* devs' assistants,
+including the author's own, two weeks later.
+
+⚠️ **It also cost @Bastoh's trust budget, not just my time.** The comment I posted asserted he had sat
+on a PR for nine days. That is exactly the accusation this repo's docs are designed to prevent people
+making by accident, and I made it from three documents that all agreed with each other and were all
+wrong.
+
+**Done when** one of —
+1. **#96 is reopened and merged** (the branch is rebased, re-verified and ready — reopening was
+   blocked by tooling permissions on 6 Sep, so it needs a human); **or**
+2. it is deliberately closed again **with the reason written in this file**, its content either
+   ported or explicitly abandoned in writing, and the In Flight row + @Bastoh's handover note both
+   corrected — the false "open 7 days" claim removed from every place it appears.
+
+**And regardless of which:** when a PR is closed unmerged, say so in the same places a merge would be
+recorded — the In Flight table, and one line in the session log naming *why* and *where the content
+went*.
+
+---
+
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
