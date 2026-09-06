@@ -371,6 +371,77 @@ spending ten minutes on. It changed.
 criterion measured is a fact; a re-run gate is a bigger claim than I did the work for — and Gate 2's
 own record is deliberately preserved as what was true on 29 Aug.
 
+
+**Second addendum — the full contract audit, and #109 finally answered:**
+
+- 🎯 **Audited every dashboard's stats interface against the published schema in one pass — FLAG-232.**
+  **This was impossible four days ago** and that is the point: the schema documented
+  `200: No response body` for every stats endpoint (FLAG-225), so each dashboard had to be caught by
+  *rendering* it, which needed credentials per role. That is why the class was found one dashboard at
+  a time over three weeks. Backend #161 published the bodies, so the whole thing now measures in
+  seconds with **no credentials at all**:
+
+  ```
+  DASH-1 Superadmin    1/6   5 phantom, 11 published-unused
+  DASH-2 Org Admin     6/6   clean
+  DASH-3 Nurse        11/11  clean
+  DASH-4 Receptionist 13/13  clean
+  DASH-5 Doctor        2/4   2 phantom, 4 published-unused
+  DASH-6 Patient       2/4   2 phantom, 8 published-unused
+  ```
+
+- 🔴 **Superadmin is far worse than FLAG-222 recorded.** That flag counted *tiles* — 3 of 4. The
+  **interface** has **5 of 6 fields phantom**; only `total_users` survives. And the endpoint publishes
+  **eight `*_trend` / `*_trend_up` fields** that pair a delta with a direction — precisely what
+  `StatCard`'s `delta` prop renders. **The backend has been sending superadmin trend data the entire
+  time and nothing has ever read it.**
+- 🪤 **The audit caught a number I had put into five files the day before.** I wrote *"five of seven"*.
+  **There are six dashboards** — seven is the count of stats *endpoints* (superadmin has two).
+  Corrected everywhere. The accurate statement: **five of six have carried this bug at some point,
+  three still do, and Receptionist is the only one never affected.** A wrong denominator propagates
+  faster than a wrong finding, because nobody re-derives a number that looks incidental.
+- ✅ **Committed the audit rather than leaving it a one-off** — `scripts/audit-stat-contracts.mjs`,
+  `npm run audit:contracts`, exits with the phantom count so it can gate CI once FLAG-230 is fixed. It
+  parses the interfaces **out of source**, so it cannot drift from the types it checks.
+
+- ✅ **#109 rebased and answered.** All three of @Bastoh's change requests, plus **FLAG-231 folded in**
+  — the Patient dashboard, which #109 never covered. **Audit after: 9 phantom fields → 0, all six
+  clean.**
+- 🎯 **His "Admissions Under Care" objection was the one worth having.** The tile had inherited
+  `onNavigate('episodes')` from the tile it replaced, so a click landed on a *different dataset with a
+  different count*, under a label promising this one. It is now deliberately inert. He was right that
+  this was a decision about what the tile means, not a tidy-up.
+- 🔴 **The Patient fixture was the bug's alibi, and `tsc` could not have helped.** The unit fixture
+  carried **the same two phantom keys as the component**, so the suite agreed with the bug and stayed
+  green — FLAG-221 in miniature. And excess-property checking does not apply to a **named const**, so
+  the extra keys were invisible to the compiler while the two required fields were present. Rewrote it
+  to the published shape and added three tests, **proven RED against the pre-fix component**:
+  `expected '—' to be '3'`. **That is the em dash asserted in a unit test for the first time** — until
+  now only a browser could see it.
+- 🪤 **FLAG-233 — a flake that looked like mine and wasn't.** `dashboard-gate.test.tsx` times out at
+  5s on a full-suite run and passes in **2.3s alone**. It looked plausible, because #109 touches
+  `DoctorDashboard`, which is in that test's import graph. Ruled it out the only honest way: checked
+  out clean `develop` and ran the whole suite — **210 passed / 1 failed, same test.** Pre-existing.
+  It matters because **that is the RED-first test from #99 proving a tampered `hc_user` cannot
+  escalate role** — the FLAG-001 control. A guard that fails for reasons unrelated to what it guards
+  is one people learn to re-run rather than read.
+
+**Decisions:**
+- **Removed the "Access Requests" tile rather than repointing it.** No published field, and the only
+  source is an endpoint the overview does not call — the same trade the Superadmin tiles refused. The
+  nav still reaches the page, so it costs the patient nothing.
+- **Kept "Upcoming Appts" by sourcing it from the appointments envelope `count`.** That is *not* the
+  trade we refused elsewhere: the page already fetches and **displays** that list, so there is no new
+  request and no new PHI. Documented inline, because the difference is subtle and a later reader could
+  reasonably mistake it for the thing FLAG-222 warns against.
+- **Typed Patient from the published schema without a live capture, and said so in the type.** It is
+  the one interface not confirmed against a payload, because DASH-6 still cannot be signed into.
+  Leaving two tiles knowingly broken would have been worse than fixing them from the best evidence
+  available and labelling the residual risk.
+- **Did not duplicate FLAG-231/232 onto #109's branch.** Their entries live on #128; #109's code
+  comments cite them. **#128 must merge first or those references dangle** — said on both PRs rather
+  than silently creating two copies that would conflict on merge.
+
 **Verified (end of session, on `feat/t5-nurse-patient`):** tsc 0 · **211/211 across 23 files** ·
 eslint clean at `--max-warnings=0` · build green from a clean `.next`, `/patient` in the route tree,
 middleware **35.8 kB** · no conflict markers anywhere in the repo · nurse T5 **6/6**, patient **6
@@ -397,11 +468,18 @@ body` for these endpoints anyway (FLAG-225).
       #118's standing change request cleared), then **six merged**. Nothing of his waits on me.
 - [ ] 🔴 **#127 and #118 need @Bastoh's rebase** — both **APPROVED**, both went CONFLICTING because
       the six merges landed. His branches; not mine to force-push.
-- [ ] 🔴 **My own two are still CHANGES_REQUESTED** — #109 (conflicting) and #107. 🎯 **#107's fix is
-      probably known now**: #123 recorded that `POST /patients/` returns the identifiers **nested** —
-      `response.patient.healthclouda_id`, not `response.healthclouda_id`. That is worth trying first.
-      ⚠️ #109 now needs **FLAG-227 and FLAG-231** folded in or sequenced after it — all three are the
-      same bug class, and the class is **five of six** now.
+- [x] ~~#109 needs FLAG-227 and FLAG-231 folded in~~ ✅ **DONE 2026-09-05.** Rebased, all three of
+      @Bastoh's change requests answered, Patient folded in. **Contract audit: 9 phantom fields → 0,
+      all six dashboards clean.** Still CHANGES_REQUESTED — pushing does not clear it, so it needs his
+      re-review like everything else.
+- [ ] 🔴 **#107 is the last of mine untouched.** 🎯 **Its fix is probably known**: #123 recorded that
+      `POST /patients/` returns the identifiers **nested** — `response.patient.healthclouda_id`, not
+      `response.healthclouda_id`. Worth trying before anything else.
+- [ ] 🟠 **FLAG-233** — the FLAG-001 guard flakes at 5s under full-suite load. Pre-existing, logged on
+      #109. Three suggested fixes; the weakest is a global timeout bump, which hides the next one too.
+- [ ] 🟠 **The 23 published-but-unused fields (FLAG-232) are a design call, not a bug.** Superadmin's
+      eight `*_trend` values and Patient's `current_admission` / `active_prescriptions` /
+      `active_instructions` are real information the UI throws away today.
 - [ ] 🔴 **`api-beta` needs a TLS cert covering its own hostname** — it half-exists now, which is worse than absent because it looks ready. **#98 must stay held**, and the runbook needs its new precondition. @Bastoh / backend.
 - [ ] 🟠 **`TARGET_ARCHITECTURE_CHECKLIST.md` is the last of the two files `CLAUDE.md` §4 has
       demanded since day one.** Its input — `BETA_READINESS.md` — landed today, so it is finally
