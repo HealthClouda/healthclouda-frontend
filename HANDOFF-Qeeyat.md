@@ -60,6 +60,159 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-06 — three PRs handed back, and #96 turned out to have been closed for a week (branches: feat/issue-101-hcl-id-handout, docs/merge-99-100-in-flight, docs/schema-contract-guidance)
+
+**Goal:** clear my own review debt — #107's three change requests — then raise the escalations that
+were never delivered, then #96's "one bullet". Two of three went to plan. The third found something
+worse than the bullet.
+
+**What I did:**
+- **#107 (issue #101) — all three change requests fixed, rebased (71 commits behind), pushed.**
+  `tsc` 0 · lint 0 · build green · **217/217**, six tests added.
+- **Raised the #109 and #107 re-review asks in the 📥 Cross-Lane inbox** and refreshed both In Flight
+  rows, which described finished work as work-to-do. Re-requested review on the API for all four of
+  my PRs — GitHub drops the request once a review lands, so the row alone sends no email.
+- **#96 — rebased, re-verified against the live schema, three stale claims fixed.** Then found it had
+  been **closed since 31 Aug**. Logged **FLAG-234**.
+
+**What I found:**
+
+- 🎯 **Three PRs today were blocked on *review*, not on *work* — and one wasn't blocked at all.**
+  #109 has been finished since yesterday; #107's blocker was answerable in ten minutes with a fact
+  @Bastoh wrote down on 2 Sep; #96's change request was answered on **29 Aug**. This is his phrase
+  from #99 last session and it is now the dominant failure mode on this board: **a handoff table
+  cannot distinguish "waiting for a reviewer" from "not done", and both render as a red row.**
+- 🪤 **Inserting a declaration between a JSDoc block and its symbol is silent, and I did it twice in
+  one PR.** @Bastoh caught it in `ReceptionistDashboard.tsx` (the nested-read explanation ended up
+  documenting a type instead of the function). The identical thing had happened in
+  `types/dashboard.ts`, where `PatientCreateResponse` landed between the request-body JSDoc and
+  `NewPatient` — so the comment explaining the phone/email validation trap was documenting the
+  response type. **Nothing errors, nothing lints, and the comment stays plausible on its new
+  neighbour**, which is exactly why one instance survived review and the other went unnoticed.
+- 🎯 **Docs go stale the same way code does, and a 12-day-old docs PR is a liability.** #96 asserted
+  three things that had become false while it sat: that `BETA_READINESS.md` did not exist (@Bastoh
+  wrote it 1 Sep), that `docs/ARCHITECTURE.md` was stale wholesale (ARCH-7 closed 30 Aug), and —
+  the bad one — that `POST /patients/` returns **no `id`**. It returns them nested. **That bullet
+  would have landed the exact FLAG-216 misreading as instruction, in `CLAUDE.md`, which binds every
+  agent that reads it.** Rewritten, it is now the sharpest example in that section: the schema
+  documents the *request* serializer in the 201 slot, so **the schema agreed with the wrong answer.**
+- 🔴 **#96 has been closed since 2026-08-31, by me, unmerged — and I only found out after telling
+  @Bastoh he had been blocking it for nine days.** Every document a session-start ritual reads says
+  it is open: `develop`'s In Flight row ("open 7 days"), his own 1 Sep handover ("open 7 days"). The
+  correction exists only on my unmerged #126 branch, and the reason it gives — "fixed at source
+  instead" — **is not true in the sense it implies: none of the content is on any merged branch.**
+  Posted a correction on the PR naming the error as mine. **FLAG-234.**
+- 🎯 **A merge writes itself into the log; a close writes nothing anywhere.** That asymmetry is the
+  actual bug, and it is invisible until an assistant with no memory of the decision — mine, two weeks
+  later — reads three agreeing documents and believes them.
+- 📌 **FLAG-233 is worse than logged.** `--testTimeout=30000` gave 215/217 on one run and 217/217 on
+  the next, the two failures again timeouts rather than assertions. So 30s is not reliably enough on
+  this hardware either. Both runs are quoted on #107; I did not report only the green one.
+
+**Decisions:**
+- **Verified #107's new tests by mutation** rather than trusting six green tests — reverting the
+  source to the pre-fix behaviour fails exactly three of them and no others, with the success-path
+  test correctly still passing. That technique was @Bastoh's compliment on the first round; it is
+  worth making standard for anything that asserts a *negative*.
+- **Did not build the portal invite into #107.** `sendInvite` needs an email address, which
+  registration treats as optional, so it is a flow with a branch, not a button — new scope on a
+  PR already 8 days old. Said so on the PR, and `RegisteredPatient.id` now carries a comment
+  saying why it is retained, so it reads as staged rather than left over.
+- **Kept the "ID did not arrive" branch** in the receptionist panel even though the ID does arrive.
+  It is the FLAG-216 state, and this response shape has been documented wrongly once already.
+- **Reopened #96 rather than leaving twice-verified work in a closed PR** — attempted; the reopen is
+  blocked by tooling permissions and needs a human. If closing it was deliberate and I have forgotten
+  why, it should be re-closed **with the reason written down**, which is the half that failed.
+- **Put the Cross-Lane rows on the #126 branch** rather than cutting a third docs branch that would
+  have conflicted with it on `HANDOFF.md`.
+
+**Verified:** #107 — `tsc --noEmit` 0 · `eslint --max-warnings=0` 0 · `npm run build` green, 27/27
+pages, middleware 35.8 kB · suite **217/217** at `--testTimeout=30000` (bare `npm test` gives 24
+timeout failures — FLAG-233, reproducible on clean `develop`). Live schema re-fetched 2026-09-06:
+**HTTP 200 unauthenticated, 435 KB** (was 391 KB on 29 Aug); 125 paths, 23 prose-param operations
+across 17 paths, 12 declaring no `parameters` — all unchanged; `/patients/me/appointments/` and
+`/ward/admissions/` confirmed verbatim; `PatientCreate` still carries no `id`, which is the schema
+being wrong rather than the endpoint.
+
+**Left undone / next:**
+- [ ] 🔴 **#96 needs reopening by hand** (blocked by tooling), or re-closing with a written reason —
+      **FLAG-234**. Its content is on no merged branch today.
+- [ ] 🔴 **Four of my PRs wait on @Bastoh**: #109 and #107 (both finished, both behind a standing
+      CHANGES_REQUESTED only he can clear), #126, #128.
+- [ ] 🟠 **FLAG-233** — decide whether to raise the suite's default timeout in `vitest.config.ts`
+      rather than making every dev discover it. It is one line and it currently mints false red runs.
+- [ ] 🟠 Two of his are approved and unmerged (#118, #127) and both need a rebase; #98 still held.
+
+### 2026-09-03 — A5 is closed: #99 and #100 reviewed, merged, and the docs caught up (branch: docs/merge-99-100-in-flight)
+
+**Goal:** re-review #99 now that @Bastoh had fixed my change request, and merge if it held up. It
+held up, so #100 went with it.
+
+**What I did:**
+- **Re-reviewed and merged #99 (A5/FLAG-001)** — the sprint plan's one *must-close-before-PHI* item,
+  open since the 8 Aug survey. Then **#100 (FLAG-210)** immediately after. Both as merge commits,
+  merged locally with the additive `CODEBASE_FLAGS.md` resolution.
+- **Verified on the merge commits, not the PR bodies:** tsc clean · eslint clean · **211/211 across
+  23 files** · build green · `/patient` in the route tree · middleware 35.8 kB.
+- Raised **FLAG-228** and updated `HANDOFF.md`, `CODEBASE_FLAGS.md` and `docs/ARCHITECTURE.md`.
+
+**What I found:**
+
+- 🎯 **The fix to my change request was right, and the load-bearing line is not the refresh call.**
+  It is `NextResponse.next({ request })` with a mutated request cookie — handing the new token to
+  *this* render. Without it the gate still sees no token on the very navigation that refreshed, and
+  the bug survives its own fix by one render. There is a test asserting `x-middleware-request-cookie`
+  directly, which is the right thing to assert.
+- 🎯 **I re-ran the RED-first claim rather than accepting it** — checked out the pre-fix
+  `middleware.ts` (`f4b4832`) against the new tests: **7 failed | 13 passed**, exactly his number.
+  Doing this twice now has cost me about four minutes total and is the single cheapest way I have
+  found to tell a real test from a test that would pass against anything.
+- 🔴 **FLAG-020's reasoning had a wrong step, though its conclusion was right.** It dismisses the
+  prefetch fan-out with *"Next does not fully render dynamic routes on `<Link>` prefetch"* — but that
+  is about **rendering**, and middleware runs on RSC prefetch requests regardless; the matcher does
+  not exclude them. The conclusion survives for a different reason: I grepped, and **no `<Link>`
+  points at a dashboard route anywhere** — dashboards are reached by `router.push` after signin and
+  navigate internally by client state. **A right answer with a wrong reason is a trap**: the day
+  someone writes `<Link href={roleDashboardPath(...)}>`, several in-viewport prefetches fire at once
+  against an expired cookie, and the flag records that case as already considered. Said so on the PR.
+- 🎯 **The stack merged safely, and the pattern is now evidenced twice.** GitHub retargeted #100 onto
+  `develop` *before* auto-deleting #99's branch, so the child survived. The trap written up in
+  `HANDOFF.md` is specifically `gh pr merge --delete-branch`, which deletes the base out from under
+  the child *first*. Auto-delete after a retarget is a different thing and is safe.
+- 🔴 **FLAG-228: a Google Fonts fetch inside `npm run build` can turn any CI run red.** #120 showed a
+  failing check that has nothing to do with its diff — `NextFontError: Failed to fetch 'Lato'`, in
+  the A4 fail-loud job. Now that #116 has made CI a gate, a check that fails randomly teaches people
+  to merge past red. Self-hosting the font removes the network call entirely.
+- 🟡 **`CODEBASE_FLAGS.md` has a filing bug: everything from FLAG-215 down sits BELOW the "Resolved
+  flags" heading while still being OPEN.** They were appended to the end of the file as they were
+  raised. I put #99's and #100's entries directly under the heading and left a note to read each
+  entry's Status line rather than its position — reordering other people's flags mid-session is
+  exactly the kind of tidying `CLAUDE.md` warns about, so it wants its own pass.
+
+**Decisions:**
+- **Merged locally rather than asking @Bastoh to rebase.** #99's only conflict was
+  `CODEBASE_FLAGS.md` (FLAG-020 vs FLAG-021) — no code conflict at all — and the same additive
+  resolution was already established on #93/#95. Last time this stalled three days waiting to push to
+  another dev's branch, four days before PHI. I proved nothing was dropped with a heading diff
+  against both parents (50 + 50 → 51) rather than eyeballing it.
+- **Did not re-run Gate 2.** Added a dated "what has closed since" note under it instead. The gate is
+  a record of what was true on 29 Aug; rewriting it would destroy the evidence trail. A5 and A7 are
+  now closed, but `beta.` still does not resolve and T6/T7/T8 are still unexecuted, so **the verdict
+  does not flip on this alone.**
+
+**Verified:** tsc clean · eslint clean · 211/211 (23 files) · build green, all on the merge commits
+themselves from a clean `.next`. RED-first re-confirmed against `f4b4832`.
+
+**Left undone / next:**
+- [ ] **Nurse and Patient have still never been rendered by anyone.** Patient is now *reachable* for
+      the first time — that is not the same as having looked at it. Nurse needs `E2E_NURSE_*` from
+      @Bastoh. Four of the six dashboards rendered so far had stat tiles reading fields the API never
+      sends.
+- [ ] Six of @Bastoh's PRs are waiting on me: **#120, #121, #122, #123, #124, #125.** #121 lands
+      `BETA_READINESS.md`, one of the two files `CLAUDE.md` §4 has demanded since day one.
+- [ ] My own two are still CHANGES_REQUESTED and untouched: **#109** (now conflicting) and **#107**.
+- [ ] **#98** — `develop` → `staging` — still held, still @Bastoh's call.
+
 ### 2026-08-31 / 2026-09-01 — nine PRs merged, the T5 pass found FLAG-227, and a full review round (branches: docs/clear-in-flight-2026-08-31, feat/t5-remaining-dashboards)
 
 **Goal:** clear the merge backlog Gate 2 called the real blocker, then extend the T5 harness past

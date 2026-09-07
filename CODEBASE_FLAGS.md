@@ -55,65 +55,6 @@ Every flag needs a **Done when** that someone else can verify without asking the
 
 ## Open flags
 
-### FLAG-001 — Authorization is decided from a client-writable cookie
-**Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** ✅ **FIXED 2026-08-28** — *stays here until the PR merges; move to Resolved then*
-**Found:** 2026-08-08, codebase survey
-
-The `hc_user` cookie is set `httpOnly: false` (`src/lib/auth.ts:30`) so the UI can read the user's
-name and role. But it is also what every role gate reads:
-
-```ts
-// src/app/[slug]/doctor/page.tsx:11 — same pattern on all six dashboards
-if (!user || user.role !== ROLES.DOCTOR) redirect(`/${slug}/signin`);
-```
-
-`src/middleware.ts:68` parses the same cookie for redirect decisions. A user can edit
-`document.cookie` to set `role: "DOCTOR"` and any `organization_slug`, then load another org's
-dashboard shell.
-
-**Impact today is limited:** every real data fetch carries the bearer token and DRF enforces
-permissions server-side, so the attacker lands in an empty skeleton getting 403s. It is not a data
-breach. It *is* a client-trusted authorization decision, and that stops being theoretical the
-moment PHI arrives.
-
-**Done when:** role/tenant gating decides from a server-trusted source (access token claims or a
-server-side lookup), the `hc_user` cookie is display-only, and a test proves a tampered `hc_user`
-cookie cannot render another role's or another org's dashboard.
-
-> ✅ **Fixed 2026-08-28.** All six page gates now call `requireDashboardUser()`
-> (`lib/auth-server.ts`), which resolves identity from `GET /auth/me/` using the **httpOnly** access
-> token. `hc_user` is annotated display-only at its definition and at `getUser()`.
->
-> 🔍 **Access-token claims were the cheaper fix and are not available.** Decoded a real token from
-> `api-dev` rather than assuming: the payload is stock SimpleJWT —
-> `{ token_type, exp, iat, jti, user_id }`, **no role, no organisation**. So a server lookup is the
-> only server-trusted option today. It costs one round trip per gated render, held to one by React
-> `cache()`. If the backend later adds `role`/`organization` claims, `getAuthorizedUser()` is the
-> single function to change and the trip disappears — worth an `api-request`, but it is an
-> optimisation, not a blocker.
->
-> 🚨 **A second hole was found while fixing the first, and it needed no tampering at all.** The gates
-> checked the *role* and never compared the route slug to the user's organisation, so a real doctor at
-> `demo-clinic` could open `/other-clinic/doctor` and get that org's dashboard shell by typing a URL.
-> Multi-tenancy is the core constraint of this product, so this is now asserted in the same gate and
-> covered by its own test.
->
-> ⚠️ **The fix fails closed, deliberately.** `serverFetch` returns `null` for everything — no token,
-> 401, 500, network blip (FLAG-005) — and the gate treats every one as DENY. The cost is that a
-> backend wobble bounces people to signin rather than showing a stale shell. That is the right trade
-> for an authorization decision, but it does mean **FLAG-005 now has a UX consequence it did not have
-> before**, which is an argument for raising its priority.
->
-> Also corrected in passing: the superadmin gate redirected to `/signin`, the **patients-only** portal
-> where the backend rejects staff — the same defect PR #84 fixed in `middleware.ts`, still live here.
-> It now goes to `/superadmin/signin`.
->
-> **Not changed:** `middleware.ts` still reads `hc_user` for its signin-page redirect. That is a
-> convenience redirect, not an authorization decision — a tampered cookie can now only send the
-> attacker to a dashboard that refuses to render.
-
----
-
 ### FLAG-002 — Backend base URL is stale in three committed places
 **Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** ⚠️ **PARTIALLY FIXED**
 — codebase purged in PR `fix/tier1-infra-batch` (2026-08-12, sprint item A2). **Still open on the
@@ -1271,73 +1212,6 @@ once credentials are usable in a session, or the backend documents the permissio
 
 ---
 
-### FLAG-210 — A patient cannot sign in: they have no organization, but every patient route needs one
-**Severity:** P1 · **Area:** Auth / Routing / Multi-tenancy · **Owner:** @Bastoh · **Status:** ✅ **FIXED 2026-08-28** — *stays here until the PR merges* · was OPEN —
-**needs an architecture decision, not a one-line fix**
-**Found:** 2026-08-19, first live click-through of the app against `api-dev` ·
-**Raised by** @Qeeyat, **assigned to** @Bastoh (auth/routing is the `[INFRA]` lane, and the fix
-changes the route tree and `RESERVED_PATHS`)
-
-> **Numbering:** opened as FLAG-016 and renumbered to **210** on merge — @Qeeyat raised it, so it
-> takes a number from her range; the `Owner:` line is what assigns the work. 016 was not free: once
-> PR #79 merged it became the next number @Bastoh's own agent would take, which is precisely the
-> collision the ranges exist to prevent. Renumbered by @Bastoh at merge time rather than waiting a
-> round-trip, since nothing referenced 016 outside this entry. **Severity is @Qeeyat's P1; see the
-> review on #83 for the argument that it is closer to P0.**
-
-**A patient authenticates successfully and is then refused by our own frontend.** Reproduced in a
-real browser against `api-dev` on 2026-08-19 with `patient@demo.test` on the general portal:
-
-```
-POST /auth/login/          → 200, role PATIENT, redirect_to "/patient/"
-UI shows: "Signed in, but your organization could not be determined.
-           Please use your organization portal."
-```
-
-The advice in that message is itself impossible to follow — the general portal **is** the patient
-portal (`CLAUDE.md` §8); there is no other one for them.
-
-**Three things that don't agree:**
-
-```
-GET /auth/me/ (patient)  →  "organization": null      correct — patients aren't org staff
-roleDashboardPath()      →  `/${orgSlug}/patient`     requires a slug (src/lib/router.ts:16-17)
-src/app/                 →  only /[slug]/patient      no slug-less patient route exists
-```
-
-`src/components/forms/SigninForm.tsx:87` exempts `SUPERADMIN` from the "no slug" guard but not
-`PATIENT`, so every patient is blocked. **The guard is not the bug** — without it,
-`roleDashboardPath(PATIENT, undefined)` builds the literal string **`/undefined/patient`**. It is
-papering over the real mismatch.
-
-**The real mismatch: patients are org-scoped in our routing but org-less in the data model.**
-`organization: null` is correct backend behaviour and follows directly from the product premise in
-`CLAUDE.md` §1 — records move *with the patient* between facilities, so a patient belongs to no
-single org.
-
-⚠️ **This also nuances FLAG-010.** That flag records the backend's `redirect_to` "dropping the org
-slug" as a loaded gun. For **patients specifically, `/patient/` is the correct answer, not a
-defect** — the backend is right and our router is wrong. FLAG-010's blanket framing hides that.
-
-**Two ways out, and the choice is the actual work:**
-
-1. **Add a slug-less `/patient` route.** Consistent with `organization: null` and with the backend's
-   own `redirect_to`. Requires: a new route tree, `'patient'` added to `RESERVED_PATHS` in
-   `src/lib/config.ts` (or an org whose slug is literally `patient` shadows it), and a revisit of
-   `DASHBOARD_SEGMENTS`/`isDashboardRoute` in `src/middleware.ts`, which currently assume
-   `/[slug]/patient`.
-2. **Ask the backend to give patients a home organisation** (an `api-request`). Contradicts the
-   multi-facility premise, so this is the weaker option — noted for completeness, not recommended.
-
-**Blocking:** **D6 Patient is Thu 20 Aug's row.** Whichever way this goes, it is the foundation D6
-sits on, so it wants deciding before that branch is cut rather than during it.
-
-**Done when:** a patient can sign in at `/signin` and land on a working dashboard URL that contains
-no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.md`, and a
-regression test covering a `PATIENT` whose `organization` is `null`.
-
----
-
 ### FLAG-211 — Admission write endpoints are documented, but nurse permission is not
 **Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-19, building D3 Nurse
@@ -1563,9 +1437,190 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
+### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
+
+**Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-06, while trying to "finish the one bullet left on #96"
+
+**#96 (schema-reading guidance) has been CLOSED since 2026-08-31 17:06 — by me, unmerged.** I found
+this only after rebasing it, re-verifying every figure in it against the live schema, fixing three
+things that had gone stale, force-pushing, and posting a comment telling @Bastoh he had been
+blocking it for nine days. He had not. **There was nothing to re-review because I had closed it.**
+
+**Every source the session-start ritual actually reads says the opposite:**
+
+| Source | What it says |
+|---|---|
+| `HANDOFF.md` 🚧 In Flight on `develop` | *"PR #96 — CHANGES_REQUESTED… **Open 7 days**"* |
+| @Bastoh's 1 Sep handover in `HANDOFF.md` | *"#96 — still one bullet to reword, open 7 days"* |
+| `HANDOFF.md` on the unmerged #126 branch | ✅ correct — *"CLOSED 2026-08-31, not merged: fixed at source instead"* |
+
+So the correction exists **only in an unmerged branch**, and the four words it offers as a reason
+(*"fixed at source instead"*) are not true in the sense they imply: **the content is on no merged
+branch.** Verified on `develop` 2026-09-06 — `CLAUDE.md` has no unauthenticated-schema bullet,
+`ONBOARDING.md` has no "Four habits", `CODEBASE_FLAGS.md` has no FLAG-217 correction. The guidance
+@Bastoh independently verified and called *"right, valuable"* — that the schema needs no token, and
+that this API documents role matrices and query params **in prose** — is currently nowhere a
+new dev or agent will ever read it.
+
+🎯 **The general fault is not the closure, it is that closing left no trace where anyone looks.**
+A merge writes itself into the log; **a close writes nothing anywhere.** No PR comment, no session-log
+entry, no In Flight update on a branch that merged. This repo's whole premise is that the other dev's
+assistant sees only what is written down — and a closed PR is invisible to *both* devs' assistants,
+including the author's own, two weeks later.
+
+⚠️ **It also cost @Bastoh's trust budget, not just my time.** The comment I posted asserted he had sat
+on a PR for nine days. That is exactly the accusation this repo's docs are designed to prevent people
+making by accident, and I made it from three documents that all agreed with each other and were all
+wrong.
+
+**Done when** one of —
+1. **#96 is reopened and merged** (the branch is rebased, re-verified and ready — reopening was
+   blocked by tooling permissions on 6 Sep, so it needs a human); **or**
+2. it is deliberately closed again **with the reason written in this file**, its content either
+   ported or explicitly abandoned in writing, and the In Flight row + @Bastoh's handover note both
+   corrected — the false "open 7 days" claim removed from every place it appears.
+
+**And regardless of which:** when a PR is closed unmerged, say so in the same places a merge would be
+recorded — the In Flight table, and one line in the session log naming *why* and *where the content
+went*.
+
+---
+
 ## Resolved flags
 
-*(none yet — move entries here with their PR number and resolution date)*
+> ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
+> not resolved** — those entries were appended to the end of the file as they were raised, and the
+> heading has been sitting above them since. Read each entry's own **Status** line, not its position.
+> Left as-is rather than reordering other people's flags mid-session; worth straightening in a
+> dedicated pass.
+
+### FLAG-001 — Authorization is decided from a client-writable cookie
+**Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — PR #99, merged 2026-09-03** by @Qeeyat, as a merge commit. Verified on the merge commit from a clean `.next`: tsc clean · lint clean · 211/211 · build green. The fix was re-proven RED-first by running the new middleware tests against the pre-fix middleware (`f4b4832`): **7 failed | 13 passed**. Residual race logged as [FLAG-020]
+**Found:** 2026-08-08, codebase survey
+
+The `hc_user` cookie is set `httpOnly: false` (`src/lib/auth.ts:30`) so the UI can read the user's
+name and role. But it is also what every role gate reads:
+
+```ts
+// src/app/[slug]/doctor/page.tsx:11 — same pattern on all six dashboards
+if (!user || user.role !== ROLES.DOCTOR) redirect(`/${slug}/signin`);
+```
+
+`src/middleware.ts:68` parses the same cookie for redirect decisions. A user can edit
+`document.cookie` to set `role: "DOCTOR"` and any `organization_slug`, then load another org's
+dashboard shell.
+
+**Impact today is limited:** every real data fetch carries the bearer token and DRF enforces
+permissions server-side, so the attacker lands in an empty skeleton getting 403s. It is not a data
+breach. It *is* a client-trusted authorization decision, and that stops being theoretical the
+moment PHI arrives.
+
+**Done when:** role/tenant gating decides from a server-trusted source (access token claims or a
+server-side lookup), the `hc_user` cookie is display-only, and a test proves a tampered `hc_user`
+cookie cannot render another role's or another org's dashboard.
+
+> ✅ **Fixed 2026-08-28.** All six page gates now call `requireDashboardUser()`
+> (`lib/auth-server.ts`), which resolves identity from `GET /auth/me/` using the **httpOnly** access
+> token. `hc_user` is annotated display-only at its definition and at `getUser()`.
+>
+> 🔍 **Access-token claims were the cheaper fix and are not available.** Decoded a real token from
+> `api-dev` rather than assuming: the payload is stock SimpleJWT —
+> `{ token_type, exp, iat, jti, user_id }`, **no role, no organisation**. So a server lookup is the
+> only server-trusted option today. It costs one round trip per gated render, held to one by React
+> `cache()`. If the backend later adds `role`/`organization` claims, `getAuthorizedUser()` is the
+> single function to change and the trip disappears — worth an `api-request`, but it is an
+> optimisation, not a blocker.
+>
+> 🚨 **A second hole was found while fixing the first, and it needed no tampering at all.** The gates
+> checked the *role* and never compared the route slug to the user's organisation, so a real doctor at
+> `demo-clinic` could open `/other-clinic/doctor` and get that org's dashboard shell by typing a URL.
+> Multi-tenancy is the core constraint of this product, so this is now asserted in the same gate and
+> covered by its own test.
+>
+> ⚠️ **The fix fails closed, deliberately.** `serverFetch` returns `null` for everything — no token,
+> 401, 500, network blip (FLAG-005) — and the gate treats every one as DENY. The cost is that a
+> backend wobble bounces people to signin rather than showing a stale shell. That is the right trade
+> for an authorization decision, but it does mean **FLAG-005 now has a UX consequence it did not have
+> before**, which is an argument for raising its priority.
+>
+> Also corrected in passing: the superadmin gate redirected to `/signin`, the **patients-only** portal
+> where the backend rejects staff — the same defect PR #84 fixed in `middleware.ts`, still live here.
+> It now goes to `/superadmin/signin`.
+>
+> **Not changed:** `middleware.ts` still reads `hc_user` for its signin-page redirect. That is a
+> convenience redirect, not an authorization decision — a tampered cookie can now only send the
+> attacker to a dashboard that refuses to render.
+
+---
+
+### FLAG-210 — A patient cannot sign in: they have no organization, but every patient route needs one
+**Severity:** P1 · **Area:** Auth / Routing / Multi-tenancy · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — PR #100, merged 2026-09-03** by @Qeeyat, as a merge commit, immediately after #99. Verified from a clean `.next`: tsc clean · lint clean · 211/211 · build green · `/patient` present in the route tree. **Patients can sign in for the first time.** · was OPEN —
+**needs an architecture decision, not a one-line fix**
+**Found:** 2026-08-19, first live click-through of the app against `api-dev` ·
+**Raised by** @Qeeyat, **assigned to** @Bastoh (auth/routing is the `[INFRA]` lane, and the fix
+changes the route tree and `RESERVED_PATHS`)
+
+> **Numbering:** opened as FLAG-016 and renumbered to **210** on merge — @Qeeyat raised it, so it
+> takes a number from her range; the `Owner:` line is what assigns the work. 016 was not free: once
+> PR #79 merged it became the next number @Bastoh's own agent would take, which is precisely the
+> collision the ranges exist to prevent. Renumbered by @Bastoh at merge time rather than waiting a
+> round-trip, since nothing referenced 016 outside this entry. **Severity is @Qeeyat's P1; see the
+> review on #83 for the argument that it is closer to P0.**
+
+**A patient authenticates successfully and is then refused by our own frontend.** Reproduced in a
+real browser against `api-dev` on 2026-08-19 with `patient@demo.test` on the general portal:
+
+```
+POST /auth/login/          → 200, role PATIENT, redirect_to "/patient/"
+UI shows: "Signed in, but your organization could not be determined.
+           Please use your organization portal."
+```
+
+The advice in that message is itself impossible to follow — the general portal **is** the patient
+portal (`CLAUDE.md` §8); there is no other one for them.
+
+**Three things that don't agree:**
+
+```
+GET /auth/me/ (patient)  →  "organization": null      correct — patients aren't org staff
+roleDashboardPath()      →  `/${orgSlug}/patient`     requires a slug (src/lib/router.ts:16-17)
+src/app/                 →  only /[slug]/patient      no slug-less patient route exists
+```
+
+`src/components/forms/SigninForm.tsx:87` exempts `SUPERADMIN` from the "no slug" guard but not
+`PATIENT`, so every patient is blocked. **The guard is not the bug** — without it,
+`roleDashboardPath(PATIENT, undefined)` builds the literal string **`/undefined/patient`**. It is
+papering over the real mismatch.
+
+**The real mismatch: patients are org-scoped in our routing but org-less in the data model.**
+`organization: null` is correct backend behaviour and follows directly from the product premise in
+`CLAUDE.md` §1 — records move *with the patient* between facilities, so a patient belongs to no
+single org.
+
+⚠️ **This also nuances FLAG-010.** That flag records the backend's `redirect_to` "dropping the org
+slug" as a loaded gun. For **patients specifically, `/patient/` is the correct answer, not a
+defect** — the backend is right and our router is wrong. FLAG-010's blanket framing hides that.
+
+**Two ways out, and the choice is the actual work:**
+
+1. **Add a slug-less `/patient` route.** Consistent with `organization: null` and with the backend's
+   own `redirect_to`. Requires: a new route tree, `'patient'` added to `RESERVED_PATHS` in
+   `src/lib/config.ts` (or an org whose slug is literally `patient` shadows it), and a revisit of
+   `DASHBOARD_SEGMENTS`/`isDashboardRoute` in `src/middleware.ts`, which currently assume
+   `/[slug]/patient`.
+2. **Ask the backend to give patients a home organisation** (an `api-request`). Contradicts the
+   multi-facility premise, so this is the weaker option — noted for completeness, not recommended.
+
+**Blocking:** **D6 Patient is Thu 20 Aug's row.** Whichever way this goes, it is the foundation D6
+sits on, so it wants deciding before that branch is cut rather than during it.
+
+**Done when:** a patient can sign in at `/signin` and land on a working dashboard URL that contains
+no org slug and no `undefined`, with the decision recorded here and in `HANDOFF.md`, and a
+regression test covering a `PATIENT` whose `organization` is `null`.
+
+---
+
 
 ---
 
@@ -2216,7 +2271,6 @@ starts passing, the source has been fixed — delete the annotation.**
 - [ ] `knownStatBug` deleted from the doctor entry in `e2e/design/roles.spec.ts`, and that test passes.
 - [ ] The two remaining unverified dashboards — **Nurse and Patient** — rendered the same way. Nothing
       yet proves they are clean; nobody has been able to run them (no credentials / [[FLAG-210]]).
-
 ---
 
 ### FLAG-233 — The suite's 5s default timeout fails ~24 tests on a loaded machine, starting with the FLAG-001 guard
@@ -2274,3 +2328,37 @@ a plausible regression. Ruling it out meant checking out `develop` and re-runnin
       dynamic-import cases. **A global bump is the weaker fix** — it hides the next slow test too.
 - [ ] Either way, **run the full suite three times and confirm it is green three times.** A single
       green run is exactly what this flag is about.
+
+---
+
+### FLAG-228 — A Google Fonts fetch inside `npm run build` can turn any CI run red
+**Severity:** P3 · **Area:** CI / Build · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-03, reviewing why PR #120 showed a failing check
+
+`next/font/google` fetches the font files **at build time**, so `npm run build` makes a live call to
+`fonts.googleapis.com`. On PR #120 that call failed on the runner and the build died:
+
+```
+##[error]The build failed, but NOT on the A4 fail-loud guard.
+NextFontError: Failed to fetch `Lato` from Google Fonts.
+```
+
+The job that failed is **"Build fails loud without a tier URL"** — the A4 guard, which exists to prove
+the build *refuses* to run without `NEXT_PUBLIC_API_URL`. It is a network flake, nothing to do with
+#120's diff, and the job's own error line says so. Re-running the workflow clears it.
+
+**Why it is worth a flag rather than a shrug:**
+
+1. **It is indistinguishable from a real failure at a glance.** A red X on a PR is the one signal a
+   reviewer is meant to trust, and #116 has just made CI a gate. A check that fails randomly teaches
+   people to merge past red — the exact habit FLAG-370's permanently-red check was called out for.
+2. **It will hit the A4 guard specifically and repeatedly**, because that job is the one that runs a
+   full build with no cached font.
+3. **It is our only build-time dependency on a third-party host**, which is also an A2-shaped concern:
+   the build reaches out to a domain we do not control.
+
+**Done when:** the fonts are self-hosted (`next/font/local` with the `.woff2` committed, which is the
+documented fix and removes the network call entirely), **or** the CI build step retries once on a
+`NextFontError`. Self-hosting is the better answer — it also removes a render-blocking third-party
+request from every page load.
+
