@@ -476,6 +476,36 @@ export interface NewPatient {
 }
 
 /**
+ * What `POST /patients/` actually returns — **the identifiers are NESTED.**
+ *
+ * ```json
+ * { "message": "Patient registered successfully",
+ *   "patient": { "id": "…", "healthclouda_id": "HCL-…", … } }
+ * ```
+ *
+ * 🪤 **Reading `healthclouda_id` off the top level yields `undefined`, which is
+ * indistinguishable from the field not existing** — and that is exactly the
+ * mistake FLAG-216 recorded as fact for four days. The live schema documents
+ * this 201 as `PatientCreate` (19 fields, no identifiers), because the *request*
+ * serializer sits in the response slot. `PatientViewSet.create` re-serialises
+ * the saved row with `PatientDetailSerializer`. The schema is wrong; the
+ * endpoint is right (backend #137, closed with no code change; issue #101).
+ *
+ * Every field is optional here on purpose: this is an untrusted response shape
+ * that has already been documented wrongly once, so the UI must degrade rather
+ * than assume. See `readCreatedPatient()` in `ReceptionistDashboard`.
+ */
+export interface PatientCreateResponse {
+  message?: string;
+  patient?: {
+    id?: string;
+    healthclouda_id?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+}
+
+/**
  * GET /referrals/received/ item — CAPTURED LIVE 2026-08-28 (FLAG-220).
  *
  * ⚠️ The schema is wrong twice about this endpoint, so do not "tidy" this type
