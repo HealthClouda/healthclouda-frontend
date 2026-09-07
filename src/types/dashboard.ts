@@ -23,9 +23,14 @@ export interface SuperadminStats {
   monthly_revenue?: number;
   active_records?: number;
   // Trend fields are all null on api-dev today; typed so nobody re-invents them.
-  users_trend?: number | null;
+  // ⚠️ The backend builds these as a formatted string (`f"{change:+.1f}%"`),
+  // never a number — verified in apps/superadmin/views.py and the live schema
+  // ("users_trend  string  nullable"). Typed as `number` here would be the same
+  // bug this file exists to fix, just not yet triggered because nothing renders
+  // these fields today.
+  users_trend?: string | null;
   users_trend_up?: boolean | null;
-  orgs_trend?: number | null;
+  orgs_trend?: string | null;
   orgs_trend_up?: boolean | null;
 }
 
