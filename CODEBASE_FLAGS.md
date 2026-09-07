@@ -2314,7 +2314,7 @@ Those three tiles now show real fields under the backend's own names (**Active R
 ---
 
 ### FLAG-227 — Two Doctor stat tiles read fields `/doctor/dashboard/stats/` does not return
-**Severity:** P1 · **Area:** Contract / Doctor dashboard · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P1 · **Area:** Contract / Doctor dashboard · **Owner:** @Qeeyat · **Status:** ✅ CLOSED — #109
 **Found:** 2026-08-31, first T5 render of the Doctor dashboard (`e2e/design/roles.spec.ts`)
 
 The **fourth** dashboard with this bug — after Org Admin (#85), Nurse (NURSE-1) and Superadmin
@@ -2354,14 +2354,18 @@ is real clinical information currently thrown away.
 **Why the unit suite is green:** `DoctorDashboard.test.tsx` fixtures assert our own `DoctorStats`
 interface, so they agree with the component and never with the API. [[FLAG-221]], a fifth time.
 
-**Currently annotated, not fixed.** `roles.spec.ts` marks the doctor tile test `test.fail()` via
-`knownStatBug: 'FLAG-227'`, so the suite is honest rather than permanently red. **When that test
-starts passing, the source has been fixed — delete the annotation.**
+**Fixed by #109.** `todays_appointments` is now wired to the Appointments Today tile, and the dead
+"Prescriptions" tile (`active_prescriptions`, never sent) was replaced with "Admissions Under Care"
+(`admissions_under_care`, genuinely returned) rather than being pointed at a plausible neighbour.
+`knownStatBug: 'FLAG-227'` and the stale `tiles` entry have been removed from the doctor entry in
+`e2e/design/roles.spec.ts`, so that test now runs for real instead of being inverted by `test.fail()`.
 
 **Done when:**
-- [ ] `todays_appointments` wired to the Appointments Today tile.
+- [x] `todays_appointments` wired to the Appointments Today tile.
 - [ ] An `api-request` filed for a prescriptions count — or the tile removed rather than shown blank.
-- [ ] `knownStatBug` deleted from the doctor entry in `e2e/design/roles.spec.ts`, and that test passes.
+      *(Descoped: #109 removed the tile rather than filing the count. Left open as a product ask, not
+      a defect.)*
+- [x] `knownStatBug` deleted from the doctor entry in `e2e/design/roles.spec.ts`, and that test passes.
 - [x] ~~The two remaining unverified dashboards — **Nurse and Patient** — rendered the same way.~~
       **Nurse: done 2026-09-04 and it is CLEAN** — the first dashboard whose stats interface matches
       the live payload exactly. All four tiles carry real values; `NurseStats`' eleven fields are
@@ -2581,7 +2585,7 @@ status to be reported".
 ---
 
 ### FLAG-231 — Two Patient stat tiles read fields `/patients/me/dashboard/` does not return
-**Severity:** P1 · **Area:** Contract / Patient dashboard · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P1 · **Area:** Contract / Patient dashboard · **Owner:** @Qeeyat · **Status:** ✅ CLOSED — #109
 **Found:** 2026-09-04, from the **newly published schema** — not from a render, because nobody can render this dashboard yet
 
 The **fifth** dashboard with this bug, after Org Admin (#85), Nurse (NURSE-1), Superadmin
@@ -2642,22 +2646,30 @@ complete rather than partial, and the two names are absent entirely rather than 
 is an integer or object — **that is a wrong *type*, not a wrong *presence***, so it does not weaken
 this finding. **Still: confirm against a live payload the first time a patient token exists.**
 
-**Currently annotated, not fixed.** `roles.spec.ts` carries `knownStatBug: 'FLAG-231'` on the patient
-entry, so when credentials land the suite stays honest instead of going red, and turns red when
-someone fixes the source.
+**Fixed by #109, mostly.** `PatientDashboardData` was re-typed to drop `upcoming_appointments` and
+`pending_access_requests`. "Upcoming Appts" survives on a genuine value — `apptData.count` from the
+scheduled-appointments fetch the page already makes, not the stats endpoint — so it needed no rename
+inside `PatientDashboardData` at all. "Access Requests" was removed outright rather than repointed;
+the tile row is now three, not four. `knownStatBug: 'FLAG-231'` and the stale `tiles` entries have
+been removed from `e2e/design/roles.spec.ts`.
+⚠️ **Follow-up, not a blocker to closure:** the fix has not yet been confirmed against a live patient
+token (nobody could sign in as one when #109 shipped either) — it rests on the same schema evidence
+this flag was raised from, not a live capture. Worth doing once patient credentials exist; not a
+reason to reopen this entry.
 
 **Done when:**
-- [ ] A live capture as a real patient confirms (or refutes) the two absences.
-- [ ] `PatientDashboardData` is re-typed from that payload — **not from the fixture**, which is how
-      this class survives a green unit suite ([[FLAG-221]]).
-- [ ] The two tiles are repointed at real fields, or removed rather than shown blank. `total_episodes`
-      is a plausible honest substitute for one of them; that is a **design call**, not a rename.
-- [ ] `knownStatBug` deleted from the patient entry in `e2e/design/roles.spec.ts`, and that test passes.
+- [ ] A live capture as a real patient confirms (or refutes) the fix, once patient credentials exist.
+      *(Follow-up only — see note above.)*
+- [x] `PatientDashboardData` is re-typed from the published schema — **not from the fixture**, which is
+      how this class survives a green unit suite ([[FLAG-221]]).
+- [x] The two tiles are repointed at real fields (Upcoming Appts) or removed (Access Requests) rather
+      than shown blank.
+- [x] `knownStatBug` deleted from the patient entry in `e2e/design/roles.spec.ts`, and that test passes.
 
 ---
 
 ### FLAG-232 — The complete stat-contract audit: 9 phantom fields across 3 dashboards, and 23 published fields nothing renders
-**Severity:** P1 · **Area:** Contract / all dashboards · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P1 · **Area:** Contract / all dashboards · **Owner:** @Qeeyat · **Status:** 🟡 MOSTLY CLOSED — #109 (merged 2026-09-07) fixed all 9 phantom-field reads; the unused-field design call and the CI-job item remain open
 **Found:** 2026-09-05, first full audit of every stats interface against the published schema
 
 This is the **parent measurement** for [[FLAG-222]], [[FLAG-227]] and [[FLAG-231]]. Until 2026-09-03
@@ -2718,14 +2730,19 @@ I wrote *"five of seven"*. **There are six dashboards; seven is the number of st
 > only dashboard never affected.
 
 **Done when:**
-- [ ] `SuperadminStats`, `DoctorStats` and `PatientDashboardData` are re-typed from these components,
-      and each tile bound to a field that exists — or removed rather than shown blank.
+- [x] `SuperadminStats`, `DoctorStats` and `PatientDashboardData` are re-typed from these components,
+      and each tile bound to a field that exists — or removed rather than shown blank. #109: Superadmin
+      dropped the "Active Organisations" and "Total Patients" phantom tiles and now shows Total Users /
+      Organisations / Active Records, all real; Doctor and Patient fixed per [[FLAG-227]]/[[FLAG-231]].
 - [ ] A decision on the 23 unused fields. The superadmin `*_trend` set and the patient's
       `current_admission` / `active_prescriptions` / `active_instructions` are **real information
-      currently discarded**; the rest may be genuinely unwanted. This is a **design call**.
-- [ ] An `api-request` for a doctor-side prescriptions count, or the Doctor tile comes out.
+      currently discarded**; the rest may be genuinely unwanted. This is a **design call**, still open —
+      #109 fixed presence, not the "should we show more" question.
+- [x] An `api-request` for a doctor-side prescriptions count, or the Doctor tile comes out. #109 removed
+      the tile rather than filing the request — same descope noted on [[FLAG-227]].
 - [ ] ⚠️ **Confirm against live payloads before shipping the retype.** Per backend [[FLAG-554]] six
       nested fields in this batch publish with the wrong *type*. This audit checks **presence**, which
-      is what the phantom-field bug is about — but a published type is not yet trustworthy.
+      is what the phantom-field bug is about — but a published type is not yet trustworthy. Still open:
+      #109 fixed presence from the schema, not a live-payload type check.
 - [ ] The audit re-runnable: it is ~60 lines and should live in the repo so this cannot silently
-      regress. Candidate for a CI job once [[FLAG-230]] is fixed.
+      regress. Candidate for a CI job once [[FLAG-230]] is fixed. Still open.

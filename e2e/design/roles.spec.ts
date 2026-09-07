@@ -138,9 +138,13 @@ const ROLES: readonly RoleSpec[] = [
       { nav: 'Referrals', title: 'Referrals' },
       { nav: 'Prescriptions', title: 'Prescriptions' },
     ],
-    tiles: ['Active Episodes', 'Appointments Today', 'Pending Referrals', 'Prescriptions'],
+    // #109 (FLAG-222/227) fixed the field-name mismatch and swapped the dead
+    // "Prescriptions" tile (read `active_prescriptions`, never sent) for
+    // "Admissions Under Care" (`admissions_under_care`, genuinely returned).
+    // `knownStatBug` is removed per this file's own convention: the test now
+    // passes for real instead of being inverted.
+    tiles: ['Active Episodes', 'Appointments Today', 'Pending Referrals', 'Admissions Under Care'],
     mobile: 'gate',
-    knownStatBug: 'FLAG-227',
   },
   {
     role: 'patient',
@@ -152,15 +156,15 @@ const ROLES: readonly RoleSpec[] = [
       { nav: 'Appointments', title: 'Appointments' },
       { nav: 'Access & Referrals', title: 'Access & Referrals' },
     ],
-    tiles: ['Upcoming Appts', 'Active Episodes', 'Access Requests', 'Notifications'],
+    // #109 (FLAG-231) confirmed the prediction: `upcoming_appointments` and
+    // `pending_access_requests` were never in the payload. "Upcoming Appts"
+    // survives on a real value — `apptData.count` from the scheduled-
+    // appointments fetch the page already makes, not the stats endpoint.
+    // "Access Requests" was removed outright rather than reconstructed (no
+    // cheap source), so the row is three tiles now, not four. `knownStatBug`
+    // removed for the same reason as doctor, above.
+    tiles: ['Upcoming Appts', 'Active Episodes', 'Notifications'],
     mobile: 'responsive',
-    // Predicted from the newly published `PatientDashboard` component rather
-    // than observed, because this dashboard still cannot be signed into:
-    // `upcoming_appointments` and `pending_access_requests` are not in it, and
-    // nothing appointment- or access-shaped is published at all. Confirm
-    // against a live payload the first time a patient token exists — if this
-    // test XPASSes, the prediction was wrong and FLAG-231 should say so.
-    knownStatBug: 'FLAG-231',
   },
 ];
 

@@ -151,8 +151,14 @@ the tiering is wrong.
 > "the app is broken" rather than as a misconfiguration** — just a different silence.
 >
 > ✅ **The ordering is still right; it now needs a precondition.** Before the override goes in:
-> `curl https://api-beta.healthclouda.com/api/v1/schema/` **must return 200.** Until then #98 stays held —
-> which is where @Qeeyat already put it on 31 Aug, for a different reason that turned out to be the same one.
+> `curl https://api-beta.healthclouda.com/api/v1/schema/` **must return 200.**
+>
+> 🔄 **Re-measured 2026-09-07 — the TLS blocker above is gone.** `curl -o /dev/null -w '%{http_code}'
+> https://api-beta.healthclouda.com/api/v1/schema/` now returns **200**, not the `SEC_E_WRONG_PRINCIPAL`
+> failure recorded above — the precondition this item was waiting on is satisfied. `beta.healthclouda.com`
+> itself is **still NXDOMAIN** (re-checked the same day), so the item stays open on that half; #98 stays
+> held on the DNS record, not on the certificate anymore. Don't ship the two-day-old TLS negative as the
+> current state of `api-beta` — that half is fixed.
 
 ---
 

@@ -230,9 +230,10 @@ FLAG-221 and FLAG-222.
 ⚠️ **Corrected 2026-09-04 — this paragraph used to read "There is **no CI** (FLAG-006)". That has
 been false since #116 merged on 1 Sep**, and the correction matters in both directions:
 
-- **CI exists and runs.** `.github/workflows/ci.yml` runs three jobs on every PR — `verify` (tsc,
-  the suite, the build), `lint` at `--max-warnings=0`, and `tier-guard` (the A4 fail-loud check).
-  FLAG-006 is closed.
+- **CI exists and runs.** `.github/workflows/ci.yml` runs three jobs on every PR **based on
+  `develop`/`staging`/`main`** — `verify` (tsc, the suite, the build), `lint` at `--max-warnings=0`,
+  and `tier-guard` (the A4 fail-loud check). A PR stacked on a feature branch matches neither trigger
+  and gets none of them until it is retargeted (seen firsthand on #128). FLAG-006 is closed.
 - **CI still gates nothing.** Ruleset 11328360 carries **no required status checks**, so a red run
   does not block a merge. A green tick therefore implies a gate that is not wired up. Making the
   three jobs required is a repo-settings change only @Bastoh can make.
