@@ -36,7 +36,11 @@ const user = {
   id: 'sa1', email: 'admin@healthclouda.com', first_name: 'Zainab', last_name: 'Bello', role: 'SUPERADMIN',
 } as unknown as User;
 
-const stats = { total_organizations: 27, active_organizations: 25, total_users: 4382, total_patients: 900 };
+// CAPTURED LIVE 2026-08-29 (FLAG-222) — GET /superadmin/dashboard/.
+// Was `{total_organizations, active_organizations, total_users, total_patients}`:
+// three of those four fields do not exist, so three tiles rendered '—' against
+// real data while this fixture kept the tests green.
+const stats = { total_users: 4382, total_orgs: 27, monthly_revenue: 0, active_records: 900 };
 
 const activeOrg = {
   id: 'org-1', org_id: 'HCL-NG-DEMO-01', name: 'Demo Clinic', slug: 'demo-clinic', org_type: 'CLINIC',
@@ -315,5 +319,33 @@ describe('Superadmin — Users page', () => {
     fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
     fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
     expect(dataActionMock).not.toHaveBeenCalledWith('/auth/users/', 'POST', expect.anything());
+  });
+});
+
+describe('FLAG-222 — stat tiles must read the fields the API actually sends', () => {
+  it('renders every tile from the captured /superadmin/dashboard/ payload', async () => {
+    // The fixture above IS the live shape. Before this, the tiles read
+    // total_organizations / active_organizations / total_patients — none of
+    // which exist — so three of four rendered '—' on real data while these
+    // tests stayed green against our own type.
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    expect(await screen.findByText('4382')).toBeInTheDocument(); // total_users
+    expect(screen.getByText('27')).toBeInTheDocument();          // total_orgs
+    expect(screen.getByText('900')).toBeInTheDocument();         // active_records
+
+    // No tile may render the empty placeholder from a payload this complete —
+    // that is precisely what the bug looked like on screen.
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
+  });
+
+  it('does not show tiles the endpoint cannot populate', () => {
+    // "Active Orgs" and "Total Patients" were removed rather than left blank:
+    // there is no active-orgs field (/org/?is_active= is silently ignored) and
+    // active_records is NOT a patient count (18 vs /patients/ count 30).
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    expect(screen.queryByText('Active Orgs')).not.toBeInTheDocument();
+    expect(screen.queryByText('Total Patients')).not.toBeInTheDocument();
   });
 });
