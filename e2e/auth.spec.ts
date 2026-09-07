@@ -6,7 +6,10 @@ test.describe('General Signin Page', () => {
   });
 
   test('renders the sign-in form', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
+    // FLAG-024: the heading reads "Login to HealthClouda", not "Sign in". The
+    // BUTTON is "Sign In" — which is why only this assertion failed and the rest
+    // of the file passed.
+    await expect(page.getByRole('heading', { name: /Login to HealthClouda/i })).toBeVisible();
     await expect(page.getByPlaceholder(/email/i)).toBeVisible();
   });
 
