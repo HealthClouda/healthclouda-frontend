@@ -130,6 +130,16 @@ export const ENDPOINTS = {
   ORG_ADMIN_REFERRALS: '/referrals/received/',
   REFERRAL_ACCEPT: (id: string) => `/referrals/${id}/accept/`,
   REFERRAL_DECLINE: (id: string) => `/referrals/${id}/decline/`,
+  // POST /referrals/ — `ReferralViewSet.create` (backend `apps/referrals/views.py:107`).
+  // Read from source, not the schema (they agree here, but this endpoint's
+  // siblings have been wrong before — FLAG-220). Its own docstring says "This
+  // path is external-only (cross-org)"; `CanManageReferrals` restricts the
+  // action to `role == 'DOCTOR'` (or SUPERADMIN). Deliberately not the
+  // doctor-namespaced twin `POST /doctor/referrals/` (`DOC_REFERRALS`,
+  // `apps/patients/doctor_views.py:596`), which also supports internal
+  // same-org referrals — out of scope here; see FLAG-027 (no directory
+  // endpoint exists yet for a doctor to pick a target org OR a colleague).
+  REFERRAL_CREATE: '/referrals/',
   REC_NOTIFY_DOCTORS: (id: string) => `/receptionist/referrals/${id}/notify-doctors/`,
   // D4. `/patients/` is the shared patient CRUD viewset, NOT a receptionist
   // route — its schema description spells out the role rules verbatim:

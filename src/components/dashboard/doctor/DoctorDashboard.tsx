@@ -18,6 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
+  ReferralCreateInput, ReferralCreateResponse,
 } from '@/types/dashboard';
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -128,7 +129,10 @@ const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
   { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
 ];
 
-function patientColumns(onStartEpisode: (p: PatientSummary) => void): DataTableColumn<PatientSummary>[] {
+function patientColumns(
+  onStartEpisode: (p: PatientSummary) => void,
+  onRefer: (p: PatientSummary) => void,
+): DataTableColumn<PatientSummary>[] {
   return [
   {
     key: 'patient',
@@ -149,12 +153,20 @@ function patientColumns(onStartEpisode: (p: PatientSummary) => void): DataTableC
   {
     key: 'actions', header: '', className: 'text-right',
     render: p => (
-      <button
-        onClick={() => onStartEpisode(p)}
-        className="text-xs font-medium text-primary-dark hover:underline"
-      >
-        New episode
-      </button>
+      <div className="flex items-center justify-end gap-3">
+        <button
+          onClick={() => onStartEpisode(p)}
+          className="text-xs font-medium text-primary-dark hover:underline"
+        >
+          New episode
+        </button>
+        <button
+          onClick={() => onRefer(p)}
+          className="text-xs font-medium text-primary-dark hover:underline"
+        >
+          Refer
+        </button>
+      </div>
     ),
   },
   ];
@@ -477,20 +489,216 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
   );
 }
 
+const URGENCY_OPTIONS: { value: ReferralCreateInput['urgency']; label: string }[] = [
+  { value: 'EMERGENCY', label: 'Emergency — immediate intervention' },
+  { value: 'URGENT', label: 'Urgent — review within hours to a few days' },
+  { value: 'SEMI_URGENT', label: 'Semi-Urgent — assessment within days to weeks' },
+  { value: 'ROUTINE', label: 'Routine — no significant risk from waiting' },
+  { value: 'ELECTIVE', label: 'Elective — planned, non-urgent' },
+];
+
+/**
+ * External (cross-org) referral only — `POST /referrals/`
+ * (`ReferralViewSet.create`, external-only per its own docstring). Internal
+ * doctor-to-doctor referrals are out of scope for this panel: the backend has
+ * no endpoint that lets a doctor list either receiving organizations OR
+ * colleague doctors (FLAG-027), so neither picker can be built as a real
+ * picker yet. `to_organization` below is a plain ID field for the same reason
+ * — not a shortcut, the honest state of what's answerable today.
+ */
+function NewReferralPanel({ patient, onClose, onCreated }: {
+  patient: PatientSummary | null;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    to_organization: '',
+    urgency: 'ROUTINE' as ReferralCreateInput['urgency'],
+    reason: '',
+    clinical_findings: '',
+    provisional_diagnosis: '',
+    relevant_history: '',
+    recommended_investigations: '',
+    recommended_treatment: '',
+  });
+  const [consentObtained, setConsentObtained] = useState(false);
+  const [destinationDisclosed, setDestinationDisclosed] = useState(false);
+
+  const set = (k: keyof typeof form) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const canSubmit =
+    !!patient && form.to_organization.trim() !== '' && form.reason.trim() !== '' &&
+    form.clinical_findings.trim() !== '' && form.provisional_diagnosis.trim() !== '' &&
+    consentObtained && destinationDisclosed;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit || saving) return;
+    setSaving(true);
+    try {
+      const payload: ReferralCreateInput = {
+        patient: patient!.id,
+        to_organization: form.to_organization.trim(),
+        reason: form.reason,
+        clinical_findings: form.clinical_findings,
+        provisional_diagnosis: form.provisional_diagnosis,
+        urgency: form.urgency,
+        patient_consent_obtained: consentObtained,
+        consent_destination_disclosed: destinationDisclosed,
+      };
+      if (form.relevant_history.trim() !== '') payload.relevant_history = form.relevant_history;
+      if (form.recommended_investigations.trim() !== '') {
+        payload.recommended_investigations = form.recommended_investigations;
+      }
+      if (form.recommended_treatment.trim() !== '') payload.recommended_treatment = form.recommended_treatment;
+
+      const res = await apiAction(ENDPOINTS.REFERRAL_CREATE, 'POST', payload) as ReferralCreateResponse;
+      // A 201 alone does not mean the letter exists — the backend swallows
+      // PDF-generation failures and still returns 201 (D9, still open). Only
+      // `has_letter` says whether the letter actually generated.
+      if (res?.referral?.has_letter === false) {
+        toast.success('Referral created — the letter could not be generated. Check the referral for its letter status.');
+      } else {
+        toast.success('Referral created');
+      }
+      onCreated();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not create referral');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const label = 'block text-xs font-medium text-text-soft';
+  const field =
+    'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
+
+  return (
+    <SlidePanel
+      open={!!patient}
+      onClose={onClose}
+      title="Refer to another organization"
+      subtitle={patient ? `${patient.first_name} ${patient.last_name}` : undefined}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+          <button type="submit" form="new-referral" disabled={!canSubmit || saving}
+            className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+            {saving ? 'Sending…' : 'Send referral'}
+          </button>
+        </div>
+      }
+    >
+      <form id="new-referral" onSubmit={submit} className="space-y-4">
+        <label className={label}>
+          Receiving organization ID
+          <input
+            value={form.to_organization}
+            onChange={set('to_organization')}
+            placeholder="Ask the receiving organization for their ID"
+            className={field}
+          />
+        </label>
+        {/* FLAG-027: no endpoint exists yet for a doctor to browse or search
+            organizations, so this can't be a real picker — it has to be typed
+            in until that gap closes. */}
+        <p className="text-[11px] text-text-soft -mt-2">
+          There&apos;s no organization directory in the app yet — get this ID directly from the
+          receiving organization.
+        </p>
+
+        <label className={label}>
+          Urgency
+          <select value={form.urgency} onChange={set('urgency')} className={field}>
+            {URGENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+
+        <label className={label}>
+          Reason for referral
+          <textarea rows={2} value={form.reason} onChange={set('reason')} className={field} />
+        </label>
+
+        <label className={label}>
+          Clinical findings
+          <textarea rows={3} value={form.clinical_findings} onChange={set('clinical_findings')} className={field} />
+        </label>
+
+        <label className={label}>
+          Provisional diagnosis
+          <input value={form.provisional_diagnosis} onChange={set('provisional_diagnosis')} className={field} />
+        </label>
+
+        <label className={label}>
+          Relevant history <span className="font-normal">(optional — your discretion on what&apos;s relevant)</span>
+          <textarea rows={2} value={form.relevant_history} onChange={set('relevant_history')} className={field} />
+        </label>
+
+        <label className={label}>
+          Recommended investigations <span className="font-normal">(optional)</span>
+          <textarea rows={2} value={form.recommended_investigations} onChange={set('recommended_investigations')} className={field} />
+        </label>
+
+        <label className={label}>
+          Recommended treatment <span className="font-normal">(optional)</span>
+          <textarea rows={2} value={form.recommended_treatment} onChange={set('recommended_treatment')} className={field} />
+        </label>
+
+        <div className="border-t border-border pt-3 space-y-2">
+          {/* FLAG-272 on the backend: these are the DOCTOR'S attestation, not
+              the patient clicking a consent checkbox themselves. Wording has
+              to say that plainly — this is a compliance record, not copy. */}
+          <label className="flex items-start gap-2 text-xs text-ink">
+            <input
+              type="checkbox"
+              checked={consentObtained}
+              onChange={e => setConsentObtained(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>I confirm I obtained this patient&apos;s verbal consent to share their information with the receiving organization.</span>
+          </label>
+          <label className="flex items-start gap-2 text-xs text-ink">
+            <input
+              type="checkbox"
+              checked={destinationDisclosed}
+              onChange={e => setDestinationDisclosed(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>I confirm I told the patient which organization they are being referred to.</span>
+          </label>
+        </div>
+
+        <p className="text-[11px] text-text-soft">
+          Reason, clinical findings and provisional diagnosis are required, along with both
+          confirmations above. This creates a PDF referral letter for the receiving organization —
+          it does not give them access to this patient&apos;s record.
+        </p>
+      </form>
+    </SlidePanel>
+  );
+}
+
 function MyPatientsPage() {
   const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<PatientSummary>(ENDPOINTS.DOC_MY_PATIENTS);
   // Episodes start FROM a patient row rather than from a picker inside the
   // episodes page. A picker would have to list patients, and a client-side one
   // sees only the first page (FLAG-214) — a doctor silently unable to find
-  // their own patient is worse than one extra click.
+  // their own patient is worse than one extra click. Referrals start the same
+  // way, for the same reason.
   const [startFor, setStartFor] = useState<PatientSummary | null>(null);
+  const [referFor, setReferFor] = useState<PatientSummary | null>(null);
 
   return (
     <div className="space-y-4">
       <PageHeading title="My Patients" count={count} unit="active" />
       <DataTable
-        columns={patientColumns(setStartFor)}
+        columns={patientColumns(setStartFor, setReferFor)}
         data={patients}
         getRowKey={p => p.id}
         loading={loading}
@@ -507,6 +715,11 @@ function MyPatientsPage() {
       <NewEpisodePanel
         patient={startFor}
         onClose={() => setStartFor(null)}
+        onCreated={refetch}
+      />
+      <NewReferralPanel
+        patient={referFor}
+        onClose={() => setReferFor(null)}
         onCreated={refetch}
       />
     </div>

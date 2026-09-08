@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DoctorDashboard } from './DoctorDashboard';
 import { ENDPOINTS } from '@/lib/config';
+import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
 
 /**
@@ -346,6 +347,133 @@ describe('D5 — starting an episode', () => {
     // Free text or an invented value here is a 400. Enum read from the live
     // schema 2026-08-24.
     expect(values).toEqual(['OUTPATIENT', 'INPATIENT', 'EMERGENCY', 'CONSULTATION']);
+  });
+});
+
+/**
+ * The doctor "create referral" UI — the wedge feature had no create path at
+ * all before this. Contract read from `apps/referrals/serializers.py`
+ * (`ReferralCreateSerializer`) and `apps/referrals/views.py`
+ * (`ReferralViewSet.create`), cross-checked against the live schema
+ * 2026-09-08 (they agree). External (cross-org) referrals only — see
+ * FLAG-027 for why internal doctor-to-doctor referral creation is out of
+ * scope.
+ */
+describe('doctor referral creation', () => {
+  const patientsPage = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'pat-1',
+      first_name: 'Chidi',
+      last_name: 'Nwosu',
+      email: 'chidi@example.test',
+      phone_number: '08031231234',
+      date_of_birth: '1990-04-02',
+      created_at: '2026-07-01T10:00:00Z',
+    }],
+  };
+
+  async function openReferralPanel() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(patientsPage);
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Refer' }));
+    await screen.findByLabelText(/Receiving organization ID/);
+  }
+
+  function fillRequiredFields() {
+    fireEvent.change(screen.getByLabelText(/Receiving organization ID/), {
+      target: { value: 'org-uuid-1' },
+    });
+    fireEvent.change(screen.getByLabelText(/Reason for referral/), {
+      target: { value: 'Needs cardiology review' },
+    });
+    fireEvent.change(screen.getByLabelText(/Clinical findings/), {
+      target: { value: 'BP 160/100, irregular rhythm' },
+    });
+    fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), {
+      target: { value: 'Suspected arrhythmia' },
+    });
+    fireEvent.click(screen.getByText(/obtained this patient's verbal consent/));
+    fireEvent.click(screen.getByText(/told the patient which organization/));
+  }
+
+  it('posts to the canonical /referrals/ endpoint, not the doctor-namespaced twin', async () => {
+    dataActionMock.mockResolvedValue({ referral: { id: 'r-1', has_letter: true } });
+    await openReferralPanel();
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe(ENDPOINTS.REFERRAL_CREATE);
+    expect(path).toBe('/referrals/');
+    expect(path).not.toBe(ENDPOINTS.DOC_REFERRALS);
+    expect(method).toBe('POST');
+    expect(body).toMatchObject({
+      patient: 'pat-1',
+      to_organization: 'org-uuid-1',
+      reason: 'Needs cardiology review',
+      clinical_findings: 'BP 160/100, irregular rhythm',
+      provisional_diagnosis: 'Suspected arrhythmia',
+      urgency: 'ROUTINE',
+      patient_consent_obtained: true,
+      consent_destination_disclosed: true,
+    });
+    // Optional fields left blank must be omitted, not sent as ''.
+    expect(Object.keys(body as Record<string, unknown>)).not.toContain('relevant_history');
+  });
+
+  it('will not submit until both doctor-attestation checkboxes are ticked', async () => {
+    await openReferralPanel();
+    fireEvent.change(screen.getByLabelText(/Receiving organization ID/), {
+      target: { value: 'org-uuid-1' },
+    });
+    fireEvent.change(screen.getByLabelText(/Reason for referral/), { target: { value: 'x' } });
+    fireEvent.change(screen.getByLabelText(/Clinical findings/), { target: { value: 'x' } });
+    fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), { target: { value: 'x' } });
+
+    // Neither attestation checked yet — the FLAG-272 doctor-attested consent
+    // the backend hard-requires (`extra_kwargs: required=True` on both).
+    expect(screen.getByRole('button', { name: 'Send referral' })).toBeDisabled();
+
+    fireEvent.click(screen.getByText(/obtained this patient's verbal consent/));
+    expect(screen.getByRole('button', { name: 'Send referral' })).toBeDisabled();
+
+    fireEvent.click(screen.getByText(/told the patient which organization/));
+    expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled();
+  });
+
+  it('offers exactly the five urgency levels from the medical sign-off, defaulting to ROUTINE', async () => {
+    await openReferralPanel();
+    const select = screen.getByLabelText(/Urgency/) as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    expect(values).toEqual(['EMERGENCY', 'URGENT', 'SEMI_URGENT', 'ROUTINE', 'ELECTIVE']);
+    expect(select.value).toBe('ROUTINE');
+  });
+
+  it('does not claim the referral was "sent" as a letter when the backend reports no letter (D9)', async () => {
+    // D9, still open on the backend: `ReferralViewSet.create` swallows
+    // PDF-generation failures and returns 201 regardless. `has_letter: false`
+    // is the only signal that the letter never generated.
+    useToastStore.setState({ toasts: [] });
+    dataActionMock.mockResolvedValue({ referral: { id: 'r-1', has_letter: false } });
+    await openReferralPanel();
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    await waitFor(() => expect(useToastStore.getState().toasts.length).toBeGreaterThan(0));
+    const messages = useToastStore.getState().toasts.map(t => t.message).join(' ');
+    // Must say the referral was created; must NOT claim the letter went out.
+    expect(messages).toMatch(/created/i);
+    expect(messages).not.toMatch(/letter (has been |was )?sent/i);
+    expect(messages).toMatch(/letter/i); // it does have to say SOMETHING about the letter
   });
 });
 

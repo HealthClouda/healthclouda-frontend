@@ -883,6 +883,40 @@ should not be bundled into the same change.
 
 ---
 
+### FLAG-027 — A doctor has no endpoint to find a receiving organization's ID, so the referral-create form can't offer a picker
+**Severity:** P2 · **Area:** Referrals / Contract gap · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-08, building the doctor "create referral" form (the wedge feature)
+
+`POST /api/v1/referrals/` requires `to_organization` as a UUID (backend
+`apps/referrals/serializers.py` — `ReferralCreateSerializer`). Read every path a DOCTOR-role user has
+to an Organization's UUID, source, not schema:
+
+- `GET /api/v1/organizations/` — `OrganizationViewSet.get_queryset()` (`apps/organizations/views.py`)
+  returns `Organization.objects.none()` for anyone who isn't `SUPERADMIN` or the org's own
+  `ORGANIZATION_ADMIN`. A doctor gets an empty list, silently — the 200 looks like "there are no
+  organizations" rather than "you can't see any."
+- `GET /api/v1/organizations/by-slug/<slug>/` — public (`AllowAny`), but `OrganizationBrandingSerializer`
+  deliberately excludes `id` (`name, slug, org_id, org_type, city, state, country_name, logo_url,
+  page_title, clinic_*` only — verified against the serializer, not the schema). It exists for
+  login-page branding, not identity resolution, and the FLAG-128 comment next to it says the
+  back-office fields are withheld on purpose.
+- No other endpoint in `apps/organizations/`, `apps/patients/doctor_views.py`, or
+  `apps/patients/receptionist_views.py` lists or resolves organizations for a non-admin role.
+
+So there is genuinely no way, today, for a doctor to discover which UUID to send as `to_organization`
+— not a missing frontend picker, a missing backend capability. The create form (this branch) ships
+with a plain "Receiving organization ID" text field and inline copy saying the ID has to come from the
+receiving org directly, because inventing a client-side directory backed by nothing would be worse
+than an honest text field.
+
+**Done when:** a doctor-and-org-admin-readable endpoint exists that lists active organizations with
+just `id`, `name`, `org_type`, `city`, `state` — enough to build a real picker, nothing back-office.
+Cross-lane: this is a backend change: `apps/organizations/views.py` `OrganizationViewSet.get_queryset()`
+needs a `DOCTOR`/`NURSE` branch, or a new minimal list view. Filed here because the frontend found it
+building the wedge feature; the backend repo is private and this file cannot carry the fix.
+
+---
+
 ### FLAG-026 — The hourly-logout fix depends on a backend token lifetime we neither control nor can see
 **Severity:** P3 · **Area:** Auth / Session · **Owner:** @Bastoh · **Status:** OPEN
 **Found:** 2026-09-02, reviewing PR #99 before its re-review
