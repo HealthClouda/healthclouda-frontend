@@ -162,8 +162,8 @@ the tiering is wrong.
 
 ---
 
-### 4. **T3 — the role-gate and tenant-isolation suite does not exist** · 🔨 BUILD-ON-DEVELOP
-❌ **Not written.** The sprint plan calls it *"the most important gate suite"*.
+### 4. **T3 — the role-gate and tenant-isolation suite** · 🔨 BUILD-ON-DEVELOP
+✅ **WRITTEN AND PROVEN ABLE TO FAIL — 2026-09-08 (@Qeeyat).** The sprint plan calls it *"the most important gate suite"*.
 
 A5's fix is unfalsifiable without it. Every role × every dashboard: a tampered `hc_user` must not
 render another role's or another org's page.
@@ -172,6 +172,25 @@ render another role's or another org's page.
 run against a deliberately weakened gate, the way the backend proved their cross-org control by
 sabotaging the rule and watching the test report the leak. A control that has never failed is
 indistinguishable from a control that cannot fail.
+
+> ✅ **Both halves satisfied. `src/app/dashboard-gate.matrix.test.tsx` — 58 tests, all six dashboards**
+> (30 role escalations, 10 tenant, 12 fail-closed, 6 legitimate renders). Every denial is *also* a
+> tampered-`hc_user` denial: the cookie is forged per case to claim exactly the role and org the page
+> wants, so a pass says the gate ignored a **correct-looking** forgery, not merely a malformed one.
+>
+> 🎯 **Proven able to fail three separate ways** — `bash scripts/t3-sabotage.sh`, written up in
+> **`docs/T3-SABOTAGE.md`**. Tenant check removed → **8 failed**. Role check removed → **32 failed**.
+> Gate made to fail **open** → **12 failed**. The three sets **do not overlap** and sum to 52, which
+> plus the 6 legitimate-render cases is the whole suite: **every deny assertion in it is load-bearing**,
+> and role, tenant and fail-closed are three genuinely independent controls rather than one control
+> observed three ways.
+>
+> ⚠️ **What this does NOT close, stated because the distinction is this file's job** (the same one
+> drawn against item 2): these are unit tests against a mocked `serverFetch`. They prove the gate
+> **decides** correctly. **Nobody has yet walked a cross-org URL on `dev.healthclouda.com`**, and the
+> suite asserts the redirect, not what a server-rendered response body carried before it — that is
+> **T4**, item 5, and FLAG-203's server channel is still open. The item's own "Done when" asks for the
+> suite and the proof, and both are here; the live walk is worth doing and is not what was asked.
 
 ---
 

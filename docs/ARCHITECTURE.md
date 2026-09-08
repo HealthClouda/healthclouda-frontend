@@ -206,7 +206,7 @@ beta or production. Full posture and what is accepted in writing: [`SECURITY_BAS
 
 | Layer | Where |
 |---|---|
-| Unit + component (Vitest, jsdom) | `src/**/*.test.ts(x)` — **211 tests / 23 files** |
+| Unit + component (Vitest, jsdom) | `src/**/*.test.ts(x)` — **282 tests / 24 files** (2026-09-08) |
 | Browser (Playwright) | `e2e/`, including the design-fidelity harness in `e2e/design/` |
 
 **T5 design harness coverage** (`e2e/design/`) — it signs in for real against `api-dev`, so a role is
@@ -221,6 +221,20 @@ covered only where credentials exist:
 
 ⚠️ The harness captures each page's **landing state only** — every form, modal and row action is
 unrendered (FLAG-229).
+
+### T3 — the role-gate and tenant-isolation matrix (2026-09-08)
+
+`src/app/dashboard-gate.matrix.test.tsx` gates **all six dashboards** rather than the one DOCTOR page
+#99 shipped: **58 tests** — 30 role escalations (6 dashboards × 5 wrong roles), 10 tenant-isolation,
+12 fail-closed, 6 legitimate renders. Each case forges `hc_user` to claim exactly the role and org the
+page wants, so a denial proves the gate ignored a **correct-looking** cookie, not a malformed one.
+
+🔑 **It has been proven able to fail** — `bash scripts/t3-sabotage.sh`, evidence in
+**`docs/T3-SABOTAGE.md`**. Three independent weakenings of `requireDashboardUser` fail **8 / 32 / 12**
+tests, and the three sets do not overlap, so role, tenant and fail-closed are independent controls and
+every deny assertion in the suite is load-bearing. ⚠️ These are unit tests against a mocked
+`serverFetch` — **no cross-org URL has been walked on `dev.healthclouda.com`**, and the suite asserts
+the redirect, not what a server-rendered body carried before it (that is T4).
 
 **The convention that matters: a test must fail against the pre-fix code.** A test written after a
 fix, that would have passed before it, proves nothing. Two bug classes in this repo were invisible to
