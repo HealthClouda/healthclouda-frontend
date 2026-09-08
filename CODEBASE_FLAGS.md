@@ -2419,7 +2419,7 @@ interface, so they agree with the component and never with the API. [[FLAG-221]]
       the moment credentials land. **This is now the single cheapest unverified thing in the repo.**
 ---
 
-### FLAG-233 — The suite's 5s default timeout fails ~24 tests on a loaded machine, starting with the FLAG-001 guard
+### FLAG-233 — Under load the suite mints a false RED (5s timeout, ~24 tests) and, worse, a false GREEN (workers fail to start, files silently skipped)
 **Severity:** ~~P2~~ **P1** (raised 2026-09-05 — it is the whole suite, not one test) · **Area:** Test reliability · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-09-05, while verifying an unrelated change and having to prove the failure was not mine
 
@@ -2466,6 +2466,36 @@ same habit [[FLAG-228]] describes, on a more important test.
 ⚠️ **It also cost real time today.** A full-suite run on a feature branch showed this failing, and
 because that branch touches `DoctorDashboard` — which is in this test's import graph — it looked like
 a plausible regression. Ruling it out meant checking out `develop` and re-running the whole suite.
+
+> 🔴 **Escalated 2026-09-08 (@Qeeyat) — under load it stops being a timeout and becomes a SILENT
+> PARTIAL RUN, which is worse.** Measured today while running `npm run lint` and the suite at the same
+> time on this machine:
+>
+> ```
+> Test Files  17 passed (17)
+>      Tests  248 passed (248)
+>     Errors  7 errors        <- [vitest-pool]: Failed to start threads worker for <file>
+> ```
+>
+> **There are 24 test files. Seven never ran.** Their workers timed out *starting*, so the files were
+> never scheduled — and the `Test Files` line counts only what ran, so **a run that skipped 29% of the
+> suite reports `17 passed (17)` and reads as complete.** The only sign is the `Errors` line, which is
+> above the summary and easy to scroll past. Re-run alone, minutes later, same checkout: **24 files,
+> 282 passed, exit 0.**
+>
+> 🪤 **This is the opposite trap from the one above and it is the dangerous direction.** The 5s timeout
+> mints a **false red**, which is loud and gets investigated. This mints a **false green** — the exact
+> shape this repo already has one of (a required-checks tick with no checks behind it, [[FLAG-230]]),
+> and the shape [[FLAG-221]] is about.
+>
+> ⚠️ **Two things I did NOT measure, said plainly rather than assumed:** whether `vitest` itself exits
+> non-zero in that state (my command piped to `tail`, so the exit code I saw was `tail`'s — a
+> measurement artifact of mine, not a finding), and whether it reproduces on a CI runner, which is far
+> less contended than this laptop. **Both are worth one deliberate check before anyone trusts a green
+> local run**, and the first is cheap: run it unpiped and read `$?`.
+>
+> 📌 It also gets worse from today: `dashboard-gate.matrix.test.tsx` adds **58** more dynamic-import
+> cases to the same file class this flag names as the expensive one.
 
 **Done when** — one of:
 - [ ] The dynamic `await import(...)` is hoisted out of the test body, so module resolution is not

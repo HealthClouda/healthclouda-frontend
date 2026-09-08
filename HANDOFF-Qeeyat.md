@@ -60,6 +60,90 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-08 — T3 exists, and it is proven able to fail three ways (branches: docs/clear-in-flight-2026-09-08, test/t3-role-gate-isolation)
+
+**Goal:** session ritual first, then clear the In Flight table, then build T3 — the largest unbuilt
+Tier-1 item in `BETA_READINESS.md`.
+
+**What I did:**
+- **Read the ritual docs and found the board had emptied while I was away.** @Bastoh reviewed and
+  merged **all four** of my open PRs on 7–8 Sep (#109, #107, #126, #128) and rebased and merged his
+  own two (#118, #127). **The only open PR in the repo is now #98.**
+- **PR #129** — cleared six In Flight rows that described merged work, retired the issue-#101 note,
+  and split the two `api-beta` Cross-Lane rows apart.
+- **PR #130 (T3)** — `src/app/dashboard-gate.matrix.test.tsx`: **58 tests across all six
+  dashboards**, plus `scripts/t3-sabotage.sh` and `docs/T3-SABOTAGE.md`.
+
+**What I found:**
+
+- 🎯 **The sabotage partition is a stronger result than "the tests fail when I break it".** Three
+  independent weakenings of `requireDashboardUser` produced **8**, **32** and **12** failures — and
+  the three sets **do not overlap**, summing to 52, which plus the 6 legitimate-render cases is
+  exactly the 58-test suite. So every deny assertion is load-bearing (none is decoration), and role,
+  tenant and fail-closed are three genuinely **independent** controls rather than one control
+  observed three ways. Breaking any one leaves the other two green — which is how a partial refactor
+  would ship.
+- 🪤 **I nearly reported a vitest bug that was my own measurement artifact.** A run showed
+  `Test Files no tests` and `[exited with code 0]`, and I said out loud that vitest had gone green
+  over zero tests. **The exit code I read was `tail`'s**, because I had piped the command. CI runs
+  `npm run test:coverage` unpiped, so nothing was actually wrong. Corrected it in the same message
+  rather than letting it stand. **Rule for myself: never quote an exit code from the end of a pipe.**
+- 🔴 **But re-measuring properly found something worse, and real — FLAG-233 escalated.** Running the
+  suite and `npm run lint` concurrently, seven of twenty-four test files' **workers failed to start**,
+  so those files never ran — and the summary printed `Test Files 17 passed (17)`. **A run that
+  skipped 29% of the suite reads as complete**; the only trace is an `Errors 7 errors` line above the
+  summary. Alone, minutes later: **24 files, 282 passed, exit 0**. The 5s timeout in FLAG-233 mints a
+  false **red**, which is loud and gets investigated. This mints a false **green**, which is the
+  direction that hurts — the same shape as FLAG-230's tick with no check behind it.
+- 📌 **The `organization: null` case was worth pinning and I nearly skipped it as trivial.** A staff
+  user whose `/auth/me/` carries no org has `organization_slug === undefined`, and `undefined !== slug`
+  denies — so the gate does the right thing **incidentally**, not deliberately. Sabotage 1 proves those
+  four tests are the only thing holding it: a refactor that reads "no org" as "any org" passes
+  everything else.
+- 🎯 **`api-beta`'s TLS blocker is gone.** `curl https://api-beta.healthclouda.com/api/v1/schema/` →
+  **200**, measured myself today, not read from the file. `beta.healthclouda.com` still does not
+  resolve. **#98 is held on the DNS record alone now, not on the certificate** — worth saying because
+  the 5 Sep note in `BETA_READINESS.md` reads as current and is two blockers out of date.
+
+**Decisions:**
+- **Wrote T3 as a derived matrix, not hand-written cases.** The expectation for each case is computed
+  from the page under test, so no case can be quietly written to assert what the code already does.
+  That is aimed squarely at FLAG-221, which is this repo's record of green tests asserting nothing.
+- **Forged `hc_user` on every single case**, including the ones that pass. A denial then means the
+  gate ignored a *correct-looking* cookie — the actual FLAG-001 threat — rather than a malformed one.
+- **Kept the six legitimate-render tests** even though they can never catch a sabotage. Without them
+  all 52 deny assertions are satisfied by a gate that denies everyone, which is the failure mode a
+  deny-only suite cannot see.
+- **Did not delete the older `dashboard-gate.test.tsx`.** It is #99's RED-first evidence and is
+  referenced from FLAG-233 and the PR trail; the matrix supersedes its coverage but not its history.
+  Said so on the PR rather than tidying it away.
+- **Ticked `BETA_READINESS.md` item 4, and wrote what it does NOT close directly underneath.** These
+  are unit tests against a mocked `serverFetch` — nobody has walked a cross-org URL on
+  `dev.healthclouda.com`, and the suite asserts the redirect, not what a server-rendered body carried
+  before it. That is T4. The item's own "Done when" asks for the suite and the proof and both are
+  there; the live walk is worth doing and is not what was asked.
+- **Cleared three Cross-Lane rows as the raiser, not the owner** — the #127/#118 rebase and the two
+  `api-beta` rows — on the same grounds as the 4 Sep deviation already recorded in `HANDOFF.md`: each
+  is verifiable from outside the row. Named it there rather than doing it silently. **@Bastoh cleared
+  his own two re-review rows**, which is the rule working as written.
+
+**Verified:** `npx tsc --noEmit` **exit 0** · `npm run lint` (`eslint . --max-warnings=0`) **exit 0** ·
+full suite **24 files / 282 passed, VITEST_EXIT=0** (`--testTimeout=30000 --pool=threads`, run alone) ·
+T3 file alone **58/58** · sabotage runs **8 / 32 / 12 failed**, gate restored with **no diff**. Tier
+hosts measured by `curl` today: `api-beta` schema **200**, `beta.` **does not resolve**, `dev.` **200**.
+
+**Left undone / next:**
+- [ ] 🔴 **Walk a cross-org URL on `dev.healthclouda.com` by hand.** T3 proves the gate decides
+      correctly against a mocked `/auth/me/`; nothing has exercised it deployed. Cheapest remaining
+      check on the highest-value change in the repo — the same gap `HANDOFF.md` records against #99.
+- [ ] 🔴 **T4 (PHI leakage) is the next Tier-1 item** and is still unwritten. FLAG-203's
+      server-rendered channel is the half #106 did not close.
+- [ ] 🟠 **FLAG-233 now has two failure modes and one fix decision.** The false-green one wants
+      measuring on a CI runner before anyone trusts a green local run.
+- [ ] 🟠 **Still on @Bastoh, four of five unchanged since 1–6 Sep:** `E2E_PATIENT_*` credentials
+      (one message closes Tier-1 items 2 and 6 and confirms FLAG-231), required status checks,
+      the `ci.yml` `branches: ['**']` one-liner, #98, and #96/FLAG-234.
+
 ### 2026-09-06 — three PRs handed back, and #96 turned out to have been closed for a week (branches: feat/issue-101-hcl-id-handout, docs/merge-99-100-in-flight, docs/schema-contract-guidance)
 
 **Goal:** clear my own review debt — #107's three change requests — then raise the escalations that
