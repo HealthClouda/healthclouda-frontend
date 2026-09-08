@@ -92,6 +92,13 @@ npm install
 cp .env.example .env.local
 ```
 
+`.env.example` also carries the **T5 design-harness credentials** (`E2E_*`), commented out. You only
+need them to run `e2e/design/` — every role whose pair is unset skips itself. Ask the other dev for
+them out of band; they never go in this repo, which is **public**. 🪤 **Quote any value containing
+`#`** — dotenv treats an unquoted `#` as a comment and silently truncates the rest, which presents as
+a wrong password rather than a quoting bug. It cost a session on 2026-09-04. See
+[`docs/DESIGN-VERIFICATION.md`](docs/DESIGN-VERIFICATION.md).
+
 Open `.env.local` and set `NEXT_PUBLIC_API_URL`. Unless you're running the backend in Docker
 locally, use the shared dev tier:
 
@@ -301,8 +308,8 @@ src/
 | `HANDOFF.md` | Durable shared state + the 🚧 In Flight claim table. Read every session. |
 | `HANDOFF-<Name>.md` | Per-dev session logs. Owner writes only. |
 | `docs/ARCHITECTURE.md` | What is actually built |
-| `TARGET_ARCHITECTURE_CHECKLIST.md` | Current → target, in dependency order, each with a "Done when" |
-| `BETA_READINESS.md` | Prioritised backlog, Tier 1 (beta-blocking) → Tier 5 (roadmap) |
+| `TARGET_ARCHITECTURE_CHECKLIST.md` | Current → target, in dependency order, each with a "Done when". ⚠️ **Not written yet (as of 2026-09-05)** — don't go looking. It is derived *from* `BETA_READINESS.md`, so it could not be written until that landed |
+| `BETA_READINESS.md` | Prioritised backlog, Tier 1 (beta-blocking) → Tier 5 (roadmap). ✅ **Landed 2026-09-04 (PR #121)** — it had been listed as required reading since day one while not existing, so every session before this silently read nothing |
 | `CODEBASE_FLAGS.md` | Known issues and logged shortcuts. Each dev owns a FLAG number range — see the top of that file. |
 
 ---
