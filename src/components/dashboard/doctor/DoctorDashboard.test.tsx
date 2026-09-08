@@ -355,9 +355,14 @@ describe('D5 — starting an episode', () => {
  * all before this. Contract read from `apps/referrals/serializers.py`
  * (`ReferralCreateSerializer`) and `apps/referrals/views.py`
  * (`ReferralViewSet.create`), cross-checked against the live schema
- * 2026-09-08 (they agree). External (cross-org) referrals only — see
- * FLAG-027 for why internal doctor-to-doctor referral creation is out of
- * scope.
+ * 2026-09-08 (they agree). External (cross-org) referrals only — internal
+ * doctor-to-doctor referral creation is still out of scope (no endpoint
+ * lists colleague doctors yet).
+ *
+ * The organization picker (`GET /referrals/target-organizations/`, FLAG-566,
+ * backend PR #181) and the `letter_generated`/`warnings` create-response
+ * fields (D9/FLAG-565, backend PR #180) are both read from backend source,
+ * same date.
  */
 describe('doctor referral creation', () => {
   const patientsPage = {
@@ -375,21 +380,36 @@ describe('doctor referral creation', () => {
     }],
   };
 
-  async function openReferralPanel() {
+  const luth = {
+    id: 'org-uuid-1', org_id: 'HCL-NG-LUTH-A1X2', name: 'LUTH', org_type: 'HOSPITAL',
+    city: 'Lagos', state: 'Lagos',
+  };
+  const generalKano = {
+    id: 'org-uuid-2', org_id: 'HCL-NG-GH-K9Y1', name: 'General Hospital', org_type: 'HOSPITAL',
+    city: 'Kano', state: 'Kano',
+  };
+
+  async function openReferralPanel(orgResults: unknown[] = [luth]) {
     dataGetMock.mockImplementation((path: string) => {
       if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(patientsPage);
+      if (path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS)) {
+        return Promise.resolve({ count: orgResults.length, next: null, previous: null, results: orgResults });
+      }
       return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
     });
     render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
     fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Refer' }));
-    await screen.findByLabelText(/Receiving organization ID/);
+    await screen.findByLabelText(/Receiving organization/);
   }
 
-  function fillRequiredFields() {
-    fireEvent.change(screen.getByLabelText(/Receiving organization ID/), {
-      target: { value: 'org-uuid-1' },
-    });
+  async function pickOrganization(name = 'LUTH') {
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'lu' } });
+    fireEvent.click(await screen.findByText(name));
+  }
+
+  async function fillRequiredFields() {
+    await pickOrganization();
     fireEvent.change(screen.getByLabelText(/Reason for referral/), {
       target: { value: 'Needs cardiology review' },
     });
@@ -404,9 +424,9 @@ describe('doctor referral creation', () => {
   }
 
   it('posts to the canonical /referrals/ endpoint, not the doctor-namespaced twin', async () => {
-    dataActionMock.mockResolvedValue({ referral: { id: 'r-1', has_letter: true } });
+    dataActionMock.mockResolvedValue({ letter_generated: true, referral: { id: 'r-1', has_letter: true } });
     await openReferralPanel();
-    fillRequiredFields();
+    await fillRequiredFields();
     fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
 
     await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
@@ -429,11 +449,38 @@ describe('doctor referral creation', () => {
     expect(Object.keys(body as Record<string, unknown>)).not.toContain('relevant_history');
   });
 
+  it('searches organizations by name/city and submits the selected row\'s id, not typed text', async () => {
+    await openReferralPanel([generalKano]);
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'kano' } });
+    // Disambiguation matters here — two "General Hospital"s is the normal
+    // case, not an edge case, so the city has to be visible in the option.
+    expect(await screen.findByText('Kano, Kano')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('General Hospital'));
+
+    // Selecting shows the resolved org, not the raw query the doctor typed.
+    expect(screen.getByText(/General Hospital — Kano, Kano/)).toBeInTheDocument();
+  });
+
+  it('does not fetch anything on mount and does not search below 2 characters', async () => {
+    await openReferralPanel();
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'l' } });
+    await waitFor(() => expect(screen.getByText(/at least 2 characters/i)).toBeInTheDocument());
+    expect(dataGetMock).not.toHaveBeenCalledWith(expect.stringContaining(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS));
+  });
+
+  it('tells "no organisations match" apart from "not searched yet"', async () => {
+    await openReferralPanel([]);
+    // Nothing typed yet — no empty-result claim before a search has run.
+    expect(screen.queryByText(/no organisations match/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'zz' } });
+    expect(await screen.findByText(/no organisations match “zz”/i)).toBeInTheDocument();
+  });
+
   it('will not submit until both doctor-attestation checkboxes are ticked', async () => {
     await openReferralPanel();
-    fireEvent.change(screen.getByLabelText(/Receiving organization ID/), {
-      target: { value: 'org-uuid-1' },
-    });
+    await pickOrganization();
     fireEvent.change(screen.getByLabelText(/Reason for referral/), { target: { value: 'x' } });
     fireEvent.change(screen.getByLabelText(/Clinical findings/), { target: { value: 'x' } });
     fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), { target: { value: 'x' } });
@@ -457,23 +504,37 @@ describe('doctor referral creation', () => {
     expect(select.value).toBe('ROUTINE');
   });
 
-  it('does not claim the referral was "sent" as a letter when the backend reports no letter (D9)', async () => {
-    // D9, still open on the backend: `ReferralViewSet.create` swallows
-    // PDF-generation failures and returns 201 regardless. `has_letter: false`
-    // is the only signal that the letter never generated.
+  it('does not claim the letter was sent when the backend reports it failed, and offers a retry (D9)', async () => {
+    // D9/FLAG-565: `create` can 201 while `letter_generated: false` — the
+    // explicit field to read now that it exists, rather than inferring
+    // anything from the status code.
     useToastStore.setState({ toasts: [] });
-    dataActionMock.mockResolvedValue({ referral: { id: 'r-1', has_letter: false } });
+    dataActionMock.mockResolvedValue({
+      letter_generated: false,
+      warnings: ['The referral letter (PDF) could not be generated.'],
+      referral: { id: 'r-1', has_letter: false },
+    });
     await openReferralPanel();
-    fillRequiredFields();
+    await fillRequiredFields();
     fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
 
     await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
     await waitFor(() => expect(useToastStore.getState().toasts.length).toBeGreaterThan(0));
     const messages = useToastStore.getState().toasts.map(t => t.message).join(' ');
-    // Must say the referral was created; must NOT claim the letter went out.
     expect(messages).toMatch(/created/i);
     expect(messages).not.toMatch(/letter (has been |was )?sent/i);
-    expect(messages).toMatch(/letter/i); // it does have to say SOMETHING about the letter
+
+    // The panel stays open on the retry offer rather than closing on the 201.
+    const retryButton = await screen.findByRole('button', { name: /retry generating letter/i });
+
+    dataActionMock.mockClear();
+    dataActionMock.mockResolvedValue({ letter_generated: true, referral: { id: 'r-1', has_letter: true } });
+    fireEvent.click(retryButton);
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [retryPath, retryMethod] = dataActionMock.mock.calls[0];
+    expect(retryPath).toBe(ENDPOINTS.REFERRAL_REGENERATE_LETTER('r-1'));
+    expect(retryMethod).toBe('POST');
   });
 });
 

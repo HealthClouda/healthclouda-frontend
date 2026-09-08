@@ -581,24 +581,73 @@ export interface ReferralCreateInput {
 }
 
 /**
- * What `POST /referrals/` actually returns on 201 — `{ message, referral }`,
- * the `referral` nested object being `ReferralDetailSerializer`.
+ * What `POST /referrals/` actually returns on 201 — read from backend
+ * `apps/referrals/views.py` (`ReferralViewSet.create`), 2026-09-08 (D9/FLAG-565,
+ * backend PR #180).
  *
- * ⚠️ `has_letter` is the field to check, NOT the 201 status. The backend's
- * `ReferralViewSet.create` swallows PDF-generation failures and returns 201
- * regardless (`apps/referrals/views.py:126-129`, tracked there as D9, still
- * open 2026-09-08) — a referral can exist with no letter ever generated. Tell
- * the doctor the referral was created; let `has_letter` (or its absence)
- * speak for the letter separately, never infer it from the status code.
+ * ⚠️ **`letter_generated` is the field to check, NOT the 201 status.** Before
+ * #180, `create` swallowed PDF-generation failures and returned 201 regardless
+ * — a referral could exist with no letter and nothing said so. It now returns
+ * this explicitly: `letter_generated: false` plus a `warnings` array when the
+ * PDF failed. The referral itself is still created either way — the letter is
+ * recoverable via `POST /referrals/<id>/regenerate-letter/`
+ * (`REFERRAL_REGENERATE_LETTER`), which is NOT true of the referral being
+ * re-creatable, so tell the doctor the referral was created and offer the
+ * retry rather than treating this as a full failure.
+ *
+ * `referral.has_letter` (from `ReferralDetailSerializer`) still exists and
+ * agrees with `letter_generated` on create, but prefer the explicit top-level
+ * field here — it's the one this endpoint actually documents the contract on.
  */
 export interface ReferralCreateResponse {
   message?: string;
+  letter_generated?: boolean;
+  warnings?: string[];
   referral?: {
     id: string;
     letter_number?: string;
     has_letter?: boolean;
     status?: string;
   };
+}
+
+/**
+ * What `POST /referrals/{id}/regenerate-letter/` returns — read from
+ * `apps/referrals/views.py` (`ReferralViewSet.regenerate_letter`), 2026-09-08.
+ * 200 on success (`letter_generated: true`); **503**, not 200 with a warning,
+ * if generation fails again — the caller asked for exactly this one thing, so
+ * there's no partial success to report.
+ */
+export interface RegenerateLetterResponse {
+  message?: string;
+  letter_generated?: boolean;
+  referral?: { id: string; has_letter?: boolean };
+}
+
+/**
+ * GET /referrals/target-organizations/ item — the organisations a DOCTOR may
+ * refer TO. Read from `apps/referrals/serializers.py`
+ * (`ReferralTargetOrganizationSerializer`) and `apps/referrals/views.py`
+ * (`ReferralViewSet.target_organizations`), 2026-09-08 (FLAG-566, backend PR
+ * #181).
+ *
+ * Deliberately narrow — six fields, no contact/address/licence data. A
+ * backend test feeds every row this endpoint returns into the real
+ * `validate_to_organization`, so picking any returned row is guaranteed not
+ * to 400 on submit (never your own org, active only).
+ *
+ * Standard DRF pagination (`count`/`next`/`previous`/`results`), 20/page.
+ * `?search=` matches `name` OR `city` — city is in the payload (and belongs
+ * in the option label, not just the query) because Nigerian hospital names
+ * collide heavily and city is what actually disambiguates them.
+ */
+export interface ReferralTargetOrganization {
+  id: string;
+  org_id: string;
+  name: string;
+  org_type: string;
+  city: string;
+  state: string;
 }
 
 export interface Ward {

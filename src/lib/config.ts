@@ -138,8 +138,22 @@ export const ENDPOINTS = {
   // doctor-namespaced twin `POST /doctor/referrals/` (`DOC_REFERRALS`,
   // `apps/patients/doctor_views.py:596`), which also supports internal
   // same-org referrals — out of scope here; see FLAG-027 (no directory
-  // endpoint exists yet for a doctor to pick a target org OR a colleague).
+  // endpoint existed yet for a doctor to pick a target org OR a colleague —
+  // the org half is now closed by FLAG-566/REFERRAL_TARGET_ORGANIZATIONS
+  // below; picking a colleague for an internal referral is still open).
   REFERRAL_CREATE: '/referrals/',
+  // GET /referrals/target-organizations/?search= — FLAG-566 (backend PR #181,
+  // `ReferralViewSet.target_organizations`). The fix for the FLAG-027 gap
+  // above: paginated (20/page), `search` matches name OR city, DOCTOR/
+  // ORGANIZATION_ADMIN only, never the caller's own org, active only — and a
+  // backend test feeds every row this returns into the real
+  // `validate_to_organization`, so any row it offers is guaranteed not to
+  // 400 on submit.
+  REFERRAL_TARGET_ORGANIZATIONS: '/referrals/target-organizations/',
+  // POST /referrals/{id}/regenerate-letter/ — D9/FLAG-565 (backend PR #180).
+  // Rebuilds a letter whose generation failed on create; sending org only
+  // (DOCTOR or ORGANIZATION_ADMIN); 503 if generation fails again.
+  REFERRAL_REGENERATE_LETTER: (id: string) => `/referrals/${id}/regenerate-letter/`,
   REC_NOTIFY_DOCTORS: (id: string) => `/receptionist/referrals/${id}/notify-doctors/`,
   // D4. `/patients/` is the shared patient CRUD viewset, NOT a receptionist
   // route — its schema description spells out the role rules verbatim:

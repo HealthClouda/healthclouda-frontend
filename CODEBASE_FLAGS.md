@@ -884,8 +884,19 @@ should not be bundled into the same change.
 ---
 
 ### FLAG-027 — A doctor has no endpoint to find a receiving organization's ID, so the referral-create form can't offer a picker
-**Severity:** P2 · **Area:** Referrals / Contract gap · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Referrals / Contract gap · **Owner:** @Bastoh · **Status:** 🟡 PARTIALLY RESOLVED
 **Found:** 2026-09-08, building the doctor "create referral" form (the wedge feature)
+
+**2026-09-08, same day — the organization half is closed.** Backend PR #181 (FLAG-566 on that side)
+shipped `GET /api/v1/referrals/target-organizations/?search=` — paginated, `id/org_id/name/org_type/
+city/state`, DOCTOR/ORGANIZATION_ADMIN only, never the caller's own org, active only, and a backend
+test feeds every returned row into the real `validate_to_organization` so nothing it offers can 400 on
+submit. `NewReferralPanel`'s `to_organization` field is now a search-as-you-type picker
+(`OrganizationPicker` in `DoctorDashboard.tsx`) instead of a raw UUID input — see the "Done when" below,
+now met for organizations.
+**Still open:** the colleague-doctor half, for an INTERNAL (same-org) referral — no endpoint lists a
+doctor's colleagues yet, so internal referral creation stays out of scope. Re-titling this flag would
+break the FLAG-566 cross-reference above; leaving the number as-is and narrowing what it still covers.
 
 `POST /api/v1/referrals/` requires `to_organization` as a UUID (backend
 `apps/referrals/serializers.py` — `ReferralCreateSerializer`). Read every path a DOCTOR-role user has
@@ -909,11 +920,16 @@ with a plain "Receiving organization ID" text field and inline copy saying the I
 receiving org directly, because inventing a client-side directory backed by nothing would be worse
 than an honest text field.
 
-**Done when:** a doctor-and-org-admin-readable endpoint exists that lists active organizations with
-just `id`, `name`, `org_type`, `city`, `state` — enough to build a real picker, nothing back-office.
-Cross-lane: this is a backend change: `apps/organizations/views.py` `OrganizationViewSet.get_queryset()`
-needs a `DOCTOR`/`NURSE` branch, or a new minimal list view. Filed here because the frontend found it
-building the wedge feature; the backend repo is private and this file cannot carry the fix.
+**Done when (organizations — MET 2026-09-08):** a doctor-and-org-admin-readable endpoint exists that
+lists active organizations with just `id`, `name`, `org_type`, `city`, `state`. Shipped as
+`GET /referrals/target-organizations/` rather than a change to `OrganizationViewSet` — that viewset is
+deliberately locked down and the fix is purpose-scoped instead, per backend PR #181's own reasoning.
+
+**Done when (remaining, colleagues):** a doctor-and-org-admin-readable endpoint exists that lists
+active DOCTOR-role staff at the caller's own organization — `id`, `name` — enough to build the same
+kind of picker for an internal referral's `referred_to_doctor`. Cross-lane: backend change. Filed here
+because the frontend found it building the wedge feature; the backend repo is private and this file
+cannot carry the fix.
 
 ---
 

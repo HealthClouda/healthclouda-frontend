@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle } from '@/components/dashboard/DutyToggle';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
+import { dataGet } from '@/lib/client-api';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useToast } from '@/store/toast';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -18,7 +20,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
-  ReferralCreateInput, ReferralCreateResponse,
+  ReferralCreateInput, ReferralCreateResponse, ReferralTargetOrganization, RegenerateLetterResponse,
 } from '@/types/dashboard';
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -497,14 +499,119 @@ const URGENCY_OPTIONS: { value: ReferralCreateInput['urgency']; label: string }[
   { value: 'ELECTIVE', label: 'Elective — planned, non-urgent' },
 ];
 
+const pickerField =
+  'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
+
+/**
+ * Search-as-you-type picker for `GET /referrals/target-organizations/`
+ * (FLAG-566). Deliberately search-first, not a scrolling list: the endpoint
+ * paginates at 20/page, so a client-side "load everything and filter" would
+ * silently only ever search page one — the exact shape of bug FLAG-013
+ * describes elsewhere. Nothing is fetched until the doctor types.
+ *
+ * Every row this endpoint returns is guaranteed by a backend test to pass
+ * `validate_to_organization`, so no client-side re-validation of the
+ * selection is needed here.
+ */
+function OrganizationPicker({ value, onChange }: {
+  value: ReferralTargetOrganization | null;
+  onChange: (org: ReferralTargetOrganization | null) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 350);
+  // `null` = no search has resolved yet (distinct from `[]`, an actual empty
+  // result) — the failure mode this whole feature exists to fix was an empty
+  // list that looked like a real answer.
+  const [results, setResults] = useState<ReferralTargetOrganization[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const latest = useRef('');
+
+  useEffect(() => {
+    const trimmed = debouncedQuery.trim();
+    if (trimmed.length < 2) {
+      latest.current = trimmed;
+      setResults(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    latest.current = trimmed;
+    setLoading(true);
+    setError(null);
+    dataGet<Paginated<ReferralTargetOrganization>>(
+      `${ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS}?search=${encodeURIComponent(trimmed)}`,
+    ).then(data => {
+      if (latest.current !== trimmed) return; // a newer keystroke has already superseded this response
+      setResults(data.results ?? []);
+    }).catch(err => {
+      if (latest.current !== trimmed) return;
+      setError(err instanceof Error ? err.message : 'Could not search organizations');
+      setResults(null);
+    }).finally(() => {
+      if (latest.current === trimmed) setLoading(false);
+    });
+  }, [debouncedQuery]);
+
+  if (value) {
+    return (
+      <div className="mt-1 flex items-center justify-between gap-2 px-3 py-2 text-sm border border-border rounded-lg bg-page">
+        <span className="text-ink">{value.name} — {value.city}, {value.state}</span>
+        <button type="button" onClick={() => onChange(null)} className="text-xs font-medium text-primary-dark hover:underline shrink-0">
+          Change
+        </button>
+      </div>
+    );
+  }
+
+  const trimmedQuery = query.trim();
+
+  return (
+    <div className="relative">
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Search by organization name or city…"
+        className={pickerField}
+      />
+      {trimmedQuery !== '' && (
+        <div className="absolute z-10 mt-1 w-full bg-white border border-border rounded-lg shadow-lg max-h-56 overflow-auto">
+          {trimmedQuery.length < 2 ? (
+            <p className="px-3 py-2 text-xs text-text-soft">Keep typing — search needs at least 2 characters.</p>
+          ) : loading ? (
+            <p className="px-3 py-2 text-xs text-text-soft">Searching…</p>
+          ) : error ? (
+            <p className="px-3 py-2 text-xs text-red-600">Couldn&apos;t search organizations — {error}</p>
+          ) : results && results.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-text-soft">No organisations match &ldquo;{debouncedQuery.trim()}&rdquo;.</p>
+          ) : results && results.length > 0 ? (
+            <ul>
+              {results.map(org => (
+                <li key={org.id}>
+                  <button
+                    type="button"
+                    onClick={() => { onChange(org); setQuery(''); setResults(null); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-row-hover transition-colors"
+                  >
+                    <div className="font-medium text-ink">{org.name}</div>
+                    <div className="text-xs text-text-soft">{org.city}, {org.state}</div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * External (cross-org) referral only — `POST /referrals/`
  * (`ReferralViewSet.create`, external-only per its own docstring). Internal
- * doctor-to-doctor referrals are out of scope for this panel: the backend has
- * no endpoint that lets a doctor list either receiving organizations OR
- * colleague doctors (FLAG-027), so neither picker can be built as a real
- * picker yet. `to_organization` below is a plain ID field for the same reason
- * — not a shortcut, the honest state of what's answerable today.
+ * doctor-to-doctor referrals are still out of scope: FLAG-566 closed the
+ * organization half of FLAG-027, but there is still no endpoint that lets a
+ * doctor list colleague doctors for an internal referral.
  */
 function NewReferralPanel({ patient, onClose, onCreated }: {
   patient: PatientSummary | null;
@@ -513,8 +620,8 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
 }) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [toOrganization, setToOrganization] = useState<ReferralTargetOrganization | null>(null);
   const [form, setForm] = useState({
-    to_organization: '',
     urgency: 'ROUTINE' as ReferralCreateInput['urgency'],
     reason: '',
     clinical_findings: '',
@@ -525,13 +632,27 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
   });
   const [consentObtained, setConsentObtained] = useState(false);
   const [destinationDisclosed, setDestinationDisclosed] = useState(false);
+  // D9/FLAG-565: `create` can succeed while the PDF letter fails. When it
+  // does, the panel stays open on this instead of closing, so the retry is
+  // offered rather than left for the doctor to notice was missing.
+  const [letterFailedFor, setLetterFailedFor] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  // Reset for a fresh referral each time the panel is opened for a patient —
+  // otherwise reopening it shows the previous submission's letter-retry screen.
+  useEffect(() => {
+    if (patient) {
+      setToOrganization(null);
+      setLetterFailedFor(null);
+    }
+  }, [patient]);
 
   const set = (k: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const canSubmit =
-    !!patient && form.to_organization.trim() !== '' && form.reason.trim() !== '' &&
+    !!patient && !!toOrganization && form.reason.trim() !== '' &&
     form.clinical_findings.trim() !== '' && form.provisional_diagnosis.trim() !== '' &&
     consentObtained && destinationDisclosed;
 
@@ -542,7 +663,7 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
     try {
       const payload: ReferralCreateInput = {
         patient: patient!.id,
-        to_organization: form.to_organization.trim(),
+        to_organization: toOrganization!.id,
         reason: form.reason,
         clinical_findings: form.clinical_findings,
         provisional_diagnosis: form.provisional_diagnosis,
@@ -557,16 +678,16 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
       if (form.recommended_treatment.trim() !== '') payload.recommended_treatment = form.recommended_treatment;
 
       const res = await apiAction(ENDPOINTS.REFERRAL_CREATE, 'POST', payload) as ReferralCreateResponse;
-      // A 201 alone does not mean the letter exists — the backend swallows
-      // PDF-generation failures and still returns 201 (D9, still open). Only
-      // `has_letter` says whether the letter actually generated.
-      if (res?.referral?.has_letter === false) {
-        toast.success('Referral created — the letter could not be generated. Check the referral for its letter status.');
+      onCreated();
+      // `letter_generated` is the explicit field (D9/FLAG-565) — prefer it
+      // over inferring anything from the 201 status or from `has_letter`.
+      if (res?.letter_generated === false && res.referral?.id) {
+        setLetterFailedFor(res.referral.id);
+        toast.success('Referral created — the letter could not be generated');
       } else {
         toast.success('Referral created');
+        onClose();
       }
-      onCreated();
-      onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not create referral');
     } finally {
@@ -574,9 +695,30 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
     }
   }
 
+  async function retryLetter() {
+    if (!letterFailedFor || retrying) return;
+    setRetrying(true);
+    try {
+      const res = await apiAction(
+        ENDPOINTS.REFERRAL_REGENERATE_LETTER(letterFailedFor), 'POST',
+      ) as RegenerateLetterResponse;
+      if (res?.letter_generated) {
+        toast.success('Referral letter generated');
+        onClose();
+      } else {
+        toast.error('The letter still could not be generated — try again shortly');
+      }
+    } catch (err) {
+      // The backend returns 503 here rather than swallowing the failure a
+      // second time, so this reaches the catch block on a repeat failure.
+      toast.error(err instanceof Error ? err.message : 'Could not regenerate the letter');
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   const label = 'block text-xs font-medium text-text-soft';
-  const field =
-    'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
+  const field = pickerField;
 
   return (
     <SlidePanel
@@ -585,32 +727,39 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
       title="Refer to another organization"
       subtitle={patient ? `${patient.first_name} ${patient.last_name}` : undefined}
       footer={
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          <button type="submit" form="new-referral" disabled={!canSubmit || saving}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
-            {saving ? 'Sending…' : 'Send referral'}
-          </button>
-        </div>
+        letterFailedFor ? (
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Done</button>
+            <button type="button" onClick={retryLetter} disabled={retrying}
+              className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+              {retrying ? 'Retrying…' : 'Retry generating letter'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+            <button type="submit" form="new-referral" disabled={!canSubmit || saving}
+              className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+              {saving ? 'Sending…' : 'Send referral'}
+            </button>
+          </div>
+        )
       }
     >
+      {letterFailedFor ? (
+        <div className="space-y-3">
+          <p className="text-sm text-ink">The referral was created — the referral letter could not be generated.</p>
+          <p className="text-xs text-text-soft">
+            The receiving organization can&apos;t yet see the letter. You can retry generating it now, or
+            leave it and retry later — the referral itself is not affected either way.
+          </p>
+        </div>
+      ) : (
       <form id="new-referral" onSubmit={submit} className="space-y-4">
         <label className={label}>
-          Receiving organization ID
-          <input
-            value={form.to_organization}
-            onChange={set('to_organization')}
-            placeholder="Ask the receiving organization for their ID"
-            className={field}
-          />
+          Receiving organization
+          <OrganizationPicker value={toOrganization} onChange={setToOrganization} />
         </label>
-        {/* FLAG-027: no endpoint exists yet for a doctor to browse or search
-            organizations, so this can't be a real picker — it has to be typed
-            in until that gap closes. */}
-        <p className="text-[11px] text-text-soft -mt-2">
-          There&apos;s no organization directory in the app yet — get this ID directly from the
-          receiving organization.
-        </p>
 
         <label className={label}>
           Urgency
@@ -679,6 +828,7 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
           it does not give them access to this patient&apos;s record.
         </p>
       </form>
+      )}
     </SlidePanel>
   );
 }
