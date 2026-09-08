@@ -883,6 +883,78 @@ should not be bundled into the same change.
 
 ---
 
+### FLAG-028 — `NewReferralPanel` never reset between patients: one patient's consent attestation could submit under another's name
+**Severity:** P1 · **Area:** Referrals / Compliance / PHI · **Owner:** @Bastoh · **Status:** ✅ RESOLVED (same PR, 2026-09-08)
+**Found:** 2026-09-08, PR #130 review (@Qeeyat)
+
+`NewReferralPanel` is mounted permanently by `MyPatientsPage` — `SlidePanel` only controls visibility,
+returning `null` while closed, so the panel's own state lives in the parent and survives every
+open/close. The reset effect added when the org picker shipped cleared exactly two of six pieces of
+state (`toOrganization`, `letterFailedFor`); `form` (`reason`/`clinical_findings`/
+`provisional_diagnosis`/`relevant_history`/`recommended_*`), `consentObtained` and
+`destinationDisclosed` were never touched.
+
+**Reproduced:** refer patient A, fill in the clinical fields, tick both attestations, close WITHOUT
+submitting. Refer patient B — `canSubmit` was already `true` off patient A's leftovers, zero new
+input required, and the payload for patient B carried patient A's `reason`/`clinical_findings`/
+`provisional_diagnosis` verbatim plus `patient_consent_obtained: true` and
+`consent_destination_disclosed: true`.
+
+**Why P1, not a UX rough edge:**
+- **Compliance** — those two booleans are the FLAG-272 (backend) DOCTOR ATTESTATION, written into an
+  immutable referral record. The UI fabricated a consent record for a patient the doctor never
+  attested for.
+- **PHI** — the backend generates a PDF from those fields and `notify_receiving_org` alerts the
+  receiving hospital. Patient A's clinical findings and working diagnosis would disclose to a
+  third-party organisation under patient B's name.
+- **Correctness** — the receiving clinician would be treating patient B against patient A's findings.
+- **The backend cannot catch this.** The payload passes `ReferralCreateSerializer.validate()` cleanly
+  — every field is well-formed and both booleans are genuinely `true`. There is no compensating
+  server-side control; this class of bug is only catchable client-side, where the mismatch between
+  "whose data is this" and "who is this for" actually exists.
+
+**Fixed structurally, not with four more `setX` calls** — a fifth field would have reproduced the
+exact same defect. `MyPatientsPage` now keys both `NewEpisodePanel` and `NewReferralPanel` on
+`patient?.id ?? '<sentinel>'`, so any patient change is a full React remount and every piece of state
+starts fresh, including state nobody has added yet. `SlidePanel` returning `null` on close/remount is
+what makes this free — there is no exit animation to interrupt.
+
+**The sibling.** `NewEpisodePanel` had the identical defect — `form` initialised once, no reset effect
+at all — found by grepping for the same shape rather than assuming it was isolated. Materially less
+bad (no consent attestation, no cross-org PDF, no third-party disclosure) but the same missing-reset
+class of bug. Fixed by the same `key` change, in the same commit.
+
+**Proven, not just fixed:** a test reproduces the exact scenario above (fill patient A, cancel, open
+patient B, assert no leftover text and `Send referral` disabled) and was confirmed RED against the
+pre-fix code (temporarily reverting the `key` prop) before being confirmed green against the fix.
+
+---
+
+### FLAG-029 — A picker test that could not fail: it waited for a synchronous hint, not the debounced fetch it claimed to prove
+**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** ✅ RESOLVED (same PR, 2026-09-08)
+**Found:** 2026-09-08, PR #130 review (@Qeeyat)
+
+`'does not fetch anything on mount and does not search below 2 characters'` typed one character,
+`waitFor`'d the "Keep typing — at least 2 characters" hint, then asserted `dataGet` hadn't been called
+with the target-organizations path. **The hint renders synchronously off the raw (non-debounced) query
+state**, so the assertion ran well before the picker's 350ms debounce could possibly have fired either
+way — proven by the reviewer weakening the length guard from `< 2` to `< 0` (below zero, i.e. never
+true) and re-running: **23 passed, 0 failed.** The "no fetch on mount" half was asserted even less:
+`dataGetMock.mockClear()` ran immediately before the one assertion the test made, so a mount-time fetch
+would have been silently discarded before anything checked for it.
+
+**Fixed** by asserting the mount-time absence directly (inspecting `dataGetMock.mock.calls` right after
+the panel opens, before clearing anything) and, for the below-2-characters half, waiting a real 500ms —
+past the 350ms debounce — before asserting no fetch happened, so a broken guard has actually had the
+window to fire before the check runs.
+
+**Re-verified against the same two sabotages the reviewer used:** reducing the guard to `< 0` now fails
+at the mount-time assertion (mount itself started fetching, because an untrimmed empty string no longer
+short-circuits); reducing it to `< 1` fails at the post-debounce assertion instead (mount is fine, a
+1-character query now fetches). Both catch a defect the previous version caught neither.
+
+---
+
 ### FLAG-027 — A doctor has no endpoint to find a receiving organization's ID, so the referral-create form can't offer a picker
 **Severity:** P2 · **Area:** Referrals / Contract gap · **Owner:** @Bastoh · **Status:** 🟡 PARTIALLY RESOLVED
 **Found:** 2026-09-08, building the doctor "create referral" form (the wedge feature)

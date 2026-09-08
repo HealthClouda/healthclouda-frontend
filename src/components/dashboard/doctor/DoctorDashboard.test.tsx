@@ -449,6 +449,65 @@ describe('doctor referral creation', () => {
     expect(Object.keys(body as Record<string, unknown>)).not.toContain('relevant_history');
   });
 
+  /**
+   * The P1 from review: `NewReferralPanel` is mounted permanently by
+   * `MyPatientsPage` (`SlidePanel` only controls visibility), so without a
+   * reset, one patient's clinical text and FLAG-272 consent attestations
+   * survive into a referral submitted for a DIFFERENT patient. Reproduced
+   * against the pre-fix code (a reset effect that only cleared 2 of 6 pieces
+   * of state): refer patient A, fill everything in, close without
+   * submitting, refer patient B — "Send referral" was immediately enabled
+   * off patient A's leftovers, zero new input required.
+   */
+  it('resets completely between patients — no leftover clinical text, no leftover consent (P1)', async () => {
+    const twoPatients = {
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'pat-1', first_name: 'Chidi', last_name: 'Nwosu', created_at: '2026-07-01T10:00:00Z' },
+        { id: 'pat-2', first_name: 'Ngozi', last_name: 'Eze', created_at: '2026-07-02T10:00:00Z' },
+      ],
+    };
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(twoPatients);
+      if (path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS)) {
+        return Promise.resolve({ count: 1, next: null, previous: null, results: [luth] });
+      }
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+
+    // Refer patient A (Chidi): fill everything, tick both attestations.
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Refer' }))[0]);
+    await screen.findByLabelText(/Receiving organization/);
+    await pickOrganization();
+    fireEvent.change(screen.getByLabelText(/Reason for referral/), { target: { value: 'CHIDI-ONLY reason' } });
+    fireEvent.change(screen.getByLabelText(/Clinical findings/), { target: { value: 'CHIDI-ONLY findings' } });
+    fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), { target: { value: 'CHIDI-ONLY dx' } });
+    fireEvent.click(screen.getByText(/obtained this patient's verbal consent/));
+    fireEvent.click(screen.getByText(/told the patient which organization/));
+    expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled();
+
+    // Close WITHOUT submitting — the exact reproduction shape from review.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Refer patient B (Ngozi) — nothing typed for them yet.
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Refer' }))[1]);
+    await screen.findByLabelText(/Receiving organization/);
+
+    expect(screen.queryByText('CHIDI-ONLY findings')).not.toBeInTheDocument();
+    expect((screen.getByLabelText(/Reason for referral/) as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByLabelText(/Clinical findings/) as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByLabelText(/Provisional diagnosis/) as HTMLInputElement).value).toBe('');
+    for (const checkbox of screen.getAllByRole('checkbox') as HTMLInputElement[]) {
+      expect(checkbox.checked).toBe(false);
+    }
+    // The actual bug, in one assertion: zero new input, and it must NOT be submittable.
+    expect(screen.getByRole('button', { name: 'Send referral' })).toBeDisabled();
+  });
+
   it('searches organizations by name/city and submits the selected row\'s id, not typed text', async () => {
     await openReferralPanel([generalKano]);
     fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'kano' } });
@@ -461,12 +520,31 @@ describe('doctor referral creation', () => {
     expect(screen.getByText(/General Hospital — Kano, Kano/)).toBeInTheDocument();
   });
 
-  it('does not fetch anything on mount and does not search below 2 characters', async () => {
+  it('does not fetch anything on mount, and does not search below 2 characters', async () => {
     await openReferralPanel();
+    // "No fetch on mount" — asserted directly, not by clearing the mock and
+    // hoping nothing slips through before the next assertion.
+    const orgCallsAtMount = dataGetMock.mock.calls.filter(
+      ([path]) => typeof path === 'string' && path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS),
+    );
+    expect(orgCallsAtMount).toHaveLength(0);
+
     dataGetMock.mockClear();
     fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'l' } });
-    await waitFor(() => expect(screen.getByText(/at least 2 characters/i)).toBeInTheDocument());
-    expect(dataGetMock).not.toHaveBeenCalledWith(expect.stringContaining(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS));
+    await screen.findByText(/at least 2 characters/i);
+
+    // ⚠️ That hint renders synchronously off the raw (non-debounced) query
+    // state, so waiting for it proves nothing about the debounced fetch —
+    // a reviewer weakened the length guard from `< 2` to `< 0` and this test
+    // still passed, because the assertion below used to run before the
+    // 350ms debounce could possibly have fired either way. Wait past it in
+    // real time, THEN assert, so a broken guard has actually had the chance
+    // to fetch before we check that it didn't.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const orgCallsAfterOneChar = dataGetMock.mock.calls.filter(
+      ([path]) => typeof path === 'string' && path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS),
+    );
+    expect(orgCallsAfterOneChar).toHaveLength(0);
   });
 
   it('tells "no organisations match" apart from "not searched yet"', async () => {
@@ -476,6 +554,37 @@ describe('doctor referral creation', () => {
 
     fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'zz' } });
     expect(await screen.findByText(/no organisations match “zz”/i)).toBeInTheDocument();
+  });
+
+  it('tells the doctor when a search is truncated at the endpoint\'s 20-per-page cap', async () => {
+    // The endpoint paginates at 20 and Nigerian hospital names "collide
+    // heavily" (its own docstring) — a search matching 47 "General
+    // Hospital"s showing 20 with no signal that more exist is the same
+    // failure mode this whole feature was built to fix, one layer down.
+    const twentyResults = Array.from({ length: 20 }, (_, i) => ({
+      id: `org-${i}`, org_id: `HCL-NG-GH-${i}`, name: 'General Hospital', org_type: 'HOSPITAL',
+      city: `City ${i}`, state: 'Lagos',
+    }));
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(patientsPage);
+      if (path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS)) {
+        return Promise.resolve({ count: 47, next: 'a-next-page-url', previous: null, results: twentyResults });
+      }
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Refer' }));
+    fireEvent.change(await screen.findByLabelText(/Receiving organization/), { target: { value: 'general' } });
+
+    expect(await screen.findByText(/showing first 20 of 47/i)).toBeInTheDocument();
+  });
+
+  it('shows no truncation notice when every match already fits on one page', async () => {
+    await openReferralPanel([luth]); // count defaults to results.length in this helper
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'lu' } });
+    await screen.findByText('LUTH');
+    expect(screen.queryByText(/showing first/i)).not.toBeInTheDocument();
   });
 
   it('will not submit until both doctor-attestation checkboxes are ticked', async () => {

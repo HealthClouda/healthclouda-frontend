@@ -386,6 +386,13 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
   onClose: () => void;
   onCreated: () => void;
 }) {
+  // `form` is initialised once and never reset by anything in this
+  // component — that's deliberate now, not an oversight: the caller
+  // (`MyPatientsPage`) keys this component on `patient?.id`, so a patient
+  // change is a full remount and `form` starts fresh every time. Found as
+  // the sibling of the P1 fixed in `NewReferralPanel` — this one carries no
+  // consent attestation and never crosses an org boundary, so it read as
+  // materially less bad, but it is the same missing-reset defect.
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -523,6 +530,12 @@ function OrganizationPicker({ value, onChange }: {
   // result) — the failure mode this whole feature exists to fix was an empty
   // list that looked like a real answer.
   const [results, setResults] = useState<ReferralTargetOrganization[] | null>(null);
+  // The endpoint paginates at 20 — `count` is the true total, which can run
+  // well past what `results` holds. The endpoint's own docstring says
+  // Nigerian hospital names "collide heavily"; silently showing 20 of a
+  // 40+ "General Hospital" match with nothing to say more exist recreates
+  // the exact failure mode this feature was built to fix.
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const latest = useRef('');
@@ -532,6 +545,7 @@ function OrganizationPicker({ value, onChange }: {
     if (trimmed.length < 2) {
       latest.current = trimmed;
       setResults(null);
+      setTotalCount(0);
       setError(null);
       setLoading(false);
       return;
@@ -543,11 +557,14 @@ function OrganizationPicker({ value, onChange }: {
       `${ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS}?search=${encodeURIComponent(trimmed)}`,
     ).then(data => {
       if (latest.current !== trimmed) return; // a newer keystroke has already superseded this response
-      setResults(data.results ?? []);
+      const page = data.results ?? [];
+      setResults(page);
+      setTotalCount(data.count ?? page.length);
     }).catch(err => {
       if (latest.current !== trimmed) return;
       setError(err instanceof Error ? err.message : 'Could not search organizations');
       setResults(null);
+      setTotalCount(0);
     }).finally(() => {
       if (latest.current === trimmed) setLoading(false);
     });
@@ -585,20 +602,27 @@ function OrganizationPicker({ value, onChange }: {
           ) : results && results.length === 0 ? (
             <p className="px-3 py-2 text-xs text-text-soft">No organisations match &ldquo;{debouncedQuery.trim()}&rdquo;.</p>
           ) : results && results.length > 0 ? (
-            <ul>
-              {results.map(org => (
-                <li key={org.id}>
-                  <button
-                    type="button"
-                    onClick={() => { onChange(org); setQuery(''); setResults(null); }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-row-hover transition-colors"
-                  >
-                    <div className="font-medium text-ink">{org.name}</div>
-                    <div className="text-xs text-text-soft">{org.city}, {org.state}</div>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul>
+                {results.map(org => (
+                  <li key={org.id}>
+                    <button
+                      type="button"
+                      onClick={() => { onChange(org); setQuery(''); setResults(null); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-row-hover transition-colors"
+                    >
+                      <div className="font-medium text-ink">{org.name}</div>
+                      <div className="text-xs text-text-soft">{org.city}, {org.state}</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {totalCount > results.length && (
+                <p className="px-3 py-2 text-[11px] text-text-soft border-t border-border">
+                  Showing first {results.length} of {totalCount} — refine your search.
+                </p>
+              )}
+            </>
           ) : null}
         </div>
       )}
@@ -637,15 +661,13 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
   // offered rather than left for the doctor to notice was missing.
   const [letterFailedFor, setLetterFailedFor] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
-
-  // Reset for a fresh referral each time the panel is opened for a patient —
-  // otherwise reopening it shows the previous submission's letter-retry screen.
-  useEffect(() => {
-    if (patient) {
-      setToOrganization(null);
-      setLetterFailedFor(null);
-    }
-  }, [patient]);
+  // No reset effect here on purpose — the caller (`MyPatientsPage`) keys this
+  // component on `patient?.id`, so every patient change is a full remount and
+  // every field above starts fresh. A reset effect naming some-but-not-all of
+  // six pieces of state is exactly how the P1 this replaced happened: it
+  // reset `toOrganization`/`letterFailedFor` and quietly left `form`,
+  // `consentObtained` and `destinationDisclosed` carrying the previous
+  // patient's values, including two attestation booleans that read as true.
 
   const set = (k: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -862,12 +884,23 @@ function MyPatientsPage() {
         totalCount={count}
         pageSize={20}
       />
+      {/* `key` forces a full remount on every patient change (including
+          close → reopen for the SAME patient) — structural, not four more
+          `setX` calls in a reset effect. Both panels are mounted permanently
+          by this page (`SlidePanel` only controls visibility), so without
+          this their internal state — including, on the referral panel, the
+          FLAG-272 consent attestations — survives from whichever patient was
+          last open and can be submitted against a different one. Found in
+          review of #130: a referral for patient B could go out carrying
+          patient A's clinical text with both consent boxes already ticked. */}
       <NewEpisodePanel
+        key={startFor?.id ?? 'no-episode-patient'}
         patient={startFor}
         onClose={() => setStartFor(null)}
         onCreated={refetch}
       />
       <NewReferralPanel
+        key={referFor?.id ?? 'no-referral-patient'}
         patient={referFor}
         onClose={() => setReferFor(null)}
         onCreated={refetch}
