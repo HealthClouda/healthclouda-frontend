@@ -1517,6 +1517,72 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
+### FLAG-235 — A screenshot baseline encodes a day counter, so the nurse design test fails a little worse every day
+**Severity:** P2 · **Area:** Test reliability / design verification · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-09, while re-running the T5 harness looking for something else entirely
+
+`e2e/design/roles.spec.ts` → *"nurse — desktop structure › My Patients @ desktop"* fails against its
+committed baseline, and **it will keep failing, by a larger margin each day, forever.**
+
+**The mechanism, confirmed rather than guessed:**
+
+- `NurseDashboard.tsx:75` renders the Admitted column as
+  `formatDate(a.admitted_at)` followed by `({a.length_of_stay}d)`.
+  **`length_of_stay` is computed by the backend from the admission date**, so it increments every
+  day on its own — no deploy, no data change, no code change required.
+- `masksFor()` (`roles.spec.ts:236-244`) masks `nextjs-portal`,
+  `/\d+ (second|minute|hour|day)s? ago/i` and `/Today,/i`. **None of those matches `(13d)`.**
+- **Nurse is the only view that takes this branch.** `admissionColumns(..., { admittedAsDate: true })`
+  is passed at `NurseDashboard.tsx:163` and nowhere else; every other role's admitted column renders
+  `timeAgo(...)`, which the mask **does** catch.
+
+That asymmetry is the whole diagnosis, and it is why the failure looked like flakiness rather than a
+defect: **doctor's `My Patients` passes on the same run, from the same table component.**
+
+🪤 **What made it hard to read: the diff looks like a layout regression, not a text change.** The
+committed baseline froze `(8d)` on 2026-09-04; the app now renders `(13d)`. The string is *wider*, so
+the column re-lays out and **every data column in the row shifts a few pixels** — the diff shows
+Age/Sex, Ward/Bed, Complaint, Admitted and Vitals all doubled at an offset, while the patient names
+and the nav stay clean. **4325 pixels differed on a change of two characters.** Anyone reading that
+diff would reasonably conclude the table layout had broken.
+
+⚠️ **Two near-misses recorded, because both were mine and both are the interesting part:**
+
+1. **I first attributed a DIFFERENT failure in the same run to baseline rot from #107.** The
+   receptionist `Patient Search` screenshot also failed — and **passed on a clean re-run**. It was
+   noise. The story I had built ("#107 changed the receptionist UI on 7 Sep and never refreshed its
+   baseline") was plausible, fit the merge dates, and was **wrong**. A re-run cost 24 seconds and a
+   correction cost nothing; publishing it would have sent someone hunting a regression that does not
+   exist.
+2. **The failure magnitude looked non-deterministic (35 → 598 → 4325 px) and that pointed away from
+   the truth.** Those were three different tests in one interleaved log, not one test varying. A
+   genuinely stable failure read as flake because of how the numbers were being skimmed.
+
+🔴 **Why it is P2 and not cosmetic.** The T5 harness is the only tool in this repo that has found a
+real bug on *every* run — FLAG-222, FLAG-227, FLAG-231 all came from it. A visual suite carrying one
+permanently-red test trains the reader to skim past red, which is precisely the argument
+[[FLAG-228]] makes about the Google Fonts flake and [[FLAG-233]] makes about the 5s timeout. This is
+the third instance of the same failure mode in this repo: **a check that cries wolf costs more than
+no check.**
+
+📌 **It also means no committed baseline can be trusted to age well.** Any screenshot containing a
+server-computed relative value is a time bomb with a slow fuse. The mask list is currently a list of
+*known* offenders written by hand — it catches what someone thought of, and `(13d)` is what nobody
+thought of.
+
+**Done when** — all three:
+- [ ] `masksFor()` masks the length-of-stay counter (`/\(\d+d\)/`), so the baseline stops depending
+      on the date it was captured.
+- [ ] The nurse `My Patients` baseline is regenerated **once**, after the mask lands — regenerating
+      before it would simply freeze `(13d)` and reset the clock rather than stop it.
+- [ ] The suite is run on **two different days** and is green both times. That is the only assertion
+      that actually tests this defect; a single green run is what let it ship.
+
+⛓️ Related: **FLAG-229** (the harness photographs only landing states) is the reason the surface area
+here is small enough that one unmasked value shows up at all — as the harness is extended to forms
+and panels, every new capture is another chance to bake in a timestamp. Fixing the mask matters more
+as that work happens, not less.
+
 ### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
 
 **Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
