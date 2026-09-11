@@ -1,0 +1,759 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//HealthClouda//Frontend Beta Sprint Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:HealthClouda - Frontend Beta Sprint
+X-WR-TIMEZONE:Africa/Lagos
+X-WR-CALDESC:Tiers + dashboards (10-21 Aug) - UAT on dev (24-28 Aug) - beta
+  stand-up\, confirmation and onboarding (31 Aug - 4 Sep). Source of truth:
+  docs/FRONTEND_SPRINT_PLAN.md
+BEGIN:VTIMEZONE
+TZID:Africa/Lagos
+BEGIN:STANDARD
+DTSTART:19700101T000000
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0100
+TZNAME:WAT
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:20260810-design-onboarding-pair-on-dash-1-kickoff@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260810
+DTEND;VALUE=DATE:20260811
+SUMMARY:[DESIGN] Onboarding + pair on DASH-1 kickoff
+DESCRIPTION:Read ONBOARDING.md end to end. Set NEXT_PUBLIC_API_URL to https
+ ://api-dev.healthclouda.com/api/v1 (shared dev backend\, synthetic data - 
+ experiment freely).\n\nConfirm the three verification commands pass on a c
+ lean clone:\n  npx tsc --noEmit   -> no output\n  npm test           -> 63
+  passed\n  npm run build      -> green\n\nIf they don't pass\, that is NOT
+  you being new - say so and we fix it together.\n\nThen pair with @Bastoh 
+ on the DASH-1 kickoff: read design_handoff_dashboards/README.md\, open the
+  Superadmin .dc.html beside npm run dev\, and agree the component boundari
+ es before writing code.\n\nDefault owner: @Qeeyat (design lane). Lane labe
+ ls are ownership DEFAULTS\, not walls - either dev may take any item\, but
+  claim its In Flight row in HANDOFF.md before cutting the branch.\n\nPlan:
+  docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260810-infra-b2-dns-request-a8-backend-frontend-url-issue-a2-stale-ho
+ sts@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260810
+DTEND;VALUE=DATE:20260811
+SUMMARY:[INFRA] B2 DNS request\, A8 backend FRONTEND_URL issue\, A2 stale h
+ osts\, A6 consent bypass
+DESCRIPTION:TWO THINGS FIRST\, both long-lead and both blocking:\n- B2: req
+ uest the DNS records for dev./beta./apex. DNS is held outside Vercel\, so 
+ propagation gates the 24 Aug target. Request TODAY.\n- A8: file the backen
+ d api-request issue - each backend tier must set FRONTEND_URL to its match
+ ing frontend. Tier separation only works if BOTH sides are tiered\; otherw
+ ise emailed set-password\, org landing and consent links point at the wron
+ g tier.\n\nThen A2 (purge the dead railway host from next.config.ts:3\, la
+ yout.tsx:12 metadataBase\, .env.example\, design README) and A6 (delete th
+ e org-admin approve/deny at OrgAdminDashboard.tsx:260 - the backend remove
+ d that endpoint as a security fix because it bypassed patient consent\; ke
+ ep the read-only list).\n\nDefault owner: @Bastoh (infra lane). Lane label
+ s are ownership DEFAULTS\, not walls - either dev may take any item\, but 
+ claim its In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: 
+ docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260811-design-dash-1-shared-shell-dashboardshell-statcard-datatable-b
+ adge@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260811
+DTEND;VALUE=DATE:20260812
+SUMMARY:[DESIGN] DASH-1 shared shell - DashboardShell\, StatCard\, DataTabl
+ e\, Badge
+DESCRIPTION:Build the shared primitives once\, here. Everything DASH-2..6 n
+ eeds comes from this PR\, so the boundaries matter more than the pixels.\n
+ \nSpec: design_handoff_dashboards/README.md -> 'Shared shell components'. 
+ 230px sidebar (logo row 64px\, uppercase nav labels\, active = #EBF3FF bg 
+ + primary text\, user card + logout at bottom)\, 64px sticky header.\n\nTR
+ AP: the logo mark is 2:1 (341x171). Sidebar slot 44x22\, gate slot 64x32 -
+  NEVER a square slot (see the 2026-07-13 brand-asset fix).\n\nDefault owne
+ r: @Qeeyat (design lane). Lane labels are ownership DEFAULTS\, not walls -
+  either dev may take any item\, but claim its In Flight row in HANDOFF.md 
+ before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260811-infra-a3-cookie-scoping-a4-fail-loud-config-b3-env-var-contrac
+ t@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260811
+DTEND;VALUE=DATE:20260812
+SUMMARY:[INFRA] A3 cookie scoping\, A4 fail-loud config\, B3 env var contra
+ ct
+DESCRIPTION:A3 (SECURITY): do NOT set COOKIE_DOMAIN=.healthclouda.com. A do
+ t-prefixed parent domain shares cookies across EVERY subdomain\, so a dev-
+ tier session cookie would be sent to the beta and production frontends. Ho
+ st-only cookies (the current default) keep the tiers isolated. The var is 
+ documented in .env.example but never read in code - delete the documentati
+ on rather than leave a loaded footgun.\n\nA4: config.ts:16 falls back to h
+ ttp://localhost:8000/api/v1 when NEXT_PUBLIC_API_URL is unset. In a deploy
+ ed build that fails silently and confusingly. Throw at build time outside 
+ development.\n\nB3: NEXT_PUBLIC_API_URL + NEXT_PUBLIC_SITE_URL\, scoped pe
+ r Vercel environment and branch.\n\nDefault owner: @Bastoh (infra lane). L
+ ane labels are ownership DEFAULTS\, not walls - either dev may take any it
+ em\, but claim its In Flight row in HANDOFF.md before cutting the branch.\
+ n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260812-design-dash-1-cont-slidepanel-modal-toast-emptystate-smallscre
+ engat@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260812
+DTEND;VALUE=DATE:20260813
+SUMMARY:[DESIGN] DASH-1 cont. - SlidePanel\, Modal\, Toast\, EmptyState\, S
+ mallScreenGate
+DESCRIPTION:SlidePanel 440px right sheet\, overlay rgba(0\,8\,37\,0.35) + 2
+ px blur\, slide-in 0.28s. Modal 420px centred\, 52px icon chip. Toast bott
+ om-right\, 2.6s. EmptyState 44px stroke icon - EVERY list has one.\n\nSmal
+ lScreenGate: below 768px\, staff/admin dashboards render ONLY a branded 'n
+ eeds a bigger screen' notice. Applies to DASH-1..5.\n\nCRITICAL: DASH-6 Pa
+ tient must NOT get this gate - it is the only mobile-responsive dashboard.
+  Patients use phones. Easy to get backwards\; the screenshot harness catch
+ es it.\n\nDefault owner: @Qeeyat (design lane). Lane labels are ownership 
+ DEFAULTS\, not walls - either dev may take any item\, but claim its In Fli
+ ght row in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND_SP
+ RINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260812-infra-b1-vercel-domains-branch-mapping-dev-healthclouda-com-li
+ ve@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260812
+DTEND;VALUE=DATE:20260813
+SUMMARY:[INFRA] B1 Vercel domains + branch mapping - dev.healthclouda.com L
+ IVE
+DESCRIPTION:Vercel -> Project -> Domains\, using the 'Git Branch' field:\n 
+  dev.healthclouda.com   -> branch develop  -> api-dev\n  beta.healthclouda
+ .com  -> branch staging  -> api-beta (var set 31 Aug)\n  healthclouda.com 
+ + www -> main            -> marketing-only\, no API\n\nTARGET: dev.healthc
+ louda.com talking to api-dev.healthclouda.com. This is the E5 hard gate in
+  the backend's plan and it must be live well before their UAT week opens o
+ n 24 Aug.\n\nAlso confirm Vercel deployment protection doesn't 401 the bet
+ a org's testers (B5).\n\nDefault owner: @Bastoh (infra lane). Lane labels 
+ are ownership DEFAULTS\, not walls - either dev may take any item\, but cl
+ aim its In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: do
+ cs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260813-design-dash-1-superadmin-pages-orgs-users-audit-logs@healthclo
+ uda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260813
+DTEND;VALUE=DATE:20260814
+SUMMARY:[DESIGN] DASH-1 Superadmin pages - orgs\, users\, audit logs
+DESCRIPTION:Pages: Dashboard\, Organisations\, Users\, Audit Logs + coming-
+ soon placeholders (Records\, Billing\, Messages\, Settings).\n\nDecisions 
+ already made in the design README - don't re-litigate: Security Alerts car
+ d REMOVED (no backend endpoint)\; revenue/records stats deferred to Billin
+ g\; user creation is INVITE-BASED\, no password field.\n\nCHECK BEFORE BUI
+ LDING: superadmin-create may need a backend api-request - the old UI never
+  offered it. Verify against live Swagger first\; if it's missing\, file th
+ e issue rather than improvising.\n\nDefault owner: @Qeeyat (design lane). 
+ Lane labels are ownership DEFAULTS\, not walls - either dev may take any i
+ tem\, but claim its In Flight row in HANDOFF.md before cutting the branch.
+ \n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260813-infra-c2-cloudflare-hosting-spike-timeboxed-scratch-subdomain-
+ torn@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260813
+DTEND;VALUE=DATE:20260814
+SUMMARY:[INFRA] C2 Cloudflare hosting spike (timeboxed\, scratch subdomain\
+ , torn down)
+DESCRIPTION:ONE DAY\, TIMEBOXED. Deploy develop to Cloudflare Workers via @
+ opennextjs/cloudflare on a scratch subdomain\, catalogue every failure\, t
+ hen TEAR IT DOWN. Same pattern as the backend's A8 DEBUG=False dry run - t
+ heir plan calls it the highest-value de-risker.\n\nWhat it must specifical
+ ly prove (C3) - every one of these is load-bearing for auth or PHI:\n- mid
+ dleware.ts route gating\n- route handlers setting httpOnly cookies via nex
+ t/headers\n- the /api/data + /api/action proxy\n- next/font/google and nex
+ t/image\n- build output size limits\n\nOutput is a WRITTEN LIST\, not a mi
+ gration. The decision happens at Gate 1 with evidence.\n\nDefault owner: @
+ Bastoh (infra lane). Lane labels are ownership DEFAULTS\, not walls - eith
+ er dev may take any item\, but claim its In Flight row in HANDOFF.md befor
+ e cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260814-design-dash-1-checkpoint-the-shell-must-land-t5-screenshot-har
+ ness@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260814
+DTEND;VALUE=DATE:20260815
+SUMMARY:[DESIGN] DASH-1 CHECKPOINT - the shell must land + T5 screenshot ha
+ rness
+DESCRIPTION:HARD CHECKPOINT. DASH-2..6 all depend on this shell\, so this i
+ s the single biggest schedule risk in the plan.\n\nIF IT HAS NOT LANDED: @
+ Bastoh takes the shell over the float day and Qeeyat moves to DASH-3 Nurse
+  (lowest contract risk) on the existing primitives. That is a planned bran
+ ch\, not a failure - say so at standup and claim the row.\n\nAlso commit t
+ he T5 screenshot harness in e2e/design/: route vs .dc.html at fixed viewpo
+ rts\, including the 768px boundary. See docs/DESIGN-VERIFICATION.md.\n\nDe
+ fault owner: @Qeeyat (design lane). Lane labels are ownership DEFAULTS\, n
+ ot walls - either dev may take any item\, but claim its In Flight row in H
+ ANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260814-infra-c2-writeup-verify-contracts-vs-live-swagger-e1-flag-004@
+ healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260814
+DTEND;VALUE=DATE:20260815
+SUMMARY:[INFRA] C2 writeup\, verify contracts vs live Swagger\, E1 FLAG-004
+DESCRIPTION:Write up the spike as a decision-ready list for Gate 1.\n\nRe-v
+ erify every Part-1 contract claim against live Swagger at https://api-dev.
+ healthclouda.com/api/v1/docs/ - the current claims come from the July audi
+ t\, not from today's schema (FLAG-003).\n\nE1/FLAG-004 is reserved as Qeey
+ at's first PR if she has capacity: DoctorDashboard.tsx:56 '?today=true' is
+  silently ignored by DRF\, and :58 '?status=OPEN' uses the wrong enum (it 
+ is ACTIVE)\, so that panel is ALWAYS empty. Small\, verifiable\, with a cl
+ ear done-when.\n\nDefault owner: @Bastoh (infra lane). Lane labels are own
+ ership DEFAULTS\, not walls - either dev may take any item\, but claim its
+  In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRON
+ TEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260815-both-float-catch-up-day-not-a-work-day-by-default@healthclouda
+ .com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260815
+DTEND;VALUE=DATE:20260816
+SUMMARY:[BOTH] FLOAT - catch-up day (not a work day by default)
+DESCRIPTION:Named catch-up block for whatever slipped in week 1. If the wee
+ k ran clean\, this is not a work day.\n\nMost likely landing spot: the DAS
+ H-1 shell if Friday's checkpoint missed.\n\nBoth devs. Lane labels are own
+ ership DEFAULTS\, not walls - either dev may take any item\, but claim its
+  In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRON
+ TEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260817-design-dash-2-org-admin-staff-invite-read-only-access-requests
+ @healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260817
+DTEND;VALUE=DATE:20260818
+SUMMARY:[DESIGN] DASH-2 Org Admin - staff invite\, read-only access request
+ s
+DESCRIPTION:Staff invite: POST /org-admin/staff/ requires full_name (NOT fi
+ rst/last) and a LOWERCASE role ('nurse'). Note the casing inconsistency wi
+ th the rest of the API\, which returns 'DOCTOR'.\n\nAccess requests are RE
+ AD-ONLY here. A6 removed approve/deny last week because it bypassed patien
+ t consent - do not re-add it from the design. If the design shows those bu
+ ttons\, that is the design being out of date\, not a spec.\n\nDefault owne
+ r: @Qeeyat (design lane). Lane labels are ownership DEFAULTS\, not walls -
+  either dev may take any item\, but claim its In Flight row in HANDOFF.md 
+ before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260817-infra-a5-flag-001-role-gating-off-the-client-writable-cookie-t
+ 3-su@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260817
+DTEND;VALUE=DATE:20260818
+SUMMARY:[INFRA] A5/FLAG-001 - role gating off the client-writable cookie + 
+ T3 suite
+DESCRIPTION:The one security defect rather than hygiene item. hc_user is ht
+ tpOnly:false (auth.ts:30) so the UI can read name/role - but every role ga
+ te reads it too ([slug]/doctor/page.tsx:11 plus five siblings\, middleware
+ .ts:68). A user can edit document.cookie and reach another org's dashboard
+  shell.\n\nImpact today is limited: every real fetch carries the bearer to
+ ken and DRF enforces server-side\, so they land in an empty skeleton getti
+ ng 403s. VERIFY THAT ASSUMPTION rather than trusting it - nurse token agai
+ nst a doctor-only endpoint should 403. If it ever doesn't\, this stops bei
+ ng cosmetic.\n\nDone when: gating decides from a server-trusted source\, h
+ c_user is display-only\, and T3 proves a tampered cookie renders nothing.\
+ n\nDefault owner: @Bastoh (infra lane). Lane labels are ownership DEFAULTS
+ \, not walls - either dev may take any item\, but claim its In Flight row 
+ in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLA
+ N.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260818-design-dash-3-nurse-vitals-ward-bed-admission@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260818
+DTEND;VALUE=DATE:20260819
+SUMMARY:[DESIGN] DASH-3 Nurse - vitals\, ward/bed\, admission
+DESCRIPTION:Lowest contract risk of the six - the nurse pages were rebuilt 
+ on verified shapes in July\, so this is mostly a restyle onto the new shel
+ l. Good confidence builder.\n\nRemember: vitals APPEND to a history\, they
+  never overwrite. The form requires at least one field and omits untouched
+  inputs - an empty body stores an all-null reading.\n\nDefault owner: @Qee
+ yat (design lane). Lane labels are ownership DEFAULTS\, not walls - either
+  dev may take any item\, but claim its In Flight row in HANDOFF.md before 
+ cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260818-infra-e2-registration-portal-invite-data-layer-ahead-of-d4-e6-
+ enve@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260818
+DTEND;VALUE=DATE:20260819
+SUMMARY:[INFRA] E2 registration + portal-invite data layer (ahead of D4)\, 
+ E6 envelopes
+DESCRIPTION:CONTRACT-FIRST: this must land before Wednesday's DASH-4 styles
+  it.\n\nEndpoints\, types\, proxy routes and error handling for: patient r
+ egistration (email OPTIONAL\, phone REQUIRED when omitted\, both omitted -
+ > 400 phone error)\, has_portal_account\, POST /receptionist/patients/<id>
+ /send-portal-invite/ (400 no email\, 404 unknown\, 409 email belongs to an
+ other account\, 200)\, and patient email edit (400 if the address belongs 
+ to any other account\; correcting then reissuing MOVES the login).\n\nE6: 
+ narrow the Ward[] | Paginated<Ward> type hedges now Swagger can settle the
+ m.\n\nDefault owner: @Bastoh (infra lane). Lane labels are ownership DEFAU
+ LTS\, not walls - either dev may take any item\, but claim its In Flight r
+ ow in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_
+ PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260819-design-dash-4-receptionist-registration-hcl-id-portal-invite-c
+ heck@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260819
+DTEND;VALUE=DATE:20260820
+SUMMARY:[DESIGN] DASH-4 Receptionist - registration\, HCL-ID\, portal invit
+ e\, check-ins
+DESCRIPTION:THE DENSEST PHI-FACING PR. Everything a front desk does on day 
+ one.\n\nRegistration: email OPTIONAL\, phone REQUIRED when email is omitte
+ d. The form must allow submitting without an email. Surface the returned H
+ CL-ID clearly - the receptionist reads it out to the patient.\n\nAlso surf
+ ace\, at the front desk: an email-less patient has NO portal login and CAN
+ NOT approve cross-org access. That's a real-world consequence a receptioni
+ st needs to understand at the counter\, not a footnote.\n\nPortal invite s
+ hows when has_portal_account is false AND an email exists. Error copy for 
+ the 409 (email belongs to another account) has to be comprehensible to a n
+ on-technical user.\n\nDefault owner: @Qeeyat (design lane). Lane labels ar
+ e ownership DEFAULTS\, not walls - either dev may take any item\, but clai
+ m its In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: docs
+ /FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260819-infra-e3-patient-consent-data-layer-ahead-of-d6-e4-announcemen
+ ts-a@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260819
+DTEND;VALUE=DATE:20260820
+SUMMARY:[INFRA] E3 patient consent data layer (ahead of D6)\, E4 announceme
+ nts\, A7 baseline
+DESCRIPTION:CONTRACT-FIRST: E3 must land before Thursday's DASH-6.\n\nE3: w
+ ire PATIENT_ACCESS_REQUEST PATCH. Today patients can only VIEW access requ
+ ests - consent works SOLELY through emailed token links\, which is why tie
+ r-crossing is a total consent failure rather than an inconvenience.\n\nE4:
+  re-add ORG_ANNOUNCEMENTS (public\, unauthenticated\, DRF-paged\, is_publi
+ c only) and wire it into the empty state already on the org landing page.\
+ n\nA7: write SECURITY_BASELINE.md - scope agreed 2026-08-09. Cookie scopin
+ g (A3) and tier isolation now belong in it.\n\nDefault owner: @Bastoh (inf
+ ra lane). Lane labels are ownership DEFAULTS\, not walls - either dev may 
+ take any item\, but claim its In Flight row in HANDOFF.md before cutting t
+ he branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260820-design-dash-6-patient-in-app-consent-notifications-no-smallscr
+ eenga@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260820
+DTEND;VALUE=DATE:20260821
+SUMMARY:[DESIGN] DASH-6 Patient - in-app consent\, notifications. NO SmallS
+ creenGate
+DESCRIPTION:PHI-CRITICAL and the most-used surface by non-staff.\n\nIn-app 
+ consent approve/deny is the headline: today patients can only view request
+ s\, so consent depends entirely on emailed links.\n\nTWO THINGS TO GET RIG
+ HT:\n1. This dashboard must NOT have SmallScreenGate. Patients are on phon
+ es. It is the only responsive one.\n2. Consent copy must state clearly WHO
+  is asking and WHY. The reason and requested_at fields are already typed a
+ nd render conditionally - if the backend is sending them\, they must be vi
+ sible. Asking someone to consent without showing the reason is a consent d
+ efect\, not a cosmetic gap.\n\nDefault owner: @Qeeyat (design lane). Lane 
+ labels are ownership DEFAULTS\, not walls - either dev may take any item\,
+  but claim its In Flight row in HANDOFF.md before cutting the branch.\n\nP
+ lan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260820-infra-e5-notifications-e7-serverfetch-e8-eslint-ci@healthcloud
+ a.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260820
+DTEND;VALUE=DATE:20260821
+SUMMARY:[INFRA] E5 notifications\, E7 serverFetch\, E8 ESLint + CI
+DESCRIPTION:E5: staff + patient notification lists\, unread count\, mark-re
+ ad\, read-all. STAFF_NOTIFS and PATIENT_READ_ALL currently have ZERO uses.
+  Backend notification delivery goes live this sprint - until now rows were
+  created and nothing sent.\n\nE7/FLAG-005: serverFetch turns auth errors\,
+  500s\, network failures and malformed JSON all into null - indistinguisha
+ ble from 'no data'\, and nothing is logged. Production incidents would pre
+ sent as a silently empty dashboard.\n\nE8/FLAG-006: there is NO eslint con
+ fig (so 'next lint' has never run) and NO .github directory at all. Add th
+ e flat config + an Actions workflow running lint\, tsc\, test and build on
+  every PR into develop.\n\nDefault owner: @Bastoh (infra lane). Lane label
+ s are ownership DEFAULTS\, not walls - either dev may take any item\, but 
+ claim its In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: 
+ docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260821-both-gate-1-go-no-go-is-the-ui-ready-for-the-backend-s-uat-wee
+ k@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260821
+DTEND;VALUE=DATE:20260822
+SUMMARY:[BOTH] GATE 1 - GO/NO-GO: is the UI ready for the backend's UAT wee
+ k?
+DESCRIPTION:Code freeze on develop.\n\nCheck: all six dashboards merged and
+  exercised against api-dev - suite green - tsc clean - build green - HANDO
+ FF.md current - no unclaimed In Flight rows - the Cloudflare decision writ
+ ten - every week-1/2 item either done or explicitly carried with a named l
+ anding spot.\n\nIF NO-GO\, what moves is decided HERE - not during UAT\, a
+ nd not on onboarding morning. The backend's own test week depends on this 
+ UI\, so a silent slip costs them a week too.\n\nBoth devs. Lane labels are
+  ownership DEFAULTS\, not walls - either dev may take any item\, but claim
+  its In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: docs/
+ FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260821-design-dash-5-doctor-re-read-swagger-first-referrals-changed-2
+ 0-aug@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260821
+DTEND;VALUE=DATE:20260822
+SUMMARY:[DESIGN] DASH-5 Doctor - re-read Swagger FIRST (referrals changed ~
+ 20 Aug)
+DESCRIPTION:Scheduled last deliberately: the backend converts referrals to 
+ an ORG_ADMIN-managed workflow around 20 Aug - the receiving org's admin ac
+ cepts as a capacity confirmation\, then forwards to on-duty doctors. Today
+  it is doctor-to-doctor.\n\nSO: re-read Swagger before writing referral co
+ de. Building deep against the old accept flow this week is wasted work.\n\
+ nEpisode create and prescription create are safe to build (complete and ca
+ ncel already exist).\n\nThen FREEZE for Gate 1.\n\nDefault owner: @Qeeyat 
+ (design lane). Lane labels are ownership DEFAULTS\, not walls - either dev
+  may take any item\, but claim its In Flight row in HANDOFF.md before cutt
+ ing the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:DESIGN
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260821-infra-t6-t9-checklists-authored-c4-cloudflare-decision-written
+ @healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260821
+DTEND;VALUE=DATE:20260822
+SUMMARY:[INFRA] T6 + T9 checklists authored\, C4 Cloudflare decision writte
+ n
+DESCRIPTION:Author docs/UAT-CHECKLIST-FE.md (the T6 role journeys\, execute
+ d next week by the backend team through this UI) and the T9 beta confirmat
+ ion checklist for 1 Sep.\n\nC4: write the Cloudflare decision into HANDOFF
+ .md - migrate before beta if the spike's failure list is short\, otherwise
+  it becomes the first post-hypercare project with its own plan. EITHER WAY
+  IT IS WRITTEN DOWN\, with the evidence from 13 Aug.\n\nDefault owner: @Ba
+ stoh (infra lane). Lane labels are ownership DEFAULTS\, not walls - either
+  dev may take any item\, but claim its In Flight row in HANDOFF.md before 
+ cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:INFRA
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260822-both-float-dash-5-overflow-float-items@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260822
+DTEND;VALUE=DATE:20260823
+SUMMARY:[BOTH] FLOAT - DASH-5 overflow + FLOAT items
+DESCRIPTION:Named catch-up block. Landing spot for DASH-5 overflow and the 
+ FLOAT items: announcements editor\, org settings\, superadmin extras beyon
+ d suspend/activate/verify\, and deep referral work.\n\nIf the week ran cle
+ an\, this is not a work day.\n\nBoth devs. Lane labels are ownership DEFAU
+ LTS\, not walls - either dev may take any item\, but claim its In Flight r
+ ow in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_
+ PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260824-both-t6-role-journey-uat-part-1-dev-env-synthetic-data@healthc
+ louda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260824
+DTEND;VALUE=DATE:20260825
+SUMMARY:[BOTH] T6 role-journey UAT part 1 (dev env\, synthetic data)
+DESCRIPTION:TEST WEEK OPENS. No new features - develop is frozen except for
+  fixes arising from testing. The backend runs its role-by-role UAT THROUGH
+  THIS UI\, so we are on the hook for turnaround.\n\nScripted end to end:\n
+ - RECEPTIONIST: register WITH email / WITHOUT email -> HCL-ID handout -> p
+ ortal invite -> patient sets password -> patient logs in\n- PATIENT PORTAL
+ : dashboard\, appointments\, notifications\, in-app consent approve/deny\n
+ - DOCTOR: episode\, prescription\, vitals\, duty toggle\n\nDeviations are 
+ LOGGED AS DEFECTS\, not fixed in place.\n\nBoth devs. Lane labels are owne
+ rship DEFAULTS\, not walls - either dev may take any item\, but claim its 
+ In Flight row in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONT
+ END_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260825-both-t6-role-journey-uat-part-2-referral-end-to-end@healthclou
+ da.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260825
+DTEND;VALUE=DATE:20260826
+SUMMARY:[BOTH] T6 role-journey UAT part 2 + referral end to end
+DESCRIPTION:- NURSE: vitals\, ward/bed\, admission\n- ORG_ADMIN: staff CRUD
+ \, dashboards\, access requests (read-only)\, announcements incl. the is_p
+ ublic toggle\n- SUPERADMIN: orgs\, users\, audit logs\, suspend/activate/v
+ erify\n- REFERRAL JOURNEY END TO END through the new ORG_ADMIN-managed wor
+ kflow\n\nStill logging\, not fixing.\n\nBoth devs. Lane labels are ownersh
+ ip DEFAULTS\, not walls - either dev may take any item\, but claim its In 
+ Flight row in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND
+ _SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260826-both-t3-t4-t7-security-day-on-the-live-dev-env@healthclouda.co
+ m
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260826
+DTEND;VALUE=DATE:20260827
+SUMMARY:[BOTH] T3/T4/T7 - security day on the live dev env
+DESCRIPTION:T3: tampered hc_user cookie against the DEPLOYMENT\, not just i
+ n vitest. Every role\, every dashboard\, both cross-role and cross-org.\n\
+ nT4 PHI leakage: patient IDs and HCL-IDs in URLs (they reach browser histo
+ ry\, server logs and Referer headers) - browser cache and bfcache (press B
+ ack after logout\, you must not see a dashboard) - what an error tracker w
+ ould ship if we added one.\n\nT7 THE TIER TEST\, the one that matters most
+ : trigger a REAL set-password email and a REAL consent link from the dev b
+ ackend. Both must point at dev.healthclouda.com and complete end to end. F
+ RONTEND_URL mistakes surface exactly here and nowhere earlier.\n\nAlso: no
+  cookie carries Domain=.healthclouda.com\; the built output contains zero 
+ occurrences of railway.app.\n\nBoth devs. Lane labels are ownership DEFAUL
+ TS\, not walls - either dev may take any item\, but claim its In Flight ro
+ w in HANDOFF.md before cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_P
+ LAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260827-both-defect-triage-fixes-t8-accessibility-pass-cut-staging-dep
+ loy@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260827
+DTEND;VALUE=DATE:20260828
+SUMMARY:[BOTH] Defect triage + fixes\, T8 accessibility pass\, cut staging 
+ + deploy beta.
+DESCRIPTION:Fix what UAT found - on develop\, RED test first for anything r
+ eal. Re-run T1 plus every failed journey.\n\nT8: the accessibility and per
+ formance lens\, systematically - keyboard reachable\, labelled\, contrast\
+ , screen-reader sane\, Lighthouse\, oversized assets. Clinic staff use key
+ boards heavily and some will use assistive tech.\n\nB4: cut the staging br
+ anch from develop and deploy beta.healthclouda.com with NEXT_PUBLIC_API_UR
+ L still UNSET - it must fail LOUDLY\, proving A4 works. api-beta does not 
+ exist until 31 Aug\; beta must be deployable before it does.\n\nBoth devs.
+  Lane labels are ownership DEFAULTS\, not walls - either dev may take any 
+ item\, but claim its In Flight row in HANDOFF.md before cutting the branch
+ .\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260828-both-gate-2-go-no-go-on-the-tier-1-gate-beta-healthclouda-com-
+ rea@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260828
+DTEND;VALUE=DATE:20260829
+SUMMARY:[BOTH] GATE 2 - GO/NO-GO on the Tier 1 gate\; beta.healthclouda.com
+  ready
+DESCRIPTION:Every Tier-1 A-item evidenced\, or explicitly accepted in writi
+ ng by the owner: A1 tier separation - A2 stale hosts purged - A3 cookie sc
+ oping - A4 fail-loud - A5 role gating - A6 consent bypass removed - A7 sec
+ urity baseline - A8 backend FRONTEND_URL confirmed tiered.\n\nTARGET: beta
+ .healthclouda.com ready\, pending ONLY the api-beta variable.\n\nIF NO-GO:
+  onboarding moves. That decision is made HERE\, not on 3 Sep.\n\nBoth devs
+ . Lane labels are ownership DEFAULTS\, not walls - either dev may take any
+  item\, but claim its In Flight row in HANDOFF.md before cutting the branc
+ h.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260831-both-api-beta-created-set-the-env-var-redeploy-verify-no-code-
+ cha@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260831
+DTEND;VALUE=DATE:20260901
+SUMMARY:[BOTH] api-beta created -> set the env var\, redeploy\, verify. NO 
+ CODE CHANGE
+DESCRIPTION:The backend stands up staging today and creates api-beta.health
+ clouda.com. Our side is a VARIABLE FLIP:\nset NEXT_PUBLIC_API_URL on the s
+ taging branch env -> redeploy -> verify.\n\nIF THIS REQUIRES A CODE CHANGE
+ \, THE TIERING IS WRONG and that is the finding of the day.\n\nDone when: 
+ beta.healthclouda.com loads and authenticates against api-beta with a vali
+ d cert.\n\nBoth devs. Lane labels are ownership DEFAULTS\, not walls - eit
+ her dev may take any item\, but claim its In Flight row in HANDOFF.md befo
+ re cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260901-both-t9-confirmatory-test-day-on-beta-synthetic-data@healthclo
+ uda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260901
+DTEND;VALUE=DATE:20260902
+SUMMARY:[BOTH] T9 CONFIRMATORY TEST DAY on beta (synthetic data)
+DESCRIPTION:Passing on dev says the APPLICATION is right\; it says nothing 
+ about whether THIS ENVIRONMENT is wired right.\n\n(1) RE-CONFIRM against t
+ he new env: T6 role journeys\, T3 isolation\, T4 leakage\, T8 accessibilit
+ y.\n\n(2) PROVE WHAT ONLY BETA CAN PROVE: an invite emailed from the STAGI
+ NG backend lands on beta.healthclouda.com - not dev\, not the apex - and c
+ ompletes through to login. Same for a consent link. This is the exact fail
+ ure the whole tiering plan exists to prevent\, and today is the first time
+  both tiers exist to test it.\n\nFailures are logged\, not patched in plac
+ e.\n\nBoth devs. Lane labels are ownership DEFAULTS\, not walls - either d
+ ev may take any item\, but claim its In Flight row in HANDOFF.md before cu
+ tting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260902-both-fix-on-develop-re-promote-smoke-test-after-the-db-wipe-fr
+ eez@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260902
+DTEND;VALUE=DATE:20260903
+SUMMARY:[BOTH] Fix on develop\, re-promote\, smoke test after the DB wipe\,
+  freeze
+DESCRIPTION:Fix anything T9 found ON DEVELOP and re-promote - never hot-pat
+ ch staging.\n\nThe backend wipes the staging database to empty today befor
+ e provisioning the beta org. AFTER the wipe\, smoke test the UI: every das
+ hboard must render EMPTY STATES\, not error states. An empty database is e
+ xactly the condition that makes a swallowed fetch error look identical to 
+ 'no data' (FLAG-005) - this is the day that bites if E7 didn't land.\n\nTh
+ en freeze.\n\nBoth devs. Lane labels are ownership DEFAULTS\, not walls - 
+ either dev may take any item\, but claim its In Flight row in HANDOFF.md b
+ efore cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260903-both-onboarding-day-first-beta-org-live@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260903
+DTEND;VALUE=DATE:20260904
+SUMMARY:[BOTH] ONBOARDING DAY - first beta org live
+DESCRIPTION:Staff walkthrough and training. Watch logs and monitoring live 
+ throughout.\n\nNO DEPLOYS.\n\nFIRST REAL PHI ENTERS HERE - and not one day
+  earlier.\n\nBoth devs. Lane labels are ownership DEFAULTS\, not walls - e
+ ither dev may take any item\, but claim its In Flight row in HANDOFF.md be
+ fore cutting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:20260904-both-hypercare-day-1@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;VALUE=DATE:20260904
+DTEND;VALUE=DATE:20260905
+SUMMARY:[BOTH] Hypercare day 1
+DESCRIPTION:Continues into the following week. Daily: error review\, suppor
+ t triage\, watch for anything the synthetic data never exercised.\n\nLandi
+ ng spot for any remaining FLOAT item - including the Cloudflare hosting mi
+ gration if Gate 1 deferred it.\n\nNothing merges to staging without a reas
+ on.\n\nBoth devs. Lane labels are ownership DEFAULTS\, not walls - either 
+ dev may take any item\, but claim its In Flight row in HANDOFF.md before c
+ utting the branch.\n\nPlan: docs/FRONTEND_SPRINT_PLAN.md
+CATEGORIES:BOTH
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:frontend-standup-daily@healthclouda.com
+DTSTAMP:20260810T120000Z
+SEQUENCE:0
+DTSTART;TZID=Africa/Lagos:20260810T213000
+DTEND;TZID=Africa/Lagos:20260810T220000
+RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=20260904T235900Z
+SUMMARY:[BOTH] Frontend standup - git pull, In Flight, blockers, who's taki
+ ng what
+DESCRIPTION:30 minutes\, all three of us\, straight after the backend stand
+ up at 21:00.\n\nPull develop BEFORE reading any doc - every project doc is
+  a working-tree file\, so a stale tree gives a stale answer with no error.
+ \n\nRead the In Flight table in HANDOFF.md. Say what you are taking today\
+ , especially when crossing lanes\, and CLAIM THE ROW before cutting the br
+ anch.\n\nCall out contract-first ordering explicitly: the E-items must lan
+ d before the DASH PR that styles them. A design PR built on the wrong data
+  shape is a rewrite\, not a fix.
+CATEGORIES:BOTH
+END:VEVENT
+END:VCALENDAR
