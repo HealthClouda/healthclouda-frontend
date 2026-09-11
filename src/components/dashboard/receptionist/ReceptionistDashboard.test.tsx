@@ -50,7 +50,7 @@ vi.mock('@/lib/client-api', () => ({
   },
 }));
 
-import { dataGet, dataAction } from '@/lib/client-api';
+import { dataGet, dataAction, ClientApiError } from '@/lib/client-api';
 const dataGetMock = vi.mocked(dataGet);
 const dataActionMock = vi.mocked(dataAction);
 
@@ -698,5 +698,148 @@ describe('D4 — portal invite and contact edit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     fireEvent.click(await screen.findByRole('button', { name: /Portal & contact/ }));
     expect(await screen.findByRole('button', { name: 'Send portal invite' })).toBeDisabled();
+  });
+});
+
+// ─── Check-in write path — FLAG gap: REC_CHECK_INS had no POST/PATCH call
+// site anywhere in src/ before this PR. Contract read from backend SOURCE
+// (apps/patients/receptionist_views.py + receptionist_serializers.py), not
+// the schema — both views are hand-rolled APIViews with no typed request/
+// response documented.
+describe('checking a patient in — POST /receptionist/check-ins/', () => {
+  const found = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu',
+      masked_phone: '080****1234', has_visited_org: true,
+      has_pending_access_request: false, has_approved_access: true,
+    }],
+  };
+  const detail = {
+    id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu',
+    email: 'chidi@example.test', phone: '08031231234', has_portal_account: false,
+  };
+  const onDuty = {
+    count: 1, next: null, previous: null,
+    results: [{ id: 'd-1', first_name: 'Ada', last_name: 'Obi', email: 'ada@example.test', is_on_duty: true, duty_toggled_at: null }],
+  };
+
+  async function openPanel() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.PATIENT('p-1'))) return Promise.resolve(detail);
+      if (path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)) return Promise.resolve(found);
+      if (path.startsWith(ENDPOINTS.REC_DOCTORS_ON_DUTY)) return Promise.resolve(onDuty);
+      return Promise.resolve(emptyPage);
+    });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+    fireEvent.change(await screen.findByLabelText(/Search patients/), { target: { value: 'Chidi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Portal & contact/ }));
+    await screen.findByText('No portal account yet.');
+  }
+
+  it('POSTs the patient already known from the row, the chosen doctor and the reason', async () => {
+    dataActionMock.mockResolvedValue({ message: 'Patient checked in. Queue number: 4', check_in: { id: 'ci-9' } });
+    await openPanel();
+
+    fireEvent.change(await screen.findByLabelText(/Reason for visit/i), { target: { value: 'Fever' } });
+    fireEvent.change(screen.getByLabelText(/Assign doctor/i), { target: { value: 'd-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in patient' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe(ENDPOINTS.REC_CHECK_INS);
+    expect(method).toBe('POST');
+    // Patient comes from the row already selected — no client-side patient
+    // picker (FLAG-214: a paged search only ever sees page 1).
+    expect(body).toEqual({ patient: 'p-1', reason_for_visit: 'Fever', assigned_doctor: 'd-1' });
+
+    // 201 envelope is { message, check_in } — surface the server's own
+    // message (it carries the queue number), not an invented one.
+    expect(await screen.findByText(/Queue number: 4/)).toBeInTheDocument();
+  });
+
+  it('omits assigned_doctor when none is chosen, and never sends the empty string', async () => {
+    dataActionMock.mockResolvedValue({ message: 'Patient checked in. Queue number: 1', check_in: { id: 'ci-9' } });
+    await openPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in patient' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [, , body] = dataActionMock.mock.calls[0];
+    expect(body).toEqual({ patient: 'p-1', reason_for_visit: '' });
+  });
+
+  it('surfaces the backend\'s own rejection reason for FLAG-236/238, not a generic error', async () => {
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(
+        400,
+        { patient: ['Patient already has an active check-in at your organization.'] },
+        'Request failed (HTTP 400)',
+      ),
+    );
+    await openPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in patient' }));
+
+    expect(await screen.findByText(/already has an active check-in/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Request failed/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('working the queue — PATCH /receptionist/check-ins/<id>/', () => {
+  const queue = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'ci-1',
+      queue_number: 1,
+      patient: { id: 'p-1', first_name: 'Chidi', last_name: 'Nwosu', healthclouda_id: 'HCL-05CS2Q' },
+      checked_in_at: new Date().toISOString(),
+      assigned_doctor: null,
+      reason_for_visit: 'Headache',
+      status: 'WAITING',
+    }],
+  };
+
+  async function openCheckIns() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.REC_CHECK_INS)) return Promise.resolve(queue);
+      return Promise.resolve(emptyPage);
+    });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check-ins' }));
+    await waitFor(() => expect(screen.getByText('Chidi Nwosu')).toBeInTheDocument());
+  }
+
+  it('calling a waiting patient in PATCHes status=IN_PROGRESS (not "CALLED" — the backend has no such status)', async () => {
+    dataActionMock.mockResolvedValue({ message: 'Check-in updated.', check_in: { ...queue.results[0], status: 'IN_PROGRESS' } });
+    await openCheckIns();
+
+    fireEvent.click(screen.getByRole('button', { name: /call in/i }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock).toHaveBeenCalledWith(ENDPOINTS.REC_CHECK_IN('ci-1'), 'PATCH', { status: 'IN_PROGRESS' });
+  });
+
+  it('completing an in-progress patient PATCHes status=COMPLETED', async () => {
+    const inProgressQueue = { ...queue, results: [{ ...queue.results[0], status: 'IN_PROGRESS' }] };
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.REC_CHECK_INS)) return Promise.resolve(inProgressQueue);
+      return Promise.resolve(emptyPage);
+    });
+    dataActionMock.mockResolvedValue({ message: 'Check-in updated.', check_in: { ...inProgressQueue.results[0], status: 'COMPLETED' } });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check-ins' }));
+    await waitFor(() => expect(screen.getByText('Chidi Nwosu')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /complete/i }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock).toHaveBeenCalledWith(ENDPOINTS.REC_CHECK_IN('ci-1'), 'PATCH', { status: 'COMPLETED' });
   });
 });

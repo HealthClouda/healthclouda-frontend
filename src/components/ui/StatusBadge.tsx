@@ -14,10 +14,12 @@ const COLORS: Record<string, BadgeColor> = {
   // Info — scheduled / informational
   SCHEDULED:    { bg: 'bg-info-bg', text: 'text-info' },
   ADMITTED:     { bg: 'bg-info-bg', text: 'text-info' },
+  IN_PROGRESS:  { bg: 'bg-info-bg', text: 'text-info' },
 
   // Warning — pending / awaiting
   PENDING:      { bg: 'bg-warning-bg', text: 'text-warning' },
   AWAITING:     { bg: 'bg-warning-bg', text: 'text-warning' },
+  WAITING:      { bg: 'bg-warning-bg', text: 'text-warning' },
 
   // Warning (stronger) — needs attention but not yet a failure. Distinct hue
   // from PENDING/AWAITING so the two don't read as the same status at a glance.
