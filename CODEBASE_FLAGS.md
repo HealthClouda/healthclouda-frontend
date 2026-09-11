@@ -55,6 +55,43 @@ Every flag needs a **Done when** that someone else can verify without asking the
 
 ## Open flags
 
+### FLAG-027 — `GET /receptionist/check-ins/` is a hand-built `{count, results}` dict, not real DRF pagination
+**Severity:** P3 · **Area:** Receptionist / Contract · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-11, building the check-in write path (POST/PATCH)
+
+Read from backend source (`apps/patients/receptionist_views.py`,
+`PatientCheckInListCreateView.get`): the view builds its own envelope —
+
+```python
+serializer = PatientCheckInListSerializer(queryset, many=True)
+return Response({'count': queryset.count(), 'results': serializer.data})
+```
+
+There is no `next`, no `previous`, and `page_size` in the query string is **read by nothing** — the
+queryset is never sliced. The frontend nonetheless calls this endpoint exactly like a real paginated
+DRF list: `OverviewPage` does `useApi<Paginated<CheckIn>>(ENDPOINTS.REC_CHECK_INS + '?page_size=6')`
+and `CheckInsPage` does `usePaginatedList<CheckIn>(ENDPOINTS.REC_CHECK_INS + query)` — both call sites
+predate this PR.
+
+**Consequence:** on any org with more than a handful of check-ins in a day, the ignored `page_size`
+means the *entire* day's queue comes back in one response every time, and `usePaginatedList`'s own
+page-count math (`Math.ceil(count / results.length)`) always resolves to 1 page because `count` and
+`results.length` are the same number — the pager renders but has nothing to page to. Not a
+correctness bug against small seed data (which is why it has shipped unnoticed), but a real
+scalability/UX gap once a receptionist org has a real day's volume.
+
+Left alone deliberately in this PR — the task that found it was building the check-in *write* path,
+not restructuring how the *list* is fetched, and this is a backend pagination gap, not a frontend
+read-the-wrong-field bug.
+
+**Done when:** either the backend actually paginates this endpoint (`page`/`page_size` honoured,
+`next`/`previous` populated) and the frontend is verified to page correctly against real volume, or —
+if it stays a same-day queue by design — the frontend stops pretending it is paginated and calls
+`useAllPages` (or a plain `useApi<CheckIn[]>` if the response is always small by construction) instead
+of `usePaginatedList`.
+
+---
+
 ### FLAG-002 — Backend base URL is stale in three committed places
 **Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** ⚠️ **PARTIALLY FIXED**
 — codebase purged in PR `fix/tier1-infra-batch` (2026-08-12, sprint item A2). **Still open on the
