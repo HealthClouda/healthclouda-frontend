@@ -700,3 +700,52 @@ export interface Paginated<T> {
   previous: string | null;
   results: T[];
 }
+
+// GET /episodes/ (the generic, non-doctor-namespaced viewset) list item —
+// apps/patients/serializers.py: EpisodeListSerializer. Used ONLY to find a
+// patient's ACTIVE episode to admit against (a NURSE has no access to
+// /doctor/episodes/). NOT the same shape as `Episode` above (which is
+// /doctor/episodes/'s serializer): this one nests `organization`, truncates
+// the complaint/diagnosis into `*_summary` fields, and carries no
+// `has_admission` — kept as a separate type so the two are never silently
+// assumed interchangeable. Read from source, not the live schema (WARD-1).
+export interface EpisodeListItem {
+  id: string;
+  patient: { id: string; healthclouda_id: string; first_name: string; last_name: string };
+  organization: { id: string; name: string; org_id?: string };
+  episode_type: string;
+  chief_complaint_summary: string;
+  diagnosis_summary: string;
+  status: string;
+  episode_start: string;
+  episode_end: string | null;
+}
+
+// ─── Admissions (WARD-1) — shapes read from BACKEND SOURCE, not the schema ───
+// apps/ward/serializers.py: AdmissionListSerializer / AdmissionDetailSerializer.
+// `episode` on the detail serializer has no nested serializer declared, so
+// DRF's ModelSerializer defaults it to a plain PrimaryKeyRelatedField (an id
+// string) — NOT a nested object like `bed`/`patient`/`ward`.
+export interface AdmissionDetail {
+  id: string;
+  patient: { id: string; healthclouda_id: string; first_name: string; last_name: string };
+  bed: {
+    id: string;
+    bed_number: string;
+    status: string;
+    ward: { id: string; name: string; category?: string } | null;
+    room: { id: string; name?: string } | null;
+  } | null;
+  status: string;
+  admitted_at: string;
+  admitted_by: { id: string; email: string; first_name: string; last_name: string } | null;
+  admission_reason: string;
+  discharged_at: string | null;
+  length_of_stay: number;
+  episode: string;
+  discharged_by: { id: string; email: string; first_name: string; last_name: string } | null;
+  discharge_summary: string;
+  discharge_instructions: string;
+  created_at: string;
+  updated_at: string;
+}

@@ -8,6 +8,7 @@ import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { formInputClass } from '@/components/ui/FormField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SlidePanel } from '@/components/ui/SlidePanel';
 import { useApi, useAllPages, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -16,8 +17,12 @@ import { ShimmerRows } from '@/components/ui/Shimmer';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, timeAgo } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
+import { ClientApiError } from '@/lib/client-api';
 import type { User } from '@/types/auth';
-import type { NurseStats, NurseAdmission, PatientVitals, Ward, WardBed, Paginated } from '@/types/dashboard';
+import type {
+  NurseStats, NurseAdmission, PatientVitals, Ward, WardBed, Paginated,
+  EpisodeListItem,
+} from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
 function UserIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>; }
@@ -25,11 +30,15 @@ function HeartIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="curre
 function BedIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>; }
 function QueueIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>; }
 function PlusIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15m7.5-7.5h-15" /></svg>; }
+// Admit — a bed with a plus, distinct from the plain BedIcon used for Ward
+// Overview so the two nav entries don't read as the same destination.
+function AdmitIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25M12 12.75v3M10.5 14.25h3" /></svg>; }
 
 const NAV: NavItem[] = [
   { id: 'overview', label: 'Overview',     icon: <GridIcon /> },
   { id: 'patients', label: 'My Patients',  icon: <UserIcon /> },
   { id: 'vitals',   label: 'Vitals',       icon: <HeartIcon /> },
+  { id: 'admit',    label: 'Admit Patient',icon: <AdmitIcon /> },
   { id: 'wards',    label: 'Ward Overview',icon: <BedIcon /> },
 ];
 
@@ -361,6 +370,252 @@ function VitalsPage({ selected, onSelect }: {
   );
 }
 
+// ─── Admit patient (WARD-1) ─────────────────────────────────────────
+//
+// Entry point is an ACTIVE episode, not a bare patient row — the backend
+// rejects any other episode status ("Only active episodes can have new
+// admissions", apps/ward/serializers.py AdmissionCreateSerializer.
+// validate_episode). A NURSE has no access to /doctor/episodes/
+// (CanManageAdmissions is a different permission from what gates that
+// endpoint) and there is no "my patients without a bed" endpoint, so
+// eligible episodes are read from the generic /episodes/ viewset — a NURSE
+// can read their own org's episodes there (CanAccessEpisode) — and
+// cross-referenced against the nurse's own active-admissions list to hide
+// patients who are already admitted. The backend would 400 on that combo
+// anyway ("This patient already has an active admission in your
+// organization."), but there is no reason to let a nurse pick one to find
+// out.
+//
+// /episodes/ documents no query params at all (verified against
+// apps/patients/views.py EpisodeViewSet.get_queryset, which never reads
+// self.request.query_params — not inferred from the schema), so the ACTIVE
+// filter is applied client-side over EVERY page, the same trade the ward
+// board below makes: a nurse unable to find an eligible patient here has
+// clinical consequence, unlike a merely-short list.
+
+/**
+ * Reads apps/core/exceptions.py's custom_exception_handler shape —
+ * {error, code, details: {<field>: [<message>, ...]}} — directly from
+ * `details` rather than the flattened `.message` (which prefixes the field
+ * name, e.g. "gender: Patient gender..."). Returning which field failed is
+ * what lets the caller branch into the gender two-step.
+ */
+function admissionFieldError(err: unknown): { field: string | null; message: string } {
+  if (err instanceof ClientApiError) {
+    const details = (err.data as { details?: Record<string, unknown> } | null)?.details;
+    if (details) {
+      for (const field of ['gender', 'episode', 'bed', 'patient', 'non_field_errors']) {
+        const v = details[field];
+        if (v == null) continue;
+        const message = Array.isArray(v) ? String(v[0]) : String(v);
+        return { field: field === 'non_field_errors' ? null : field, message };
+      }
+    }
+  }
+  return { field: null, message: err instanceof Error ? err.message : 'Failed to admit patient' };
+}
+
+function eligibleEpisodeColumns(onAdmit: (ep: EpisodeListItem) => void): DataTableColumn<EpisodeListItem>[] {
+  return [
+    {
+      key: 'patient', header: 'Patient', render: ep => (
+        <div className="flex items-center gap-2.5">
+          <Avatar firstName={ep.patient.first_name} lastName={ep.patient.last_name} size="sm" />
+          <div>
+            <div className="text-[13px] font-semibold text-ink">{ep.patient.first_name} {ep.patient.last_name}</div>
+            <div className="text-[11px] text-text-soft font-mono">{ep.patient.healthclouda_id}</div>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'complaint', header: 'Chief Complaint', render: ep => <span className="text-xs text-text-soft">{ep.chief_complaint_summary || '—'}</span> },
+    { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-xs text-text-soft">{timeAgo(ep.episode_start)}</span> },
+    {
+      key: 'actions', header: '', className: 'text-right',
+      render: ep => (
+        <button onClick={() => onAdmit(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+          Admit
+        </button>
+      ),
+    },
+  ];
+}
+
+function AdmitForm({ episode, onClose, onAdmitted }: {
+  episode: EpisodeListItem | null;
+  onClose: () => void;
+  onAdmitted: () => void;
+}) {
+  const { toast } = useToast();
+  const { data: beds, loading: bedsLoading, error: bedsError, refetch: refetchBeds } =
+    useAllPages<WardBed>(ENDPOINTS.WARD_BEDS + '?status=AVAILABLE');
+  const [bedId, setBedId] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  // Set only when the server's gender two-step fires (backend FLAG-301) — a
+  // deliberate pause for the clinician to confirm, never auto-retried.
+  const [genderWarning, setGenderWarning] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
+    e.preventDefault();
+    if (!episode || saving || !bedId) return;
+    setSaving(true);
+    setFormError(null);
+    try {
+      await apiAction(ENDPOINTS.ADMISSIONS, 'POST', {
+        patient: episode.patient.id,
+        episode: episode.id,
+        bed: bedId,
+        admission_reason: reason.trim(),
+        override,
+      });
+      toast.success(`${episode.patient.first_name} ${episode.patient.last_name} admitted`);
+      setGenderWarning(null);
+      onAdmitted();
+      onClose();
+    } catch (err) {
+      const { field, message } = admissionFieldError(err);
+      if (field === 'gender' && !override) {
+        setGenderWarning(message);
+      } else {
+        setFormError(message);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SlidePanel
+      open={!!episode}
+      onClose={onClose}
+      title="Admit patient"
+      subtitle={episode ? `${episode.patient.first_name} ${episode.patient.last_name}` : undefined}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+          {!genderWarning && (
+            <button type="submit" form="admit-patient" disabled={saving || !bedId}
+              className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+              {saving ? 'Admitting…' : 'Admit'}
+            </button>
+          )}
+        </div>
+      }
+    >
+      <form id="admit-patient" onSubmit={(e) => void submit(e, false)} className="space-y-4">
+        <div>
+          <label htmlFor="admit-bed" className="block text-xs font-medium text-text-soft mb-1">Bed</label>
+          {bedsLoading ? <ShimmerRows count={1} /> : bedsError ? (
+            <ErrorState message={bedsError} onRetry={refetchBeds} />
+          ) : !beds?.length ? (
+            <p className="text-xs text-text-soft">No available beds in your organization right now.</p>
+          ) : (
+            <select
+              id="admit-bed"
+              value={bedId}
+              onChange={e => { setBedId(e.target.value); setGenderWarning(null); }}
+              className={formInputClass}
+            >
+              <option value="">Select a bed…</option>
+              {beds.map(b => (
+                <option key={b.id} value={b.id}>
+                  {[b.ward?.name, b.room?.name, `Bed ${b.bed_number}`].filter(Boolean).join(' · ')}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="admit-reason" className="block text-xs font-medium text-text-soft mb-1">Admission reason</label>
+          <textarea
+            id="admit-reason"
+            rows={3}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            className={`${formInputClass} h-auto py-2`}
+          />
+        </div>
+
+        {/* Backend FLAG-301: warn-and-allow, not a dead end. The mismatch is
+            surfaced clearly and requires an explicit second action — never a
+            silent retry with override=true — and the backend audits it. */}
+        {genderWarning && (
+          <div role="alert" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-2">
+            <p className="text-xs font-semibold text-warning-strong">{genderWarning}</p>
+            <p className="text-[11px] text-text-soft">Admitting anyway is recorded in this patient&apos;s audit trail.</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={(e) => void submit(e, true)}
+                disabled={saving}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-warning-strong hover:opacity-90 disabled:opacity-50 rounded-md transition-colors"
+              >
+                {saving ? 'Admitting…' : 'Admit anyway'}
+              </button>
+              <button type="button" onClick={() => setGenderWarning(null)} className="px-3 py-1.5 text-xs font-semibold text-text-soft hover:text-ink">
+                Choose a different bed
+              </button>
+            </div>
+          </div>
+        )}
+
+        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+      </form>
+    </SlidePanel>
+  );
+}
+
+function AdmitPatientPage() {
+  const { data: episodeData, loading: epLoading, error: epError, refetch: epRefetch } =
+    useAllPages<EpisodeListItem>(ENDPOINTS.EPISODES);
+  const { data: admissionData, loading: admLoading, error: admError, refetch: admRefetch } =
+    useAllPages<NurseAdmission>(ENDPOINTS.NURSE_MY_PATIENTS);
+  // Form state is keyed on the episode id below (house rule 9) so switching
+  // which patient is being admitted is a full remount — PR #130's clinical-
+  // text-and-consent-booleans leak was this exact shape of bug in a sibling
+  // permanently-mounted panel.
+  const [admitting, setAdmitting] = useState<EpisodeListItem | null>(null);
+
+  const loading = epLoading || admLoading;
+  const error = epError || admError;
+  const refetch = () => { epRefetch(); admRefetch(); };
+
+  const admittedPatientIds = new Set((admissionData ?? []).map(a => a.patient.id));
+  const eligible = (episodeData ?? []).filter(
+    ep => ep.status === 'ACTIVE' && !admittedPatientIds.has(ep.patient.id),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-body font-black text-[22px] text-ink">Admit Patient</h2>
+        <p className="text-[13px] text-text-soft mt-0.5">
+          Patients with an active episode at your organization who are not already admitted.
+        </p>
+      </div>
+      <DataTable
+        columns={eligibleEpisodeColumns(setAdmitting)}
+        data={eligible}
+        getRowKey={ep => ep.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No patients to admit"
+        emptyDescription="Patients with an active episode who are not already admitted will appear here."
+      />
+      <AdmitForm
+        key={admitting?.id ?? 'none'}
+        episode={admitting}
+        onClose={() => setAdmitting(null)}
+        onAdmitted={refetch}
+      />
+    </div>
+  );
+}
+
 // ─── Ward Overview page ───────────────────────────────────────────
 
 // Bed status → StatusBadge status. Observed live: OCCUPIED, AVAILABLE. The
@@ -469,6 +724,7 @@ const PAGE_TITLES: Record<string, string> = {
   overview: 'Overview',
   patients: 'My Patients',
   vitals: 'Vitals',
+  admit: 'Admit Patient',
   wards: 'Ward Overview',
 };
 
@@ -510,6 +766,7 @@ export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'overview' && <OverviewPage stats={stats} onNavigate={setPage} onRecordVitals={openVitals} isOnDuty={isOnDuty} />}
       {page === 'patients' && <MyPatientsPage onRecordVitals={openVitals} />}
       {page === 'vitals'   && <VitalsPage selected={vitalsFor} onSelect={setVitalsFor} />}
+      {page === 'admit'    && <AdmitPatientPage />}
       {page === 'wards'    && <WardsPage />}
     </DashboardShell>
   );

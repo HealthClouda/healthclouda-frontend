@@ -507,3 +507,188 @@ describe('D3 — the nurse dashboard has a small-screen gate', () => {
     }
   });
 });
+
+/**
+ * WARD-1 — the admissions write path. Pre-fix, the Nurse dashboard had no
+ * "Admit Patient" nav entry and no admit UI at all: `git grep -n
+ * "ENDPOINTS.ADMISSIONS" src/` matched only `src/lib/config.ts` itself, and
+ * these tests failed RED for that exact reason (no "Admit Patient" button /
+ * role to find). Shapes below are read from BACKEND SOURCE
+ * (apps/ward/serializers.py, apps/patients/serializers.py
+ * EpisodeListSerializer, apps/core/exceptions.py custom_exception_handler),
+ * not the live schema — see the PR body for the file:line citations.
+ */
+describe('WARD-1 — admit patient', () => {
+  // GET /episodes/ (generic viewset) items — apps/patients/serializers.py
+  // EpisodeListSerializer. Distinct shape from /doctor/episodes/: nests
+  // `organization`, truncates complaint into `chief_complaint_summary`, no
+  // `has_admission`.
+  const eligibleEpisode = {
+    id: 'ep-2',
+    patient: {
+      id: 'patient-ada',
+      healthclouda_id: 'HCL-ADA001',
+      first_name: 'Ada',
+      last_name: 'Obi',
+    },
+    organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'DC-1' },
+    episode_type: 'INPATIENT',
+    chief_complaint_summary: 'Severe abdominal pain',
+    diagnosis_summary: '',
+    status: 'ACTIVE',
+    episode_start: '2026-09-10T08:00:00Z',
+    episode_end: null,
+  };
+
+  // Chidi Nwosu (the `admission` fixture's patient) also has an active
+  // episode, but is ALREADY admitted — must be excluded from the picker.
+  const alreadyAdmittedEpisode = {
+    id: 'ep-1',
+    patient: {
+      id: admission.patient.id,
+      healthclouda_id: admission.patient.healthclouda_id,
+      first_name: admission.patient.first_name,
+      last_name: admission.patient.last_name,
+    },
+    organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'DC-1' },
+    episode_type: 'OUTPATIENT',
+    chief_complaint_summary: 'High blood pressure follow-up',
+    diagnosis_summary: '',
+    status: 'ACTIVE',
+    episode_start: '2026-07-11T20:00:00Z',
+    episode_end: null,
+  };
+
+  // GET /ward/beds/?status=AVAILABLE — apps/ward/serializers.py BedListSerializer.
+  const availableBed = {
+    id: 'bed-9',
+    bed_number: 'GW-09',
+    status: 'AVAILABLE',
+    ward: { id: 'ward-1', name: 'General Ward', category: 'MEDICAL' },
+    room: null,
+    current_patient: null,
+    assigned_at: null,
+    created_at: '2026-01-01T00:00:00Z',
+  };
+
+  function mockAdmitBackend() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.EPISODES)) {
+        return Promise.resolve({ count: 2, results: [eligibleEpisode, alreadyAdmittedEpisode] });
+      }
+      if (path.startsWith(ENDPOINTS.WARD_BEDS)) {
+        return Promise.resolve({ count: 1, results: [availableBed] });
+      }
+      if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
+        return Promise.resolve({ count: 1, results: [admission] });
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  async function openAdmitPage() {
+    mockAdmitBackend();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admit Patient' }));
+    await screen.findByText('Ada Obi');
+  }
+
+  it('lists a patient with an active episode who is not yet admitted', async () => {
+    await openAdmitPage();
+    expect(screen.getByText('Ada Obi')).toBeInTheDocument();
+    expect(screen.getByText(/Severe abdominal pain/)).toBeInTheDocument();
+  });
+
+  it('excludes a patient whose active episode already has an admission', async () => {
+    await openAdmitPage();
+    // Chidi Nwosu has an ACTIVE episode too (`alreadyAdmittedEpisode`), but is
+    // already in `admission` (NURSE_MY_PATIENTS) — must not be offered again.
+    expect(screen.queryByText('Chidi Nwosu')).not.toBeInTheDocument();
+  });
+
+  it('submits POST /ward/admissions/ with the selected bed and episode', async () => {
+    dataActionMock.mockResolvedValue({ message: 'Patient admitted successfully', admission: {} });
+    await openAdmitPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    fireEvent.change(screen.getByLabelText('Admission reason'), { target: { value: 'Requires monitoring' } });
+    // Two "Admit" buttons are on screen now: the row action (still rendered
+    // behind the panel) and the panel's submit button — the submit is last.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.ADMISSIONS,
+        'POST',
+        {
+          patient: eligibleEpisode.patient.id,
+          episode: eligibleEpisode.id,
+          bed: availableBed.id,
+          admission_reason: 'Requires monitoring',
+          override: false,
+        },
+      );
+    });
+  });
+
+  it('shows the gender two-step as a deliberate warning, not a silent retry', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        400,
+        {
+          error: "gender: Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+          code: 'BAD_REQUEST',
+          details: {
+            gender: ["Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway."],
+          },
+        },
+        "gender: Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+      ),
+    );
+    await openAdmitPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    // The warning is shown — not an auto-retry with override=true.
+    expect(await screen.findByText(/does not match the ward's gender policy/)).toBeInTheDocument();
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+
+    // Only an explicit second click resends with override=true.
+    dataActionMock.mockResolvedValueOnce({ message: 'ok', admission: {} });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenLastCalledWith(
+        ENDPOINTS.ADMISSIONS,
+        'POST',
+        expect.objectContaining({ override: true }),
+      );
+    });
+  });
+
+  it('surfaces a non-gender rejection (e.g. bed already taken) as a readable message', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        400,
+        {
+          error: 'bed: Bed GW-09 is not available (status: OCCUPIED).',
+          code: 'BAD_REQUEST',
+          details: { bed: ['Bed GW-09 is not available (status: OCCUPIED).'] },
+        },
+        'bed: Bed GW-09 is not available (status: OCCUPIED).',
+      ),
+    );
+    await openAdmitPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    expect(await screen.findByText(/Bed GW-09 is not available/)).toBeInTheDocument();
+  });
+});
