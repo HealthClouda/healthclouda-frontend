@@ -293,6 +293,48 @@ export interface PatientSearchResult {
   has_approved_access: boolean;
 }
 
+// GET /patients/search/?query= — apps/patients/serializers.py
+// PatientListSerializer, via PatientViewSet.search. ALL staff can call this
+// (CanManagePatients — a NURSE passes), unlike PatientSearchResult below
+// (receptionist-only, global). Response is a hand-built {count, results}
+// with no next/previous — NOT `Paginated<T>`.
+//
+// ⚠️ ORG-SCOPED, and that scoping matters for emergency admission:
+// PatientViewSet.get_queryset() filters to patient_visible_to_org_q(org) —
+// an approved OrgAccessRequest OR an existing (non-deleted) episode at this
+// org. A patient who has genuinely never been seen at this organisation and
+// has no access grant will NOT appear here, even searched by their exact
+// HealthClouda ID — and the same gate makes POST /episodes/ 400 for them
+// separately (EpisodeCreateSerializer.validate, apps/patients/serializers.py
+// FLAG-212). Flagged to the orchestrator rather than worked around: a
+// true first-ever walk-in cannot complete this flow yet. See PR #139.
+export interface OrgVisiblePatient {
+  id: string;
+  healthclouda_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string | null;
+  age: number | null;
+  gender: string;
+  blood_type: string | null;
+  city: string;
+  state: string;
+  is_active: boolean;
+}
+
+// GET /ward/attending-doctors/ — apps/ward/serializers.py
+// AttendingDoctorSerializer, via AttendingDoctorListView (A-2b). Bare array
+// (not paginated), DOCTORs in the caller's org, on-duty first then name.
+// NURSE-accessible (CanManageAdmissions allows GET). No PHI.
+export interface AttendingDoctor {
+  id: string;
+  full_name: string;
+  staff_id: string;
+  is_on_duty: boolean;
+}
+
 // GET /receptionist/doctors/on-duty/ — DRF envelope of these (REC-3)
 export interface OnDutyDoctor {
   id: string;
@@ -726,6 +768,23 @@ export interface EpisodeListItem {
 // `episode` on the detail serializer has no nested serializer declared, so
 // DRF's ModelSerializer defaults it to a plain PrimaryKeyRelatedField (an id
 // string) — NOT a nested object like `bed`/`patient`/`ward`.
+//
+// A-1/A-2 (emergency admission, 2026-09-12): admission_source/attending_doctor/
+// attending_doctor_name/needs_attending_doctor are on BOTH
+// AdmissionListSerializer and AdmissionDetailSerializer, so this type covers
+// the create response (POST /ward/admissions/ → {message, admission}).
+//
+// ⚠️ They are NOT on `NurseAdmission` above, and that is deliberate, not an
+// oversight: GET /nurse/my-patients/ is served by a SEPARATE hand-built
+// serializer (apps/ward/nurse_serializers.py ActiveAdmissionSerializer),
+// which the emergency-admission backend branch does not touch. Its
+// `Meta.fields` still stops at `admission_reason`/`length_of_stay`. Adding
+// `needs_attending_doctor` to `NurseAdmission` would read as present-but-
+// undefined on every row from that endpoint — a wrong "doesn't need a
+// doctor" rather than a visible gap (StatCard's `?? '—'` guard doesn't apply
+// to a raw boolean read). Reported to the orchestrator rather than wired up:
+// surfacing "needs a doctor" on the My Patients / Overview lists needs
+// ActiveAdmissionSerializer to carry the same 4 fields first.
 export interface AdmissionDetail {
   id: string;
   patient: { id: string; healthclouda_id: string; first_name: string; last_name: string };
@@ -748,4 +807,82 @@ export interface AdmissionDetail {
   discharge_instructions: string;
   created_at: string;
   updated_at: string;
+  admission_source: string;
+  attending_doctor: string | null;
+  attending_doctor_name: string | null;
+  needs_attending_doctor: boolean;
+}
+
+// POST /episodes/ response — apps/patients/views.py EpisodeViewSet.create:
+// {message, episode: EpisodeDetailSerializer}. Unlike the stale warning on
+// NewEpisodePanel (DoctorDashboard.tsx) — which is about a DIFFERENT call
+// signature and predates this read — `id` IS present here (verified against
+// apps/patients/serializers.py EpisodeDetailSerializer.Meta.fields, which
+// lists 'id' first, 2026-09-12). The emergency-admission flow depends on
+// this: it chains episode creation straight into the admission POST using
+// the id from this response, with no intermediate refetch.
+export interface EpisodeCreateResponse {
+  message: string;
+  episode: { id: string };
+}
+
+// POST /ward/admissions/ response — {message, admission: AdmissionDetailSerializer}.
+export interface AdmissionCreateResponse {
+  message: string;
+  admission: AdmissionDetail;
+}
+
+// ═══ PART 2 — the full ordered admission workflow (contract addendum, 2026-09-12) ═══
+//
+// ⚠️ UNVERIFIED AGAINST SOURCE. Unlike A-1/A-2/A-3 above (cross-checked
+// against the in-progress `feat/emergency-admission-source-doctor` backend
+// branch), Part 2 (ward.AdmissionRequest, reassign-doctor, discharge_outcome)
+// had NOT been implemented anywhere in the backend checkout as of this write
+// — measured with `git status` on healthclouda-backend: only
+// apps/ward/{models,serializers,urls,views}.py are touched, all for the
+// emergency path. Everything below is built from the contract's plain-English
+// spec, which is explicitly labelled prediction for parts of it (Q2/Q3
+// unanswered by the medical advisor). Treat every field name here as the
+// first thing to reconcile once the real serializer exists — that is also
+// why the option lists and the field lists are each declared exactly once,
+// so reconciling them is a one-place edit, not a hunt.
+
+// The FIVE medically signed-off triage levels, copied VERBATIM from
+// apps/referrals/models.py:111-116 URGENCY_CHOICES (FLAG-271, medical
+// sign-off 2026-06-02) — the contract requires reusing this vocabulary
+// rather than inventing a parallel one for admission requests.
+export const URGENCY_OPTIONS = [
+  { value: 'EMERGENCY', label: 'Emergency — immediate intervention (life/limb/organ)' },
+  { value: 'URGENT', label: 'Urgent — review within hours to a few days' },
+  { value: 'SEMI_URGENT', label: 'Semi-Urgent — assessment within days to weeks' },
+  { value: 'ROUTINE', label: 'Routine — specialist input, no significant risk from waiting' },
+  { value: 'ELECTIVE', label: 'Elective — planned, non-urgent evaluation/procedure' },
+] as const;
+
+export const LEVEL_OF_CARE_OPTIONS = [
+  { value: 'GENERAL', label: 'General' },
+  { value: 'HDU', label: 'HDU' },
+  { value: 'ICU', label: 'ICU' },
+  { value: 'ISOLATION', label: 'Isolation' },
+] as const;
+
+// GET /ward/admission-requests/?status= · POST (doctor orders). Nested-object
+// guesses (`patient`, `requested_by`, `requested_ward`) follow the pattern
+// every other list serializer in this app uses; `episode` is left a bare id
+// to match AdmissionDetailSerializer's own undeclared-PK convention
+// (apps/ward/serializers.py — no nested serializer declared for `episode`
+// defaults DRF to PrimaryKeyRelatedField). NONE of this is confirmed.
+export interface AdmissionRequest {
+  id: string;
+  patient: { id: string; healthclouda_id: string; first_name: string; last_name: string };
+  episode: string;
+  requested_by: { id: string; first_name: string; last_name: string } | null;
+  requested_ward: { id: string; name: string } | null;
+  level_of_care: string;
+  urgency: string;
+  clinical_reason: string;
+  status: string;
+  decline_reason: string;
+  resulting_admission: string | null;
+  created_at: string;
 }

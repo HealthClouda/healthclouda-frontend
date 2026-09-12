@@ -412,3 +412,78 @@ describe('FLAG-222 — the episode "Opened" column reads `episode_start`', () =>
     expect(screen.getByText("2d ago")).toBeInTheDocument();
   });
 });
+
+/**
+ * Part 2 — a doctor orders an admission. Added to the contract 2026-09-12
+ * after this PR was already underway (owner: "build the WHOLE admission
+ * workflow UI... the owner intends to walk the entire admission workflow
+ * himself, through the screens").
+ *
+ * ⚠️ UNVERIFIED AGAINST BACKEND SOURCE — POST /ward/admission-requests/ does
+ * not exist anywhere in the healthclouda-backend checkout as of this write
+ * (confirmed with `git status`: only the emergency-path ward files are
+ * touched, on the parallel branch). Built from the contract's plain-English
+ * spec, not from a serializer.
+ */
+describe('WARD-PART2 — a doctor requests an admission from an active episode', () => {
+  it('offers "Request admission" only for an ACTIVE episode with no admission yet', async () => {
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+
+    expect(await screen.findByRole('button', { name: 'Request admission' })).toBeInTheDocument();
+  });
+
+  it('hides "Request admission" once the episode already has one (has_admission: true)', async () => {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_EPISODES)) {
+        return Promise.resolve({ count: 1, results: [{ ...episode, has_admission: true }] });
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+
+    await screen.findByText('Ifeoma Nwachukwu');
+    expect(screen.queryByRole('button', { name: 'Request admission' })).not.toBeInTheDocument();
+  });
+
+  it('sends the FIVE medically signed-off urgency levels, never an invented sixth', async () => {
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Request admission' }));
+
+    const urgencySelect = await screen.findByLabelText('Urgency') as HTMLSelectElement;
+    const values = Array.from(urgencySelect.options).map(o => o.value);
+    expect(values).toEqual(['EMERGENCY', 'URGENT', 'SEMI_URGENT', 'ROUTINE', 'ELECTIVE']);
+  });
+
+  it('requires a non-blank clinical reason and posts patient/episode/level_of_care/urgency/clinical_reason — no requested_ward', async () => {
+    dataActionMock.mockResolvedValue({ message: 'ok' });
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Request admission' }));
+
+    const send = screen.getByRole('button', { name: 'Send request' });
+    expect(send).toBeDisabled();
+
+    fireEvent.change(await screen.findByLabelText('Level of care'), { target: { value: 'ICU' } });
+    fireEvent.change(screen.getByLabelText('Urgency'), { target: { value: 'URGENT' } });
+    fireEvent.change(screen.getByLabelText('Clinical reason'), { target: { value: 'Deteriorating oxygen saturation' } });
+    expect(send).not.toBeDisabled();
+    fireEvent.click(send);
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.ADMISSION_REQUESTS,
+        'POST',
+        {
+          patient: episode.patient!.id,
+          episode: episode.id,
+          level_of_care: 'ICU',
+          urgency: 'URGENT',
+          clinical_reason: 'Deteriorating oxygen saturation',
+        },
+      );
+    });
+  });
+});
