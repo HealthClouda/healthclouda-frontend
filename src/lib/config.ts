@@ -139,6 +139,11 @@ export const ENDPOINTS = {
   // hides its permissions and query params).
   PATIENTS: '/patients/',
   PATIENT: (id: string) => `/patients/${id}/`,
+  // Generic, ORG-SCOPED patient search — apps/patients/views.py
+  // PatientViewSet.search. All staff (incl. NURSE) can call it, unlike the
+  // receptionist's GLOBAL /receptionist/patients/search/ below. See the
+  // OrgVisiblePatient type for the scoping gap this carries.
+  PATIENTS_SEARCH: '/patients/search/',
   REC_SEND_PORTAL_INVITE: (id: string) => `/receptionist/patients/${id}/send-portal-invite/`,
   CREATE_PATIENT: '/patients/',
 
@@ -178,6 +183,23 @@ export const ENDPOINTS = {
   WARD_ROOMS: '/ward/rooms/',
   ADMISSIONS: '/ward/admissions/',
   ADMISSION: (id: string) => `/ward/admissions/${id}/`,
+  // A-2b (emergency admission): DOCTORs in the caller's org, for the
+  // attending-doctor picker. Bare array, on-duty first — apps/ward/views.py
+  // AttendingDoctorListView. NURSE-accessible (CanManageAdmissions).
+  WARD_ATTENDING_DOCTORS: '/ward/attending-doctors/',
+  // Discharge/reassign — EXISTING resource (POST /ward/admissions/{id}/discharge/
+  // already ships), reassign-doctor is the new PART 2 action alongside it.
+  ADMISSION_DISCHARGE: (id: string) => `/ward/admissions/${id}/discharge/`,
+  ADMISSION_REASSIGN_DOCTOR: (id: string) => `/ward/admissions/${id}/reassign-doctor/`,
+  // ⚠️ PART 2 (2026-09-12 contract addendum) — ward.AdmissionRequest. NOT YET
+  // BUILT on the parallel backend branch as of this write (verified: `git
+  // status` on healthclouda-backend shows only apps/ward/{models,serializers,
+  // urls,views}.py touched, all for the EMERGENCY path). Paths below are read
+  // straight off the contract's "API surface" section, not source.
+  ADMISSION_REQUESTS: '/ward/admission-requests/',
+  ADMISSION_REQUEST: (id: string) => `/ward/admission-requests/${id}/`,
+  ADMISSION_REQUEST_ACCEPT: (id: string) => `/ward/admission-requests/${id}/accept/`,
+  ADMISSION_REQUEST_DECLINE: (id: string) => `/ward/admission-requests/${id}/decline/`,
 
   // ── Org Admin ──────────────────────────────────────────────
   ORG_ADMIN_STATS: '/org-admin/dashboard/stats/',

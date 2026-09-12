@@ -19,6 +19,8 @@ import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
 } from '@/types/dashboard';
+import { URGENCY_OPTIONS, LEVEL_OF_CARE_OPTIONS } from '@/types/dashboard';
+import { ClientApiError } from '@/lib/client-api';
 
 // ─── Icons ────────────────────────────────────────────────────────
 function GridIcon()    { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -160,7 +162,10 @@ function patientColumns(onStartEpisode: (p: PatientSummary) => void): DataTableC
   ];
 }
 
-function episodeColumns(onComplete: (ep: Episode) => void): DataTableColumn<Episode>[] {
+function episodeColumns(
+  onComplete: (ep: Episode) => void,
+  onRequestAdmission: (ep: Episode) => void,
+): DataTableColumn<Episode>[] {
   return [
     { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
     { key: 'complaint', header: 'Chief Complaint', className: 'max-w-xs', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 50)}</span> },
@@ -172,9 +177,19 @@ function episodeColumns(onComplete: (ep: Episode) => void): DataTableColumn<Epis
       // ACTIVE, not OPEN — see FLAG-004. Gated on the wrong value, this action
       // never rendered at all.
       render: ep => ep.status === 'ACTIVE' ? (
-        <button onClick={() => onComplete(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
-          Complete
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Part 2 — hidden once an admission already exists for this
+              episode, same defensive gate the Nurse dashboard's eligible-
+              episode picker uses (`has_admission`). */}
+          {!ep.has_admission && (
+            <button onClick={() => onRequestAdmission(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+              Request admission
+            </button>
+          )}
+          <button onClick={() => onComplete(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+            Complete
+          </button>
+        </div>
       ) : null,
     },
   ];
@@ -477,6 +492,126 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
   );
 }
 
+/**
+ * Order an admission — POST /ward/admission-requests/ (Part 2, contract
+ * addendum 2026-09-12). ⚠️ UNVERIFIED: as of this write the backend for this
+ * endpoint does not exist anywhere in the checkout (only the emergency path,
+ * apps/ward/{models,serializers,urls,views}.py on the parallel branch, is
+ * built) — this is written from the contract's plain-English spec, not
+ * source.
+ *
+ * No `requested_ward` picker: GET /ward/ (WardViewSet) is gated by
+ * `CanManageWard`, which excludes DOCTOR entirely — the SAME gap FLAG-040
+ * already recorded for `/ward/beds/` (a DOCTOR could POST an admission but
+ * not discover a bed to send). `requested_ward` is nullable per the
+ * contract, so this omits it rather than build a picker a doctor account
+ * structurally cannot populate; the nurse chooses the actual ward at accept
+ * time (bed selection already implies a ward).
+ */
+function RequestAdmissionPanel({ episode, onClose, onRequested }: {
+  episode: Episode | null;
+  onClose: () => void;
+  onRequested: () => void;
+}) {
+  const { toast } = useToast();
+  const [levelOfCare, setLevelOfCare] = useState<string>('GENERAL');
+  const [urgency, setUrgency] = useState<string>('ROUTINE');
+  const [clinicalReason, setClinicalReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = clinicalReason.trim();
+    // Client-side gate: clinical_reason is REQUIRED non-blank per the
+    // contract, and the same encrypted-field-with-blank=True trap FLAG-336
+    // recorded for admission_reason is very likely to apply here too — a
+    // doctor should not have to discover that from a 400 mid-emergency.
+    if (!episode?.patient || saving || !trimmed) return;
+    setSaving(true);
+    setFormError(null);
+    try {
+      await apiAction(ENDPOINTS.ADMISSION_REQUESTS, 'POST', {
+        patient: episode.patient.id,
+        episode: episode.id,
+        level_of_care: levelOfCare,
+        urgency,
+        clinical_reason: trimmed,
+      });
+      toast.success('Admission requested — the ward has been notified');
+      onRequested();
+      onClose();
+    } catch (err) {
+      let message = err instanceof Error ? err.message : 'Failed to request admission';
+      if (err instanceof ClientApiError) {
+        const details = (err.data as { details?: Record<string, unknown> } | null)?.details;
+        for (const f of ['clinical_reason', 'level_of_care', 'urgency', 'patient', 'episode', 'non_field_errors']) {
+          const v = details?.[f];
+          if (v == null) continue;
+          message = Array.isArray(v) ? String(v[0]) : String(v);
+          break;
+        }
+      }
+      setFormError(message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const label = 'block text-xs font-medium text-text-soft';
+  const field =
+    'mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg bg-white text-ink focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all';
+
+  return (
+    <SlidePanel
+      open={!!episode}
+      onClose={onClose}
+      title="Request admission"
+      subtitle={episode ? subjectName(episode) : undefined}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+          <button type="submit" form="request-admission" disabled={saving || !clinicalReason.trim()}
+            className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+            {saving ? 'Sending…' : 'Send request'}
+          </button>
+        </div>
+      }
+    >
+      <form id="request-admission" onSubmit={submit} className="space-y-4">
+        <label className={label}>
+          Level of care
+          <select value={levelOfCare} onChange={e => setLevelOfCare(e.target.value)} className={field}>
+            {LEVEL_OF_CARE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+
+        <label className={label}>
+          Urgency
+          {/* The FIVE medically signed-off levels, verbatim from
+              apps/referrals/models.py:111-116 URGENCY_CHOICES — not a
+              parallel vocabulary invented for this form. */}
+          <select value={urgency} onChange={e => setUrgency(e.target.value)} className={field}>
+            {URGENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+
+        <label className={label}>
+          Clinical reason
+          <textarea rows={3} value={clinicalReason} onChange={e => setClinicalReason(e.target.value)} className={field} />
+        </label>
+
+        <p className="text-[11px] text-text-soft border-t border-border pt-3">
+          No ward/bed picker here — the ward chooses where when it accepts. Naming a level of care and
+          urgency is what lets it triage the queue.
+        </p>
+
+        {formError && <p role="alert" className="text-xs font-semibold text-red-600">{formError}</p>}
+      </form>
+    </SlidePanel>
+  );
+}
+
 function MyPatientsPage() {
   const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<PatientSummary>(ENDPOINTS.DOC_MY_PATIENTS);
@@ -527,6 +662,7 @@ function EpisodesPage() {
   const { toast } = useToast();
   const [completing, setCompleting] = useState<Episode | null>(null);
   const [working, setWorking] = useState(false);
+  const [requestingAdmission, setRequestingAdmission] = useState<Episode | null>(null);
 
   async function completeEpisode() {
     if (!completing) return;
@@ -556,7 +692,7 @@ function EpisodesPage() {
       </div>
 
       <DataTable
-        columns={episodeColumns(setCompleting)}
+        columns={episodeColumns(setCompleting, setRequestingAdmission)}
         data={episodes}
         getRowKey={ep => ep.id}
         loading={loading}
@@ -580,6 +716,12 @@ function EpisodesPage() {
         description={`Mark this episode for ${completing?.patient_name ?? completing?.patient ? `${completing.patient!.first_name} ${completing.patient!.last_name}` : 'this patient'} as complete?`}
         confirmLabel="Mark Complete"
         confirmVariant="primary"
+      />
+      <RequestAdmissionPanel
+        key={requestingAdmission?.id ?? 'none'}
+        episode={requestingAdmission}
+        onClose={() => setRequestingAdmission(null)}
+        onRequested={refetch}
       />
     </div>
   );
