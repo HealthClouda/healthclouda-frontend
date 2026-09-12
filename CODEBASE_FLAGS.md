@@ -883,6 +883,128 @@ should not be bundled into the same change.
 
 ---
 
+### FLAG-028 — `NewReferralPanel` never reset between patients: one patient's consent attestation could submit under another's name
+**Severity:** P1 · **Area:** Referrals / Compliance / PHI · **Owner:** @Bastoh · **Status:** ✅ RESOLVED (same PR, 2026-09-08)
+**Found:** 2026-09-08, PR #130 review (@Qeeyat)
+
+`NewReferralPanel` is mounted permanently by `MyPatientsPage` — `SlidePanel` only controls visibility,
+returning `null` while closed, so the panel's own state lives in the parent and survives every
+open/close. The reset effect added when the org picker shipped cleared exactly two of six pieces of
+state (`toOrganization`, `letterFailedFor`); `form` (`reason`/`clinical_findings`/
+`provisional_diagnosis`/`relevant_history`/`recommended_*`), `consentObtained` and
+`destinationDisclosed` were never touched.
+
+**Reproduced:** refer patient A, fill in the clinical fields, tick both attestations, close WITHOUT
+submitting. Refer patient B — `canSubmit` was already `true` off patient A's leftovers, zero new
+input required, and the payload for patient B carried patient A's `reason`/`clinical_findings`/
+`provisional_diagnosis` verbatim plus `patient_consent_obtained: true` and
+`consent_destination_disclosed: true`.
+
+**Why P1, not a UX rough edge:**
+- **Compliance** — those two booleans are the FLAG-272 (backend) DOCTOR ATTESTATION, written into an
+  immutable referral record. The UI fabricated a consent record for a patient the doctor never
+  attested for.
+- **PHI** — the backend generates a PDF from those fields and `notify_receiving_org` alerts the
+  receiving hospital. Patient A's clinical findings and working diagnosis would disclose to a
+  third-party organisation under patient B's name.
+- **Correctness** — the receiving clinician would be treating patient B against patient A's findings.
+- **The backend cannot catch this.** The payload passes `ReferralCreateSerializer.validate()` cleanly
+  — every field is well-formed and both booleans are genuinely `true`. There is no compensating
+  server-side control; this class of bug is only catchable client-side, where the mismatch between
+  "whose data is this" and "who is this for" actually exists.
+
+**Fixed structurally, not with four more `setX` calls** — a fifth field would have reproduced the
+exact same defect. `MyPatientsPage` now keys both `NewEpisodePanel` and `NewReferralPanel` on
+`patient?.id ?? '<sentinel>'`, so any patient change is a full React remount and every piece of state
+starts fresh, including state nobody has added yet. `SlidePanel` returning `null` on close/remount is
+what makes this free — there is no exit animation to interrupt.
+
+**The sibling.** `NewEpisodePanel` had the identical defect — `form` initialised once, no reset effect
+at all — found by grepping for the same shape rather than assuming it was isolated. Materially less
+bad (no consent attestation, no cross-org PDF, no third-party disclosure) but the same missing-reset
+class of bug. Fixed by the same `key` change, in the same commit.
+
+**Proven, not just fixed:** a test reproduces the exact scenario above (fill patient A, cancel, open
+patient B, assert no leftover text and `Send referral` disabled) and was confirmed RED against the
+pre-fix code (temporarily reverting the `key` prop) before being confirmed green against the fix.
+
+---
+
+### FLAG-029 — A picker test that could not fail: it waited for a synchronous hint, not the debounced fetch it claimed to prove
+**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** ✅ RESOLVED (same PR, 2026-09-08)
+**Found:** 2026-09-08, PR #130 review (@Qeeyat)
+
+`'does not fetch anything on mount and does not search below 2 characters'` typed one character,
+`waitFor`'d the "Keep typing — at least 2 characters" hint, then asserted `dataGet` hadn't been called
+with the target-organizations path. **The hint renders synchronously off the raw (non-debounced) query
+state**, so the assertion ran well before the picker's 350ms debounce could possibly have fired either
+way — proven by the reviewer weakening the length guard from `< 2` to `< 0` (below zero, i.e. never
+true) and re-running: **23 passed, 0 failed.** The "no fetch on mount" half was asserted even less:
+`dataGetMock.mockClear()` ran immediately before the one assertion the test made, so a mount-time fetch
+would have been silently discarded before anything checked for it.
+
+**Fixed** by asserting the mount-time absence directly (inspecting `dataGetMock.mock.calls` right after
+the panel opens, before clearing anything) and, for the below-2-characters half, waiting a real 500ms —
+past the 350ms debounce — before asserting no fetch happened, so a broken guard has actually had the
+window to fire before the check runs.
+
+**Re-verified against the same two sabotages the reviewer used:** reducing the guard to `< 0` now fails
+at the mount-time assertion (mount itself started fetching, because an untrimmed empty string no longer
+short-circuits); reducing it to `< 1` fails at the post-debounce assertion instead (mount is fine, a
+1-character query now fetches). Both catch a defect the previous version caught neither.
+
+---
+
+### FLAG-027 — A doctor has no endpoint to find a receiving organization's ID, so the referral-create form can't offer a picker
+**Severity:** P2 · **Area:** Referrals / Contract gap · **Owner:** @Bastoh · **Status:** 🟡 PARTIALLY RESOLVED
+**Found:** 2026-09-08, building the doctor "create referral" form (the wedge feature)
+
+**2026-09-08, same day — the organization half is closed.** Backend PR #181 (FLAG-566 on that side)
+shipped `GET /api/v1/referrals/target-organizations/?search=` — paginated, `id/org_id/name/org_type/
+city/state`, DOCTOR/ORGANIZATION_ADMIN only, never the caller's own org, active only, and a backend
+test feeds every returned row into the real `validate_to_organization` so nothing it offers can 400 on
+submit. `NewReferralPanel`'s `to_organization` field is now a search-as-you-type picker
+(`OrganizationPicker` in `DoctorDashboard.tsx`) instead of a raw UUID input — see the "Done when" below,
+now met for organizations.
+**Still open:** the colleague-doctor half, for an INTERNAL (same-org) referral — no endpoint lists a
+doctor's colleagues yet, so internal referral creation stays out of scope. Re-titling this flag would
+break the FLAG-566 cross-reference above; leaving the number as-is and narrowing what it still covers.
+
+`POST /api/v1/referrals/` requires `to_organization` as a UUID (backend
+`apps/referrals/serializers.py` — `ReferralCreateSerializer`). Read every path a DOCTOR-role user has
+to an Organization's UUID, source, not schema:
+
+- `GET /api/v1/organizations/` — `OrganizationViewSet.get_queryset()` (`apps/organizations/views.py`)
+  returns `Organization.objects.none()` for anyone who isn't `SUPERADMIN` or the org's own
+  `ORGANIZATION_ADMIN`. A doctor gets an empty list, silently — the 200 looks like "there are no
+  organizations" rather than "you can't see any."
+- `GET /api/v1/organizations/by-slug/<slug>/` — public (`AllowAny`), but `OrganizationBrandingSerializer`
+  deliberately excludes `id` (`name, slug, org_id, org_type, city, state, country_name, logo_url,
+  page_title, clinic_*` only — verified against the serializer, not the schema). It exists for
+  login-page branding, not identity resolution, and the FLAG-128 comment next to it says the
+  back-office fields are withheld on purpose.
+- No other endpoint in `apps/organizations/`, `apps/patients/doctor_views.py`, or
+  `apps/patients/receptionist_views.py` lists or resolves organizations for a non-admin role.
+
+So there is genuinely no way, today, for a doctor to discover which UUID to send as `to_organization`
+— not a missing frontend picker, a missing backend capability. The create form (this branch) ships
+with a plain "Receiving organization ID" text field and inline copy saying the ID has to come from the
+receiving org directly, because inventing a client-side directory backed by nothing would be worse
+than an honest text field.
+
+**Done when (organizations — MET 2026-09-08):** a doctor-and-org-admin-readable endpoint exists that
+lists active organizations with just `id`, `name`, `org_type`, `city`, `state`. Shipped as
+`GET /referrals/target-organizations/` rather than a change to `OrganizationViewSet` — that viewset is
+deliberately locked down and the fix is purpose-scoped instead, per backend PR #181's own reasoning.
+
+**Done when (remaining, colleagues):** a doctor-and-org-admin-readable endpoint exists that lists
+active DOCTOR-role staff at the caller's own organization — `id`, `name` — enough to build the same
+kind of picker for an internal referral's `referred_to_doctor`. Cross-lane: backend change. Filed here
+because the frontend found it building the wedge feature; the backend repo is private and this file
+cannot carry the fix.
+
+---
+
 ### FLAG-026 — The hourly-logout fix depends on a backend token lifetime we neither control nor can see
 **Severity:** P3 · **Area:** Auth / Session · **Owner:** @Bastoh · **Status:** OPEN
 **Found:** 2026-09-02, reviewing PR #99 before its re-review
