@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signInAs, VIEWPORTS } from './helpers';
+import { DRIFTING_TEXT_PATTERNS } from './drifting-text';
 
 /**
  * T5 design fidelity — Superadmin (DASH-1). Requires real credentials via
@@ -64,8 +65,11 @@ test.describe('Superadmin — desktop structure', () => {
           // sidebar avatar. It is a dev-build artifact, not our UI — and it
           // reads as an avatar showing the wrong initial until you spot it.
           page.locator('nextjs-portal'),
-          page.locator('text=/\\d+ (second|minute|hour|day)s? ago/i'),
-          page.locator('text=/Today,/i'),
+          // Clock-dependent text, derived from its producer rather than
+          // hand-listed (FLAG-235 — the two patterns this replaced matched
+          // strings the app has never rendered). This page shows `timeAgo()`
+          // in Recent Activity and in the audit log's Time column.
+          ...DRIFTING_TEXT_PATTERNS.map(re => page.getByText(re)),
           // Everything on this page that counts audit rows, because the count
           // grows with every sign-in — including the ones this suite performs:
           // the rows, the "N entries" subtitle, and the "1–20 of N" footer.
