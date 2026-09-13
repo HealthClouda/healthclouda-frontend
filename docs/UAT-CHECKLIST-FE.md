@@ -99,7 +99,7 @@ to their org portal — that is correct behaviour, not a defect. Superadmin has 
 | 1.2 | Read the Overview stat tiles | **Every tile shows a number** — never `—`, `NaN` or blank | ✅ | | |
 | 1.3 | Patient Search → Register patient **with** email | Success; the **HealthClouda ID is shown on screen** to hand over (#107). **Record it** | ✅ | | HCL-ID: ________ |
 | 1.4 | Register a patient **without** email, phone only | Succeeds; HCL-ID shown | ✅ | | HCL-ID: ________ |
-| 1.5 | Register with **neither** email nor phone | Refused with a **readable** message — not "Request failed (HTTP 400)" | ✅ | | |
+| 1.5 | Register with **neither** email nor phone | Refused with a message a receptionist understands. ⚠️ The backend wraps every error as `{error: "<field>: <message>", details: {...}}` and our `errorMessage()` shows `error` verbatim — so expect a raw `phone: …` style prefix. **Record the exact text** | ✅ | | |
 | 1.6 | Search for the 1.3 patient by surname (≥ 3 characters) | Found; phone shown masked | ✅ | | |
 | 1.7 | Search with 2 characters | Told the minimum, not an empty result that looks like "no patient" | ✅ | | |
 | 1.8 | Open the 1.4 patient → Portal & contact → add an email → Send portal invite | Success message; panel now shows the patient has a portal account | ✅ | | |
@@ -223,7 +223,7 @@ to their org portal — that is correct behaviour, not a defect. Superadmin has 
 | 7.3 | Try to send without ticking both consent confirmations | Send stays disabled | ⏳ #130 | | |
 | 7.4 | Fill the required fields, tick both, send to `other-clinic` | "Referral created" — **record the letter number** if shown | ⏳ #130 | | letter: ________ |
 | 7.5 | If the letter failed to generate | The panel stays open and offers **Retry**; it does not claim success | ⏳ #130 | | |
-| 7.6 | Refer a patient who cannot be referred (e.g. recorded deceased), if the data allows | A **readable** reason — #130's review predicts a bare "HTTP 400" | ⏳ #130 | | |
+| 7.6 | Refer a patient who cannot be referred (e.g. recorded deceased), if the data allows | The reason is shown, e.g. *"patient: This patient is recorded as deceased…"* — readable, with a raw field-name prefix. **Record the exact text** | ⏳ #130 | | |
 | 7.7 | Doctor → Referrals | The new referral shows under outgoing | ✅ | | |
 | 7.8 | As `orgadmin.other@demo.test` → Referrals | The referral appears as incoming; **accept** with create-episode ticked | ✅ | | |
 | 7.9 | As `doctor.other@demo.test` | Can see it, but has **no accept button** (the receiving org admin accepts) | ✅ | | 🔴 |
