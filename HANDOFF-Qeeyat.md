@@ -88,6 +88,17 @@ was never written down anywhere another person can read.**
   read `.env.local` (permission denied), so I did not claim to have seen the variables.
 
 **Decisions:**
+- **Answered #135's Cross-Lane row, and declined the bypass actor in writing.** He asked for the
+  shape — take the queue, authorise a bypass so agent-authored PRs self-merge, or he throttles. The
+  answer is **queue + throttle, no bypass**, on his own evidence rather than caution: ruleset
+  `11328360`'s single approval is **the only mechanical gate this repo has**, because CI is still not
+  a required status check and per **FLAG-230** stacked PRs run no CI at all. A bypass on top of that
+  means agent-authored code reaching `develop` with **neither a human nor a machine having looked**.
+  Pointed him at the two settings that *would* fix throughput safely — required checks, and the
+  `ci.yml` `branches: ['**']` one-liner — as the better place to spend his repo-settings access.
+  ⚠️ **Recorded here because the row itself lives on his unmerged #135**, so `HANDOFF.md` cannot carry
+  the answer yet without manufacturing a conflict in the same table. Clear the row on `develop` once
+  #135 merges.
 - **Did not commit the five Patient baselines.** That was the 9 Sep decision and it still holds —
   `patient-overview-desktop` carries `12d ago` twice, and committing it would bake two fresh time
   bombs into a **public** repo on top of the flag describing them. They stay in my working tree.
