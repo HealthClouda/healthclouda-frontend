@@ -60,6 +60,86 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-13 — landing a session that spent four days on a laptop (branch: docs/land-2026-09-09-session)
+
+**Goal:** session ritual after a break. The ritual itself turned up the finding: **the 9 Sep session
+was never written down anywhere another person can read.**
+
+**What I found before doing any work:**
+- 🔴 **Four days of finished thinking existed only as an uncommitted diff in my working tree** — the
+  FLAG-235 escalation (+38 lines) and five untracked Patient baseline PNGs. `develop` said FLAG-235
+  was *"flag logged; fix not yet written"* and that **Patient was the dashboard nobody had ever
+  rendered**. Both statements were four days stale, and the branch that would have corrected them had
+  already merged as **#133** while the correction sat unstaged behind it. **A merged PR does not mean
+  the work landed** — #133 carried the flag's first draft and nothing else.
+- 🎯 **The review queue has reversed and it is entirely mine to clear.** Seven of @Bastoh's PRs are
+  open and REVIEW_REQUIRED — **#130, #132, #134 (CONFLICTING), #135, #137, #138, #139** — plus #98
+  held. **#135 carries a Cross-Lane row addressed to me** asking for a decision, not a nudge: take
+  the queue, authorise a bypass actor, or tell him to throttle the build agents that author as him.
+  It is unanswered because it was opened **11 Sep**, two days after my last session.
+
+**What I did:**
+- Cut this branch from an up-to-date `develop` (the old one was merged) and landed the escalation,
+  cleared the stale FLAG-235 In Flight row, recorded #129/#131/#133 as cleared, and wrote the entry
+  below that should have existed on 9 Sep.
+- **Cleared the `E2E_PATIENT_*` Cross-Lane row as the raiser**, on the 4 Sep precedent: it is
+  verifiable from outside the row — the baselines cannot exist without a successful patient sign-in,
+  because the harness skips cleanly when the vars are absent. ⚠️ **Stated as inference**: I could not
+  read `.env.local` (permission denied), so I did not claim to have seen the variables.
+
+**Decisions:**
+- **Did not commit the five Patient baselines.** That was the 9 Sep decision and it still holds —
+  `patient-overview-desktop` carries `12d ago` twice, and committing it would bake two fresh time
+  bombs into a **public** repo on top of the flag describing them. They stay in my working tree.
+- **Did not tick `BETA_READINESS.md` item 2.** Patient has now been *rendered*; the item asks for a
+  patient **signing in and reaching their dashboard**, and a harness render on `dev.` against
+  synthetic data is the rehearsal, not the gate. Same distinction that file's own preamble draws.
+- **Did not touch the mask.** The fix is a code change with a two-day green-run requirement in its own
+  "Done when"; folding it into a docs PR would have hidden it.
+
+**Verified:** `npx tsc --noEmit`, `npm run lint`, the suite and `npm run build` — results on the PR.
+
+**Left undone / next:**
+- [ ] 🔴 **Answer #135's Cross-Lane row and clear the review queue** — seven PRs, two of them write
+      paths (#137 receptionist check-in, #139 ward admissions).
+- [ ] 🟠 **FLAG-235's actual fix** — mask `/\d+[dhm] ago/`, `just now` and `/\(\d+d\)/`, delete the
+      dead `/Today,/i`, regenerate **every** baseline once, prove it green on two different days.
+- [ ] 🔴 Still owed, unchanged since 1–6 Sep: required status checks, `ci.yml` `branches: ['**']`
+      (FLAG-230), #98, #96/FLAG-234.
+
+### 2026-09-09 — the mask was never protecting anything, and Patient finally rendered (branch: fix/flag-235-nurse-baseline-drift)
+
+> ⚠️ **Written retrospectively on 2026-09-13** from the working tree, the commit and the artifact
+> timestamps — not from memory. The session ended without a log entry, which is the reason it took
+> four days for any of this to become visible to @Bastoh.
+
+**Goal:** re-run the T5 harness looking for something else; it failed on nurse `My Patients`.
+
+**What I found:**
+- **FLAG-235, first diagnosis (merged as #133):** `NurseDashboard.tsx:75` renders `({length_of_stay}d)`,
+  a **server-computed day counter**, and `masksFor()` does not match it. Nurse is the only view passing
+  `admittedAsDate: true`, which is why doctor's identical table passed on the same run. The baseline
+  froze `(8d)`; the app rendered `(13d)`; the wider string re-laid out the row and **4325 pixels
+  differed on a two-character change** — which reads as a layout regression, not a text change.
+- 🔴 **Then the escalation, and it is the bigger finding.** Capturing the first-ever Patient baselines,
+  I saw `12d ago` sitting unmasked. **Two of the three content masks match strings this app never
+  emits:** `timeAgo()` (`utils.ts:68-78`) returns the **abbreviated** `12d ago` / `3h ago` / `5m ago`,
+  never `"12 days ago"`; and `/Today,/i`'s only hit in `src/` is `isToday,` **inside an import list**.
+  Re-verified 13 Sep: `grep -E "(second|minute|hour|day)s? ago" src/` returns **zero** hits.
+  🎯 **So every baseline holding a relative time has been date-dependent since capture. Nurse was not
+  the defect — it was the first one wide enough to cross the pixel threshold**, because `11d ago` →
+  `12d ago` keeps its width and slips under tolerance. **The others are passing on tolerance, not on
+  correctness.**
+- 🪤 **This is FLAG-221 applied to a safeguard rather than a test** — not an assertion about the wrong
+  property, but a guard over a value that does not exist. Playwright masks zero elements, nothing
+  errors, nothing warns, and the list *reads* as coverage.
+- ✏️ **A near-miss worth keeping:** I first blamed a receptionist `Patient Search` failure in the same
+  run on baseline rot from #107. It **passed on a clean re-run** — it was noise. The story fit the
+  merge dates and was wrong; a re-run cost 24 seconds.
+- 🎉 **Patient was rendered for the first time** — five baselines, desktop and mobile. Deliberately
+  **not committed**, see above.
+
+
 ### 2026-09-08 — T3 exists, and it is proven able to fail three ways (branches: docs/clear-in-flight-2026-09-08, test/t3-role-gate-isolation)
 
 **Goal:** session ritual first, then clear the In Flight table, then build T3 — the largest unbuilt
