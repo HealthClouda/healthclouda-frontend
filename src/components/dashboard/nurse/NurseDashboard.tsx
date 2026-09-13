@@ -254,7 +254,22 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 //
 // The outcome list is declared exactly ONCE — value, label, tone, and which
 // extra fields it requires — so correcting it is a one-place edit.
-interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
+//
+// ⚠️ CORRECTED against the advisor's actual Q3 answer (FLAG-041):
+// - The AMA reason must NOT be required ("sometimes there might be no
+//   particular reason, the patient just wants to leave"). It is no longer a
+//   separate extra field — it reuses the existing, already-optional
+//   "Discharge summary" textarea below, which is exactly what the backend's
+//   `discharge_patient()` reads as the AMA reason (`summary` ->
+//   `discharge_summary`). The previous `reason` extra field sent a
+//   `reason` key the backend has never read — required-and-wrong at once.
+// - AMA is SIGNED BY A DOCTOR, not witnessed by a typed name. `witnessed_by`
+//   is still the only field the live schema exposes for this (a CharField —
+//   apps/ward/models.py:468), so the picker sends the selected doctor's
+//   name into that same key rather than inventing an ID field the backend
+//   does not read yet. Re-check this the moment `fix/admissions-medical-
+//   answers-q2-q3` lands on the backend and switches it to a real reference.
+interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' | 'doctor' }
 interface DischargeOutcomeConfig {
   value: string;
   label: string;
@@ -271,9 +286,10 @@ const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
   },
   {
     value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution',
+    // No 'reason' field here — see the block comment above. Only the
+    // signing doctor is a required companion field.
     extraFields: [
-      { key: 'reason', label: 'Reason', type: 'text' },
-      { key: 'witnessed_by', label: 'Witnessed by', type: 'text' },
+      { key: 'witnessed_by', label: 'Signed by (doctor)', type: 'doctor' },
     ],
   },
   {
@@ -292,6 +308,11 @@ function DischargePanel({ admission, onClose, onDischarged }: {
   onDischarged: () => void;
 }) {
   const { toast } = useToast();
+  // Only fetched for outcomes that actually need a doctor (AMA) — no point
+  // spending a request on every discharge, most of which are ROUTINE.
+  const needsDoctorList = admission != null;
+  const { data: doctors, loading: doctorsLoading, error: doctorsError } =
+    useApi<AttendingDoctor[]>(needsDoctorList ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
   const [outcome, setOutcome] = useState<string>('ROUTINE');
   const [extra, setExtra] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState('');
@@ -309,9 +330,19 @@ function DischargePanel({ admission, onClose, onDischarged }: {
     setFormError(null);
     try {
       const payload: Record<string, string> = { discharge_outcome: outcome };
+      // The AMA reason lives here, not as a separate required field — see
+      // the FLAG-041 comment on DISCHARGE_OUTCOMES. Optional for every
+      // outcome, including AMA.
       if (summary.trim()) payload.discharge_summary = summary.trim();
       if (instructions.trim()) payload.discharge_instructions = instructions.trim();
-      for (const f of outcomeConfig.extraFields) payload[f.key] = extra[f.key].trim();
+      for (const f of outcomeConfig.extraFields) {
+        // 'doctor' fields hold a doctor id in `extra`, but the live schema's
+        // `witnessed_by` is a name CharField — resolve id -> name at the
+        // boundary rather than changing what the picker stores.
+        payload[f.key] = f.type === 'doctor'
+          ? (doctors ?? []).find(d => d.id === extra[f.key])?.full_name ?? ''
+          : extra[f.key].trim();
+      }
 
       await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
 
@@ -331,7 +362,7 @@ function DischargePanel({ admission, onClose, onDischarged }: {
     } catch (err) {
       const { message } = readFieldError(
         err,
-        ['discharge_outcome', ...outcomeConfig.extraFields.map(f => f.key), 'non_field_errors'],
+        ['discharge_outcome', 'discharge_summary', ...outcomeConfig.extraFields.map(f => f.key), 'non_field_errors'],
         'Failed to discharge patient',
       );
       setFormError(message);
@@ -382,20 +413,39 @@ function DischargePanel({ admission, onClose, onDischarged }: {
         )}
 
         {outcomeConfig.extraFields.map(f => (
-          <div key={f.key}>
-            <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
-            <input
+          f.type === 'doctor' ? (
+            <DoctorPicker
+              key={f.key}
               id={`discharge-${f.key}`}
-              type={f.type}
+              label={f.label}
+              helperText="The doctor who signed off this discharge against medical advice."
+              restrictToOnDuty={false}
+              doctors={doctors}
+              loading={doctorsLoading}
+              error={doctorsError}
               value={extra[f.key] ?? ''}
-              onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
-              className={formInputClass}
+              onChange={id => setExtra(v => ({ ...v, [f.key]: id }))}
+              required
             />
-          </div>
+          ) : (
+            <div key={f.key}>
+              <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
+              <input
+                id={`discharge-${f.key}`}
+                type={f.type}
+                value={extra[f.key] ?? ''}
+                onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
+                className={formInputClass}
+              />
+            </div>
+          )
         ))}
 
         <div>
-          <label htmlFor="discharge-summary" className="block text-xs font-medium text-text-soft mb-1">Discharge summary (optional)</label>
+          <label htmlFor="discharge-summary" className="block text-xs font-medium text-text-soft mb-1">
+            {/* Reused by AMA as the (optional) reason — see the FLAG-041 comment above. */}
+            {outcome === 'AGAINST_MEDICAL_ADVICE' ? 'Reason (optional)' : 'Discharge summary (optional)'}
+          </label>
           <textarea id="discharge-summary" rows={2} value={summary} onChange={e => setSummary(e.target.value)} className={`${formInputClass} h-auto py-2`} />
         </div>
         <div>
@@ -1044,8 +1094,25 @@ function EmergencyPatientSearch({ onSelect }: { onSelect: (p: OrgVisiblePatient)
 // Optional, and deliberately framed that way (Q2 — attending_doctor is
 // PROMPTED, NEVER BLOCKS): the default option reads as a normal outcome,
 // not an error state, because for an emergency admission it often is one.
-function DoctorPicker({ id = 'emergency-attending-doctor', doctors, loading, error, value, onChange, required = false }: {
+// ⚠️ CORRECTED against the advisor's Q2 answer (FLAG-041): "the nurse should
+// name a doctor who is on duty" is a real constraint, not a hint — the
+// backend previously only sorted on-duty first (a backend agent is changing
+// that in parallel, `fix/admissions-medical-answers-q2-q3`). Off-duty
+// doctors stay visible (so a nurse can see who exists and why they can't be
+// picked) but are `disabled` `<option>`s, not equally selectable, whenever
+// `restrictToOnDuty` is true. That default covers naming an attending
+// doctor; it is switched off for the AMA "signed by" picker below, which is
+// about who actually witnessed the discharge, on duty or not.
+function DoctorPicker({
+  id = 'emergency-attending-doctor',
+  label = 'Attending doctor',
+  helperText,
+  restrictToOnDuty = true,
+  doctors, loading, error, value, onChange, required = false,
+}: {
   id?: string;
+  label?: string;
+  helperText?: string;
   doctors: AttendingDoctor[] | null;
   loading: boolean;
   error: string | null;
@@ -1055,40 +1122,51 @@ function DoctorPicker({ id = 'emergency-attending-doctor', doctors, loading, err
   // (Part 2) genuinely requires a target doctor — same list, different
   // framing, so this is a prop rather than a second component.
   required?: boolean;
+  restrictToOnDuty?: boolean;
 }) {
   const onDuty = (doctors ?? []).filter(d => d.is_on_duty);
   const offDuty = (doctors ?? []).filter(d => !d.is_on_duty);
+  const defaultHelperText = restrictToOnDuty
+    ? (required
+        ? 'Choose the doctor taking over this patient. Only doctors on duty can be selected.'
+        : 'Optional — naming one never blocks this admission. Only doctors on duty can be selected; leave it as-is if none is available.')
+    : (required ? 'Choose the doctor.' : 'Optional — naming one never blocks this admission.');
   return (
     <div>
       <label htmlFor={id} className="block text-xs font-medium text-text-soft mb-1">
-        Attending doctor
+        {label}
       </label>
       <p className="text-[11px] text-text-soft mb-1">
-        {required
-          ? 'Choose the doctor taking over this patient.'
-          : 'Optional — naming one never blocks this admission. Leave it as-is if none is available.'}
+        {helperText ?? defaultHelperText}
       </p>
       {loading ? <ShimmerRows count={1} /> : error ? (
         <p className="text-xs text-danger">{error}</p>
       ) : (
-        <select
-          id={id}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className={formInputClass}
-        >
-          <option value="">{required ? 'Select a doctor…' : 'No doctor available right now'}</option>
-          {onDuty.length > 0 && (
-            <optgroup label="On duty">
-              {onDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-            </optgroup>
+        <>
+          <select
+            id={id}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className={formInputClass}
+          >
+            <option value="">{required ? 'Select a doctor…' : 'No doctor available right now'}</option>
+            {onDuty.length > 0 && (
+              <optgroup label="On duty">
+                {onDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              </optgroup>
+            )}
+            {offDuty.length > 0 && (
+              <optgroup label={restrictToOnDuty ? 'Not on duty — cannot be selected' : 'Not on duty'}>
+                {offDuty.map(d => (
+                  <option key={d.id} value={d.id} disabled={restrictToOnDuty}>{d.full_name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          {restrictToOnDuty && !loading && onDuty.length === 0 && (
+            <p className="text-[11px] text-text-soft mt-1">No doctors are currently on duty.</p>
           )}
-          {offDuty.length > 0 && (
-            <optgroup label="Not on duty">
-              {offDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-            </optgroup>
-          )}
-        </select>
+        </>
       )}
     </div>
   );

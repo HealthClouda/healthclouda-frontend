@@ -1206,10 +1206,17 @@ describe('WARD-PART2 — nurse admission-request queue (accept/decline)', () => 
 });
 
 describe('WARD-PART2 — discharge with outcome', () => {
+  // Deliberately off-duty — Q3's "signed by a doctor" is not gated by duty
+  // the way Q2's attending-doctor picker is (FLAG-041).
+  const signingDoctor = { id: 'doc-sign-1', full_name: 'Dr. Ada Obi', staff_id: 'DOC-S1', is_on_duty: false };
+
   function mockDischargeBackend() {
     dataGetMock.mockImplementation((path: string) => {
       if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
         return Promise.resolve({ count: 1, results: [admission] });
+      }
+      if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) {
+        return Promise.resolve([signingDoctor]);
       }
       return Promise.resolve({ count: 0, results: [] });
     });
@@ -1240,18 +1247,24 @@ describe('WARD-PART2 — discharge with outcome', () => {
     });
   });
 
-  it('AGAINST_MEDICAL_ADVICE blocks submission until reason AND witnessed_by are both filled', async () => {
+  it('AGAINST_MEDICAL_ADVICE requires a signing doctor but NOT a reason — the advisor\'s Q3 answer', async () => {
     dataActionMock.mockResolvedValue({ message: 'ok' });
     await openDischarge();
 
     fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
     const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
-    expect(submit).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Wants to leave' } });
-    expect(submit).toBeDisabled(); // witnessed_by still empty
+    // There is no separate required "Reason" field any more — the advisor
+    // was explicit: "sometimes there might be no particular reason". It
+    // reuses the already-optional summary textarea, relabelled.
+    expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('Reason (optional)')).toBeInTheDocument();
+    expect(submit).toBeDisabled(); // no signing doctor yet — this is required
 
-    fireEvent.change(screen.getByLabelText('Witnessed by'), { target: { value: 'Nurse Ngozi Balogun' } });
+    // Signing is a doctor picker, not a typed witness name — and it is not
+    // gated by on-duty (Q3 is unrelated to Q2's attending-doctor rule).
+    expect(screen.queryByLabelText('Witnessed by')).not.toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText('Signed by (doctor)'), { target: { value: signingDoctor.id } });
     expect(submit).not.toBeDisabled();
     fireEvent.click(submit);
 
@@ -1259,11 +1272,31 @@ describe('WARD-PART2 — discharge with outcome', () => {
       expect(dataActionMock).toHaveBeenCalledWith(
         ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
         'POST',
-        expect.objectContaining({
+        // No reason left blank -> discharge_summary is correctly omitted,
+        // not sent empty or under a "reason" key the backend never reads.
+        { discharge_outcome: 'AGAINST_MEDICAL_ADVICE', witnessed_by: signingDoctor.full_name },
+      );
+    });
+  });
+
+  it('sends a supplied AMA reason as discharge_summary, the key the backend actually reads', async () => {
+    dataActionMock.mockResolvedValue({ message: 'ok' });
+    await openDischarge();
+
+    fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
+    fireEvent.change(await screen.findByLabelText('Reason (optional)'), { target: { value: 'Wants to leave' } });
+    fireEvent.change(await screen.findByLabelText('Signed by (doctor)'), { target: { value: signingDoctor.id } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0]);
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
+        'POST',
+        {
           discharge_outcome: 'AGAINST_MEDICAL_ADVICE',
-          reason: 'Wants to leave',
-          witnessed_by: 'Nurse Ngozi Balogun',
-        }),
+          discharge_summary: 'Wants to leave',
+          witnessed_by: signingDoctor.full_name,
+        },
       );
     });
   });
@@ -1321,5 +1354,27 @@ describe('WARD-PART2 — no doctor-reassign control on the nurse dashboard', () 
     // Discharge stays nurse-reachable (only the reassign control is the 403
     // trap), so only its absence is asserted, not the whole row-actions cell.
     expect(screen.getByRole('button', { name: 'Discharge' })).toBeInTheDocument();
+  });
+
+  it('treats on-duty as a real constraint — an off-duty doctor is disabled, not just sorted second (FLAG-041)', async () => {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
+        return Promise.resolve({ count: 1, results: [admission] });
+      }
+      if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) {
+        return Promise.resolve([
+          { id: 'doc-r1', full_name: 'Dr. Chika Eze', staff_id: 'DOC-R1', is_on_duty: true },
+          { id: 'doc-r2', full_name: 'Dr. Bello Musa', staff_id: 'DOC-R2', is_on_duty: false },
+        ]);
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    await screen.findByText(/Chidi Nwosu/);
+    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
+
+    expect(await screen.findByRole('option', { name: 'Dr. Chika Eze' })).not.toBeDisabled();
+    expect(screen.getByRole('option', { name: 'Dr. Bello Musa' })).toBeDisabled();
   });
 });
