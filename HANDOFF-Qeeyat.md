@@ -113,9 +113,9 @@ was never written down anywhere another person can read.**
 - **Reviewed #137 and #130** (comments posted; **formal verdicts not yet set — they have to come from
   me, `gh pr review` is denied to the assistant**). #137: 🔴 blank `reason_for_visit` hits
   `CharField(allow_blank=False)`, so every quick check-in 400s, and the new test asserts the broken
-  payload. #130: no blocker; the deceased-patient rejection renders as a bare HTTP 400 on the demo path.
-- 🎯 **Cross-cutting, worth more than either review:** DRF field errors are unread in #130, #137 and
-  #139, three different ways — fix once in `errorMessage()`. And **FLAG-027 is claimed by two of
+  payload. #130: no blocker. ✏️ **Corrected the same day:** I first said the deceased-patient rejection renders as a bare HTTP 400 — wrong, I assumed DRF's default error envelope. The backend's `custom_exception_handler` returns `{error: "<field>: <message>", code, details}`, so the real sentence shows with a raw `patient: ` prefix. P2 → P3, correction posted on the PR.
+- 🎯 **Cross-cutting:** error messages are handled three ways across #130, #137 and
+  #139 — and on checking the real envelope, **#139 is the correct one**; #137's helper reads a key that never exists and its test mocks a shape the backend never sends (FLAG-221). Strip the `field: ` prefix once in `errorMessage()`. And **FLAG-027 is claimed by two of
   @Bastoh's agents at once** (#130 org-ID gap, #137 check-in pagination) — agents authoring as one dev
   collide inside that dev's range, which the per-dev ranges cannot prevent.
 - **Stopped reviewing on purpose** and went by necessity. **Re-measured the beta tier** against
