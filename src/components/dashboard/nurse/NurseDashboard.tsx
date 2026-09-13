@@ -17,7 +17,15 @@ import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, timeAgo } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
-import type { NurseStats, NurseAdmission, PatientVitals, Ward, WardBed, Paginated } from '@/types/dashboard';
+import type {
+  NurseStats,
+  NurseAdmission,
+  AdmissionAttendingDoctor,
+  PatientVitals,
+  Ward,
+  WardBed,
+  Paginated,
+} from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
 function UserIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>; }
@@ -46,10 +54,36 @@ function PatientCell({ admission }: { admission: NurseAdmission }) {
   );
 }
 
+// FLAG-041 — who is attending, so a handover is visible where a nurse
+// actually looks. /nurse/my-patients/ (ActiveAdmissionSerializer) carries no
+// attending_doctor field at all; /ward/admissions/ (AdmissionListSerializer,
+// same NURSE-readable permission, CanManageAdmissions) does. Keyed by
+// admission id since both endpoints describe the same Admission rows.
+// `undefined` (id not in the map — endpoint failed, still loading, or this
+// admission fell off a page) degrades to the same em dash as "no doctor
+// named yet" rather than a blank or a crash: a missing lookup and an absent
+// fact must never be told apart in the UI (StatCard's `?? '—'` precedent).
+type AttendingByAdmission = Map<string, AdmissionAttendingDoctor>;
+
+function AttendingCell({ admission, attendingByAdmission }: {
+  admission: NurseAdmission;
+  attendingByAdmission: AttendingByAdmission;
+}) {
+  const info = attendingByAdmission.get(admission.id);
+  if (info?.attending_doctor_name) {
+    return <span className="text-xs text-text-mid">{info.attending_doctor_name}</span>;
+  }
+  if (info?.needs_attending_doctor) {
+    return <span className="text-xs font-semibold text-warning-strong">Unassigned</span>;
+  }
+  return <span className="text-xs text-text-soft">—</span>;
+}
+
 // Shared by the Overview preview and the My Patients table — the two differed
 // only in whether Age/Sex was shown, and had drifted apart in styling.
 function admissionColumns(
   onRecordVitals: (a: NurseAdmission) => void,
+  attendingByAdmission: AttendingByAdmission,
   opts: { showAgeSex?: boolean; admittedAsDate?: boolean } = {},
 ): DataTableColumn<NurseAdmission>[] {
   return [
@@ -69,6 +103,9 @@ function admissionColumns(
       : []),
     { key: 'wardbed', header: 'Ward / Bed', className: 'whitespace-nowrap', render: (a) => <span className="text-xs text-text-mid">{wardBedLabel(a)}</span> },
     { key: 'complaint', header: 'Complaint', render: (a) => <span className="text-xs text-text-soft">{a.episode?.chief_complaint || '—'}</span> },
+    { key: 'attending', header: 'Attending', className: 'whitespace-nowrap', render: (a) => (
+      <AttendingCell admission={a} attendingByAdmission={attendingByAdmission} />
+    ) },
     { key: 'admitted', header: 'Admitted', className: 'whitespace-nowrap', render: (a) => (
       <span className="text-xs text-text-soft">
         {opts.admittedAsDate ? formatDate(a.admitted_at) : timeAgo(a.admitted_at)}
@@ -91,6 +128,28 @@ function wardBedLabel(a: NurseAdmission): string {
   return parts.length ? parts.join(' · ') : '—';
 }
 
+// FLAG-041 — fetches the ACTIVE admissions on /ward/admissions/ (the endpoint
+// that actually carries attending_doctor_name — see the type's comment) and
+// keys them by admission id. Called from EACH page below rather than lifted
+// to the top-level `NurseDashboard`, deliberately: `DashboardShell`'s small-
+// screen gate (`smallScreenGateFor`) works by never mounting its children at
+// all below the breakpoint (D3/FLAG-203) — a hook called any higher than
+// that would fire regardless of the gate, exactly the "fetched but hidden"
+// shape FLAG-203 exists to prevent. `useAllPages` (not `usePaginatedList`)
+// because a partial map here would silently mislabel a real admission as "no
+// field returned" instead of reporting who is actually attending — same
+// reasoning as the ward board's FLAG-013 fix. A failure here degrades to an
+// empty map, not a broken dashboard: `attendingByAdmission.get(id)` on an
+// empty Map just returns `undefined`, which AttendingCell already renders as
+// the safe em dash.
+function useAttendingDoctors(): AttendingByAdmission {
+  const { data } = useAllPages<AdmissionAttendingDoctor>(ENDPOINTS.ADMISSIONS + '?status=ACTIVE');
+  const rows = data ?? [];
+  const map: AttendingByAdmission = new Map();
+  for (const row of rows) map.set(row.id, row);
+  return map;
+}
+
 // ─── Overview ────────────────────────────────────────────────────
 
 function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
@@ -102,6 +161,7 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
   const { data, loading, error, refetch } =
     useApi<Paginated<NurseAdmission>>(ENDPOINTS.NURSE_MY_PATIENTS + '?page_size=5');
   const admissions = data?.results ?? [];
+  const attendingByAdmission = useAttendingDoctors();
 
   return (
     <div className="space-y-6">
@@ -129,7 +189,7 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
           <button onClick={() => onNavigate('patients')} className="text-[11.5px] font-semibold text-primary hover:underline">View all</button>
         </div>
         <DataTable
-          columns={admissionColumns(onRecordVitals)}
+          columns={admissionColumns(onRecordVitals, attendingByAdmission)}
           data={admissions}
           getRowKey={(a) => a.id}
           loading={loading}
@@ -148,6 +208,7 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission) => void }) {
   const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<NurseAdmission>(ENDPOINTS.NURSE_MY_PATIENTS);
+  const attendingByAdmission = useAttendingDoctors();
 
   return (
     <div className="space-y-4">
@@ -160,7 +221,7 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
         )}
       </div>
       <DataTable
-        columns={admissionColumns(onRecordVitals, { showAgeSex: true, admittedAsDate: true })}
+        columns={admissionColumns(onRecordVitals, attendingByAdmission, { showAgeSex: true, admittedAsDate: true })}
         data={admissions}
         getRowKey={(a) => a.id}
         loading={loading}
@@ -507,7 +568,9 @@ export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
       // harness caught on Superadmin.
       smallScreenGateFor="Nurse"
     >
-      {page === 'overview' && <OverviewPage stats={stats} onNavigate={setPage} onRecordVitals={openVitals} isOnDuty={isOnDuty} />}
+      {page === 'overview' && (
+        <OverviewPage stats={stats} onNavigate={setPage} onRecordVitals={openVitals} isOnDuty={isOnDuty} />
+      )}
       {page === 'patients' && <MyPatientsPage onRecordVitals={openVitals} />}
       {page === 'vitals'   && <VitalsPage selected={vitalsFor} onSelect={setVitalsFor} />}
       {page === 'wards'    && <WardsPage />}

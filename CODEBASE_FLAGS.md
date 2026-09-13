@@ -969,6 +969,51 @@ the clearer test.
 
 ---
 
+### FLAG-041 — The nurse's active-admission list has no attending doctor; a different, equally-nurse-readable endpoint does
+**Severity:** P2 · **Area:** Backend contract / Ward-Admissions UI · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/flag-041-attending-doctor-handover`**
+**Found:** 2026-09-13, building the admissions medical-answer corrections (unmerged `feat/ward-admissions-write-path` #139 / `fix/admissions-medical-answers-ui` #142)
+
+`GET /nurse/my-patients/` (`ActiveAdmissionSerializer`, `apps/ward/nurse_serializers.py:60-75` in the
+backend) has no `attending_doctor` field at all, so a handover — "who is looking after this patient
+right now" — had nowhere to render in the one list a nurse actually reads. #142 (still open, stacked
+on #139) logged this and correctly declined to invent a response shape for it.
+
+**What settles it: a different endpoint, already live, already nurse-readable, already carries the
+field.** `GET /ward/admissions/` (`AdmissionListSerializer`, `apps/ward/serializers.py:354-378`)
+publishes `attending_doctor`, `attending_doctor_name` and `needs_attending_doctor` on the exact same
+`Admission` rows (keyed on the same `id`), and `CanManageAdmissions`
+(`apps/core/permissions.py:509-524`, read directly — the OpenAPI schema documents no roles here,
+same gap as FLAG-211) grants **DOCTOR, NURSE, ORG_ADMIN, SUPERADMIN** `GET` on it. So this did not
+need to wait on a backend change: the dashboard now fetches `/ward/admissions/?status=ACTIVE`
+alongside `/nurse/my-patients/` and merges by admission id.
+
+**Fixed:**
+- `AdmissionAttendingDoctor` type (`src/types/dashboard.ts`) — the minimal shape this file reads off
+  `/ward/admissions/`.
+- `useAttendingDoctors()` in `NurseDashboard.tsx` fetches it with `useAllPages` (a partial map here
+  would silently mislabel a real admission, same reasoning as FLAG-013) and is called from **inside**
+  `OverviewPage`/`MyPatientsPage`, not lifted to the top-level dashboard — `DashboardShell`'s
+  small-screen gate (FLAG-203/FLAG-021) works by never mounting its children below the breakpoint, so
+  a hook called any higher than that fires regardless of the gate.
+- A new "Attending" column on both the Overview preview and the My Patients table renders the
+  doctor's name, **"Unassigned"** when `needs_attending_doctor` is true, or a plain em dash when the
+  id isn't in the map (still loading, the fetch failed, or genuinely no data) — a missing lookup and
+  an absent fact are never told apart, the `StatCard` `?? '—'` precedent.
+
+⚠️ **Numbering note:** #142 (unmerged) independently used FLAG-041/042 for the still-open version of
+this finding and FLAG-042 (no doctor-facing discharge screen — out of scope here, left for the
+owner). If #142 merges before or after this branch, its FLAG-041 section and this one describe the
+same gap from before/after the fix — reconcile additively (keep both, in flag-number order) rather
+than dropping either, per the precedent in `HANDOFF.md`'s 2026-09-03 merge note. Do **not** reuse 041
+for anything else.
+
+**Done when:** ✅ a nurse can see who is attending an ACTIVE admission from both the Overview preview
+and the My Patients table, without waiting on a backend change. RED confirmed against pre-fix code
+(4 new tests failed with the production files reverted, 15 pre-existing tests stayed green);
+`npx tsc --noEmit` clean; `npx vitest run --testTimeout=30000` 286/286 across 24 files; lint clean.
+
+---
+
 ### FLAG-200 — `npm install` reports 7 high severity dependency vulnerabilities
 **Severity:** P2 · **Area:** Dependencies / Supply chain · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-10, first `npm install` this session
@@ -1254,7 +1299,7 @@ once credentials are usable in a session, or the backend documents the permissio
 ---
 
 ### FLAG-211 — Admission write endpoints are documented, but nurse permission is not
-**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-09-13 — read from backend source, not guessed and not POSTed against shared seed data**
 **Found:** 2026-08-19, building D3 Nurse
 
 Tuesday's sprint row names an **admission** workflow for the nurse dashboard. The contract exists
@@ -1307,6 +1352,34 @@ otherwise by one deliberate POST against a disposable record with @Bastoh's agre
 episode-lookup route for the nurse role is identified, after which admit/discharge/transfer can be
 built; or (b) it is confirmed that admission is an ORG_ADMIN/receptionist workflow rather than a
 nurse one, and Tuesday's row is corrected to say so.
+
+> ✅ **Resolved 2026-09-13 by @Bastoh, while scoping FLAG-041 — this is a tracker correction, not a
+> code change.** Both open questions are settled by reading the backend source directly, per the
+> house rule "schema first because it is free; the source or a live call to conclude" — the schema's
+> `security` block was never going to answer this, so the fix was to stop asking it.
+>
+> **1. The permission IS granted, and it is IN the source, just not in OpenAPI's `security` block —
+> same shape as FLAG-209/211's original finding, one layer down.**
+> `apps/core/permissions.py:509-524`, `CanManageAdmissions.has_permission`, read directly:
+> ```
+> VIEW (GET): DOCTOR, NURSE, ORGANIZATION_ADMIN, SUPERADMIN
+> CREATE / discharge / transfer (POST): DOCTOR, NURSE, SUPERADMIN
+> ```
+> A NURSE may `POST /ward/admissions/`, `.../discharge/` and `.../transfer/`. No POST against shared
+> seed data was needed — the permission class is the ground truth a 200 on GET could never establish,
+> and it settles the question without the blast radius this flag was rightly worried about.
+>
+> **2. The episode-lookup gap is real but already has an answer, independently confirmed here:**
+> the generic `GET /episodes/` (`apps/patients/views.py::EpisodeViewSet`, permission
+> `CanAccessEpisode`, `apps/core/permissions.py:329-354`) grants NURSE both list/retrieve and create,
+> unscoped to "already admitted" — unlike `/nurse/my-patients/`, which only carries an episode for
+> patients already in a bed. That is the episode source an admit flow needs. (The unmerged
+> `feat/ward-admissions-write-path` #139 found and used this same endpoint independently, on
+> 2026-09-11/13 — the two readings agree.)
+>
+> **Tuesday's row does not need correcting to (b)** — admission is confirmed as a NURSE (and DOCTOR)
+> workflow, not ORG_ADMIN/receptionist-only. Nothing here changed any code; the record now matches
+> what the source has said all along.
 
 ---
 
