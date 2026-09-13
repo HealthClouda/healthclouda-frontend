@@ -105,18 +105,44 @@ was never written down anywhere another person can read.**
 - **Did not tick `BETA_READINESS.md` item 2.** Patient has now been *rendered*; the item asks for a
   patient **signing in and reaching their dashboard**, and a harness render on `dev.` against
   synthetic data is the rehearsal, not the gate. Same distinction that file's own preamble draws.
-- **Did not touch the mask.** The fix is a code change with a two-day green-run requirement in its own
-  "Done when"; folding it into a docs PR would have hidden it.
+- **Did not touch the mask *in this PR*.** The fix is a code change with a two-day green-run
+  requirement in its own "Done when"; folding it into a docs PR would have hidden it. It went on its
+  own branch later the same session — below.
 
-**Verified:** `npx tsc --noEmit`, `npm run lint`, the suite and `npm run build` — results on the PR.
+**Later the same session:**
+- **Reviewed #137 and #130** (comments posted; **formal verdicts not yet set — they have to come from
+  me, `gh pr review` is denied to the assistant**). #137: 🔴 blank `reason_for_visit` hits
+  `CharField(allow_blank=False)`, so every quick check-in 400s, and the new test asserts the broken
+  payload. #130: no blocker; the deceased-patient rejection renders as a bare HTTP 400 on the demo path.
+- 🎯 **Cross-cutting, worth more than either review:** DRF field errors are unread in #130, #137 and
+  #139, three different ways — fix once in `errorMessage()`. And **FLAG-027 is claimed by two of
+  @Bastoh's agents at once** (#130 org-ID gap, #137 check-in pagination) — agents authoring as one dev
+  collide inside that dev's range, which the per-dev ranges cannot prevent.
+- **Stopped reviewing on purpose** and went by necessity. **Re-measured the beta tier** against
+  `1.1.1.1` with a nonsense control: `api-beta` schema **200**, **`beta.` still NXDOMAIN**. The blocker
+  on #98 is no longer the backend — it is **one DNS record of ours**. Posted on #98, updated the
+  Cross-Lane row and tier table in place.
+- **FLAG-235 fixed on `fix/flag-235-mask-contract`** (pushed, no PR yet): patterns moved to
+  `e2e/design/drifting-text.ts`; `superadmin.spec.ts` had the **same dead pair**, not in the flag;
+  `src/lib/drifting-text.contract.test.ts` binds the masks to the real `timeAgo()` in vitest, since
+  Playwright never runs in CI. **RED-first: 9/10 fail on the old list** (the passer is the negative
+  control, correctly).
+- 🪤 **The baseline regeneration was blocked** — the auto-mode classifier denied the Playwright run
+  (dev server + snapshot writes). Did not route around it.
+
+**Verified:** this branch — `tsc` 0 · lint 0 · **24 files / 282 passed** (alone) · build green,
+middleware 35.8 kB. Mask branch — `tsc` 0 · lint 0 · new test **10/10**, RED **9/10** on the old list.
 
 **Left undone / next:**
-- [ ] 🔴 **Answer #135's Cross-Lane row and clear the review queue** — seven PRs, two of them write
-      paths (#137 receptionist check-in, #139 ward admissions).
-- [ ] 🟠 **FLAG-235's actual fix** — mask `/\d+[dhm] ago/`, `just now` and `/\(\d+d\)/`, delete the
-      dead `/Today,/i`, regenerate **every** baseline once, prove it green on two different days.
-- [ ] 🔴 Still owed, unchanged since 1–6 Sep: required status checks, `ci.yml` `branches: ['**']`
-      (FLAG-230), #98, #96/FLAG-234.
+- [ ] 🔴 **Set the formal verdicts:** `gh pr review 137 --request-changes`, `gh pr review 130 --approve`.
+- [ ] 🔴 **Regenerate baselines on the mask branch:** `npx playwright test e2e/design/roles.spec.ts
+      e2e/design/superadmin.spec.ts --update-snapshots`. Then commit them — **including the five
+      Patient ones**, now safe. **Re-run on a different day** before opening the PR, then claim In
+      Flight and open it.
+- [ ] 🟠 **Ask @Bastoh about the `beta.` DNS record** — the only thing that moves the beta date.
+- [ ] 🟠 #139 (he is mid-edit — wait), #132/#135/#138, #134 after his rebase. Answer on #135 is given.
+- [ ] Still on @Bastoh: required status checks, `ci.yml` `branches: ['**']` (FLAG-230), #96/FLAG-234,
+      FLAG-027 renumber.
 
 ### 2026-09-09 — the mask was never protecting anything, and Patient finally rendered (branch: fix/flag-235-nurse-baseline-drift)
 
