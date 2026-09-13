@@ -1247,58 +1247,34 @@ describe('WARD-PART2 — discharge with outcome', () => {
     });
   });
 
-  it('AGAINST_MEDICAL_ADVICE requires a signing doctor but NOT a reason — the advisor\'s Q3 answer', async () => {
+  it('AGAINST_MEDICAL_ADVICE cannot be completed by a nurse — the backend now attests the signer as the acting user, role-gated to DOCTOR (FLAG-042)', async () => {
     dataActionMock.mockResolvedValue({ message: 'ok' });
     await openDischarge();
 
     fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
     const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
 
-    // There is no separate required "Reason" field any more — the advisor
-    // was explicit: "sometimes there might be no particular reason". It
-    // reuses the already-optional summary textarea, relabelled.
+    // `witnessed_by` is gone from the API entirely (ward/0008 drops the
+    // column) and there is no replacement field to submit — the signer is
+    // whoever is logged in, so there is nothing left for this form to ask
+    // for. No doctor picker, no typed witness name.
+    expect(screen.queryByLabelText('Signed by (doctor)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Witnessed by')).not.toBeInTheDocument();
+
+    // The reason stays optional and reuses the existing summary textarea —
+    // the advisor's Q3 answer on that point is unchanged.
     expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
     expect(await screen.findByLabelText('Reason (optional)')).toBeInTheDocument();
-    expect(submit).toBeDisabled(); // no signing doctor yet — this is required
 
-    // Signing is a doctor picker, not a typed witness name — and it is not
-    // gated by on-duty (Q3 is unrelated to Q2's attending-doctor rule).
-    expect(screen.queryByLabelText('Witnessed by')).not.toBeInTheDocument();
-    fireEvent.change(await screen.findByLabelText('Signed by (doctor)'), { target: { value: signingDoctor.id } });
-    expect(submit).not.toBeDisabled();
-    fireEvent.click(submit);
+    // But the discharge can never go through from here: this is a role
+    // gate, not a missing-field gate, so it stays disabled even once every
+    // other field is filled in.
+    expect(submit).toBeDisabled();
+    expect(screen.getByText(/only a doctor can complete/i)).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
-        'POST',
-        // No reason left blank -> discharge_summary is correctly omitted,
-        // not sent empty or under a "reason" key the backend never reads.
-        { discharge_outcome: 'AGAINST_MEDICAL_ADVICE', witnessed_by: signingDoctor.full_name },
-      );
-    });
-  });
-
-  it('sends a supplied AMA reason as discharge_summary, the key the backend actually reads', async () => {
-    dataActionMock.mockResolvedValue({ message: 'ok' });
-    await openDischarge();
-
-    fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
-    fireEvent.change(await screen.findByLabelText('Reason (optional)'), { target: { value: 'Wants to leave' } });
-    fireEvent.change(await screen.findByLabelText('Signed by (doctor)'), { target: { value: signingDoctor.id } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0]);
-
-    await waitFor(() => {
-      expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
-        'POST',
-        {
-          discharge_outcome: 'AGAINST_MEDICAL_ADVICE',
-          discharge_summary: 'Wants to leave',
-          witnessed_by: signingDoctor.full_name,
-        },
-      );
-    });
+    fireEvent.change(screen.getByLabelText('Reason (optional)'), { target: { value: 'Wants to leave' } });
+    expect(submit).toBeDisabled();
+    expect(dataActionMock).not.toHaveBeenCalled();
   });
 
   it('DECEASED never uses success/celebratory styling — no green "Discharge" button, an explicit warning, and a neutral confirmation', async () => {

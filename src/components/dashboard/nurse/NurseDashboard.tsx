@@ -255,7 +255,7 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 // The outcome list is declared exactly ONCE — value, label, tone, and which
 // extra fields it requires — so correcting it is a one-place edit.
 //
-// ⚠️ CORRECTED against the advisor's actual Q3 answer (FLAG-041):
+// ⚠️ CORRECTED against the advisor's actual Q3 answer, twice now:
 // - The AMA reason must NOT be required ("sometimes there might be no
 //   particular reason, the patient just wants to leave"). It is no longer a
 //   separate extra field — it reuses the existing, already-optional
@@ -263,13 +263,18 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 //   `discharge_patient()` reads as the AMA reason (`summary` ->
 //   `discharge_summary`). The previous `reason` extra field sent a
 //   `reason` key the backend has never read — required-and-wrong at once.
-// - AMA is SIGNED BY A DOCTOR, not witnessed by a typed name. `witnessed_by`
-//   is still the only field the live schema exposes for this (a CharField —
-//   apps/ward/models.py:468), so the picker sends the selected doctor's
-//   name into that same key rather than inventing an ID field the backend
-//   does not read yet. Re-check this the moment `fix/admissions-medical-
-//   answers-q2-q3` lands on the backend and switches it to a real reference.
-interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' | 'doctor' }
+// - FLAG-042 — "signed by a doctor" is NOT a form field any more.
+//   `witnessed_by` was a first correction's stand-in for this (a doctor
+//   picker sending a name into the old free-text CharField), but the
+//   backend went further than an FK: `apps/ward/migrations/0008_remove_
+//   witnessed_by_medical_answers.py` DROPS the column outright, and
+//   `DischargeSerializer` (apps/ward/serializers.py:527) no longer accepts
+//   it — sending it 400s. The signer is now `discharged_by`, the ACTING
+//   user, role-gated to DOCTOR for this one outcome inside
+//   `discharge_patient()` (the FLAG-272 "attest via the acting user"
+//   precedent, not a second signature field). There is nothing left to
+//   submit here — see the AMA-blocked banner in DischargePanel below.
+interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
 interface DischargeOutcomeConfig {
   value: string;
   label: string;
@@ -285,12 +290,11 @@ const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
     extraFields: [{ key: 'destination', label: 'Destination', type: 'text' }],
   },
   {
+    // No extra fields at all — see the FLAG-042 block comment above. The
+    // required "reason" the backend once wanted is gone, and the doctor
+    // signature is the acting user, not something this form submits.
     value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution',
-    // No 'reason' field here — see the block comment above. Only the
-    // signing doctor is a required companion field.
-    extraFields: [
-      { key: 'witnessed_by', label: 'Signed by (doctor)', type: 'doctor' },
-    ],
+    extraFields: [],
   },
   {
     value: 'ABSCONDED', label: 'Absconded', tone: 'caution',
@@ -308,11 +312,6 @@ function DischargePanel({ admission, onClose, onDischarged }: {
   onDischarged: () => void;
 }) {
   const { toast } = useToast();
-  // Only fetched for outcomes that actually need a doctor (AMA) — no point
-  // spending a request on every discharge, most of which are ROUTINE.
-  const needsDoctorList = admission != null;
-  const { data: doctors, loading: doctorsLoading, error: doctorsError } =
-    useApi<AttendingDoctor[]>(needsDoctorList ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
   const [outcome, setOutcome] = useState<string>('ROUTINE');
   const [extra, setExtra] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState('');
@@ -321,7 +320,15 @@ function DischargePanel({ admission, onClose, onDischarged }: {
   const [formError, setFormError] = useState<string | null>(null);
 
   const outcomeConfig = DISCHARGE_OUTCOMES.find(o => o.value === outcome) ?? DISCHARGE_OUTCOMES[0];
-  const missingRequired = outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
+  // FLAG-042 — this screen is nurse-only (route-gated the same way every
+  // dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
+  // `discharge_patient()` now rejects AGAINST_MEDICAL_ADVICE unless the
+  // ACTING user's role is DOCTOR. So this outcome can never be completed
+  // from here — not "sometimes fails", always. Block it client-side with a
+  // clear reason instead of letting a nurse submit and hit a 400 she can't
+  // interpret.
+  const amaBlockedForRole = outcome === 'AGAINST_MEDICAL_ADVICE';
+  const missingRequired = amaBlockedForRole || outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -336,12 +343,7 @@ function DischargePanel({ admission, onClose, onDischarged }: {
       if (summary.trim()) payload.discharge_summary = summary.trim();
       if (instructions.trim()) payload.discharge_instructions = instructions.trim();
       for (const f of outcomeConfig.extraFields) {
-        // 'doctor' fields hold a doctor id in `extra`, but the live schema's
-        // `witnessed_by` is a name CharField — resolve id -> name at the
-        // boundary rather than changing what the picker stores.
-        payload[f.key] = f.type === 'doctor'
-          ? (doctors ?? []).find(d => d.id === extra[f.key])?.full_name ?? ''
-          : extra[f.key].trim();
+        payload[f.key] = extra[f.key].trim();
       }
 
       await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
@@ -412,33 +414,25 @@ function DischargePanel({ admission, onClose, onDischarged }: {
           </p>
         )}
 
+        {amaBlockedForRole && (
+          <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
+            Only a doctor can complete an against-medical-advice discharge — the backend now
+            attests this to the signed-in account, and a nurse account cannot be the signer.
+            Ask an on-duty doctor to record this discharge.
+          </p>
+        )}
+
         {outcomeConfig.extraFields.map(f => (
-          f.type === 'doctor' ? (
-            <DoctorPicker
-              key={f.key}
+          <div key={f.key}>
+            <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
+            <input
               id={`discharge-${f.key}`}
-              label={f.label}
-              helperText="The doctor who signed off this discharge against medical advice."
-              restrictToOnDuty={false}
-              doctors={doctors}
-              loading={doctorsLoading}
-              error={doctorsError}
+              type={f.type}
               value={extra[f.key] ?? ''}
-              onChange={id => setExtra(v => ({ ...v, [f.key]: id }))}
-              required
+              onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
+              className={formInputClass}
             />
-          ) : (
-            <div key={f.key}>
-              <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
-              <input
-                id={`discharge-${f.key}`}
-                type={f.type}
-                value={extra[f.key] ?? ''}
-                onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
-                className={formInputClass}
-              />
-            </div>
-          )
+          </div>
         ))}
 
         <div>

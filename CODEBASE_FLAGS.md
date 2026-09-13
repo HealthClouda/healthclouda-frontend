@@ -3269,3 +3269,29 @@ just did it, not to "the next person" the advisor's answer is about.
 record (previous → new, who changed it, when) would close the advisor's answer fully, but that is a
 new field/model on their side, not something to guess at the shape of here. Raised in `HANDOFF.md`'s
 Cross-Lane Asks table.
+
+### FLAG-042 — an against-medical-advice discharge cannot be completed from this frontend at all, by anyone
+**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-13, reconciling `fix/admissions-medical-answers-ui` (#142) against backend PR #190
+
+Backend PR #190 drops the `witnessed_by` column outright (`ward/migrations/0008_remove_witnessed_by_
+medical_answers.py`) and does not replace it with a submittable field. Confirmed from the task's own
+brief on `discharge_patient()`: the AMA signer is now **the acting user**, role-gated to DOCTOR for
+`AGAINST_MEDICAL_ADVICE` only — the same "attest via the acting user" precedent as FLAG-272. There is
+nothing left in the request body for a form to collect.
+
+That is fine in principle, except: **`ADMISSION_DISCHARGE` (`POST /ward/admissions/{id}/discharge/`) is
+only ever called from `NurseDashboard.tsx`** (grep-verified — no other component references it), and no
+doctor-facing discharge screen exists anywhere in this repo. So today, an against-medical-advice
+discharge cannot be completed by **anyone** through this frontend: a nurse is blocked client-side by
+this PR's fix (see the banner in `DischargePanel`, `NurseDashboard.tsx`), and a doctor has no screen to
+attempt it from in the first place.
+
+**Not worked around here.** Building a doctor-side discharge panel is a real feature, out of scope for
+what was a field-removal correction — the task explicitly scoped this out ("if it turns into something
+large, stop and report instead of building it").
+
+**Done when:** a doctor-facing admissions/discharge surface exists (tracked separately from this flag,
+likely alongside whatever answers FLAG-040's doctor-side admit gap — the same missing "doctor manages
+their admitted patients" screen would plausibly host both). Until then, an AMA discharge is a workflow
+only a doctor can legally perform and only a nurse's screen can currently reach.
