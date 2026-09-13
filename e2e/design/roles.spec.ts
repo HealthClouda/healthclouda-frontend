@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAs, VIEWPORTS, type E2ERole } from './helpers';
+import { DRIFTING_TEXT_PATTERNS } from './drifting-text';
 
 /**
  * T5 design fidelity — DASH-2 Org Admin, DASH-3 Nurse, DASH-4 Receptionist,
@@ -238,8 +239,11 @@ function masksFor(page: Page) {
     // Next's dev-tools indicator sits bottom-left, over the sidebar avatar. It
     // is a dev-build artifact, not our UI.
     page.locator('nextjs-portal'),
-    page.locator('text=/\\d+ (second|minute|hour|day)s? ago/i'),
-    page.locator('text=/Today,/i'),
+    // Clock-dependent text, derived from the code that produces it rather than
+    // hand-listed — see FLAG-235 and `drifting-text.ts`. The two patterns this
+    // replaced matched strings the app has never rendered, so they masked
+    // nothing at all while reading as protection.
+    ...DRIFTING_TEXT_PATTERNS.map(re => page.getByText(re)),
   ];
 }
 
