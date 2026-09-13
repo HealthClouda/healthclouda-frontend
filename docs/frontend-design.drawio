@@ -1,0 +1,270 @@
+<mxfile host="app.diagrams.net" type="device">
+    <diagram name="App Shell &amp; Routing - target" id="app-shell-target">
+        <mxGraphModel dx="1093" dy="466" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1620" pageHeight="1420" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="a_title" value="APP SHELL &amp; ROUTING  —  Target (beta-hardened)" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontSize=22;fontColor=#333333;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="24" width="1200" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_cli" value="CLIENTS" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="90" width="1180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_edg" value="EDGE / HOSTING" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="240" width="1180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_pipe" value="REQUEST PIPELINE  (middleware.ts — every non-static request)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="400" width="1180" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_route" value="ROUTE TREE  (App Router segments — 21 pages today)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="540" width="1180" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_shell" value="APP SHELL  (shared chrome + primitives)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="740" width="1180" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_state" value="CLIENT STATE  ·  SESSION SOURCE OF TRUTH" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="940" width="1180" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_browser" value="Browser&#xa;public visitor  ·  staff (5 roles)  ·  patient  ·  superadmin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="124" width="1140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_cf" value="Cloudflare — front door   [phase 1]&#xa;WAF  ·  edge rate-limit  ·  DDoS  ·  bot control" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="278" width="560" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_vercel" value="Vercel — origin&#xa;Next.js 15 App Router  ·  SSR + RSC  ·  next/image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="278" width="560" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="p_mw" value="middleware.ts     session guard   -&gt;   role redirect   -&gt;   org-slug resolution     (matcher skips _next · assets · /api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="436" width="1140" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="r_public" value="PUBLIC&#xa;/&#xa;/[slug]  ·  404" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="574" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="r_auth" value="AUTH PORTALS&#xa;/signin&#xa;/[slug]/signin&#xa;/superadmin/signin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="292" y="574" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="r_recover" value="RECOVERY&#xa;forgot · check-email&#xa;reset · password-success&#xa;set-password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="524" y="574" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="r_dash" value="DASHBOARDS&#xa;/[slug]/{role}&#xa;/superadmin&#xa;(guarded)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="756" y="574" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="r_groups" value="Route groups&#xa;(public) / (dashboard)&#xa;+ error.tsx · loading.tsx&#xa;per segment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="988" y="574" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_shell" value="DashboardShell" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="774" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_side" value="Sidebar&#xa;role-scoped nav" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="292" y="774" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_head" value="DashboardHeader&#xa;Avatar  ·  DutyToggle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="524" y="774" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_ui" value="ui/  primitives&#xa;Button · Modal · SlidePanel&#xa;EmptyState · ErrorState&#xa;Shimmer · StatusBadge · Pagination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="756" y="774" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_bound" value="Error boundary&#xa;+ suspense skeletons&#xa;per route segment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="988" y="774" width="212" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_cookie" value="httpOnly cookies&#xa;access (1h) · refresh · user" style="shape=cylinder3;boundedLbl=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="978" width="340" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_toast" value="zustand — toast store&#xa;(the only client store today)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="440" y="978" width="340" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_session" value="zustand — session store&#xa;role · org · duty  (single source)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="820" y="978" width="380" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_leg" value="LEGEND&#xa;--&gt;  flow (built)&#xa;- -&gt;  target / not built&#xa;[blue] client&#xa;[orange] edge / hosting&#xa;[grey] request pipeline&#xa;[green] built in repo today&#xa;[purple] data / store&#xa;[red-dash] NOT BUILT — target" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BBBBBB;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="540" width="320" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_ref" value="Auth &amp; Session  [ref]&#xa;the guard's cookie contract&#xa;lives on that page" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6EEFF;strokeColor=#6C8EBF;dashed=1;fontSize=13;fontStyle=2;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="400" width="320" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_note" value="Target shell. Cloudflare sits IN FRONT of Vercel (front door in phase 1; hosting migration is a later, separate decision — see Deployment page). middleware.ts is the ONLY route guard: it reads the httpOnly session cookies, redirects unauthenticated dashboard hits to the correct portal signin (org-scoped when the first path segment is an org slug), and bounces already-signed-in users away from signin pages to their role dashboard. It deliberately never calls the API — it trusts cookie PRESENCE only, and real authorisation is enforced server-side on every request." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#82B366;fontSize=12;align=left;verticalAlign=middle;spacingLeft=12;fontColor=#2e5e34;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="1120" width="1180" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_gap" value="GAP (add before beta): (1) No per-segment error.tsx / loading.tsx — an exception thrown inside any dashboard segment bubbles to the root and blanks the page, with no retry affordance. (2) No shared session store — every dashboard re-parses the user cookie independently, so role / org context can drift between panels on the same screen. (3) middleware duplicates the role-&gt;path map from lib/router.ts by hand; the two can silently diverge." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;fontSize=12;align=left;verticalAlign=middle;spacingLeft=10;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="1250" width="1180" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed1" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="c_browser" target="e_cf" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed2" value="proxied origin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="e_cf" target="e_vercel" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="e_vercel" target="p_mw" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="p_mw" target="r_public" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="p_mw" target="r_auth" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed6" value="no session -&gt; signin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="p_mw" target="r_dash" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed7" value="renders" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="r_dash" target="s_shell" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="s_shell" target="s_side" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="s_side" target="s_head" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed10" value="toasts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="s_ui" target="d_toast" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed11" value="reads (presence only)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="p_mw" target="d_cookie" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ed12" value="target" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="s_head" target="d_session" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram name="Auth &amp; Session - target" id="auth-session-target">
+        <mxGraphModel dx="1093" dy="466" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1620" pageHeight="1460" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="s_title" value="AUTH &amp; SESSION  (JWT + refresh)  —  Target (beta-hardened)" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;fontSize=22;fontColor=#333333;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="24" width="1200" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="q_cli" value="CLIENTS  (forms — react-hook-form + zod)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="90" width="1180" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="q_edg" value="EDGE / ABUSE CONTROL" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="260" width="1180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="q_bff" value="BFF PROXY ROUTES  (src/app/api/auth/* — tokens NEVER reach browser JS)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="420" width="1180" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="q_sess" value="SESSION LOGIC" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="590" width="1180" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="q_back" value="BACKEND  (contract seam = live /api/v1/schema/)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="760" width="1180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="q_dat" value="STORES" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#C2C2C2;dashed=1;verticalAlign=top;align=left;fontStyle=1;fontSize=15;spacingLeft=16;spacingTop=8;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="910" width="1180" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="f_signin" value="SigninForm&#xa;3 portals:  general (patients)&#xa;org (staff + patients)  ·  admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="124" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="f_setpw" value="SetPasswordForm&#xa;staff invite setup&#xa;(token in URL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="124" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="f_otp" value="OTP reset (3 steps)&#xa;ForgotPassword -&gt; CheckEmail&#xa;-&gt; ResetPassword" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="124" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="f_respond" value="AccessRequestRespond&#xa;public token link&#xa;(no session required)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="930" y="124" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="g_cf" value="Cloudflare WAF   [phase 1]&#xa;edge rate-limit on /api/auth/login&#xa;bot control  ·  DDoS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="296" width="560" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="g_ip" value="CF-Connecting-IP&#xa;true client IP once proxied&#xa;(x-forwarded-for becomes WRONG)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="296" width="560" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_login" value="POST /api/auth/login&#xa;+ /auth/me enrichment&#xa;(org slug · duty state)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="454" width="212" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_refresh" value="POST&#xa;/api/auth/refresh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="292" y="454" width="212" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_logout" value="POST&#xa;/api/auth/logout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="524" y="454" width="212" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_otp" value="forgot-password&#xa;verify-otp&#xa;reset-password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="756" y="454" width="212" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="a_setup" value="setup-password&#xa;validate · submit&#xa;+ /resend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="988" y="454" width="212" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_cookie" value="Cookie writer&#xa;httpOnly · secure · sameSite" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="624" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_guard" value="middleware session guard&#xa;(presence check only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="624" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_rotate" value="Persist ROTATED refresh token&#xa;(currently discarded — hourly logout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="640" y="624" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_silent" value="Proactive silent refresh&#xa;before access expiry&#xa;+ 401 -&gt; refresh -&gt; retry once" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="930" y="624" width="270" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_api" value="HealthClouda API — Django REST Framework on Railway&#xa;/auth/login/  ·  /auth/login/&lt;org_slug&gt;/  ·  /auth/login/admin/  ·  /auth/refresh/  ·  /auth/me/  ·  /auth/setup-password/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="796" width="850" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_ref" value="Backend · Auth / Identity  [ref]&#xa;lockout · throttle · JWT service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E6EEFF;strokeColor=#6C8EBF;dashed=1;fontSize=13;fontStyle=2;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="930" y="796" width="270" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_cookie" value="httpOnly cookies&#xa;access (1h) · refresh · user" style="shape=cylinder3;boundedLbl=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="948" width="340" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_mem" value="in-memory Map&#xa;login attempt counter&#xa;(per-instance — see GAP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=13;verticalAlign=middle;" parent="1" vertex="1">
+                    <mxGeometry x="440" y="948" width="340" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_shared" value="Shared throttle counter&#xa;DRF throttling (authoritative)&#xa;+ CF rate-limit (defence in depth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;dashed=1;fontSize=13;verticalAlign=middle;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="820" y="948" width="380" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_leg" value="LEGEND&#xa;--&gt;  flow (built)&#xa;- -&gt;  target / not built&#xa;[blue] client form&#xa;[green] built in repo today&#xa;[purple] data / store&#xa;[red] external / backend&#xa;[blue-dash] [ref] backend subsystem&#xa;[red-dash] NOT BUILT — target" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BBBBBB;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;" parent="1" vertex="1">
+                    <mxGeometry x="1250" y="420" width="320" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_note" value="Three login portals stay strictly distinct: /auth/login/ (patients only), /auth/login/&lt;org_slug&gt;/ (staff + patients), /auth/login/admin/ (superadmin only). A staff member hitting the general portal gets a 400 carrying org_slug + redirect_url — the UI uses that to redirect them to their own org portal automatically rather than showing a dead end. Tokens live ONLY in httpOnly cookies set by the BFF; browser JavaScript never sees an access or refresh token, which is what makes an XSS bug non-fatal for the session." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#82B366;fontSize=12;align=left;verticalAlign=middle;spacingLeft=12;fontColor=#2e5e34;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="1090" width="1180" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s_gap" value="GAP (fix before beta): (1) REFRESH ROTATION — /api/auth/refresh does not persist the rotated refresh token the backend returns, so sessions die roughly hourly and users are logged out mid-task. This is the highest-impact auth defect. (2) LOGIN THROTTLE — the attempt counter is an in-process Map: it is per-lambda-instance on Vercel today (already leaky) and would be near-useless on Workers isolates. The authoritative fix is DRF throttling backend-side, with Cloudflare edge rate-limiting as defence in depth. (3) Once proxied by Cloudflare, the throttle key MUST switch from x-forwarded-for to CF-Connecting-IP, or every request will look like one client." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE7E9;strokeColor=#B85450;fontSize=12;align=left;verticalAlign=middle;spacingLeft=10;fontColor=#8a2a2a;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="1220" width="1180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="f_signin" target="g_cf" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd2" value="filtered" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="g_cf" target="a_login" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd3" value="POST" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="f_otp" target="a_otp" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd4" value="validate + submit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="f_setpw" target="a_setup" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd5" value="GET then POST" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="f_respond" target="a_setup" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd6" value="Set-Cookie" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="a_login" target="s_cookie" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd7" value="should persist" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="a_refresh" target="s_rotate" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd8" value="clears cookies" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="a_logout" target="s_guard" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd9" value="Bearer / credentials" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="s_cookie" target="b_api" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="s_guard" target="b_api" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd11" value="target" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="s_silent" target="b_ref" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd12" value="writes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="b_api" target="d_cookie" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd13" value="counts attempts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#555555;fontSize=11;" parent="1" source="b_ref" target="d_mem" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sd14" value="replaces" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#B85450;fontSize=11;" parent="1" source="d_mem" target="d_shared" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

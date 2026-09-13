@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <title>HealthClouda | Auth Pages</title>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="icon" type="image/png" href="assets/HealthClouda-icon-tight.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: "Lato", sans-serif; color: #000825; background: #e8edf5; }
+    a { color: #0075ff; text-decoration: none; }
+    a:hover { color: #005fcc; }
+    @keyframes hc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    @keyframes hc-pop { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  </style>
+</helmet>
+
+<section style="display: flex; flex-wrap: wrap; gap: 56px; padding: 48px 48px 0; align-items: flex-start;">
+
+  <!-- ═══════════ 8. 404 ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">404 — page not found</div>
+    <div data-screen-label="404" style="width: 1024px; min-height: 640px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #c7daff; top: -80px; left: -100px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #bdd4ff; bottom: 60px; right: -60px; pointer-events: none;"></div>
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+          <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+        </div>
+      </nav>
+      <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 160px 20px 48px;">
+        <div style="font-family: 'Inter', sans-serif; font-size: 110px; font-weight: 800; line-height: 1; color: #0075ff; letter-spacing: -4px;">404</div>
+        <h1 style="font-family: 'Inter', sans-serif; font-size: 26px; font-weight: 700; color: #000825; margin: 18px 0 8px;">Page not found</h1>
+        <p style="font-size: 15px; color: #6b7280; line-height: 1.6; margin: 0 0 28px; max-width: 420px;">The page you are looking for does not exist or has been moved.</p>
+        <a href="#" style="display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 32px; background: #0075ff; color: #ffffff; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; box-shadow: 0 3px 14px rgba(0,117,255,0.28);" style-hover="background: #005fcc; color: #ffffff;">Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 9. ACCESS REQUEST — RESPOND (PENDING) ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Access request — patient responds (/access-request/respond?token=…)</div>
+    <div data-screen-label="Access request (pending)" style="width: 1024px; min-height: 720px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: #f8faff; display: flex; align-items: center; justify-content: center; padding: 48px 20px; box-sizing: border-box;">
+      <div style="width: 100%; max-width: 480px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 40px 36px; box-sizing: border-box; text-align: center;">
+        <div style="width: 64px; height: 64px; background: #ebf3ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #0075ff;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+        <h1 style="font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700; color: #000825; margin: 0 0 8px;">Access Request</h1>
+        <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0 0 24px;">An organization is requesting access to your medical records.</p>
+        <div style="background: #f9fafb; border: 1px solid #e8edf5; border-radius: 10px; padding: 16px 20px; text-align: left; margin-bottom: 24px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; gap: 16px; font-size: 13.5px;"><span style="color: #6b7280; font-weight: 700; font-family: 'Inter', sans-serif; font-size: 12.5px;">Organization</span><span style="color: #000825; font-weight: 500; text-align: right;">{{ orgName }}</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13.5px;"><span style="color: #6b7280; font-weight: 700; font-family: 'Inter', sans-serif; font-size: 12.5px;">Reason</span><span style="color: #000825; font-weight: 500; line-height: 1.5;">Referral follow-up — cardiology consultation requires your prior visit history.</span></div>
+          <div style="display: flex; justify-content: space-between; gap: 16px; font-size: 13.5px;"><span style="color: #6b7280; font-weight: 700; font-family: 'Inter', sans-serif; font-size: 12.5px;">Requested</span><span style="color: #000825; font-weight: 500; text-align: right;">11 Jul 2026, 09:42</span></div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <button style="flex: 1; height: 46px; background: #16a34a; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #15803d;">Approve Access</button>
+          <button style="flex: 1; height: 46px; background: #fee2e2; color: #dc2626; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #dc2626; color: #ffffff;">Deny Access</button>
+        </div>
+        <div style="margin-top: 28px; font-size: 12px; color: #9ca3af;">Powered by <a href="#" style="font-weight: 700;">HealthClouda</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 10. ACCESS REQUEST — OUTCOME STATES ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Access request — outcome states (approved / denied / expired link)</div>
+    <div data-screen-label="Access request (outcomes)" style="width: 1440px; min-height: 480px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: #f8faff; display: flex; align-items: center; justify-content: center; gap: 28px; padding: 48px 32px; box-sizing: border-box;">
+      <div style="width: 420px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 40px 32px; box-sizing: border-box; text-align: center;">
+        <div style="width: 64px; height: 64px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+        <h1 style="font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 700; color: #000825; margin: 0 0 10px;">Access Approved</h1>
+        <p style="font-size: 13.5px; color: #374151; line-height: 1.6; margin: 0;">You have granted <strong>{{ orgName }}</strong> access to your medical records.</p>
+        <div style="margin-top: 28px; font-size: 12px; color: #9ca3af;">Powered by <a href="#" style="font-weight: 700;">HealthClouda</a></div>
+      </div>
+      <div style="width: 420px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 40px 32px; box-sizing: border-box; text-align: center;">
+        <div style="width: 64px; height: 64px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
+        <h1 style="font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 700; color: #000825; margin: 0 0 10px;">Access Denied</h1>
+        <p style="font-size: 13.5px; color: #374151; line-height: 1.6; margin: 0;">You have denied the access request from <strong>{{ orgName }}</strong>. Your records remain private.</p>
+        <div style="margin-top: 28px; font-size: 12px; color: #9ca3af;">Powered by <a href="#" style="font-weight: 700;">HealthClouda</a></div>
+      </div>
+      <div style="width: 420px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 40px 32px; box-sizing: border-box; text-align: center;">
+        <div style="width: 64px; height: 64px; background: #fef3c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
+        <h1 style="font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 700; color: #000825; margin: 0 0 10px;">Link Expired</h1>
+        <p style="font-size: 13.5px; color: #374151; line-height: 1.6; margin: 0;">This access request link has expired. Please contact the organization for a new request.</p>
+        <div style="margin-top: 28px; font-size: 12px; color: #9ca3af;">Powered by <a href="#" style="font-weight: 700;">HealthClouda</a></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<section style="display: flex; flex-wrap: wrap; gap: 56px; padding: 48px; align-items: flex-start;">
+
+  <!-- ═══════════ 1. GENERAL SIGN IN ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Sign in — general portal (patients)</div>
+    <div data-screen-label="Sign in (general)" style="width: 1024px; min-height: 860px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+          <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+        </div>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Home</a>
+      </nav>
+      <div style="display: flex; flex-direction: column; align-items: center; padding: 120px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 700px;">
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 40px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Login to HealthClouda</h1>
+          <p style="font-size: 15px; color: #6b7280; margin: 0;">Access your healthcare dashboard</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Email</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg></span>
+              <input type="email" placeholder="Enter your email" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Password</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+              <input type="password" placeholder="Enter your password" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+              <span style="position: absolute; right: 13px; color: #b0b8c9; display: flex; cursor: pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <label style="display: flex; align-items: center; gap: 7px; font-size: 14px; color: #374151; cursor: pointer;"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #0075ff; margin: 0;"> <span>Remember me</span></label>
+            <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff;" style-hover="text-decoration: underline;">Forgot password?</a>
+          </div>
+          <button style="width: 100%; height: 48px; background: #0075ff; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 3px 14px rgba(0,117,255,0.28); margin-bottom: 20px;" style-hover="background: #005fcc;">Sign In</button>
+          <p style="text-align: center; font-size: 13px; color: #6b7280; margin: 0 0 14px;">Don't have an account?</p>
+          <div style="background: #ebf3ff; border: 1px solid rgba(0,117,255,0.15); border-radius: 10px; padding: 14px 16px;">
+            <p style="font-size: 12.5px; color: #1a4b8c; line-height: 1.55; margin: 0; text-align: center;"><strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the reception desk at any registered clinic — admin staff will create your login.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 2. ORG SIGN IN ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Sign in — org portal (staff + patients)</div>
+    <div data-screen-label="Sign in (org portal)" style="width: 1024px; min-height: 860px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="assets/unilogo.png" alt="" style="height: 32px; width: auto;">
+          <span style="font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 700; color: #000825;">{{ orgName }}</span>
+        </div>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Home</a>
+      </nav>
+      <div style="display: flex; flex-direction: column; align-items: center; padding: 110px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 700px;">
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 36px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Sign in to <br><span style="color: #0075ff;">{{ orgName }}</span><br> HealthClouda</h1>
+          <p style="font-size: 15px; color: #6b7280; margin: 0;">Access your healthcare dashboard</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Email / HealthClouda ID</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg></span>
+              <input type="text" placeholder="Enter your email or HealthClouda ID" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Password</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+              <input type="password" placeholder="Enter your password" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+              <span style="position: absolute; right: 13px; color: #b0b8c9; display: flex; cursor: pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <label style="display: flex; align-items: center; gap: 7px; font-size: 14px; color: #374151; cursor: pointer;"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #0075ff; margin: 0;"> <span>Remember me</span></label>
+            <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff;" style-hover="text-decoration: underline;">Forgot password?</a>
+          </div>
+          <button style="width: 100%; height: 48px; background: #0075ff; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 3px 14px rgba(0,117,255,0.28); margin-bottom: 20px;" style-hover="background: #005fcc;">Sign In</button>
+          <p style="text-align: center; font-size: 13px; color: #6b7280; margin: 0 0 14px;">Don't have an account?</p>
+          <div style="background: #ebf3ff; border: 1px solid rgba(0,117,255,0.15); border-radius: 10px; padding: 14px 16px;">
+            <p style="font-size: 12.5px; color: #1a4b8c; line-height: 1.55; margin: 0; text-align: center;"><strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the reception desk at your organisation clinic — admin staff will create your login.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 3. FORGOT PASSWORD ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Forgot password — flip "Org portal mode" in Tweaks to preview org context (applies to screens 3–6)</div>
+    <div data-screen-label="Forgot password" style="width: 1024px; min-height: 720px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #c7daff; top: -80px; left: -100px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #bdd4ff; bottom: 60px; right: -60px; pointer-events: none;"></div>
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <sc-if value="{{ orgMode }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/unilogo.png" alt="" style="height: 32px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 700; color: #000825;">{{ orgName }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ generalMode }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+          </div>
+        </sc-if>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Login</a>
+      </nav>
+      <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 130px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 480px;">
+          <div style="width: 56px; height: 56px; background: #ebf3ff; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #0075ff;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Forgot password?</h1>
+          <p style="font-size: 15px; color: #6b7280; margin: 0;">Please enter your email to reset the password</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Your Email</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg></span>
+              <input type="email" placeholder="{{ recoveryEmailPlaceholder }}" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+            </div>
+          </div>
+          <button style="width: 100%; height: 48px; background: #0075ff; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 3px 14px rgba(0,117,255,0.28);" style-hover="background: #005fcc;">Reset Password</button>
+        </div>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #0075ff;" style-hover="text-decoration: underline;">← Back to login</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 4. CHECK EMAIL / OTP ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Check your email — OTP verification</div>
+    <div data-screen-label="Check email (OTP)" style="width: 1024px; min-height: 720px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #c7daff; top: -80px; left: -100px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #bdd4ff; bottom: 60px; right: -60px; pointer-events: none;"></div>
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <sc-if value="{{ orgMode }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/unilogo.png" alt="" style="height: 32px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 700; color: #000825;">{{ orgName }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ generalMode }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+          </div>
+        </sc-if>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Login</a>
+      </nav>
+      <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 130px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 480px;">
+          <div style="width: 56px; height: 56px; background: #ebf3ff; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #0075ff;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9"></path><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path><path d="M16 19h6"></path><path d="M19 16v6"></path></svg></div>
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Check your email</h1>
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">We sent a code to <span style="font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: #0075ff;">amina.bello@gmail.com</span><br>Enter the 6-digit code below.</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box;">
+          <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 24px;">
+            <div style="width: 52px; height: 56px; border: 1.5px solid #0075ff; border-radius: 11px; background: #ffffff; font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700; color: #000825; display: flex; align-items: center; justify-content: center;">4</div>
+            <div style="width: 52px; height: 56px; border: 1.5px solid #0075ff; border-radius: 11px; background: #ffffff; font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700; color: #000825; display: flex; align-items: center; justify-content: center;">7</div>
+            <div style="width: 52px; height: 56px; border: 1.5px solid #0075ff; border-radius: 11px; background: #ffffff; font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700; color: #000825; display: flex; align-items: center; justify-content: center;">2</div>
+            <div style="width: 52px; height: 56px; border: 1.5px solid #0075ff; border-radius: 11px; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09); display: flex; align-items: center; justify-content: center;"><span style="display: block; width: 2px; height: 24px; background: #0075ff; border-radius: 1px; animation: hc-blink 1s step-end infinite;"></span></div>
+            <div style="width: 52px; height: 56px; border: 1.5px solid #dde3ee; border-radius: 11px; background: #fafbff;"></div>
+            <div style="width: 52px; height: 56px; border: 1.5px solid #dde3ee; border-radius: 11px; background: #fafbff;"></div>
+          </div>
+          <button disabled style="width: 100%; height: 48px; background: #0075ff; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: not-allowed; opacity: 0.7; box-shadow: 0 3px 14px rgba(0,117,255,0.28); margin-bottom: 16px;">Verify</button>
+          <div style="text-align: center; font-size: 13.5px; color: #6b7280;">Haven't got the email yet? <a href="#" style="color: #b0b8c9; font-weight: 700; pointer-events: none;">Resend email (0:24)</a></div>
+        </div>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #0075ff;" style-hover="text-decoration: underline;">← Back</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 5. RESET PASSWORD ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Set a new password — strength + requirements live states</div>
+    <div data-screen-label="Reset password" style="width: 1024px; min-height: 900px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #c7daff; top: -80px; left: -100px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #bdd4ff; bottom: 60px; right: -60px; pointer-events: none;"></div>
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <sc-if value="{{ orgMode }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/unilogo.png" alt="" style="height: 32px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 700; color: #000825;">{{ orgName }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ generalMode }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+          </div>
+        </sc-if>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Login</a>
+      </nav>
+      <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 130px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 480px;">
+          <div style="width: 56px; height: 56px; background: #ebf3ff; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #0075ff;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Set a new password</h1>
+          <p style="font-size: 15px; color: #6b7280; margin: 0;">Create a new password. Ensure it differs from previous ones for security.</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Password</label>
+            <div>
+              <div style="position: relative; display: flex; align-items: center;">
+                <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+                <input type="password" defaultValue="healthpass1" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+                <span style="position: absolute; right: 13px; color: #b0b8c9; display: flex; cursor: pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+              </div>
+              <div style="height: 4px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden;"><div style="height: 100%; width: 50%; border-radius: 4px; background: #f59e0b;"></div></div>
+              <div style="font-size: 12px; color: #6b7280; margin-top: 5px;">Fair — add an uppercase letter and a special character</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #16a34a;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#16a34a"></circle><polyline points="5,8 7.2,10.5 11,6" stroke="#ffffff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>At least 8 characters</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#d1d5db" stroke-width="1.5" fill="none"></circle></svg>One uppercase letter</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #16a34a;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#16a34a"></circle><polyline points="5,8 7.2,10.5 11,6" stroke="#ffffff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>One number</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#d1d5db" stroke-width="1.5" fill="none"></circle></svg>One special character</div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Confirm Password</label>
+            <div>
+              <div style="position: relative; display: flex; align-items: center;">
+                <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+                <input type="password" defaultValue="healthpass1" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+                <span style="position: absolute; right: 13px; color: #b0b8c9; display: flex; cursor: pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+              </div>
+              <div style="font-size: 12.5px; color: #16a34a; margin-top: 6px;">Passwords match ✓</div>
+            </div>
+          </div>
+          <button disabled style="width: 100%; height: 48px; background: #0075ff; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: not-allowed; opacity: 0.7; box-shadow: 0 3px 14px rgba(0,117,255,0.28);">Update Password</button>
+        </div>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #0075ff;" style-hover="text-decoration: underline;">← Back</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 6. PASSWORD SUCCESS ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Password reset — success</div>
+    <div data-screen-label="Password success" style="width: 1024px; min-height: 640px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #c7daff; top: -80px; left: -100px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #bdd4ff; bottom: 60px; right: -60px; pointer-events: none;"></div>
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <sc-if value="{{ orgMode }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/unilogo.png" alt="" style="height: 32px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 19px; font-weight: 700; color: #000825;">{{ orgName }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ generalMode }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+          </div>
+        </sc-if>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Login</a>
+      </nav>
+      <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 140px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 480px;">
+          <div style="width: 72px; height: 72px; background: #ebf3ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0075ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: hc-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Password reset</h1>
+          <p style="font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0;">Congratulations! Your password has been<br>changed. Click continue to login.</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box; text-align: center;">
+          <a href="#" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; background: #0075ff; color: #ffffff; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; box-shadow: 0 3px 14px rgba(0,117,255,0.28); box-sizing: border-box;" style-hover="background: #005fcc; color: #ffffff;">Continue <span style="font-size: 12.5px; opacity: 0.75; margin-left: 5px;">(5)</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 7. SET PASSWORD (STAFF INVITE) ═══════════ -->
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: #374151;">Set up password — staff invite (/set-password?token=…)</div>
+    <div data-screen-label="Set password (invite)" style="width: 1024px; min-height: 980px; position: relative; overflow: hidden; border-radius: 16px; border: 1px solid #d5dce8; box-shadow: 0 4px 24px rgba(0,8,37,0.08); background: url('assets/Backgroud_flare.png') no-repeat center / cover, linear-gradient(145deg, #f4f8ff 0%, #ffffff 50%, #eef4ff 100%);">
+      <div style="position: absolute; width: 420px; height: 420px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #c7daff; top: -80px; left: -100px; pointer-events: none;"></div>
+      <div style="position: absolute; width: 340px; height: 340px; border-radius: 50%; filter: blur(80px); opacity: 0.35; background: #bdd4ff; bottom: 60px; right: -60px; pointer-events: none;"></div>
+      <nav style="position: absolute; top: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,117,255,0.08); z-index: 2;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="assets/HealthClouda-icon-tight.png" alt="" style="height: 24px; width: auto;">
+          <span style="font-family: 'Inter', sans-serif; font-size: 21px; font-weight: 700; color: #000825;">HealthClouda</span>
+        </div>
+        <a href="#" style="font-size: 14px; font-weight: 700; color: #0075ff; padding: 6px 16px; border: 1px solid #0075ff; border-radius: 8px;" style-hover="background: #0075ff; color: #ffffff;">← Back to Login</a>
+      </nav>
+      <div style="position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 130px 20px 48px; gap: 24px;">
+        <div style="text-align: center; max-width: 480px;">
+          <div style="width: 56px; height: 56px; background: #ebf3ff; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #0075ff;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
+          <h1 style="font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; color: #000825; line-height: 1.3; margin: 0 0 8px;">Welcome, <span style="color: #0075ff;">Dr. Chidi Okafor</span></h1>
+          <p style="font-size: 15px; color: #6b7280; margin: 0;">Your account at <strong style="color: #374151;">{{ orgName }}</strong> has been created as <strong style="color: #374151;">Doctor</strong>. Set a password to get started.</p>
+        </div>
+        <div style="width: 100%; max-width: 700px; background: #ffffff; border-radius: 20px; border: 1px solid rgba(0,117,255,0.1); box-shadow: 0 4px 32px rgba(0,117,255,0.09); padding: 36px 32px; box-sizing: border-box;">
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Email</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M22 7l-10 7L2 7"></path></svg></span>
+              <input type="email" readOnly defaultValue="c.okafor@demo-clinic.com" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box; opacity: 0.7; cursor: default;">
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Password</label>
+            <div>
+              <div style="position: relative; display: flex; align-items: center;">
+                <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+                <input type="password" placeholder="Enter your password" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+                <span style="position: absolute; right: 13px; color: #b0b8c9; display: flex; cursor: pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+              </div>
+              <div style="height: 4px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden;"><div style="height: 100%; width: 0%; border-radius: 4px; background: #f59e0b;"></div></div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#d1d5db" stroke-width="1.5" fill="none"></circle></svg>At least 8 characters</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#d1d5db" stroke-width="1.5" fill="none"></circle></svg>One uppercase letter</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#d1d5db" stroke-width="1.5" fill="none"></circle></svg>One number</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="#d1d5db" stroke-width="1.5" fill="none"></circle></svg>One special character</div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+            <label style="font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: #374151;">Confirm Password</label>
+            <div style="position: relative; display: flex; align-items: center;">
+              <span style="position: absolute; left: 13px; color: #b0b8c9; display: flex;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span>
+              <input type="password" placeholder="Confirm your password" style="width: 100%; height: 48px; padding: 0 44px; border: 1.5px solid #dde3ee; border-radius: 11px; font-family: 'Lato', sans-serif; font-size: 14.5px; color: #000825; background: #fafbff; outline: none; box-sizing: border-box;" style-focus="border-color: #0075ff; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,117,255,0.09);">
+              <span style="position: absolute; right: 13px; color: #b0b8c9; display: flex; cursor: pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+            </div>
+          </div>
+          <button style="width: 100%; height: 48px; background: #0075ff; color: #ffffff; border: none; border-radius: 11px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 3px 14px rgba(0,117,255,0.28);" style-hover="background: #005fcc;">Set Password</button>
+        </div>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #0075ff;" style-hover="text-decoration: underline;">← Back to Login</a>
+      </div>
+    </div>
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;orgName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Demo Clinic&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Organization&quot;}, &quot;orgMode&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Organization&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const orgName = this.props.orgName ?? "Demo Clinic";
+    const orgMode = this.props.orgMode ?? false;
+    const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return {
+      orgName,
+      orgMode,
+      generalMode: !orgMode,
+      recoveryEmailPlaceholder: orgMode ? "e.g. user@" + slug + ".com" : "Enter your email",
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#f8faff; }
+a { color:#0075ff; } a:hover { color:#005FCC; }
+input::placeholder, textarea::placeholder { color:#b0bcc8; }
+@keyframes hcPanelIn { from { transform:translateX(480px); } to { transform:translateX(0); } }
+@keyframes hcFadeIn { from { opacity:0; } to { opacity:1; } }
+@keyframes hcToastIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+#hc-small-screen-gate { display:none; }
+@media (max-width: 767px) {
+  #hc-small-screen-gate { display:flex; }
+  #hc-app-shell { display:none !important; }
+}
+</style>
+</helmet>
+<div id="hc-small-screen-gate" data-screen-label="Small-screen gate" style="flex-direction:column; align-items:center; justify-content:center; gap:16px; min-height:100vh; background:#f8faff; font-family:'Inter',sans-serif; text-align:center; padding:32px;">
+  <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:64px; height:32px; object-fit:contain;">
+  <div style="width:56px; height:56px; border-radius:14px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;">
+    <svg viewBox="0 0 24 24" style="width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+  </div>
+  <div style="font-family:'Lato',sans-serif; font-size:18px; font-weight:800; color:#000825;">This dashboard needs a bigger screen</div>
+  <div style="font-size:13.5px; color:#6b7280; max-width:300px; line-height:1.6;">The Organisation Admin dashboard is designed for tablets, laptops and desktops. Please sign in from a device with a larger screen.</div>
+</div>
+<div id="hc-app-shell" style="display:flex; height:100vh; background:#f8faff; font-family:'Inter',sans-serif; color:#000825; overflow:hidden; position:relative;">
+
+  <aside style="width:230px; flex-shrink:0; background:#ffffff; border-right:1px solid #e8edf5; display:flex; flex-direction:column;">
+    <div style="height:64px; display:flex; align-items:center; gap:10px; padding:0 20px; border-bottom:1px solid #e8edf5;">
+      <img src="assets/HealthClouda-icon-tight.png" alt="HealthClouda" style="width:44px; height:22px; object-fit:contain;">
+      <span style="font-family:'Lato',sans-serif; font-weight:800; font-size:16px; color:#000825;">HealthClouda</span>
+    </div>
+    <nav style="flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:6px 12px 4px;">Main</span>
+      <button onClick="{{ nav.dashboard }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.dashboard }}; color: {{ navFg.dashboard }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        Dashboard
+      </button>
+      <button onClick="{{ nav.staff }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.staff }}; color: {{ navFg.staff }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Staff
+      </button>
+      <button onClick="{{ nav.patients }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.patients }}; color: {{ navFg.patients }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        Patients
+      </button>
+      <button onClick="{{ nav.wards }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.wards }}; color: {{ navFg.wards }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></svg>
+        Wards &amp; Beds
+      </button>
+      <button onClick="{{ nav.access }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.access }}; color: {{ navFg.access }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+        Access Requests
+      </button>
+      <span style="font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#c0c8d8; padding:14px 12px 4px;">Other</span>
+      <button onClick="{{ nav.notifications }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.notifications }}; color: {{ navFg.notifications }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        Notifications
+        <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+          <span style="margin-left:auto; background:#dc2626; color:#ffffff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; min-width:18px; text-align:center;">{{ unreadCount }}</span>
+        </sc-if>
+      </button>
+      <button onClick="{{ nav.settings }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; border:none; background: {{ navBg.settings }}; color: {{ navFg.settings }}; cursor:pointer; width:100%; text-align:left; font-family:'Inter',sans-serif;">
+        <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Settings
+      </button>
+    </nav>
+    <div style="border-top:1px solid #e8edf5; padding:14px 16px; display:flex; align-items:center; gap:10px;">
+      <div style="width:36px; height:36px; border-radius:50%; background:#EBF3FF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0075ff; flex-shrink:0;">AY</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12.5px; font-weight:700; color:#000825; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Dr. Amina Yusuf</div>
+        <div style="font-size:10.5px; color:#6b7280;">Org Admin</div>
+      </div>
+      <button title="Logout" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:6px; border-radius:6px; cursor:pointer;" style-hover="color:#dc2626; background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16,17 21,12 16,7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex:1; display:flex; flex-direction:column; min-width:0;">
+    <header style="height:64px; flex-shrink:0; background:#ffffff; border-bottom:1px solid #e8edf5; display:flex; align-items:center; padding:0 28px; gap:14px;">
+      <div style="font-size:14.5px; font-weight:700; color:#000825; white-space:nowrap;">{{ orgName }}</div>
+      <span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background:#EBF3FF; color:#0075ff;">Org Admin</span>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; align-items:center; gap:8px; background:#f8faff; border:1.5px solid #e8edf5; border-radius:8px; padding:7px 13px; font-size:12px; color:#374151; font-weight:500; white-space:nowrap;">
+          <svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Jul 29, 2026
+        </div>
+        <button onClick="{{ nav.notifications }}" title="Notifications" style="position:relative; background:none; border:none; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#6b7280; cursor:pointer;" style-hover="background:#f8faff;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute; top:6px; right:6px; min-width:15px; height:15px; background:#dc2626; color:#ffffff; font-size:9px; font-weight:700; border-radius:999px; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; padding:0 2px;">{{ unreadCount }}</span>
+          </sc-if>
+        </button>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto; padding:26px 28px;">
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Dashboard">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Good morning, Dr. Yusuf</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Here's how {{ orgName }} is doing today.</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:18px;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Total Staff</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#ede9fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">24</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">{{ onDutyLabel }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Active Patients</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">1,286</div>
+              <div style="font-size:12px; font-weight:600; color:#16a34a; display:flex; align-items:center; gap:4px;"><svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"><polyline points="17 11 12 6 7 11"></polyline><line x1="12" y1="6" x2="12" y2="18"></line></svg> 34 new this week</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Today's Appointments</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">37</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">12 completed so far</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Bed Occupancy</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#EBF3FF; color:#0075ff; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ bedOccupancyPct }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">{{ bedOccupancyLabel }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Pending Access Requests</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">{{ pendingAccessCount }}</div>
+              <div style="font-size:12px; font-weight:500; color:#6b7280;">Awaiting patient consent</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:11.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Critical Alerts</span>
+                <span style="width:38px; height:38px; border-radius:8px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center;"><svg viewBox="0 0 24 24" style="width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
+              </div>
+              <div style="font-family:'Lato',sans-serif; font-size:29px; font-weight:800; color:#000825; letter-spacing:-0.02em; line-height:1;">3</div>
+              <div style="font-size:12px; font-weight:500; color:#dc2626;">ICU at full capacity</div>
+            </div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="padding:16px 22px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e8edf5;">
+              <span style="font-size:13.5px; font-weight:700; color:#000825;">Recent Activity</span>
+            </div>
+            <table style="width:100%; border-collapse:collapse;">
+              <thead><tr>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Time</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actor</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Action</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Entity</th>
+                <th style="padding:10px 22px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ activityRows }}" as="r" hint-placeholder-count="5">
+                  <tr>
+                    <td style="padding:12px 22px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace; white-space:nowrap;">{{ r.time }}</td>
+                    <td style="padding:12px 22px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.actor }}</td>
+                    <td style="padding:12px 22px; font-size:12.5px; font-weight:500; color:#000825; border-bottom:1px solid #f3f6fb;">{{ r.action }}</td>
+                    <td style="padding:12px 22px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ r.entity }}</td>
+                    <td style="padding:12px 22px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ r.badgeBg }}; color: {{ r.badgeFg }};">{{ r.status }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStaff }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Staff">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Staff</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Manage doctors, nurses, and receptionists at {{ orgName }}</div>
+            </div>
+            <button onClick="{{ openAddStaff }}" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">
+              <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+              Invite Staff
+            </button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5; flex-wrap:wrap;">
+              <div style="position:relative; width:280px;">
+                <svg viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search name or email…" value="{{ staffSearch }}" onChange="{{ setStaffSearch }}" style="width:100%; height:36px; background:#ffffff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 32px; font-size:12.5px; outline:none; color:#000825; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff;">
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                <select value="{{ staffRole }}" onChange="{{ setStaffRole }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Roles</option>
+                  <option value="doctor">Doctor</option>
+                  <option value="nurse">Nurse</option>
+                  <option value="receptionist">Receptionist</option>
+                  <option value="org_admin">Org Admin</option>
+                </select>
+                <select value="{{ staffStatus }}" onChange="{{ setStaffStatus }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                  <option value="">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Invite pending</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+                <button onClick="{{ clearStaffFilters }}" style="padding:0 12px; height:36px; font-size:12px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; border-radius:8px; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff;">Clear</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Name</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Role</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Duty</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Phone</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Actions</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ staffRows }}" as="st" hint-placeholder-count="8">
+                    <tr style="background: {{ st.rowBg }};">
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ st.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ st.initials }}</div>
+                          <div>
+                            <div style="font-size:13px; font-weight:600; color:#000825;">{{ st.name }}</div>
+                            <div style="font-size:11px; color:#6b7280; margin-top:1px;">{{ st.email }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ st.roleBg }}; color: {{ st.roleFg }};">{{ st.roleLabel }}</span></td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color: {{ st.dutyFg }};">
+                          <span style="width:7px; height:7px; border-radius:50%; background: {{ st.dutyDot }}; flex-shrink:0;"></span>
+                          {{ st.dutyLabel }}
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ st.phone }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ st.statusBg }}; color: {{ st.statusFg }};">{{ st.statusLabel }}</span></td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; gap:6px;">
+                          <button onClick="{{ st.onView }}" style="background:none; border:1px solid #e8edf5; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color:#374151; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">View</button>
+                          <sc-if value="{{ st.pending }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ st.onResend }}" style="background: {{ st.resendBg }}; border:1px solid {{ st.resendBorder }}; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color: {{ st.resendFg }}; white-space:nowrap; font-family:'Inter',sans-serif;">{{ st.resendLabel }}</button>
+                          </sc-if>
+                          <sc-if value="{{ st.showToggle }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ st.onToggle }}" style="background:none; border:1px solid {{ st.toggleBorder }}; border-radius:6px; padding:5px 11px; font-size:11.5px; font-weight:600; cursor:pointer; color: {{ st.toggleFg }}; font-family:'Inter',sans-serif;">{{ st.toggleLabel }}</button>
+                          </sc-if>
+                        </div>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ staffEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No staff found</div>
+                  <div style="font-size:12.5px;">Try adjusting your search or filters.</div>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 20px; border-top:1px solid #e8edf5; background:#f8faff;">
+              <span style="font-size:12px; color:#6b7280; font-weight:500;">{{ staffCountLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPatients }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Patients">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Patients</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Patient directory for {{ orgName }}</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5; flex-wrap:wrap;">
+              <div style="position:relative; width:280px;">
+                <svg viewBox="0 0 24 24" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search by name or HCL-ID…" value="{{ patientSearch }}" onChange="{{ setPatientSearch }}" style="width:100%; height:36px; background:#ffffff; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px 0 32px; font-size:12.5px; outline:none; color:#000825; font-family:'Inter',sans-serif; box-sizing:border-box;" style-focus="border-color:#0075ff;">
+              </div>
+              <span style="margin-left:auto; font-size:12px; color:#6b7280; font-weight:500;">{{ patientCountLabel }}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">HCL-ID</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Gender</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Phone</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Last Visit</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ patientRows }}" as="p" hint-placeholder-count="8">
+                    <tr>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:50%; background: {{ p.avatarBg }}; color:#ffffff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ p.initials }}</div>
+                          <div style="font-size:13px; font-weight:600; color:#000825;">{{ p.name }}</div>
+                        </div>
+                      </td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; font-family:ui-monospace,'SF Mono',Menlo,monospace; white-space:nowrap;">{{ p.hclId }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ p.gender }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ p.phone }}</td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ p.lastVisit }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ p.statusBg }}; color: {{ p.statusFg }};">{{ p.statusLabel }}</span></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ patientEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No patients found</div>
+                  <div style="font-size:12.5px;">Try a different name or HCL-ID.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isWards }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Wards and Beds">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Wards &amp; Beds</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Real-time ward occupancy and bed status</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; font-size:12px; color:#6b7280; font-weight:500;">
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; border-radius:4px; background:#0075ff;"></span> Occupied</span>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:12px; height:12px; border-radius:4px; background:#ffffff; border:1.5px solid #c9d4e5;"></span> Available</span>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:16px;">
+            <sc-for list="{{ wardCards }}" as="w" hint-placeholder-count="4">
+              <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; padding:20px 22px; box-shadow:0 1px 4px rgba(0,8,37,0.05);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                  <div style="font-size:14.5px; font-weight:700; color:#000825;">{{ w.name }}</div>
+                  <span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ w.badgeBg }}; color: {{ w.badgeFg }};">{{ w.badgeLabel }}</span>
+                </div>
+                <div style="font-size:12px; color:#6b7280; margin-bottom:12px;">{{ w.occLabel }}</div>
+                <div style="height:7px; background:#f0f4fb; border-radius:4px; overflow:hidden; margin-bottom:16px;">
+                  <div style="height:100%; border-radius:4px; width: {{ w.pct }}; background: {{ w.barColor }};"></div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                  <sc-for list="{{ w.beds }}" as="b" hint-placeholder-count="8">
+                    <div style="width:52px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; font-family:ui-monospace,'SF Mono',Menlo,monospace; background: {{ b.bg }}; color: {{ b.fg }}; border:1.5px solid {{ b.border }};">{{ b.no }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAccess }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Access Requests">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Access Requests</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Record access requests raised by your staff</div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start; background:#ebf3ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:13px 16px; margin-bottom:16px;">
+            <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <div style="font-size:12.5px; color:#1e40af; line-height:1.5;"><b>Consent stays with the patient.</b> Patients approve or deny record access requests from their own portal; this list is your organisation's read-only audit view.</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #e8edf5;">
+              <select value="{{ accessStatus }}" onChange="{{ setAccessStatus }}" style="height:36px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:12.5px; font-family:'Inter',sans-serif; color:#374151; background:#ffffff; cursor:pointer; outline:none;">
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="DENIED">Denied</option>
+              </select>
+              <span style="margin-left:auto; font-size:12px; color:#6b7280; font-weight:500;">{{ accessCountLabel }}</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead><tr>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Patient</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Requested By</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Reason</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Status</th>
+                  <th style="padding:10px 20px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; background:#f8faff; border-bottom:1px solid #e8edf5; white-space:nowrap;">Created</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ accessRows }}" as="a" hint-placeholder-count="5">
+                    <tr>
+                      <td style="padding:13px 20px; font-size:13px; font-weight:600; color:#000825; border-bottom:1px solid #f3f6fb;">{{ a.patient }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb;">{{ a.requestedBy }}</td>
+                      <td style="padding:13px 20px; font-size:12.5px; color:#374151; border-bottom:1px solid #f3f6fb; max-width:280px;">{{ a.reason }}</td>
+                      <td style="padding:13px 20px; border-bottom:1px solid #f3f6fb;"><span style="display:inline-flex; padding:3px 11px; border-radius:999px; font-size:11px; font-weight:700; background: {{ a.badgeBg }}; color: {{ a.badgeFg }};">{{ a.statusLabel }}</span></td>
+                      <td style="padding:13px 20px; font-size:12px; color:#6b7280; border-bottom:1px solid #f3f6fb; white-space:nowrap;">{{ a.created }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+              <sc-if value="{{ accessEmpty }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                  <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                  <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">No access requests</div>
+                  <div style="font-size:12.5px;">Requests raised by your staff will appear here.</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isNotifications }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Notifications">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px;">
+            <div>
+              <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Notifications</div>
+              <div style="font-size:13px; color:#6b7280; margin-top:2px;">Updates for organisation operations</div>
+            </div>
+            <button onClick="{{ markAllRead }}" style="padding:8px 15px; border-radius:8px; font-size:12.5px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;" style-hover="border-color:#0075ff; color:#0075ff; background:#EBF3FF;">Mark all as read</button>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+            <sc-for list="{{ notifItems }}" as="n" hint-placeholder-count="5">
+              <div style="display:flex; gap:14px; padding:16px 22px; border-bottom:1px solid #f3f6fb; background: {{ n.bg }}; align-items:flex-start;">
+                <div style="width:36px; height:36px; border-radius:50%; background: {{ n.chipBg }}; color: {{ n.chipFg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><path d="{{ n.iconPath }}"></path></svg>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13px; font-weight:600; color:#000825; line-height:1.4;">{{ n.title }}</div>
+                  <div style="font-size:12px; color:#6b7280; line-height:1.4; margin-top:2px;">{{ n.desc }}</div>
+                </div>
+                <div style="font-size:11px; color:#b0bcc8; white-space:nowrap; flex-shrink:0;">{{ n.time }}</div>
+                <sc-if value="{{ n.unread }}" hint-placeholder-val="{{ false }}">
+                  <span style="width:8px; height:8px; border-radius:50%; background:#0075ff; flex-shrink:0; margin-top:6px;"></span>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center; padding:56px 24px; color:#6b7280;">
+                <svg viewBox="0 0 24 24" style="width:44px; height:44px; stroke:#c0ccd8; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 14px; display:block;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <div style="font-size:14px; font-weight:700; color:#374151; margin-bottom:4px;">You're all caught up</div>
+                <div style="font-size:12.5px;">New notifications will appear here.</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Settings">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Lato',sans-serif; font-size:22px; font-weight:800; color:#000825;">Settings</div>
+            <div style="font-size:13px; color:#6b7280; margin-top:2px;">Organisation profile and security settings</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;">
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+              <div style="padding:16px 22px; border-bottom:1px solid #e8edf5; font-size:13.5px; font-weight:700; color:#000825;">Organisation Profile</div>
+              <div style="padding:22px;">
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151; display:flex; align-items:center; gap:6px;">Organisation Name
+                    <svg viewBox="0 0 24 24" style="width:12px; height:12px; stroke:#b0bcc8; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  </label>
+                  <input type="text" defaultValue="{{ orgName }}" disabled="{{ true }}" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#6b7280; background:#f0f4fb; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; cursor:not-allowed;">
+                  <div style="font-size:11px; color:#6b7280; line-height:1.5;">Your organisation name is verified by HealthClouda. To change it, contact platform support.</div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151;">Support Email</label>
+                  <input type="email" defaultValue="support@lagosgeneral.ng" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151;">Support Phone</label>
+                  <input type="tel" defaultValue="0803 221 4410" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:18px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151;">Address</label>
+                  <textarea rows="3" defaultValue="14 Marina Road, Lagos Island, Lagos" style="border:1.5px solid #e8edf5; border-radius:8px; padding:11px 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif; resize:vertical;" style-focus="border-color:#0075ff; background:#ffffff;"></textarea>
+                </div>
+                <button onClick="{{ saveSettings }}" style="padding:10px 18px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Save Settings</button>
+              </div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e8edf5; border-radius:14px; box-shadow:0 1px 4px rgba(0,8,37,0.05); overflow:hidden;">
+              <div style="padding:16px 22px; border-bottom:1px solid #e8edf5;">
+                <div style="font-size:13.5px; font-weight:700; color:#000825;">Your Account</div>
+                <div style="font-size:11.5px; color:#6b7280; margin-top:2px;">Change the password for your personal admin login (amina.yusuf@lagosgeneral.ng)</div>
+              </div>
+              <div style="padding:22px;">
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151;">Current Password</label>
+                  <input type="password" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                  <label style="font-size:12px; font-weight:600; color:#374151;">New Password</label>
+                  <input type="password" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+                </div>
+                <div style="font-size:11.5px; color:#6b7280; line-height:1.5; margin-bottom:18px;">Minimum 8 characters with an uppercase letter, a number and a special character.</div>
+                <button onClick="{{ savePassword }}" style="padding:10px 18px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">Update Password</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ anyPanelOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePanels }}" style="position:fixed; inset:0; background:rgba(0,8,37,0.35); backdrop-filter:blur(2px); z-index:300; animation:hcFadeIn 0.2s ease;"></div>
+  </sc-if>
+
+  <sc-if value="{{ showAddStaff }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Invite staff" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <div style="font-size:15px; font-weight:700; color:#000825;">Invite Staff Member</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Add a doctor, nurse or receptionist to {{ orgName }}</div>
+        </div>
+        <button onClick="{{ closePanels }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; gap:10px; align-items:flex-start; background:#ebf3ff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px 14px; margin-bottom:20px;">
+          <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <div style="font-size:12px; color:#1e40af; line-height:1.5;">No password needed: they'll receive an email with a secure link to set their own password.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Full Name *</label>
+          <input type="text" placeholder="e.g. Dr. Adaeze Okoro" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Email *</label>
+          <input type="email" placeholder="user@lagosgeneral.ng" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Role *</label>
+          <select style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 10px; font-size:13px; color:#000825; background:#f8faff; outline:none; cursor:pointer; font-family:'Inter',sans-serif; width:100%;">
+            <option value="">Select role…</option>
+            <option value="doctor">Doctor</option>
+            <option value="nurse">Nurse</option>
+            <option value="receptionist">Receptionist</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:600; color:#374151;">Phone</label>
+          <input type="tel" placeholder="e.g. 09012345678" style="height:42px; border:1.5px solid #e8edf5; border-radius:8px; padding:0 14px; font-size:13px; color:#000825; background:#f8faff; outline:none; width:100%; box-sizing:border-box; font-family:'Inter',sans-serif;" style-focus="border-color:#0075ff; background:#ffffff;">
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <button onClick="{{ closePanels }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Cancel</button>
+        <button onClick="{{ submitInvite }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:#0075ff; color:#ffffff; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(0,117,255,0.25); display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:'Inter',sans-serif;" style-hover="background:#005FCC;">
+          <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          Send Invitation
+        </button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showStaffDetail }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Panel: Staff details" style="position:fixed; top:0; right:0; bottom:0; width:440px; background:#ffffff; box-shadow:-8px 0 40px rgba(0,8,37,0.12); z-index:400; display:flex; flex-direction:column; animation:hcPanelIn 0.28s cubic-bezier(0.4,0,0.2,1);">
+      <div style="padding:20px 24px; border-bottom:1px solid #e8edf5; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div style="font-size:15px; font-weight:700; color:#000825;">Staff Details</div>
+        <button onClick="{{ closePanels }}" style="background:none; border:none; color:#6b7280; display:flex; align-items:center; padding:4px; border-radius:6px; cursor:pointer;" style-hover="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:24px;">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:12px;">
+          <div style="width:52px; height:52px; border-radius:50%; background: {{ vStaff.avatarBg }}; color:#ffffff; font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ vStaff.initials }}</div>
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#000825;">{{ vStaff.name }}</div>
+            <div style="font-size:12px; color:#6b7280; margin-top:2px;">{{ vStaff.email }}</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px;">
+          <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vStaff.roleBg }}; color: {{ vStaff.roleFg }};">{{ vStaff.roleLabel }}</span>
+          <span style="display:inline-flex; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background: {{ vStaff.statusBg }}; color: {{ vStaff.statusFg }};">{{ vStaff.statusLabel }}</span>
+          <sc-if value="{{ vStaff.showDutyChip }}" hint-placeholder-val="{{ false }}">
+            <span style="display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; background:#f8faff; border:1px solid #e8edf5; color: {{ vStaff.dutyFg }};"><span style="width:6px; height:6px; border-radius:50%; background: {{ vStaff.dutyDot }};"></span>{{ vStaff.dutyLabel }}</span>
+          </sc-if>
+        </div>
+        <sc-if value="{{ vStaff.pending }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; gap:10px; align-items:flex-start; background:#fffbeb; border:1.5px solid #fde68a; border-radius:8px; padding:12px 14px; margin-bottom:22px;">
+            <svg viewBox="0 0 24 24" style="width:16px; height:16px; stroke:#d97706; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            <div style="font-size:12px; color:#92400e; line-height:1.5;">This staff member hasn't completed account setup yet. Their invitation link expires 72 hours after it's sent.</div>
+          </div>
+        </sc-if>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#6b7280; margin-bottom:12px;">Details</div>
+        <div style="display:flex; flex-direction:column; gap:13px;">
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Phone</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vStaff.phone }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Date Joined</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vStaff.joined }}</div></div>
+          </div>
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:#0075ff; fill:none; stroke-width:2; stroke-linecap:round; flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg>
+            <div><div style="font-size:10.5px; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em;">Last Login</div><div style="font-size:13px; color:#000825; margin-top:1px;">{{ vStaff.lastLogin }}</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:18px 24px; border-top:1px solid #e8edf5; display:flex; gap:10px;">
+        <sc-if value="{{ vStaff.pending }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ vStaff.onResend }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background: {{ vStaff.resendBg }}; color: {{ vStaff.resendFg }}; border:1.5px solid {{ vStaff.resendBorder }}; cursor:pointer; font-family:'Inter',sans-serif;">{{ vStaff.resendLabel }}</button>
+        </sc-if>
+        <sc-if value="{{ vStaff.showToggle }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ vStaff.onToggle }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background: {{ vStaff.panelToggleBg }}; color: {{ vStaff.panelToggleFg }}; border:1px solid {{ vStaff.panelToggleBorder }}; cursor:pointer; font-family:'Inter',sans-serif;">{{ vStaff.toggleLabel }}</button>
+        </sc-if>
+        <button onClick="{{ closePanels }}" style="flex:1; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; background:transparent; color:#374151; border:1.5px solid #e8edf5; cursor:pointer; font-family:'Inter',sans-serif;">Close</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; background: {{ toastBg }}; color:#ffffff; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; display:flex; align-items:center; gap:8px; box-shadow:0 4px 20px rgba(0,8,37,0.2); animation:hcToastIn 0.25s cubic-bezier(0.4,0,0.2,1);">
+      <svg viewBox="0 0 24 24" style="width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      {{ toastMsg }}
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;orgName&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Lagos General Hospital&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Content&quot;, &quot;description&quot;: &quot;Organisation name shown in the header and copy&quot;}, &quot;emptyStates&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;States&quot;, &quot;description&quot;: &quot;Show all tables, wards and lists in their empty states&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      page: 'dashboard', panel: null, selStaff: null,
+      staffSearch: '', staffRole: '', staffStatus: '',
+      patientSearch: '', accessStatus: '',
+      resent: {}, toast: null,
+      notifs: [
+        { id: 1, kind: 'warning', title: 'ICU ward at full capacity', desc: 'All 6 ICU beds are occupied: consider transfer arrangements', time: '20 min ago', read: false },
+        { id: 2, kind: 'info', title: 'New access request', desc: 'Dr. Emeka Obi requested access to Chinwe Eze\u2019s records', time: '1 hour ago', read: false },
+        { id: 3, kind: 'success', title: 'Invite accepted', desc: 'Ngozi Eze completed account setup as Nurse', time: '3 hours ago', read: false },
+        { id: 4, kind: 'info', title: 'Ward update', desc: 'Maternity ward bed M-06 marked available after discharge', time: 'Yesterday, 18:40', read: true },
+        { id: 5, kind: 'success', title: 'Settings saved', desc: 'Organisation profile was updated by Dr. Amina Yusuf', time: 'Yesterday, 11:05', read: true },
+      ],
+      staff: [
+        { id: 1, name: 'Dr. Amina Yusuf', email: 'amina.yusuf@lagosgeneral.ng', role: 'org_admin', duty: null, active: true, pending: false, joined: 'Nov 3, 2025', phone: '0803 221 4410', lastLogin: 'Today, 08:14' },
+        { id: 2, name: 'Dr. Emeka Obi', email: 'emeka.obi@lagosgeneral.ng', role: 'doctor', duty: true, active: true, pending: false, joined: 'Dec 2, 2025', phone: '0802 118 4471', lastLogin: 'Today, 09:03' },
+        { id: 3, name: 'Dr. Kemi Balogun', email: 'kemi.balogun@lagosgeneral.ng', role: 'doctor', duty: false, active: true, pending: false, joined: 'Jan 20, 2026', phone: '0808 774 2210', lastLogin: 'Yesterday, 21:15' },
+        { id: 4, name: 'Dr. Tunji Adewale', email: 'tunji.adewale@lagosgeneral.ng', role: 'doctor', duty: null, active: true, pending: true, joined: 'Jul 26, 2026', phone: '0806 900 1123', lastLogin: 'Never' },
+        { id: 5, name: 'Ngozi Eze', email: 'ngozi.eze@lagosgeneral.ng', role: 'nurse', duty: true, active: true, pending: false, joined: 'Feb 14, 2026', phone: '0813 500 7712', lastLogin: 'Today, 06:55' },
+        { id: 6, name: 'Halima Suleiman', email: 'halima.s@lagosgeneral.ng', role: 'nurse', duty: true, active: true, pending: false, joined: 'Mar 8, 2026', phone: '0807 320 5518', lastLogin: 'Today, 07:02' },
+        { id: 7, name: 'Funke Ojo', email: 'funke.ojo@lagosgeneral.ng', role: 'nurse', duty: null, active: true, pending: true, joined: 'Jul 28, 2026', phone: '0902 415 6672', lastLogin: 'Never' },
+        { id: 8, name: 'Yemi Alade', email: 'yemi.alade@lagosgeneral.ng', role: 'receptionist', duty: null, active: true, pending: false, joined: 'Apr 2, 2026', phone: '0908 210 6634', lastLogin: 'Today, 08:47' },
+        { id: 9, name: 'Grace Adeyemi', email: 'grace.a@lagosgeneral.ng', role: 'receptionist', duty: null, active: false, pending: false, joined: 'Jan 5, 2026', phone: '0812 447 9083', lastLogin: 'Jun 30, 2026' },
+      ],
+      patients: [
+        { id: 1, name: 'Chinwe Eze', hclId: 'HCL-2025-08841', gender: 'Female', phone: '0803 ••• 4412', lastVisit: 'Jul 28, 2026', admitted: true },
+        { id: 2, name: 'Babatunde Ogun', hclId: 'HCL-2024-03127', gender: 'Male', phone: '0901 ••• 8830', lastVisit: 'Jul 27, 2026', admitted: false },
+        { id: 3, name: 'Fatima Aliyu', hclId: 'HCL-2025-11302', gender: 'Female', phone: '0805 ••• 1174', lastVisit: 'Jul 27, 2026', admitted: true },
+        { id: 4, name: 'Samuel Okonkwo', hclId: 'HCL-2023-00958', gender: 'Male', phone: '0806 ••• 5541', lastVisit: 'Jul 25, 2026', admitted: false },
+        { id: 5, name: 'Aisha Bello', hclId: 'HCL-2026-01566', gender: 'Female', phone: '0812 ••• 9902', lastVisit: 'Jul 22, 2026', admitted: false },
+        { id: 6, name: 'Oluwaseun Adebisi', hclId: 'HCL-2025-07420', gender: 'Male', phone: '0908 ••• 3318', lastVisit: 'Jul 20, 2026', admitted: true },
+        { id: 7, name: 'Mary Nwachukwu', hclId: 'HCL-2024-09215', gender: 'Female', phone: '0807 ••• 6604', lastVisit: 'Jul 15, 2026', admitted: false },
+        { id: 8, name: 'Ibrahim Danjuma', hclId: 'HCL-2025-04083', gender: 'Male', phone: '0813 ••• 2287', lastVisit: 'Jul 11, 2026', admitted: false },
+      ],
+      access: [
+        { id: 1, patient: 'Chinwe Eze', requestedBy: 'Dr. Emeka Obi', reason: 'Review prior cardiology results before consultation', status: 'PENDING', created: 'Jul 29, 2026' },
+        { id: 2, patient: 'Fatima Aliyu', requestedBy: 'Dr. Kemi Balogun', reason: 'Continuity of care: referred from Abuja Medical Centre', status: 'PENDING', created: 'Jul 28, 2026' },
+        { id: 3, patient: 'Babatunde Ogun', requestedBy: 'Dr. Emeka Obi', reason: 'Follow-up on prescription history', status: 'APPROVED', created: 'Jul 26, 2026' },
+        { id: 4, patient: 'Samuel Okonkwo', requestedBy: 'Ngozi Eze', reason: 'Vitals history needed for admission assessment', status: 'APPROVED', created: 'Jul 24, 2026' },
+        { id: 5, patient: 'Aisha Bello', requestedBy: 'Dr. Kemi Balogun', reason: 'Second-opinion consult on lab results', status: 'DENIED', created: 'Jul 21, 2026' },
+        { id: 6, patient: 'Mary Nwachukwu', requestedBy: 'Dr. Emeka Obi', reason: 'Pre-surgery record review', status: 'APPROVED', created: 'Jul 18, 2026' },
+      ],
+      activity: [
+        { time: '09:03', actor: 'Dr. Emeka Obi', action: 'ACCESS_REQUESTED', entity: 'Records · Chinwe Eze', ok: true },
+        { time: '08:47', actor: 'Yemi Alade', action: 'PATIENT_CHECKED_IN', entity: 'Appointment · Babatunde Ogun', ok: true },
+        { time: '08:14', actor: 'Dr. Amina Yusuf', action: 'LOGIN', entity: 'Session', ok: true },
+        { time: '07:02', actor: 'Halima Suleiman', action: 'VITALS_RECORDED', entity: 'Patient · Fatima Aliyu', ok: true },
+        { time: '06:55', actor: 'Ngozi Eze', action: 'DUTY_STARTED', entity: 'Shift · General Ward A', ok: true },
+        { time: 'Yesterday', actor: 'system', action: 'BED_RELEASED', entity: 'Maternity · M-06', ok: true },
+      ],
+      wards: [
+        { name: 'General Ward A', prefix: 'GA', total: 12, occupied: 9 },
+        { name: 'Maternity', prefix: 'M', total: 8, occupied: 5 },
+        { name: 'Pediatrics', prefix: 'P', total: 10, occupied: 4 },
+        { name: 'ICU', prefix: 'ICU', total: 6, occupied: 6 },
+      ],
+    };
+    this._avatarColors = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#dc2626'];
+  }
+  initials(name) { return name.replace(/^Dr\.\s*/, '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(); }
+  color(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; return this._avatarColors[h % this._avatarColors.length]; }
+  roleBadge(role) {
+    const m = { org_admin: ['Org Admin', '#ede9fe', '#7c3aed'], doctor: ['Doctor', '#dbeafe', '#2563eb'], nurse: ['Nurse', '#dcfce7', '#16a34a'], receptionist: ['Receptionist', '#fef3c7', '#d97706'] };
+    return m[role] || [role, '#f3f4f6', '#374151'];
+  }
+  fireToast(msg, bg) {
+    clearTimeout(this._toastT);
+    this.setState({ toast: { msg, bg: bg || '#16a34a' } });
+    this._toastT = setTimeout(() => this.setState({ toast: null }), 2600);
+  }
+  resend(st) {
+    if (this.state.resent[st.id]) return;
+    this.setState(s => ({ resent: { ...s.resent, [st.id]: true } }));
+    this.fireToast('Invitation resent to ' + st.email);
+    setTimeout(() => this.setState(s => { const r = { ...s.resent }; delete r[st.id]; return { resent: r }; }), 6000);
+  }
+  toggleStaff(id) {
+    this.setState(s => ({ staff: s.staff.map(u => u.id === id ? { ...u, active: !u.active } : u) }));
+    const u = this.state.staff.find(u => u.id === id);
+    this.fireToast(u.active ? u.name + ' suspended' : u.name + ' reactivated', u.active ? '#dc2626' : '#16a34a');
+  }
+  decorateStaff(u) {
+    const [rl, rb, rf] = this.roleBadge(u.role);
+    const sent = !!this.state.resent[u.id];
+    const sl = u.pending ? 'Invite pending' : (u.active ? 'Active' : 'Suspended');
+    const sb = u.pending ? '#fef3c7' : (u.active ? '#dcfce7' : '#fee2e2');
+    const sf = u.pending ? '#d97706' : (u.active ? '#16a34a' : '#dc2626');
+    const hasDuty = u.duty !== null;
+    return {
+      ...u, initials: this.initials(u.name), avatarBg: this.color(u.name),
+      roleLabel: rl, roleBg: rb, roleFg: rf,
+      statusLabel: sl, statusBg: sb, statusFg: sf,
+      rowBg: (!u.active && !u.pending) ? '#fff5f5' : 'transparent',
+      dutyLabel: hasDuty ? (u.duty ? 'On duty' : 'Off duty') : '—',
+      dutyDot: hasDuty ? (u.duty ? '#16a34a' : '#c9d4e5') : 'transparent',
+      dutyFg: hasDuty ? (u.duty ? '#16a34a' : '#6b7280') : '#b0bcc8',
+      showDutyChip: hasDuty,
+      showToggle: !u.pending && u.role !== 'org_admin',
+      toggleLabel: u.active ? 'Suspend' : 'Activate',
+      toggleFg: u.active ? '#dc2626' : '#16a34a',
+      toggleBorder: u.active ? '#fca5a5' : '#bbf7d0',
+      panelToggleBg: u.active ? '#fee2e2' : '#dcfce7',
+      panelToggleFg: u.active ? '#dc2626' : '#16a34a',
+      panelToggleBorder: u.active ? '#fca5a5' : '#bbf7d0',
+      resendLabel: sent ? 'Invite sent ✓' : 'Resend invite',
+      resendBg: sent ? '#dcfce7' : '#EBF3FF',
+      resendFg: sent ? '#16a34a' : '#0075ff',
+      resendBorder: sent ? '#bbf7d0' : '#bfdbfe',
+      onView: () => this.setState({ panel: 'staffDetail', selStaff: u.id }),
+      onToggle: () => this.toggleStaff(u.id),
+      onResend: () => this.resend(u),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const orgName = this.props.orgName ?? 'Lagos General Hospital';
+    const emptyAll = this.props.emptyStates ?? false;
+    const pages = ['dashboard', 'staff', 'patients', 'wards', 'access', 'notifications', 'settings'];
+    const nav = {}, navBg = {}, navFg = {};
+    pages.forEach(p => {
+      nav[p] = () => this.setState({ page: p });
+      navBg[p] = s.page === p ? '#EBF3FF' : 'transparent';
+      navFg[p] = s.page === p ? '#0075ff' : '#6b7280';
+    });
+    const staff = emptyAll ? [] : s.staff.filter(u => {
+      const q = s.staffSearch.toLowerCase();
+      if (q && !(u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))) return false;
+      if (s.staffRole && u.role !== s.staffRole) return false;
+      if (s.staffStatus === 'active' && !(u.active && !u.pending)) return false;
+      if (s.staffStatus === 'pending' && !u.pending) return false;
+      if (s.staffStatus === 'suspended' && (u.active || u.pending)) return false;
+      return true;
+    });
+    const patients = emptyAll ? [] : s.patients.filter(p => {
+      const q = s.patientSearch.toLowerCase();
+      return !q || p.name.toLowerCase().includes(q) || p.hclId.toLowerCase().includes(q);
+    });
+    const access = emptyAll ? [] : s.access.filter(a => !s.accessStatus || a.status === s.accessStatus);
+    const accessRows = access.map(a => ({
+      ...a,
+      statusLabel: a.status === 'PENDING' ? 'Pending' : a.status === 'APPROVED' ? 'Approved' : 'Denied',
+      badgeBg: a.status === 'PENDING' ? '#fef3c7' : a.status === 'APPROVED' ? '#dcfce7' : '#fee2e2',
+      badgeFg: a.status === 'PENDING' ? '#d97706' : a.status === 'APPROVED' ? '#16a34a' : '#dc2626',
+    }));
+    const wardCards = (emptyAll ? [] : s.wards).map(w => {
+      const pct = Math.round((w.occupied / w.total) * 100);
+      const full = w.occupied >= w.total;
+      const high = pct >= 75 && !full;
+      const beds = [];
+      for (let i = 1; i <= w.total; i++) {
+        const occ = i <= w.occupied;
+        beds.push({
+          no: w.prefix + '-' + String(i).padStart(2, '0'),
+          bg: occ ? '#0075ff' : '#ffffff', fg: occ ? '#ffffff' : '#6b7280',
+          border: occ ? '#0075ff' : '#c9d4e5',
+        });
+      }
+      return {
+        ...w, beds, pct: pct + '%',
+        occLabel: w.occupied + ' of ' + w.total + ' beds occupied',
+        barColor: full ? '#dc2626' : high ? '#d97706' : '#0075ff',
+        badgeLabel: full ? 'Full' : high ? 'Near capacity' : 'Available',
+        badgeBg: full ? '#fee2e2' : high ? '#fef3c7' : '#dcfce7',
+        badgeFg: full ? '#dc2626' : high ? '#d97706' : '#16a34a',
+      };
+    });
+    const totalBeds = s.wards.reduce((n, w) => n + w.total, 0);
+    const occBeds = s.wards.reduce((n, w) => n + w.occupied, 0);
+    const onDuty = s.staff.filter(u => u.duty === true).length;
+    const activityRows = (emptyAll ? [] : s.activity).map(r => ({
+      ...r, status: r.ok ? 'Successful' : 'Failed',
+      badgeBg: r.ok ? '#dcfce7' : '#fee2e2', badgeFg: r.ok ? '#16a34a' : '#dc2626',
+    }));
+    const notifItems = (emptyAll ? [] : s.notifs).map(n => ({
+      ...n, unread: !n.read,
+      bg: n.read ? 'transparent' : '#f0f6ff',
+      chipBg: n.kind === 'success' ? '#dcfce7' : n.kind === 'warning' ? '#fef3c7' : '#EBF3FF',
+      chipFg: n.kind === 'success' ? '#16a34a' : n.kind === 'warning' ? '#d97706' : '#0075ff',
+      iconPath: n.kind === 'success' ? 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3' : n.kind === 'warning' ? 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01' : 'M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6z',
+    }));
+    const unread = s.notifs.filter(n => !n.read).length;
+    const selStaff = s.staff.find(u => u.id === s.selStaff) || s.staff[0];
+    return {
+      nav, navBg, navFg, orgName,
+      isDashboard: s.page === 'dashboard', isStaff: s.page === 'staff', isPatients: s.page === 'patients',
+      isWards: s.page === 'wards', isAccess: s.page === 'access',
+      isNotifications: s.page === 'notifications', isSettings: s.page === 'settings',
+      onDutyLabel: onDuty + ' on duty right now',
+      bedOccupancyPct: Math.round((occBeds / totalBeds) * 100) + '%',
+      bedOccupancyLabel: occBeds + ' of ' + totalBeds + ' beds occupied',
+      pendingAccessCount: s.access.filter(a => a.status === 'PENDING').length,
+      activityRows,
+      staffRows: staff.map(u => this.decorateStaff(u)),
+      staffEmpty: staff.length === 0,
+      staffCountLabel: 'Showing ' + staff.length + ' of ' + s.staff.length + ' staff members',
+      staffSearch: s.staffSearch, staffRole: s.staffRole, staffStatus: s.staffStatus,
+      setStaffSearch: e => this.setState({ staffSearch: e.target.value }),
+      setStaffRole: e => this.setState({ staffRole: e.target.value }),
+      setStaffStatus: e => this.setState({ staffStatus: e.target.value }),
+      clearStaffFilters: () => this.setState({ staffSearch: '', staffRole: '', staffStatus: '' }),
+      patientRows: patients.map(p => ({
+        ...p, initials: this.initials(p.name), avatarBg: this.color(p.name),
+        statusLabel: p.admitted ? 'Admitted' : 'Active',
+        statusBg: p.admitted ? '#EBF3FF' : '#dcfce7', statusFg: p.admitted ? '#0075ff' : '#16a34a',
+      })),
+      patientEmpty: patients.length === 0,
+      patientCountLabel: 'Showing ' + patients.length + ' of ' + s.patients.length + ' patients',
+      patientSearch: s.patientSearch,
+      setPatientSearch: e => this.setState({ patientSearch: e.target.value }),
+      wardCards,
+      accessRows, accessEmpty: accessRows.length === 0,
+      accessCountLabel: accessRows.length + ' request' + (accessRows.length !== 1 ? 's' : ''),
+      accessStatus: s.accessStatus,
+      setAccessStatus: e => this.setState({ accessStatus: e.target.value }),
+      notifItems, notifEmpty: notifItems.length === 0,
+      hasUnread: unread > 0, unreadCount: unread,
+      markAllRead: () => this.setState(p => ({ notifs: p.notifs.map(n => ({ ...n, read: true })) })),
+      anyPanelOpen: !!s.panel,
+      showAddStaff: s.panel === 'addStaff',
+      showStaffDetail: s.panel === 'staffDetail', vStaff: this.decorateStaff(selStaff),
+      openAddStaff: () => this.setState({ panel: 'addStaff' }),
+      submitInvite: () => { this.setState({ panel: null }); this.fireToast('Invitation sent: set-password link emailed'); },
+      closePanels: () => this.setState({ panel: null }),
+      saveSettings: () => this.fireToast('Settings saved'),
+      savePassword: () => this.fireToast('Password updated'),
+      toastVisible: !!s.toast, toastMsg: s.toast ? s.toast.msg : '', toastBg: s.toast ? s.toast.bg : '#16a34a',
+    };
+  }
+}
+</script>
+</body>
+</html>
