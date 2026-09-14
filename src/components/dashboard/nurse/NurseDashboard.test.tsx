@@ -137,10 +137,20 @@ const vitalsResponse = {
   vitals: reading,
 };
 
-function mockBackend({ vitals = vitalsResponse }: { vitals?: unknown } = {}) {
+function mockBackend({
+  vitals = vitalsResponse,
+  admissionsList = [] as unknown[],
+}: { vitals?: unknown; admissionsList?: unknown[] } = {}) {
   dataGetMock.mockImplementation((path: string) => {
     if (path.startsWith(ENDPOINTS.NURSE_VITALS(admission.patient.id))) {
       return Promise.resolve(vitals);
+    }
+    // FLAG-041 — GET /ward/admissions/?status=ACTIVE, the endpoint that
+    // actually carries attending_doctor_name. Checked before NURSE_MY_PATIENTS
+    // ('/ward/admissions/' and '/nurse/my-patients/' don't collide, but this
+    // keeps the intent obvious).
+    if (path.startsWith(ENDPOINTS.ADMISSIONS)) {
+      return Promise.resolve({ count: admissionsList.length, results: admissionsList });
     }
     if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
       return Promise.resolve({ count: 1, results: [admission] });
@@ -186,6 +196,59 @@ describe('NURSE-1 — my-patients page renders the real admission shape', () => 
     expect(screen.getByText(/General Ward/)).toBeInTheDocument();
     expect(screen.getByText(/GW-01/)).toBeInTheDocument();
     expect(screen.getByText(/High blood pressure follow-up/)).toBeInTheDocument();
+  });
+});
+
+describe('FLAG-041 — attending doctor / handover visibility', () => {
+  // /nurse/my-patients/ (ActiveAdmissionSerializer) carries no attending_doctor
+  // field at all — verified against apps/ward/nurse_serializers.py. The only
+  // NURSE-readable endpoint that has it is GET /ward/admissions/
+  // (AdmissionListSerializer, same admission id), so the dashboard fetches
+  // that separately and merges by id.
+  it('shows the attending doctor name on My Patients, from /ward/admissions/ — not my-patients', async () => {
+    mockBackend({
+      admissionsList: [{ id: admission.id, attending_doctor_name: 'Dr. Emeka Okafor', needs_attending_doctor: false }],
+    });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+
+    expect(await screen.findByText(/Chidi Nwosu/)).toBeInTheDocument();
+    expect(screen.getByText('Dr. Emeka Okafor')).toBeInTheDocument();
+  });
+
+  it('shows the same handover on the Overview preview, not only My Patients', async () => {
+    mockBackend({
+      admissionsList: [{ id: admission.id, attending_doctor_name: 'Dr. Emeka Okafor', needs_attending_doctor: false }],
+    });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+    expect(await screen.findByText('Dr. Emeka Okafor')).toBeInTheDocument();
+  });
+
+  it('flags an ACTIVE admission with no attending doctor as Unassigned, not blank', async () => {
+    mockBackend({
+      admissionsList: [{ id: admission.id, attending_doctor_name: null, needs_attending_doctor: true }],
+    });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+
+    expect(await screen.findByText(/Chidi Nwosu/)).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+  });
+
+  it('degrades to a plain dash, and never crashes the list, when /ward/admissions/ has no matching row', async () => {
+    // The default mockBackend() — no admissionsList override — is what a
+    // still-loading, failed, or genuinely empty /ward/admissions/ response
+    // looks like from this component's point of view: the id is simply not
+    // in the map. This must render the same as "no field returned" (StatCard's
+    // `?? '—'` precedent), never a blank crash or a wrong name.
+    mockBackend();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+
+    expect(await screen.findByText(/Chidi Nwosu/)).toBeInTheDocument();
+    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
+    expect(screen.getByText('Attending').closest('table')).toBeInTheDocument();
   });
 });
 

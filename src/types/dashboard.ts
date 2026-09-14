@@ -754,6 +754,21 @@ export interface NurseAdmission {
   length_of_stay: number;
 }
 
+// GET /ward/admissions/?status=ACTIVE item (FLAG-041) — a DIFFERENT nurse-
+// readable endpoint from /nurse/my-patients/ above, and the only one that
+// carries who is attending. `ActiveAdmissionSerializer` (my-patients) has no
+// attending_doctor field at all (source: apps/ward/nurse_serializers.py);
+// `AdmissionListSerializer` (this endpoint) does — verified against
+// apps/ward/serializers.py and the `CanManageAdmissions` permission class
+// (apps/core/permissions.py), which grants NURSE GET here. Only the fields
+// this file actually reads are declared; the real row carries the rest of
+// NurseAdmission's shape too, keyed on the same admission `id`.
+export interface AdmissionAttendingDoctor {
+  id: string;
+  attending_doctor_name: string | null;
+  needs_attending_doctor: boolean;
+}
+
 // One vitals reading. PATCH /nurse/patients/<id>/vitals/ APPENDS a new
 // reading (partial bodies fine — unsent fields stored as null, so the
 // client must omit untouched inputs). Backend bounds (probed live):
