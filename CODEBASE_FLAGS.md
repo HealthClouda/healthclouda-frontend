@@ -92,6 +92,44 @@ of `usePaginatedList`.
 
 ---
 
+### FLAG-031 — The ward gender-policy override can never fire: the backend's 400 for it carries no field name at all
+**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — fixed
+at source in the backend, PR #194** (`fix/gender-mismatch-error-shape`, merged 2026-09-14)
+**Found:** 2026-09-14, wiring the "Admit anyway" gender two-step on the ordered-admit Accept panel (#139)
+
+`admit_patient()` (`apps/ward/services.py`) raised a plain `ValueError` for the ward gender-policy
+mismatch (FLAG-239/301) — not `serializers.ValidationError`. Every ward view that called it
+(`AdmissionViewSet.create`, `AdmissionRequestViewSet.accept`, and `AdmissionViewSet.transfer`'s own
+inline check) returned a **flat** `Response({'error': str(exc)}, status=400)`. That response never went
+through `apps.core.exceptions.custom_exception_handler` — it carried **no `details` key and no field
+name**, unlike every other validation rejection in this app.
+
+`readFieldError()` (`NurseDashboard.tsx`) — the helper all three admit surfaces (direct emergency
+admit, ordered-admit Accept, and the create path) use to decide whether to show the gender two-step —
+only ever read `err.data.details[field]`. Since `details` was always `undefined` for this specific
+error, `field` was always `null`, so **the two-step could never fire on any of the three surfaces**.
+The clinician would see a plain error banner quoting the backend's own "Resend with override=true to
+admit anyway" sentence, with no button that does that resend.
+
+**Was worked around, now fixed at source.** The frontend previously carried a text-matching fallback
+in `readFieldError()` against the backend's fixed wording — fragile by construction, since nothing
+obligated that message to stay byte-for-byte stable. Backend #194 fixes it properly: `admit_patient()`
+now raises a typed `WardGenderMismatch` (a `ValueError` subclass), and all three admit surfaces
+translate it into `serializers.ValidationError({'gender': str(exc)})`, so it arrives under
+`details.gender` the same way every other field rejection does. **`details.gender` is a STRING, not a
+list** — matching what `AdmissionCreateSerializer` produced before #193's regression.
+
+The frontend's text-match fallback has been removed (`NurseDashboard.tsx`'s `readFieldError` is now a
+pure `details` read, no `GENDER_MISMATCH_MARKER`), and the three gender-two-step test mocks
+(`NurseDashboard.test.tsx`) were restored to assert the real `details.gender` shape instead of the flat
+workaround shape they'd been rewritten to.
+
+**Done when:** the backend raises this as `serializers.ValidationError({'gender': ...})` instead of
+`ValueError`, so it arrives under `details` the same way every other field rejection does, and the
+frontend's text match can be deleted. — **Done, 2026-09-14.**
+
+---
+
 ### FLAG-002 — Backend base URL is stale in three committed places
 **Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** ⚠️ **PARTIALLY FIXED**
 — codebase purged in PR `fix/tier1-infra-batch` (2026-08-12, sprint item A2). **Still open on the
@@ -3148,3 +3186,51 @@ I wrote *"five of seven"*. **There are six dashboards; seven is the number of st
       #109 fixed presence from the schema, not a live-payload type check.
 - [ ] The audit re-runnable: it is ~60 lines and should live in the repo so this cannot silently
       regress. Candidate for a CI job once [[FLAG-230]] is fixed. Still open.
+
+---
+
+### FLAG-040 — A DOCTOR can POST an admission but cannot read a single bed, so a doctor-side admit UI cannot be built as designed
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **PERMISSION RESOLVED on the backend, UI still not built**
+**Found:** 2026-09-11, building WARD-1 (the admissions write path)
+
+> ✅ **2026-09-14 — re-verified against `apps/core/permissions.py` directly.** `CanManageWard.has_permission` now reads `request.user.role in ['NURSE', 'RECEPTIONIST', 'ORGANIZATION_ADMIN', 'DOCTOR']` for `SAFE_METHODS`, and the class docstring names this flag explicitly ("FLAG-040: … This grants DOCTOR the read half only"). `GET /ward/beds/` no longer 403s for a DOCTOR token. The blocker below is gone; **no doctor-side bed/ward picker has been built to use it** — that remains open as a UI gap, not a permission gap, and is out of scope for this branch. A doctor ordering an admission (`RequestAdmissionPanel`, `DoctorDashboard.tsx`) still omits `requested_ward` deliberately — that choice no longer needs to be structural, but changing it is new UI work, not a flag fix.
+
+⚠️ **Numbered out of sequence on purpose.** At the time this was written, two other unmerged PRs
+(#130, #137) had each independently minted `FLAG-027`, `FLAG-028`, `FLAG-029` for unrelated findings
+— this repo has no per-dev number ranges enforced by tooling, only the table above. Rather than risk
+a third collision, this one starts at 040, inside @Bastoh's 001–199 range but clear of everything in
+flight. 027–039 remain free for whichever of #130/#137 merges first to keep its numbers; nothing was
+skipped that needs backfilling.
+
+`apps/core/permissions.py` defines two *different* permission classes for what reads as one
+capability — "manage a ward admission":
+
+```python
+class CanManageWard(permissions.BasePermission):
+    # VIEW (GET): NURSE, RECEPTIONIST, ORG_ADMIN, SUPERADMIN
+    # DOCTOR, PATIENT: No access
+    ...
+
+class CanManageAdmissions(permissions.BasePermission):
+    # VIEW (GET): DOCTOR, NURSE, ORG_ADMIN, SUPERADMIN
+    # CREATE / discharge / transfer: DOCTOR, NURSE, SUPERADMIN
+```
+
+`BedViewSet` (`GET /ward/beds/`, the only endpoint that lists which beds are free) is gated by
+`CanManageWard`, **not** `CanManageAdmissions`. So a DOCTOR is authorized to `POST /ward/admissions/`
+— `patient`/`episode`/`bed`/`admission_reason` — but has no way to discover a valid `bed` id: `GET
+/ward/beds/` 403s for a DOCTOR token, and no other endpoint publishes bed availability. The two
+permission classes agree on NURSE, ORG_ADMIN and SUPERADMIN; DOCTOR is the one role each grants a
+different half of the same workflow.
+
+**Consequence for this PR:** the admit UI in `NurseDashboard.tsx` is the only one built. A doctor
+picking a bed from a select populated by their own `GET /ward/beds/` call would 403 on page load, not
+on submit — worth catching here rather than after building the screen. `DoctorDashboard.tsx`'s
+"Admissions Under Care" stat tile is deliberately non-interactive for the same reason (see its inline
+comment, dated 2026-08-29, which independently reached "no admissions page exists" without knowing
+why one couldn't exist as designed).
+
+**Done when:** a product/backend decision is made — either `BedViewSet`'s GET is opened to DOCTOR (the
+smaller change, and consistent with `CanManageAdmissions` already trusting a DOCTOR to admit), or the
+frontend is told DOCTOR admits are intentionally nurse-mediated and the tile stays inert. Cross-Lane
+Ask filed in `HANDOFF.md` rather than guessed at here.
