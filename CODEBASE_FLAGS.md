@@ -1886,6 +1886,63 @@ here is small enough that one unmasked value shows up at all — as the harness 
 and panels, every new capture is another chance to bake in a timestamp. Fixing the mask matters more
 as that work happens, not less.
 
+### FLAG-239 — The ordered admission path skips the ward gender policy, and #139 builds an "Admit anyway" step for a check that never runs
+**Severity:** P2 · **Area:** Backend contract / Ward-Admissions · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-09-14** — backend **#192** closed by backend **#193** (`12eb32c`) + **#194**; frontend consumed in #139 (`5262e64`)
+**Found:** 2026-09-14, reviewing #139 against backend `develop` source
+
+⚠️ **Numbered 239, not 236.** #137's unmerged code already cites *"FLAG-236/238"* in comments. Skipping
+past them avoids a pointer that means two things.
+
+**The rule is enforced on one route to a bed and absent on the other.** Read from `develop`:
+
+| Route | Gender check | `override` field | Override audited |
+|---|---|---|---|
+| `POST /ward/admissions/` (direct / emergency) | ✅ `AdmissionCreateSerializer` | ✅ | ✅ `gender_override` |
+| `POST /ward/admission-requests/{id}/accept/` with `bed` | ❌ none | ❌ absent from `AdmissionRequestAcceptSerializer` | ❌ |
+
+`accept_admission_request()` → `admit_patient()` (`apps/ward/services.py`) checks bed availability and the
+deceased guard. It never checks the ward's gender policy. `admit_patient()`'s own docstring says it is the
+single place both routes pass through, so a rule added there applies to both. The gender rule never
+moved into it.
+
+**Frontend consequence:** #139's `AcceptRequestPanel` sends `{bed, override}` and renders the FLAG-301
+two-step. DRF drops the unknown `override`, and the 400 it waits for never arrives, so this is dead code
+that **implies a safeguard the backend does not apply**.
+
+**Done when:** backend #192 is answered, and either:
+- the check moves into the shared path, and the accept two-step is verified against a real 400, **or**
+- the ordered path is confirmed exempt by design, and #139's accept two-step is removed with a comment
+  saying why.
+
+---
+
+### FLAG-240 — One-row In Flight claim PRs conflict with each other and are now a large share of the review queue
+**Severity:** P3 · **Area:** Process · **Owner:** @Qeeyat · **Status:** OPEN — a decision for both devs, not a fix
+**Found:** 2026-09-14, reviewing @Bastoh's queue
+
+On 14 Sep, **5 of the 11 PRs awaiting review** (#132, #134, #138, #140, #144) each did nothing but add one
+In Flight row, **at the same line**. Measured with `git merge-tree`:
+- #132×#138 and #138×#140 conflict with each other.
+- #134 and #144 conflict with #141.
+- **Three of the five rows were already stale when reviewed.** #132 says "DON'T MERGE" over a P1 fixed
+  five days earlier. #138 under-states the files #139 touches. #140 describes a `witnessed_by` picker that
+  backend #190 deleted.
+
+The rule behind it is right: `CLAUDE.md` §3 says claim **before** cutting a branch. But the ruleset
+requires a reviewed PR for every change to `develop` (`bypass_actors: []`), and build agents open branches
+far faster than a claim can be approved. So a claim reaches `develop` **after** the work it announces,
+which is the failure the rule exists to prevent, at five times the review cost.
+
+**Done when:** both devs agree in writing (`CLAUDE.md` §3) on one of:
+- claiming in the feature PR's first commit,
+- one batched claims PR per day, or
+- another mechanism that lands a claim before its branch is visible.
+
+⚠️ **This PR's own In Flight row is the same deviation**, made on purpose: the row travels with the
+change it claims, which is option (a).
+
+---
+
 ### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
 
 **Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
