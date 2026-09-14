@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
-import { dataGet } from '@/lib/client-api';
+import { dataGet, ClientApiError } from '@/lib/client-api';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
@@ -44,6 +44,28 @@ function Th({ children }: { children: React.ReactNode }) {
 }
 function Td({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-4 py-3.5 text-gray-700 ${className}`}>{children}</td>;
+}
+
+/**
+ * The backend's `apps.core.exceptions.custom_exception_handler` wraps every
+ * rejection as `{error, code, details}` — field errors live under
+ * `details`, never at the top level of `ClientApiError.data`. This is how
+ * both check-in write rejections below arrive (FLAG-236 no org access,
+ * FLAG-238 already active), and a blank `reason_for_visit` arrives the same
+ * way. Take the first field's first message rather than a single named
+ * field — any of `patient`, `reason_for_visit`, `assigned_doctor` or
+ * `non_field_errors` can reject a check-in, and the caller shouldn't have
+ * to enumerate them.
+ */
+function readableFieldError(err: unknown): string | null {
+  if (!(err instanceof ClientApiError)) return null;
+  const data = err.data as { details?: Record<string, unknown> } | null;
+  const details = data?.details;
+  if (!details) return null;
+  for (const val of Object.values(details)) {
+    if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
+  }
+  return null;
 }
 
 // ─── Overview ────────────────────────────────────────────────────
@@ -150,6 +172,23 @@ function CheckInsPage() {
     }
   }
 
+  // PATCH /receptionist/check-ins/<id>/ — the backend sets called_at /
+  // completed_at itself on the IN_PROGRESS / COMPLETED / NO_SHOW transitions;
+  // we send only the status, never a timestamp.
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  async function updateCheckInStatus(checkInId: string, nextStatus: string) {
+    setUpdatingStatus(checkInId);
+    try {
+      await apiAction(ENDPOINTS.REC_CHECK_IN(checkInId), 'PATCH', { status: nextStatus });
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update the queue');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  }
+
   const isToday = date === todayISO();
 
   const columns: DataTableColumn<CheckIn>[] = [
@@ -199,6 +238,44 @@ function CheckInsPage() {
       ),
     },
     { key: 'status', header: 'Status', render: (ci) => <StatusBadge status={ci.status} /> },
+    {
+      key: 'actions', header: 'Actions',
+      render: (ci) => {
+        const busy = updatingStatus === ci.id;
+        if (ci.status === 'WAITING') {
+          return (
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateCheckInStatus(ci.id, 'IN_PROGRESS')}
+                disabled={busy}
+                className="text-xs font-medium text-primary-dark hover:underline disabled:opacity-50"
+              >
+                Call in
+              </button>
+              <button
+                onClick={() => updateCheckInStatus(ci.id, 'NO_SHOW')}
+                disabled={busy}
+                className="text-xs font-medium text-text-soft hover:underline disabled:opacity-50"
+              >
+                No-show
+              </button>
+            </div>
+          );
+        }
+        if (ci.status === 'IN_PROGRESS') {
+          return (
+            <button
+              onClick={() => updateCheckInStatus(ci.id, 'COMPLETED')}
+              disabled={busy}
+              className="text-xs font-medium text-primary-dark hover:underline disabled:opacity-50"
+            >
+              Complete
+            </button>
+          );
+        }
+        return <span className="text-xs text-text-soft">—</span>;
+      },
+    },
   ];
 
   return (
@@ -255,7 +332,11 @@ function CheckInsPage() {
             >
               <option value="">All</option>
               <option value="WAITING">Waiting</option>
-              <option value="CALLED">Called</option>
+              {/* This was "CALLED", a status the backend does not have —
+                  PatientCheckInUpdateSerializer's choices are WAITING /
+                  IN_PROGRESS / COMPLETED / NO_SHOW, so the filter never
+                  matched a single row. Not tracked under any flag number. */}
+              <option value="IN_PROGRESS">In Progress</option>
               <option value="COMPLETED">Completed</option>
               <option value="NO_SHOW">No show</option>
             </select>
@@ -563,6 +644,54 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
 
+  // Check-in creation. The patient is already known from the row this panel
+  // opened from — no client-side patient picker (FLAG-214: a paged search
+  // only ever sees page 1, so a picker built on it silently hides everyone
+  // past the first page).
+  const { data: onDutyData } = useApi<Paginated<OnDutyDoctor>>(
+    patient ? ENDPOINTS.REC_DOCTORS_ON_DUTY : null,
+  );
+  const onDutyDoctors = onDutyData?.results ?? [];
+  const [checkInDoctor, setCheckInDoctor] = useState('');
+  const [checkInReason, setCheckInReason] = useState('');
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkInMessage, setCheckInMessage] = useState<string | null>(null);
+  const [checkInError, setCheckInError] = useState<string | null>(null);
+
+  async function checkInPatient() {
+    if (!patient) return;
+    setCheckingIn(true);
+    setCheckInError(null);
+    setCheckInMessage(null);
+    try {
+      const payload: Record<string, unknown> = { patient: patient.id };
+      // Both optional on the backend — omit rather than send '', which
+      // fails validation instead of falling back to the field's default.
+      // `reason_for_visit = CharField(required=False, default='')` has
+      // `allow_blank=False` (DRF's default): `default` only applies when
+      // the key is absent, so an explicit '' 400s instead.
+      if (checkInReason.trim()) payload.reason_for_visit = checkInReason.trim();
+      if (checkInDoctor) payload.assigned_doctor = checkInDoctor;
+
+      const res = (await apiAction(ENDPOINTS.REC_CHECK_INS, 'POST', payload)) as
+        { message?: string } | null;
+      setCheckInMessage(res?.message ?? 'Patient checked in.');
+      setCheckInReason('');
+      setCheckInDoctor('');
+    } catch (e) {
+      // FLAG-236 (no org access yet) / FLAG-238 (already an active
+      // check-in) / a blank reason all arrive as a field error under
+      // `details` — surface the backend's own actionable sentence, not a
+      // generic "Request failed" message.
+      const msg = readableFieldError(e) ??
+        (e instanceof Error ? e.message : 'Could not check in patient');
+      setCheckInError(msg);
+      toast.error(msg);
+    } finally {
+      setCheckingIn(false);
+    }
+  }
+
   const shownEmail = dirty ? email : detail?.email ?? '';
 
   async function saveEmail() {
@@ -631,6 +760,55 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
                 {saving ? 'Saving…' : 'Save email'}
               </button>
             )}
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <div className="text-xs font-medium text-text-soft mb-1">Check in</div>
+
+            {checkInMessage && (
+              <p role="status" className="text-sm text-primary-dark bg-primary-soft border border-primary/20 rounded-lg px-3 py-2 mb-2">
+                {checkInMessage}
+              </p>
+            )}
+            {checkInError && (
+              <p role="alert" className="text-sm text-danger bg-danger-bg border border-danger/20 rounded-lg px-3 py-2 mb-2">
+                {checkInError}
+              </p>
+            )}
+
+            <Field label="Assign doctor" hint="Optional — can be assigned later from the queue.">
+              <select
+                aria-label="Assign doctor"
+                value={checkInDoctor}
+                onChange={e => setCheckInDoctor(e.target.value)}
+                className={inputCls}
+              >
+                <option value="">No doctor yet</option>
+                {onDutyDoctors.map(d => (
+                  <option key={d.id} value={d.id}>Dr. {d.first_name} {d.last_name}</option>
+                ))}
+              </select>
+            </Field>
+
+            <div className="mt-3">
+              <Field label="Reason for visit">
+                <textarea
+                  value={checkInReason}
+                  onChange={e => setCheckInReason(e.target.value)}
+                  maxLength={1000}
+                  rows={2}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+
+            <button
+              onClick={checkInPatient}
+              disabled={checkingIn}
+              className="mt-3 px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              {checkingIn ? 'Checking in…' : 'Check in patient'}
+            </button>
           </div>
 
           <div className="border-t border-border pt-4">
@@ -836,7 +1014,16 @@ function PatientSearchPage() {
         onClose={() => setRegisterOpen(false)}
         onRegistered={setJustRegistered}
       />
-      <PatientActionsPanel patient={selected} onClose={() => setSelected(null)} />
+      {/*
+        Keyed on the patient id: this panel is mounted permanently by its
+        parent (open/close only toggles `patient`), and without a key React
+        reuses the same instance across two different patients selected
+        back-to-back without closing the panel in between — the check-in
+        doctor/reason draft (and the email edit-in-progress) would leak from
+        one patient's form onto another's, the same class of bug as PR #130's
+        referral-form state leak.
+      */}
+      <PatientActionsPanel key={selected?.id ?? 'none'} patient={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
