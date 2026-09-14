@@ -1517,7 +1517,7 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
-### FLAG-235 — A screenshot baseline encodes a day counter, so the nurse design test fails a little worse every day
+### FLAG-235 — Two of the three content masks in the design harness match strings the app never emits, so every baseline holding a relative time is a slow time bomb
 **Severity:** P2 · **Area:** Test reliability / design verification · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-09-09, while re-running the T5 harness looking for something else entirely
 
@@ -1570,11 +1570,44 @@ server-computed relative value is a time bomb with a slow fuse. The mask list is
 *known* offenders written by hand — it catches what someone thought of, and `(13d)` is what nobody
 thought of.
 
+> 🔴 **ESCALATED 2026-09-09, hours after logging it — the diagnosis above is correct but far too
+> narrow, and the real defect is worse.** Found while capturing the first-ever Patient baselines and
+> noticing `12d ago` sitting unmasked in the notifications feed.
+>
+> `masksFor()` (`roles.spec.ts:236-244`) has three content masks. **Two of them match strings this
+> application never emits:**
+>
+> | Mask | Matches | Does the app ever render it? |
+> |---|---|---|
+> | `page.locator('nextjs-portal')` | the dev-tools indicator | ✅ yes — this one works |
+> | `/\d+ (second\|minute\|hour\|day)s? ago/i` | `"12 days ago"` | ❌ **never.** `timeAgo()` (`utils.ts:68-78`) returns `12d ago`, `3h ago`, `5m ago`, `just now` — **abbreviated**. `grep` for `days? ago` across `src/` returns **zero** non-test hits |
+> | `/Today,/i` | `"Today,"` | ❌ **never.** The only hit in `src/` is `isToday,` inside an *import list* |
+>
+> 🎯 **So the mask was never protecting the thing it was written to protect.** Every committed
+> baseline that displays a `timeAgo()` value is date-dependent and has been since capture. The nurse
+> row is not the defect — it is **the first one to cross a pixel threshold**, because `(13d)` is
+> *wider* than `(8d)` and re-laid out a whole table, whereas a `timeAgo` string going from `11d ago`
+> to `12d ago` keeps the same width and slips under the diff tolerance. **The others are not passing
+> because they are correct. They are passing because their drift has not been wide enough yet.**
+>
+> 🪤 **This is the failure mode this repo keeps writing flags about, one layer out.** A mask list
+> *looks* like protection and is *named* like protection, and had never been checked against a single
+> string the app actually produces. **It is [[FLAG-221]] applied to a safeguard rather than a test** —
+> not an assertion about the wrong property, but a guard over a value that does not exist. Nothing
+> errors, nothing warns, and Playwright silently masks zero elements.
+>
+> 📌 **Consequence for today, recorded as a decision:** the first-ever Patient baselines captured
+> 2026-09-09 were **deliberately not committed**. `patient-overview-desktop` alone carries `12d ago`
+> **twice**. Committing them before the mask is fixed would bake two fresh time bombs into the repo
+> on the same day this flag was raised.
+
 **Done when** — all three:
-- [ ] `masksFor()` masks the length-of-stay counter (`/\(\d+d\)/`), so the baseline stops depending
-      on the date it was captured.
-- [ ] The nurse `My Patients` baseline is regenerated **once**, after the mask lands — regenerating
-      before it would simply freeze `(13d)` and reset the clock rather than stop it.
+- [ ] `masksFor()` matches the formats `timeAgo()` **actually returns** — `/\d+[dhm] ago/` and
+      `just now` — plus the length-of-stay counter `/\(\d+d\)/`. Delete the `/Today,/i` mask or make
+      it match something real; a mask that matches nothing is worse than no mask, because it reads
+      as coverage.
+- [ ] **Every** baseline is regenerated once, after the mask lands — not only nurse. The others
+      hold unmasked `timeAgo` values too; they are passing on tolerance, not on correctness.
 - [ ] The suite is run on **two different days** and is green both times. That is the only assertion
       that actually tests this defect; a single green run is what let it ship.
 

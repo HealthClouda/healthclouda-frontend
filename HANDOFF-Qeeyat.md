@@ -60,6 +60,123 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-13 — landing a session that spent four days on a laptop (branch: docs/land-2026-09-09-session)
+
+**Goal:** session ritual after a break. The ritual itself turned up the finding: **the 9 Sep session
+was never written down anywhere another person can read.**
+
+**What I found before doing any work:**
+- 🔴 **Four days of finished thinking existed only as an uncommitted diff in my working tree** — the
+  FLAG-235 escalation (+38 lines) and five untracked Patient baseline PNGs. `develop` said FLAG-235
+  was *"flag logged; fix not yet written"* and that **Patient was the dashboard nobody had ever
+  rendered**. Both statements were four days stale, and the branch that would have corrected them had
+  already merged as **#133** while the correction sat unstaged behind it. **A merged PR does not mean
+  the work landed** — #133 carried the flag's first draft and nothing else.
+- 🎯 **The review queue has reversed and it is entirely mine to clear.** Seven of @Bastoh's PRs are
+  open and REVIEW_REQUIRED — **#130, #132, #134 (CONFLICTING), #135, #137, #138, #139** — plus #98
+  held. **#135 carries a Cross-Lane row addressed to me** asking for a decision, not a nudge: take
+  the queue, authorise a bypass actor, or tell him to throttle the build agents that author as him.
+  It is unanswered because it was opened **11 Sep**, two days after my last session.
+
+**What I did:**
+- Cut this branch from an up-to-date `develop` (the old one was merged) and landed the escalation,
+  cleared the stale FLAG-235 In Flight row, recorded #129/#131/#133 as cleared, and wrote the entry
+  below that should have existed on 9 Sep.
+- **Cleared the `E2E_PATIENT_*` Cross-Lane row as the raiser**, on the 4 Sep precedent: it is
+  verifiable from outside the row — the baselines cannot exist without a successful patient sign-in,
+  because the harness skips cleanly when the vars are absent. ⚠️ **Stated as inference**: I could not
+  read `.env.local` (permission denied), so I did not claim to have seen the variables.
+
+**Decisions:**
+- **Answered #135's Cross-Lane row, and declined the bypass actor in writing.** He asked for the
+  shape — take the queue, authorise a bypass so agent-authored PRs self-merge, or he throttles. The
+  answer is **queue + throttle, no bypass**, on his own evidence rather than caution: ruleset
+  `11328360`'s single approval is **the only mechanical gate this repo has**, because CI is still not
+  a required status check and per **FLAG-230** stacked PRs run no CI at all. A bypass on top of that
+  means agent-authored code reaching `develop` with **neither a human nor a machine having looked**.
+  Pointed him at the two settings that *would* fix throughput safely — required checks, and the
+  `ci.yml` `branches: ['**']` one-liner — as the better place to spend his repo-settings access.
+  ⚠️ **Recorded here because the row itself lives on his unmerged #135**, so `HANDOFF.md` cannot carry
+  the answer yet without manufacturing a conflict in the same table. Clear the row on `develop` once
+  #135 merges.
+- **Did not commit the five Patient baselines.** That was the 9 Sep decision and it still holds —
+  `patient-overview-desktop` carries `12d ago` twice, and committing it would bake two fresh time
+  bombs into a **public** repo on top of the flag describing them. They stay in my working tree.
+- **Did not tick `BETA_READINESS.md` item 2.** Patient has now been *rendered*; the item asks for a
+  patient **signing in and reaching their dashboard**, and a harness render on `dev.` against
+  synthetic data is the rehearsal, not the gate. Same distinction that file's own preamble draws.
+- **Did not touch the mask *in this PR*.** The fix is a code change with a two-day green-run
+  requirement in its own "Done when"; folding it into a docs PR would have hidden it. It went on its
+  own branch later the same session — below.
+
+**Later the same session:**
+- **Reviewed #137 and #130** (comments posted; **formal verdicts not yet set — they have to come from
+  me, `gh pr review` is denied to the assistant**). #137: 🔴 blank `reason_for_visit` hits
+  `CharField(allow_blank=False)`, so every quick check-in 400s, and the new test asserts the broken
+  payload. #130: no blocker. ✏️ **Corrected the same day:** I first said the deceased-patient rejection renders as a bare HTTP 400 — wrong, I assumed DRF's default error envelope. The backend's `custom_exception_handler` returns `{error: "<field>: <message>", code, details}`, so the real sentence shows with a raw `patient: ` prefix. P2 → P3, correction posted on the PR.
+- 🎯 **Cross-cutting:** error messages are handled three ways across #130, #137 and
+  #139 — and on checking the real envelope, **#139 is the correct one**; #137's helper reads a key that never exists and its test mocks a shape the backend never sends (FLAG-221). Strip the `field: ` prefix once in `errorMessage()`. And **FLAG-027 is claimed by two of
+  @Bastoh's agents at once** (#130 org-ID gap, #137 check-in pagination) — agents authoring as one dev
+  collide inside that dev's range, which the per-dev ranges cannot prevent.
+- **Stopped reviewing on purpose** and went by necessity. **Re-measured the beta tier** against
+  `1.1.1.1` with a nonsense control: `api-beta` schema **200**, **`beta.` still NXDOMAIN**. The blocker
+  on #98 is no longer the backend — it is **one DNS record of ours**. Posted on #98, updated the
+  Cross-Lane row and tier table in place.
+- **FLAG-235 fixed on `fix/flag-235-mask-contract`** (pushed, no PR yet): patterns moved to
+  `e2e/design/drifting-text.ts`; `superadmin.spec.ts` had the **same dead pair**, not in the flag;
+  `src/lib/drifting-text.contract.test.ts` binds the masks to the real `timeAgo()` in vitest, since
+  Playwright never runs in CI. **RED-first: 9/10 fail on the old list** (the passer is the negative
+  control, correctly).
+- 🪤 **The baseline regeneration was blocked** — the auto-mode classifier denied the Playwright run
+  (dev server + snapshot writes). Did not route around it.
+
+**Verified:** this branch — `tsc` 0 · lint 0 · **24 files / 282 passed** (alone) · build green,
+middleware 35.8 kB. Mask branch — `tsc` 0 · lint 0 · new test **10/10**, RED **9/10** on the old list.
+
+**Left undone / next:**
+- [ ] 🔴 **Set the formal verdicts:** `gh pr review 137 --request-changes`, `gh pr review 130 --approve`.
+- [ ] 🔴 **Regenerate baselines on the mask branch:** `npx playwright test e2e/design/roles.spec.ts
+      e2e/design/superadmin.spec.ts --update-snapshots`. Then commit them — **including the five
+      Patient ones**, now safe. **Re-run on a different day** before opening the PR, then claim In
+      Flight and open it.
+- [ ] 🟠 **Ask @Bastoh about the `beta.` DNS record** — the only thing that moves the beta date.
+- [ ] 🟠 #139 (he is mid-edit — wait), #132/#135/#138, #134 after his rebase. Answer on #135 is given.
+- [ ] Still on @Bastoh: required status checks, `ci.yml` `branches: ['**']` (FLAG-230), #96/FLAG-234,
+      FLAG-027 renumber.
+
+### 2026-09-09 — the mask was never protecting anything, and Patient finally rendered (branch: fix/flag-235-nurse-baseline-drift)
+
+> ⚠️ **Written retrospectively on 2026-09-13** from the working tree, the commit and the artifact
+> timestamps — not from memory. The session ended without a log entry, which is the reason it took
+> four days for any of this to become visible to @Bastoh.
+
+**Goal:** re-run the T5 harness looking for something else; it failed on nurse `My Patients`.
+
+**What I found:**
+- **FLAG-235, first diagnosis (merged as #133):** `NurseDashboard.tsx:75` renders `({length_of_stay}d)`,
+  a **server-computed day counter**, and `masksFor()` does not match it. Nurse is the only view passing
+  `admittedAsDate: true`, which is why doctor's identical table passed on the same run. The baseline
+  froze `(8d)`; the app rendered `(13d)`; the wider string re-laid out the row and **4325 pixels
+  differed on a two-character change** — which reads as a layout regression, not a text change.
+- 🔴 **Then the escalation, and it is the bigger finding.** Capturing the first-ever Patient baselines,
+  I saw `12d ago` sitting unmasked. **Two of the three content masks match strings this app never
+  emits:** `timeAgo()` (`utils.ts:68-78`) returns the **abbreviated** `12d ago` / `3h ago` / `5m ago`,
+  never `"12 days ago"`; and `/Today,/i`'s only hit in `src/` is `isToday,` **inside an import list**.
+  Re-verified 13 Sep: `grep -E "(second|minute|hour|day)s? ago" src/` returns **zero** hits.
+  🎯 **So every baseline holding a relative time has been date-dependent since capture. Nurse was not
+  the defect — it was the first one wide enough to cross the pixel threshold**, because `11d ago` →
+  `12d ago` keeps its width and slips under tolerance. **The others are passing on tolerance, not on
+  correctness.**
+- 🪤 **This is FLAG-221 applied to a safeguard rather than a test** — not an assertion about the wrong
+  property, but a guard over a value that does not exist. Playwright masks zero elements, nothing
+  errors, nothing warns, and the list *reads* as coverage.
+- ✏️ **A near-miss worth keeping:** I first blamed a receptionist `Patient Search` failure in the same
+  run on baseline rot from #107. It **passed on a clean re-run** — it was noise. The story fit the
+  merge dates and was wrong; a re-run cost 24 seconds.
+- 🎉 **Patient was rendered for the first time** — five baselines, desktop and mobile. Deliberately
+  **not committed**, see above.
+
+
 ### 2026-09-08 — T3 exists, and it is proven able to fail three ways (branches: docs/clear-in-flight-2026-09-08, test/t3-role-gate-isolation)
 
 **Goal:** session ritual first, then clear the In Flight table, then build T3 — the largest unbuilt
