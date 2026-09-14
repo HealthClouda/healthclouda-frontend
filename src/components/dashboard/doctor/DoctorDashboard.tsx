@@ -872,19 +872,18 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
 
 /**
  * Order an admission — POST /ward/admission-requests/ (Part 2, contract
- * addendum 2026-09-12). ⚠️ UNVERIFIED: as of this write the backend for this
- * endpoint does not exist anywhere in the checkout (only the emergency path,
- * apps/ward/{models,serializers,urls,views}.py on the parallel branch, is
- * built) — this is written from the contract's plain-English spec, not
- * source.
+ * addendum 2026-09-12). Verified against backend source 2026-09-14:
+ * `AdmissionRequestCreateSerializer` (`apps/ward/serializers.py`) takes
+ * exactly `patient`, `episode`, `requested_ward`, `level_of_care`,
+ * `urgency`, `clinical_reason` — matches the payload below.
  *
- * No `requested_ward` picker: GET /ward/ (WardViewSet) is gated by
- * `CanManageWard`, which excludes DOCTOR entirely — the SAME gap FLAG-040
- * already recorded for `/ward/beds/` (a DOCTOR could POST an admission but
- * not discover a bed to send). `requested_ward` is nullable per the
- * contract, so this omits it rather than build a picker a doctor account
- * structurally cannot populate; the nurse chooses the actual ward at accept
- * time (bed selection already implies a ward).
+ * No `requested_ward` picker: FLAG-040 (the permission gap that made
+ * `GET /ward/beds/` 403 for DOCTOR) is now resolved on the backend —
+ * `CanManageWard` grants DOCTOR read access — but no doctor-side ward/bed
+ * picker has been built to use it. `requested_ward` is nullable per the
+ * contract, so this still omits it; the nurse chooses the actual ward at
+ * accept time (bed selection already implies a ward). Building the picker
+ * now that it's unblocked is separate UI work, not done here.
  */
 function RequestAdmissionPanel({ episode, onClose, onRequested }: {
   episode: Episode | null;
@@ -984,7 +983,7 @@ function RequestAdmissionPanel({ episode, onClose, onRequested }: {
           urgency is what lets it triage the queue.
         </p>
 
-        {formError && <p role="alert" className="text-xs font-semibold text-red-600">{formError}</p>}
+        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
       </form>
     </SlidePanel>
   );

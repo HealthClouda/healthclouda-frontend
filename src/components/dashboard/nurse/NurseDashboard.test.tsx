@@ -697,17 +697,19 @@ describe('WARD-1 — admit patient', () => {
 
   it('shows the gender two-step as a deliberate warning, not a silent retry', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
+    // `admit_patient()` raises a plain `ValueError` for this check, and the
+    // view catches it and returns a FLAT `{error: message}` — NO `details`
+    // key at all, unlike every DRF-validated field rejection (FLAG-031).
+    // Asserting the DRF-shaped mock here would pass against a response the
+    // real backend can never send for THIS error.
     dataActionMock.mockRejectedValueOnce(
       new ClientApiError(
         400,
         {
-          error: "gender: Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+          error: "Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
           code: 'BAD_REQUEST',
-          details: {
-            gender: ["Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway."],
-          },
         },
-        "gender: Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+        "Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
       ),
     );
     await openAdmitPage();
@@ -1002,6 +1004,9 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
 
   it('shows the gender two-step as a deliberate warning on this path too, not an auto-retry', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
+    // Flat `{error: message}`, no `details` — same FLAG-031 shape as the
+    // ordered-admit test above; `admit_patient()`'s plain `ValueError`
+    // never goes through the DRF field-error envelope.
     dataActionMock.mockImplementation((path: string) => {
       if (path === ENDPOINTS.EPISODES) {
         return Promise.resolve({ message: 'ok', episode: { id: 'ep-4' } });
@@ -1010,13 +1015,10 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
         new ClientApiError(
           400,
           {
-            error: "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+            error: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
             code: 'BAD_REQUEST',
-            details: {
-              gender: ["Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway."],
-            },
           },
-          "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+          "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
         ),
       );
     });
@@ -1052,12 +1054,11 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
  * the screens" — so the bar is a person can go from a doctor deciding to
  * admit through to a discharge without hitting a dead end.
  *
- * ⚠️ UNVERIFIED AGAINST BACKEND SOURCE, unlike WARD-1/WARD-EMERGENCY above.
- * The Part 2 backend (ward.AdmissionRequest, reassign-doctor,
- * discharge_outcome) did not exist anywhere in the healthclouda-backend
- * checkout as of this write — confirmed with `git status` (only the
- * emergency-path files were touched, on the parallel branch). These fixtures
- * are built from the contract's plain-English spec, not from a serializer.
+ * Re-verified against backend source 2026-09-14 — the Part 2 backend
+ * (ward.AdmissionRequest, reassign-doctor, discharge_outcome) is now built
+ * and merged to `develop`. Fixture field names below match
+ * `AdmissionRequestListSerializer`/`AdmissionRequestDetailSerializer`
+ * (`apps/ward/serializers.py`) value-for-value, no longer a contract guess.
  */
 describe('WARD-PART2 — nurse admission-request queue (accept/decline)', () => {
   const pendingRequest = {
@@ -1127,6 +1128,41 @@ describe('WARD-PART2 — nurse admission-request queue (accept/decline)', () => 
         ENDPOINTS.ADMISSION_REQUEST_ACCEPT(pendingRequest.id),
         'POST',
         { bed: requestBed.id, override: false },
+      );
+    });
+  });
+
+  it('shows the gender two-step on Accept too, then resends with override=true (FLAG-031)', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    // Flat `{error: message}`, no `details` — `admit_patient()`'s plain
+    // ValueError, same shape on all three admit surfaces (FLAG-031).
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        400,
+        {
+          error: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+          code: 'BAD_REQUEST',
+        },
+        "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+      ),
+    );
+    await openQueue();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: requestBed.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Accept & admit' }));
+
+    expect(await screen.findByText(/does not match the ward's gender policy/)).toBeInTheDocument();
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+
+    dataActionMock.mockResolvedValueOnce({ message: 'ok', admission: { id: 'adm-10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenLastCalledWith(
+        ENDPOINTS.ADMISSION_REQUEST_ACCEPT(pendingRequest.id),
+        'POST',
+        { bed: requestBed.id, override: true },
       );
     });
   });
@@ -1255,42 +1291,27 @@ describe('WARD-PART2 — discharge with outcome', () => {
   });
 });
 
-describe('WARD-PART2 — reassign attending doctor', () => {
-  function mockReassignBackend() {
+describe('WARD-PART2 — no doctor-reassign control on the nurse dashboard', () => {
+  // `AdmissionViewSet.reassign_doctor` is DOCTOR-only and 403s for every
+  // other role (`apps/ward/views.py`) — a "Doctor" button here would 403 on
+  // every click. An earlier version of this PR had exactly that button,
+  // wired to a test that mocked `dataAction` resolving `{message: 'ok'}`, a
+  // response the real backend can never send from this role. This is a
+  // negative control against that regressing, not a feature test.
+  it('renders no "Doctor" reassign button on the My Patients table', async () => {
     dataGetMock.mockImplementation((path: string) => {
       if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
         return Promise.resolve({ count: 1, results: [admission] });
       }
-      if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) {
-        return Promise.resolve([
-          { id: 'doc-r1', full_name: 'Dr. Chika Eze', staff_id: 'DOC-R1', is_on_duty: true },
-        ]);
-      }
       return Promise.resolve({ count: 0, results: [] });
     });
-  }
-
-  it('requires a doctor to be selected — "Reassign" stays disabled until one is chosen, then posts attending_doctor', async () => {
-    dataActionMock.mockResolvedValue({ message: 'ok' });
-    mockReassignBackend();
     render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
     fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
     await screen.findByText(/Chidi Nwosu/);
-    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
 
-    const reassignButton = await screen.findByRole('button', { name: 'Reassign' });
-    expect(reassignButton).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText('Attending doctor'), { target: { value: 'doc-r1' } });
-    expect(reassignButton).not.toBeDisabled();
-    fireEvent.click(reassignButton);
-
-    await waitFor(() => {
-      expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(admission.id),
-        'POST',
-        { attending_doctor: 'doc-r1' },
-      );
-    });
+    expect(screen.queryByRole('button', { name: 'Doctor' })).not.toBeInTheDocument();
+    // Discharge stays nurse-reachable (only the reassign control is the 403
+    // trap), so only its absence is asserted, not the whole row-actions cell.
+    expect(screen.getByRole('button', { name: 'Discharge' })).toBeInTheDocument();
   });
 });

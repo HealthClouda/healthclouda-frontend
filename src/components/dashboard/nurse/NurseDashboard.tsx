@@ -104,9 +104,8 @@ function admissionColumns(
     showAgeSex?: boolean;
     admittedAsDate?: boolean;
     // Part 2 — only wired on the full My Patients table, not the Overview
-    // preview: five action buttons in a five-row preview is noise, not help.
+    // preview: an action button in a five-row preview is noise, not help.
     onDischarge?: (a: NurseAdmission) => void;
-    onReassignDoctor?: (a: NurseAdmission) => void;
   } = {},
 ): DataTableColumn<NurseAdmission>[] {
   return [
@@ -143,23 +142,16 @@ function admissionColumns(
         Record vitals
       </button>
     ) },
-    ...(opts.onDischarge || opts.onReassignDoctor
+    ...(opts.onDischarge
       ? [{
           key: 'ward-actions',
           header: '',
           className: 'text-right whitespace-nowrap',
           render: (a: NurseAdmission) => (
             <div className="flex items-center justify-end gap-3">
-              {opts.onReassignDoctor && (
-                <button onClick={() => opts.onReassignDoctor!(a)} className="text-xs font-semibold text-primary-dark hover:underline">
-                  Doctor
-                </button>
-              )}
-              {opts.onDischarge && (
-                <button onClick={() => opts.onDischarge!(a)} className="text-xs font-semibold text-danger hover:underline">
-                  Discharge
-                </button>
-              )}
+              <button onClick={() => opts.onDischarge!(a)} className="text-xs font-semibold text-danger hover:underline">
+                Discharge
+              </button>
             </div>
           ),
         }]
@@ -249,16 +241,19 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 
 // ─── Discharge (Part 2) ────────────────────────────────────────────
 //
-// ⚠️ UNVERIFIED — POST /ward/admissions/{id}/discharge/ already exists
-// (discharge_summary/discharge_instructions, both optional), but
-// `discharge_outcome` and its per-outcome fields are contract-only; see the
-// Part 2 note on AdmissionRequest in types/dashboard.ts. Field names for the
-// per-outcome extras are the most literal reading of the contract's plain
-// English and are the first thing to reconcile against the real serializer.
+// Verified against backend source 2026-09-14 (`DischargeSerializer`,
+// `discharge_patient()`, `apps/ward/serializers.py` + `services.py`):
+// `discharge_outcome`, `destination`, `deceased_at`, `discovered_at` are
+// real fields, not contract-only. AGAINST_MEDICAL_ADVICE is different from
+// what's below, though — the backend has NO `reason`/`witnessed_by` fields
+// for it at all; the medical advisor's 2026-09-13 answer made the signature
+// `discharged_by`'s own role (DOCTOR-only), not a second free-text field.
+// `CanManageAdmissions` still lets a NURSE reach this endpoint, so a nurse
+// choosing AGAINST_MEDICAL_ADVICE here would 400 role-gated at the service
+// layer — see the fix stacked on this branch.
 //
 // The outcome list is declared exactly ONCE — value, label, tone, and which
-// extra fields it requires — so when the advisor answers Q3 and the real
-// shape lands, correcting it is a one-place edit, per the owner's ask.
+// extra fields it requires — so correcting it is a one-place edit.
 interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
 interface DischargeOutcomeConfig {
   value: string;
@@ -414,73 +409,22 @@ function DischargePanel({ admission, onClose, onDischarged }: {
   );
 }
 
-// ─── Reassign attending doctor (Part 2) ─────────────────────────────
-//
-// ⚠️ UNVERIFIED — POST /ward/admissions/{id}/reassign-doctor/ is contract-only
-// (see the Part 2 note in types/dashboard.ts). Reuses DoctorPicker
-// (`required`) rather than a second doctor-list component.
-function ReassignDoctorPanel({ admission, onClose, onReassigned }: {
-  admission: NurseAdmission | null;
-  onClose: () => void;
-  onReassigned: () => void;
-}) {
-  const { toast } = useToast();
-  const { data: doctors, loading, error } =
-    useApi<AttendingDoctor[]>(admission ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
-  const [doctorId, setDoctorId] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!admission || saving || !doctorId) return;
-    setSaving(true);
-    setFormError(null);
-    try {
-      await apiAction(ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(admission.id), 'POST', { attending_doctor: doctorId });
-      toast.success('Attending doctor updated');
-      onReassigned();
-      onClose();
-    } catch (err) {
-      const { message } = readFieldError(err, ['attending_doctor', 'non_field_errors'], 'Failed to reassign doctor');
-      setFormError(message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <SlidePanel
-      open={!!admission}
-      onClose={onClose}
-      title="Reassign attending doctor"
-      subtitle={admission ? `${admission.patient.first_name} ${admission.patient.last_name}` : undefined}
-      footer={
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          <button type="submit" form="reassign-doctor" disabled={saving || !doctorId}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
-            {saving ? 'Saving…' : 'Reassign'}
-          </button>
-        </div>
-      }
-    >
-      <form id="reassign-doctor" onSubmit={submit} className="space-y-4">
-        <DoctorPicker id="reassign-attending-doctor" doctors={doctors} loading={loading} error={error} value={doctorId} onChange={setDoctorId} required />
-        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
-      </form>
-    </SlidePanel>
-  );
-}
-
 // ─── My Patients page ─────────────────────────────────────────────
+//
+// No doctor-reassign panel here on purpose. `AdmissionViewSet.reassign_doctor`
+// is DOCTOR-only (`apps/ward/views.py`) and 403s for every other role,
+// including NURSE — so a "Doctor" button on this screen would 403 on every
+// click. Reassignment belongs on a doctor-side admissions surface — the same
+// missing screen FLAG-042 already tracks — not built here, per the owner.
+// Caught in review of an earlier version of this PR, which had the button
+// wired to a mocked `{message: 'ok'}` response the real backend can never
+// return.
 
 function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission) => void }) {
   const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<NurseAdmission>(ENDPOINTS.NURSE_MY_PATIENTS);
   const attendingByAdmission = useAttendingDoctors();
   const [discharging, setDischarging] = useState<NurseAdmission | null>(null);
-  const [reassigning, setReassigning] = useState<NurseAdmission | null>(null);
 
   return (
     <div className="space-y-4">
@@ -497,7 +441,6 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
           showAgeSex: true,
           admittedAsDate: true,
           onDischarge: setDischarging,
-          onReassignDoctor: setReassigning,
         })}
         data={admissions}
         getRowKey={(a) => a.id}
@@ -517,12 +460,6 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
         admission={discharging}
         onClose={() => setDischarging(null)}
         onDischarged={refetch}
-      />
-      <ReassignDoctorPanel
-        key={`reassign-${reassigning?.id ?? 'none'}`}
-        admission={reassigning}
-        onClose={() => setReassigning(null)}
-        onReassigned={refetch}
       />
     </div>
   );
@@ -741,6 +678,13 @@ function VitalsPage({ selected, onSelect }: {
  * name, e.g. "gender: Patient gender..."). Returning which field failed is
  * what lets the caller branch into the gender two-step.
  */
+// The exact wording `admit_patient()` raises for a ward gender-policy
+// mismatch (apps/ward/services.py — single source since the FLAG-576
+// consolidation, so this stays true for all three admit surfaces that call
+// it). Matched below because that path's 400 carries NO `details` key at
+// all — see the comment on the fallback.
+const GENDER_MISMATCH_MARKER = "does not match the ward's gender policy";
+
 function readFieldError(
   err: unknown,
   priority: string[],
@@ -755,6 +699,22 @@ function readFieldError(
         const message = Array.isArray(v) ? String(v[0]) : String(v);
         return { field: field === 'non_field_errors' ? null : field, message };
       }
+    }
+    // `admit_patient()` raises a plain `ValueError` for the deceased guard
+    // and the ward gender-policy check (FLAG-239/301), and every ward view
+    // that calls it catches ValueError and returns a FLAT
+    // `{error: message}` — no `details`, no field name, unlike every
+    // DRF-validated rejection above. Without this, the gender two-step
+    // could never fire on ANY of the three admit surfaces: `details` is
+    // always undefined here, so the loop above never runs and `field` was
+    // always `null`. Matching the backend's own fixed wording is the only
+    // way to recover which field failed from this shape. Fragile by
+    // construction — flagged (FLAG-031): the durable fix is the backend
+    // raising `serializers.ValidationError({'gender': [...]})` instead of
+    // `ValueError`, like every other field rejection, so it arrives under
+    // `details` the normal way and this match is not needed.
+    if (priority.includes('gender') && err.message.includes(GENDER_MISMATCH_MARKER)) {
+      return { field: 'gender', message: err.message };
     }
   }
   return { field: null, message: err instanceof Error ? err.message : fallback };
@@ -1400,10 +1360,11 @@ function AdmitPatientPage() {
 // admission" is a signed-off product decision, so Decline is a first-class
 // action here, not a buried menu item.
 //
-// ⚠️ UNVERIFIED — see the Part 2 note on `AdmissionRequest` in
-// types/dashboard.ts: this whole screen is built from the contract's plain
-// English, not from backend source, because the backend for it does not
-// exist yet on the parallel branch.
+// Verified against backend source 2026-09-14 — `AdmissionRequestViewSet`
+// (`apps/ward/views.py`), `AdmissionRequestAcceptSerializer`,
+// `AdmissionRequestDeclineSerializer` (`apps/ward/serializers.py`). No
+// longer contract-only; see the Part 2 note on `AdmissionRequest` in
+// types/dashboard.ts for what each shape carries.
 
 function urgencyLabel(value: string): string {
   return URGENCY_OPTIONS.find(o => o.value === value)?.label ?? value;

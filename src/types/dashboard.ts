@@ -951,18 +951,13 @@ export interface AdmissionCreateResponse {
 
 // ═══ PART 2 — the full ordered admission workflow (contract addendum, 2026-09-12) ═══
 //
-// ⚠️ UNVERIFIED AGAINST SOURCE. Unlike A-1/A-2/A-3 above (cross-checked
-// against the in-progress `feat/emergency-admission-source-doctor` backend
-// branch), Part 2 (ward.AdmissionRequest, reassign-doctor, discharge_outcome)
-// had NOT been implemented anywhere in the backend checkout as of this write
-// — measured with `git status` on healthclouda-backend: only
-// apps/ward/{models,serializers,urls,views}.py are touched, all for the
-// emergency path. Everything below is built from the contract's plain-English
-// spec, which is explicitly labelled prediction for parts of it (Q2/Q3
-// unanswered by the medical advisor). Treat every field name here as the
-// first thing to reconcile once the real serializer exists — that is also
-// why the option lists and the field lists are each declared exactly once,
-// so reconciling them is a one-place edit, not a hunt.
+// Verified against backend source 2026-09-14 — Part 2 (ward.AdmissionRequest,
+// reassign-doctor, discharge_outcome) is now built (`apps/ward/{models,
+// serializers,views}.py` on `develop`). URGENCY_OPTIONS and
+// LEVEL_OF_CARE_OPTIONS below match `Admission.LevelOfCare` /
+// `apps.referrals.models.URGENCY_CHOICES` value-for-value. The option lists
+// and the field lists are each declared exactly once, so reconciling them
+// against any future backend change is still a one-place edit.
 
 // The FIVE medically signed-off triage levels, copied VERBATIM from
 // apps/referrals/models.py:111-116 URGENCY_CHOICES (FLAG-271, medical
