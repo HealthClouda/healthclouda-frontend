@@ -906,6 +906,7 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
           admission_reason: 'Collapsed at reception',
           admission_source: 'EMERGENCY_DIRECT',
           override: false,
+          attending_doctor_override: false,
         },
       );
     });
@@ -940,6 +941,57 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
         ENDPOINTS.ADMISSIONS,
         'POST',
         expect.objectContaining({ attending_doctor: onDutyDoctor.id }),
+      );
+    });
+  });
+
+  it('an off-duty doctor is selectable, not disabled, and naming one shows the on-duty two-step (never blocks the admission)', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockImplementation((path: string) => {
+      if (path === ENDPOINTS.EPISODES) {
+        return Promise.resolve({ message: 'ok', episode: { id: 'ep-5' } });
+      }
+      // `_check_attending_doctor_on_duty` (apps/ward/serializers.py) raises
+      // a REAL serializers.ValidationError — unlike the gender check, this
+      // one genuinely arrives under `details`.
+      return Promise.reject(
+        new ClientApiError(
+          400,
+          {
+            error: 'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+            code: 'BAD_REQUEST',
+            details: {
+              attending_doctor: ['Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.'],
+            },
+          },
+          'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+        ),
+      );
+    });
+
+    await openEmergencyPanel();
+    await selectPatient();
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
+    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Chest pain' } });
+
+    // Selectable, not disabled — the override the backend supports must be
+    // reachable from the UI, per the medical advisor's "never block care".
+    expect(screen.getByRole('option', { name: offDutyDoctor.full_name })).not.toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Attending doctor'), { target: { value: offDutyDoctor.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    expect(await screen.findByText(/is not currently on duty/)).toBeInTheDocument();
+    // A deliberate pause, not a silent retry.
+    expect(dataActionMock).toHaveBeenCalledTimes(2); // episode create + the rejected admission attempt
+
+    dataActionMock.mockResolvedValueOnce({ message: 'ok', admission: { id: 'adm-6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenLastCalledWith(
+        ENDPOINTS.ADMISSIONS,
+        'POST',
+        expect.objectContaining({ attending_doctor: offDutyDoctor.id, attending_doctor_override: true }),
       );
     });
   });
@@ -1206,10 +1258,17 @@ describe('WARD-PART2 — nurse admission-request queue (accept/decline)', () => 
 });
 
 describe('WARD-PART2 — discharge with outcome', () => {
+  // Deliberately off-duty — Q3's "signed by a doctor" is not gated by duty
+  // the way Q2's attending-doctor picker is (FLAG-041).
+  const signingDoctor = { id: 'doc-sign-1', full_name: 'Dr. Ada Obi', staff_id: 'DOC-S1', is_on_duty: false };
+
   function mockDischargeBackend() {
     dataGetMock.mockImplementation((path: string) => {
       if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
         return Promise.resolve({ count: 1, results: [admission] });
+      }
+      if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) {
+        return Promise.resolve([signingDoctor]);
       }
       return Promise.resolve({ count: 0, results: [] });
     });
@@ -1240,32 +1299,34 @@ describe('WARD-PART2 — discharge with outcome', () => {
     });
   });
 
-  it('AGAINST_MEDICAL_ADVICE blocks submission until reason AND witnessed_by are both filled', async () => {
+  it('AGAINST_MEDICAL_ADVICE cannot be completed by a nurse — the backend now attests the signer as the acting user, role-gated to DOCTOR (FLAG-042)', async () => {
     dataActionMock.mockResolvedValue({ message: 'ok' });
     await openDischarge();
 
     fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
     const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
+
+    // `witnessed_by` is gone from the API entirely (ward/0008 drops the
+    // column) and there is no replacement field to submit — the signer is
+    // whoever is logged in, so there is nothing left for this form to ask
+    // for. No doctor picker, no typed witness name.
+    expect(screen.queryByLabelText('Signed by (doctor)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Witnessed by')).not.toBeInTheDocument();
+
+    // The reason stays optional and reuses the existing summary textarea —
+    // the advisor's Q3 answer on that point is unchanged.
+    expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
+    expect(await screen.findByLabelText('Reason (optional)')).toBeInTheDocument();
+
+    // But the discharge can never go through from here: this is a role
+    // gate, not a missing-field gate, so it stays disabled even once every
+    // other field is filled in.
     expect(submit).toBeDisabled();
+    expect(screen.getByText(/only a doctor can complete/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Wants to leave' } });
-    expect(submit).toBeDisabled(); // witnessed_by still empty
-
-    fireEvent.change(screen.getByLabelText('Witnessed by'), { target: { value: 'Nurse Ngozi Balogun' } });
-    expect(submit).not.toBeDisabled();
-    fireEvent.click(submit);
-
-    await waitFor(() => {
-      expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
-        'POST',
-        expect.objectContaining({
-          discharge_outcome: 'AGAINST_MEDICAL_ADVICE',
-          reason: 'Wants to leave',
-          witnessed_by: 'Nurse Ngozi Balogun',
-        }),
-      );
-    });
+    fireEvent.change(screen.getByLabelText('Reason (optional)'), { target: { value: 'Wants to leave' } });
+    expect(submit).toBeDisabled();
+    expect(dataActionMock).not.toHaveBeenCalled();
   });
 
   it('DECEASED never uses success/celebratory styling — no green "Discharge" button, an explicit warning, and a neutral confirmation', async () => {
@@ -1322,4 +1383,5 @@ describe('WARD-PART2 — no doctor-reassign control on the nurse dashboard', () 
     // trap), so only its absence is asserted, not the whole row-actions cell.
     expect(screen.getByRole('button', { name: 'Discharge' })).toBeInTheDocument();
   });
+
 });

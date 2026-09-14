@@ -254,6 +254,26 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 //
 // The outcome list is declared exactly ONCE — value, label, tone, and which
 // extra fields it requires — so correcting it is a one-place edit.
+//
+// ⚠️ CORRECTED against the advisor's actual Q3 answer, twice now:
+// - The AMA reason must NOT be required ("sometimes there might be no
+//   particular reason, the patient just wants to leave"). It is no longer a
+//   separate extra field — it reuses the existing, already-optional
+//   "Discharge summary" textarea below, which is exactly what the backend's
+//   `discharge_patient()` reads as the AMA reason (`summary` ->
+//   `discharge_summary`). The previous `reason` extra field sent a
+//   `reason` key the backend has never read — required-and-wrong at once.
+// - FLAG-042 — "signed by a doctor" is NOT a form field any more.
+//   `witnessed_by` was a first correction's stand-in for this (a doctor
+//   picker sending a name into the old free-text CharField), but the
+//   backend went further than an FK: `apps/ward/migrations/0008_remove_
+//   witnessed_by_medical_answers.py` DROPS the column outright, and
+//   `DischargeSerializer` (apps/ward/serializers.py:527) no longer accepts
+//   it — sending it 400s. The signer is now `discharged_by`, the ACTING
+//   user, role-gated to DOCTOR for this one outcome inside
+//   `discharge_patient()` (the FLAG-272 "attest via the acting user"
+//   precedent, not a second signature field). There is nothing left to
+//   submit here — see the AMA-blocked banner in DischargePanel below.
 interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
 interface DischargeOutcomeConfig {
   value: string;
@@ -270,11 +290,11 @@ const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
     extraFields: [{ key: 'destination', label: 'Destination', type: 'text' }],
   },
   {
+    // No extra fields at all — see the FLAG-042 block comment above. The
+    // required "reason" the backend once wanted is gone, and the doctor
+    // signature is the acting user, not something this form submits.
     value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution',
-    extraFields: [
-      { key: 'reason', label: 'Reason', type: 'text' },
-      { key: 'witnessed_by', label: 'Witnessed by', type: 'text' },
-    ],
+    extraFields: [],
   },
   {
     value: 'ABSCONDED', label: 'Absconded', tone: 'caution',
@@ -300,7 +320,15 @@ function DischargePanel({ admission, onClose, onDischarged }: {
   const [formError, setFormError] = useState<string | null>(null);
 
   const outcomeConfig = DISCHARGE_OUTCOMES.find(o => o.value === outcome) ?? DISCHARGE_OUTCOMES[0];
-  const missingRequired = outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
+  // FLAG-042 — this screen is nurse-only (route-gated the same way every
+  // dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
+  // `discharge_patient()` now rejects AGAINST_MEDICAL_ADVICE unless the
+  // ACTING user's role is DOCTOR. So this outcome can never be completed
+  // from here — not "sometimes fails", always. Block it client-side with a
+  // clear reason instead of letting a nurse submit and hit a 400 she can't
+  // interpret.
+  const amaBlockedForRole = outcome === 'AGAINST_MEDICAL_ADVICE';
+  const missingRequired = amaBlockedForRole || outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -309,9 +337,14 @@ function DischargePanel({ admission, onClose, onDischarged }: {
     setFormError(null);
     try {
       const payload: Record<string, string> = { discharge_outcome: outcome };
+      // The AMA reason lives here, not as a separate required field — see
+      // the FLAG-042 comment on DISCHARGE_OUTCOMES. Optional for every
+      // outcome, including AMA.
       if (summary.trim()) payload.discharge_summary = summary.trim();
       if (instructions.trim()) payload.discharge_instructions = instructions.trim();
-      for (const f of outcomeConfig.extraFields) payload[f.key] = extra[f.key].trim();
+      for (const f of outcomeConfig.extraFields) {
+        payload[f.key] = extra[f.key].trim();
+      }
 
       await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
 
@@ -331,7 +364,7 @@ function DischargePanel({ admission, onClose, onDischarged }: {
     } catch (err) {
       const { message } = readFieldError(
         err,
-        ['discharge_outcome', ...outcomeConfig.extraFields.map(f => f.key), 'non_field_errors'],
+        ['discharge_outcome', 'discharge_summary', ...outcomeConfig.extraFields.map(f => f.key), 'non_field_errors'],
         'Failed to discharge patient',
       );
       setFormError(message);
@@ -381,6 +414,14 @@ function DischargePanel({ admission, onClose, onDischarged }: {
           </p>
         )}
 
+        {amaBlockedForRole && (
+          <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
+            Only a doctor can complete an against-medical-advice discharge — the backend now
+            attests this to the signed-in account, and a nurse account cannot be the signer.
+            Ask an on-duty doctor to record this discharge.
+          </p>
+        )}
+
         {outcomeConfig.extraFields.map(f => (
           <div key={f.key}>
             <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
@@ -395,7 +436,10 @@ function DischargePanel({ admission, onClose, onDischarged }: {
         ))}
 
         <div>
-          <label htmlFor="discharge-summary" className="block text-xs font-medium text-text-soft mb-1">Discharge summary (optional)</label>
+          <label htmlFor="discharge-summary" className="block text-xs font-medium text-text-soft mb-1">
+            {/* Reused by AMA as the (optional) reason — see the FLAG-042 comment above. */}
+            {outcome === 'AGAINST_MEDICAL_ADVICE' ? 'Reason (optional)' : 'Discharge summary (optional)'}
+          </label>
           <textarea id="discharge-summary" rows={2} value={summary} onChange={e => setSummary(e.target.value)} className={`${formInputClass} h-auto py-2`} />
         </div>
         <div>
@@ -1044,51 +1088,85 @@ function EmergencyPatientSearch({ onSelect }: { onSelect: (p: OrgVisiblePatient)
 // Optional, and deliberately framed that way (Q2 — attending_doctor is
 // PROMPTED, NEVER BLOCKS): the default option reads as a normal outcome,
 // not an error state, because for an emergency admission it often is one.
-function DoctorPicker({ id = 'emergency-attending-doctor', doctors, loading, error, value, onChange, required = false }: {
+//
+// ⚠️ CORRECTED — `restrictToOnDuty` disabling the off-duty `<option>`s was
+// itself wrong, not just stale. `_check_attending_doctor_on_duty`
+// (apps/ward/serializers.py) is the advisor's real Q2 answer: SOFT,
+// warn-and-allow, the same shape as the ward gender rule (FLAG-301) —
+// "a night with no on-duty doctor must never refuse an admission outright."
+// Disabling the option made the backend's own override unreachable from the
+// UI. `restrictToOnDuty` now defaults to `true` only because no caller
+// currently needs the old hard-disable behaviour; every real call site
+// (`EmergencyAdmitForm`) passes `restrictToOnDuty={false}` and handles the
+// resulting 400 with the same select → warn → "Admit anyway" two-step used
+// for the gender check.
+function DoctorPicker({
+  id = 'emergency-attending-doctor',
+  label = 'Attending doctor',
+  helperText,
+  restrictToOnDuty = true,
+  doctors, loading, error, value, onChange, required = false,
+}: {
   id?: string;
+  label?: string;
+  helperText?: string;
   doctors: AttendingDoctor[] | null;
   loading: boolean;
   error: string | null;
   value: string;
   onChange: (id: string) => void;
-  // A-2b's picker (emergency admission) is never-blocks/optional. Reassign
-  // (Part 2) genuinely requires a target doctor — same list, different
-  // framing, so this is a prop rather than a second component.
+  // A-2b's picker (emergency admission) is never-blocks/optional — the only
+  // live caller. No caller currently sets this true (the reassign-doctor
+  // panel that would have is gone — it belongs on a doctor-side admissions
+  // surface, FLAG-042, not built here), but kept as a prop rather than
+  // deleted: a future required use of the same doctor list shouldn't need a
+  // second component.
   required?: boolean;
+  restrictToOnDuty?: boolean;
 }) {
   const onDuty = (doctors ?? []).filter(d => d.is_on_duty);
   const offDuty = (doctors ?? []).filter(d => !d.is_on_duty);
+  const defaultHelperText = restrictToOnDuty
+    ? (required
+        ? 'Choose the doctor taking over this patient. Only doctors on duty can be selected.'
+        : 'Optional — naming one never blocks this admission. Only doctors on duty can be selected; leave it as-is if none is available.')
+    : (required ? 'Choose the doctor.' : 'Optional — naming one never blocks this admission.');
   return (
     <div>
       <label htmlFor={id} className="block text-xs font-medium text-text-soft mb-1">
-        Attending doctor
+        {label}
       </label>
       <p className="text-[11px] text-text-soft mb-1">
-        {required
-          ? 'Choose the doctor taking over this patient.'
-          : 'Optional — naming one never blocks this admission. Leave it as-is if none is available.'}
+        {helperText ?? defaultHelperText}
       </p>
       {loading ? <ShimmerRows count={1} /> : error ? (
         <p className="text-xs text-danger">{error}</p>
       ) : (
-        <select
-          id={id}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className={formInputClass}
-        >
-          <option value="">{required ? 'Select a doctor…' : 'No doctor available right now'}</option>
-          {onDuty.length > 0 && (
-            <optgroup label="On duty">
-              {onDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-            </optgroup>
+        <>
+          <select
+            id={id}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className={formInputClass}
+          >
+            <option value="">{required ? 'Select a doctor…' : 'No doctor available right now'}</option>
+            {onDuty.length > 0 && (
+              <optgroup label="On duty">
+                {onDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              </optgroup>
+            )}
+            {offDuty.length > 0 && (
+              <optgroup label={restrictToOnDuty ? 'Not on duty — cannot be selected' : 'Not on duty'}>
+                {offDuty.map(d => (
+                  <option key={d.id} value={d.id} disabled={restrictToOnDuty}>{d.full_name}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          {restrictToOnDuty && !loading && onDuty.length === 0 && (
+            <p className="text-[11px] text-text-soft mt-1">No doctors are currently on duty.</p>
           )}
-          {offDuty.length > 0 && (
-            <optgroup label="Not on duty">
-              {offDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-            </optgroup>
-          )}
-        </select>
+        </>
       )}
     </div>
   );
@@ -1115,6 +1193,13 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [genderWarning, setGenderWarning] = useState<string | null>(null);
+  // Set only when the server's on-duty two-step fires (backend Q2,
+  // `_check_attending_doctor_on_duty` — soft/warn-and-allow, same shape as
+  // the gender check, never a hard block: "a night with no on-duty doctor
+  // must never refuse an admission outright"). Off-duty doctors are
+  // selectable in the picker below (not disabled) precisely so this
+  // override can be exercised from the UI.
+  const [doctorWarning, setDoctorWarning] = useState<string | null>(null);
   // Set once the episode POST succeeds. Kept in STATE, not a local variable
   // in `submit` — the gender two-step (and a plain retry after a failed bed
   // assignment) re-invokes `submit` from scratch, and a local variable would
@@ -1124,7 +1209,10 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
   // the retry test below, not a hypothetical.
   const [episodeId, setEpisodeId] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
+  async function submit(
+    e: React.FormEvent | React.MouseEvent,
+    overrides: { gender?: boolean; doctor?: boolean } = {},
+  ) {
     e.preventDefault();
     const trimmedReason = reason.trim();
     // Client-side gate: admission_reason must be non-blank for
@@ -1169,7 +1257,8 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
         admission_reason: trimmedReason,
         admission_source: 'EMERGENCY_DIRECT',
         ...(doctorId ? { attending_doctor: doctorId } : {}),
-        override,
+        override: overrides.gender ?? false,
+        attending_doctor_override: overrides.doctor ?? false,
       })) as AdmissionCreateResponse;
 
       const needsDoctor = admissionRes?.admission?.needs_attending_doctor;
@@ -1178,12 +1267,15 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
         + (needsDoctor ? ' — no attending doctor assigned yet' : ''),
       );
       setGenderWarning(null);
+      setDoctorWarning(null);
       onAdmitted();
       onClose();
     } catch (err) {
       const { field, message } = admissionFieldError(err);
-      if (field === 'gender' && !override) {
+      if (field === 'gender' && !overrides.gender) {
         setGenderWarning(message);
+      } else if (field === 'attending_doctor' && !overrides.doctor) {
+        setDoctorWarning(message);
       } else {
         // The episode is already created and ACTIVE at this point — it will
         // show up in the ordinary Admit Patient list below, so a failed bed
@@ -1208,7 +1300,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && (
+          {!genderWarning && !doctorWarning && (
             <button
               type="submit"
               form="emergency-admit"
@@ -1221,7 +1313,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
         </div>
       }
     >
-      <form id="emergency-admit" onSubmit={(e) => void submit(e, false)} className="space-y-4">
+      <form id="emergency-admit" onSubmit={(e) => void submit(e, {})} className="space-y-4">
         {!patient ? (
           <EmergencyPatientSearch onSelect={setPatient} />
         ) : (
@@ -1260,14 +1352,30 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           onChange={(v) => { setBedId(v); setGenderWarning(null); }}
         />
 
-        <DoctorPicker doctors={doctors} loading={doctorsLoading} error={doctorsError} value={doctorId} onChange={setDoctorId} />
+        <DoctorPicker
+          doctors={doctors}
+          loading={doctorsLoading}
+          error={doctorsError}
+          value={doctorId}
+          onChange={(v) => { setDoctorId(v); setDoctorWarning(null); }}
+          restrictToOnDuty={false}
+        />
 
         {genderWarning && (
           <GenderOverrideWarning
             message={genderWarning}
             saving={saving}
-            onOverride={(e) => void submit(e, true)}
+            onOverride={(e) => void submit(e, { gender: true })}
             onCancel={() => setGenderWarning(null)}
+          />
+        )}
+
+        {doctorWarning && (
+          <GenderOverrideWarning
+            message={doctorWarning}
+            saving={saving}
+            onOverride={(e) => void submit(e, { doctor: true })}
+            onCancel={() => setDoctorWarning(null)}
           />
         )}
 
