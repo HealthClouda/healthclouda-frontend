@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DoctorDashboard } from './DoctorDashboard';
 import { ENDPOINTS } from '@/lib/config';
+import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
 
 /**
@@ -346,6 +347,303 @@ describe('D5 — starting an episode', () => {
     // Free text or an invented value here is a 400. Enum read from the live
     // schema 2026-08-24.
     expect(values).toEqual(['OUTPATIENT', 'INPATIENT', 'EMERGENCY', 'CONSULTATION']);
+  });
+});
+
+/**
+ * The doctor "create referral" UI — the wedge feature had no create path at
+ * all before this. Contract read from `apps/referrals/serializers.py`
+ * (`ReferralCreateSerializer`) and `apps/referrals/views.py`
+ * (`ReferralViewSet.create`), cross-checked against the live schema
+ * 2026-09-08 (they agree). External (cross-org) referrals only — internal
+ * doctor-to-doctor referral creation is still out of scope (no endpoint
+ * lists colleague doctors yet).
+ *
+ * The organization picker (`GET /referrals/target-organizations/`, FLAG-566,
+ * backend PR #181) and the `letter_generated`/`warnings` create-response
+ * fields (D9/FLAG-565, backend PR #180) are both read from backend source,
+ * same date.
+ */
+describe('doctor referral creation', () => {
+  const patientsPage = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'pat-1',
+      first_name: 'Chidi',
+      last_name: 'Nwosu',
+      email: 'chidi@example.test',
+      phone_number: '08031231234',
+      date_of_birth: '1990-04-02',
+      created_at: '2026-07-01T10:00:00Z',
+    }],
+  };
+
+  const luth = {
+    id: 'org-uuid-1', org_id: 'HCL-NG-LUTH-A1X2', name: 'LUTH', org_type: 'HOSPITAL',
+    city: 'Lagos', state: 'Lagos',
+  };
+  const generalKano = {
+    id: 'org-uuid-2', org_id: 'HCL-NG-GH-K9Y1', name: 'General Hospital', org_type: 'HOSPITAL',
+    city: 'Kano', state: 'Kano',
+  };
+
+  async function openReferralPanel(orgResults: unknown[] = [luth]) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(patientsPage);
+      if (path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS)) {
+        return Promise.resolve({ count: orgResults.length, next: null, previous: null, results: orgResults });
+      }
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Refer' }));
+    await screen.findByLabelText(/Receiving organization/);
+  }
+
+  async function pickOrganization(name = 'LUTH') {
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'lu' } });
+    fireEvent.click(await screen.findByText(name));
+  }
+
+  async function fillRequiredFields() {
+    await pickOrganization();
+    fireEvent.change(screen.getByLabelText(/Reason for referral/), {
+      target: { value: 'Needs cardiology review' },
+    });
+    fireEvent.change(screen.getByLabelText(/Clinical findings/), {
+      target: { value: 'BP 160/100, irregular rhythm' },
+    });
+    fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), {
+      target: { value: 'Suspected arrhythmia' },
+    });
+    fireEvent.click(screen.getByText(/obtained this patient's verbal consent/));
+    fireEvent.click(screen.getByText(/told the patient which organization/));
+  }
+
+  it('posts to the canonical /referrals/ endpoint, not the doctor-namespaced twin', async () => {
+    dataActionMock.mockResolvedValue({ letter_generated: true, referral: { id: 'r-1', has_letter: true } });
+    await openReferralPanel();
+    await fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe(ENDPOINTS.REFERRAL_CREATE);
+    expect(path).toBe('/referrals/');
+    expect(path).not.toBe(ENDPOINTS.DOC_REFERRALS);
+    expect(method).toBe('POST');
+    expect(body).toMatchObject({
+      patient: 'pat-1',
+      to_organization: 'org-uuid-1',
+      reason: 'Needs cardiology review',
+      clinical_findings: 'BP 160/100, irregular rhythm',
+      provisional_diagnosis: 'Suspected arrhythmia',
+      urgency: 'ROUTINE',
+      patient_consent_obtained: true,
+      consent_destination_disclosed: true,
+    });
+    // Optional fields left blank must be omitted, not sent as ''.
+    expect(Object.keys(body as Record<string, unknown>)).not.toContain('relevant_history');
+  });
+
+  /**
+   * The P1 from review: `NewReferralPanel` is mounted permanently by
+   * `MyPatientsPage` (`SlidePanel` only controls visibility), so without a
+   * reset, one patient's clinical text and FLAG-272 consent attestations
+   * survive into a referral submitted for a DIFFERENT patient. Reproduced
+   * against the pre-fix code (a reset effect that only cleared 2 of 6 pieces
+   * of state): refer patient A, fill everything in, close without
+   * submitting, refer patient B — "Send referral" was immediately enabled
+   * off patient A's leftovers, zero new input required.
+   */
+  it('resets completely between patients — no leftover clinical text, no leftover consent (P1)', async () => {
+    const twoPatients = {
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 'pat-1', first_name: 'Chidi', last_name: 'Nwosu', created_at: '2026-07-01T10:00:00Z' },
+        { id: 'pat-2', first_name: 'Ngozi', last_name: 'Eze', created_at: '2026-07-02T10:00:00Z' },
+      ],
+    };
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(twoPatients);
+      if (path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS)) {
+        return Promise.resolve({ count: 1, next: null, previous: null, results: [luth] });
+      }
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+
+    // Refer patient A (Chidi): fill everything, tick both attestations.
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Refer' }))[0]);
+    await screen.findByLabelText(/Receiving organization/);
+    await pickOrganization();
+    fireEvent.change(screen.getByLabelText(/Reason for referral/), { target: { value: 'CHIDI-ONLY reason' } });
+    fireEvent.change(screen.getByLabelText(/Clinical findings/), { target: { value: 'CHIDI-ONLY findings' } });
+    fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), { target: { value: 'CHIDI-ONLY dx' } });
+    fireEvent.click(screen.getByText(/obtained this patient's verbal consent/));
+    fireEvent.click(screen.getByText(/told the patient which organization/));
+    expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled();
+
+    // Close WITHOUT submitting — the exact reproduction shape from review.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Refer patient B (Ngozi) — nothing typed for them yet.
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Refer' }))[1]);
+    await screen.findByLabelText(/Receiving organization/);
+
+    expect(screen.queryByText('CHIDI-ONLY findings')).not.toBeInTheDocument();
+    expect((screen.getByLabelText(/Reason for referral/) as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByLabelText(/Clinical findings/) as HTMLTextAreaElement).value).toBe('');
+    expect((screen.getByLabelText(/Provisional diagnosis/) as HTMLInputElement).value).toBe('');
+    for (const checkbox of screen.getAllByRole('checkbox') as HTMLInputElement[]) {
+      expect(checkbox.checked).toBe(false);
+    }
+    // The actual bug, in one assertion: zero new input, and it must NOT be submittable.
+    expect(screen.getByRole('button', { name: 'Send referral' })).toBeDisabled();
+  });
+
+  it('searches organizations by name/city and submits the selected row\'s id, not typed text', async () => {
+    await openReferralPanel([generalKano]);
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'kano' } });
+    // Disambiguation matters here — two "General Hospital"s is the normal
+    // case, not an edge case, so the city has to be visible in the option.
+    expect(await screen.findByText('Kano, Kano')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('General Hospital'));
+
+    // Selecting shows the resolved org, not the raw query the doctor typed.
+    expect(screen.getByText(/General Hospital — Kano, Kano/)).toBeInTheDocument();
+  });
+
+  it('does not fetch anything on mount, and does not search below 2 characters', async () => {
+    await openReferralPanel();
+    // "No fetch on mount" — asserted directly, not by clearing the mock and
+    // hoping nothing slips through before the next assertion.
+    const orgCallsAtMount = dataGetMock.mock.calls.filter(
+      ([path]) => typeof path === 'string' && path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS),
+    );
+    expect(orgCallsAtMount).toHaveLength(0);
+
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'l' } });
+    await screen.findByText(/at least 2 characters/i);
+
+    // ⚠️ That hint renders synchronously off the raw (non-debounced) query
+    // state, so waiting for it proves nothing about the debounced fetch —
+    // a reviewer weakened the length guard from `< 2` to `< 0` and this test
+    // still passed, because the assertion below used to run before the
+    // 350ms debounce could possibly have fired either way. Wait past it in
+    // real time, THEN assert, so a broken guard has actually had the chance
+    // to fetch before we check that it didn't.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const orgCallsAfterOneChar = dataGetMock.mock.calls.filter(
+      ([path]) => typeof path === 'string' && path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS),
+    );
+    expect(orgCallsAfterOneChar).toHaveLength(0);
+  });
+
+  it('tells "no organisations match" apart from "not searched yet"', async () => {
+    await openReferralPanel([]);
+    // Nothing typed yet — no empty-result claim before a search has run.
+    expect(screen.queryByText(/no organisations match/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'zz' } });
+    expect(await screen.findByText(/no organisations match “zz”/i)).toBeInTheDocument();
+  });
+
+  it('tells the doctor when a search is truncated at the endpoint\'s 20-per-page cap', async () => {
+    // The endpoint paginates at 20 and Nigerian hospital names "collide
+    // heavily" (its own docstring) — a search matching 47 "General
+    // Hospital"s showing 20 with no signal that more exist is the same
+    // failure mode this whole feature was built to fix, one layer down.
+    const twentyResults = Array.from({ length: 20 }, (_, i) => ({
+      id: `org-${i}`, org_id: `HCL-NG-GH-${i}`, name: 'General Hospital', org_type: 'HOSPITAL',
+      city: `City ${i}`, state: 'Lagos',
+    }));
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(patientsPage);
+      if (path.startsWith(ENDPOINTS.REFERRAL_TARGET_ORGANIZATIONS)) {
+        return Promise.resolve({ count: 47, next: 'a-next-page-url', previous: null, results: twentyResults });
+      }
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Refer' }));
+    fireEvent.change(await screen.findByLabelText(/Receiving organization/), { target: { value: 'general' } });
+
+    expect(await screen.findByText(/showing first 20 of 47/i)).toBeInTheDocument();
+  });
+
+  it('shows no truncation notice when every match already fits on one page', async () => {
+    await openReferralPanel([luth]); // count defaults to results.length in this helper
+    fireEvent.change(screen.getByLabelText(/Receiving organization/), { target: { value: 'lu' } });
+    await screen.findByText('LUTH');
+    expect(screen.queryByText(/showing first/i)).not.toBeInTheDocument();
+  });
+
+  it('will not submit until both doctor-attestation checkboxes are ticked', async () => {
+    await openReferralPanel();
+    await pickOrganization();
+    fireEvent.change(screen.getByLabelText(/Reason for referral/), { target: { value: 'x' } });
+    fireEvent.change(screen.getByLabelText(/Clinical findings/), { target: { value: 'x' } });
+    fireEvent.change(screen.getByLabelText(/Provisional diagnosis/), { target: { value: 'x' } });
+
+    // Neither attestation checked yet — the FLAG-272 doctor-attested consent
+    // the backend hard-requires (`extra_kwargs: required=True` on both).
+    expect(screen.getByRole('button', { name: 'Send referral' })).toBeDisabled();
+
+    fireEvent.click(screen.getByText(/obtained this patient's verbal consent/));
+    expect(screen.getByRole('button', { name: 'Send referral' })).toBeDisabled();
+
+    fireEvent.click(screen.getByText(/told the patient which organization/));
+    expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled();
+  });
+
+  it('offers exactly the five urgency levels from the medical sign-off, defaulting to ROUTINE', async () => {
+    await openReferralPanel();
+    const select = screen.getByLabelText(/Urgency/) as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    expect(values).toEqual(['EMERGENCY', 'URGENT', 'SEMI_URGENT', 'ROUTINE', 'ELECTIVE']);
+    expect(select.value).toBe('ROUTINE');
+  });
+
+  it('does not claim the letter was sent when the backend reports it failed, and offers a retry (D9)', async () => {
+    // D9/FLAG-565: `create` can 201 while `letter_generated: false` — the
+    // explicit field to read now that it exists, rather than inferring
+    // anything from the status code.
+    useToastStore.setState({ toasts: [] });
+    dataActionMock.mockResolvedValue({
+      letter_generated: false,
+      warnings: ['The referral letter (PDF) could not be generated.'],
+      referral: { id: 'r-1', has_letter: false },
+    });
+    await openReferralPanel();
+    await fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Send referral' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    await waitFor(() => expect(useToastStore.getState().toasts.length).toBeGreaterThan(0));
+    const messages = useToastStore.getState().toasts.map(t => t.message).join(' ');
+    expect(messages).toMatch(/created/i);
+    expect(messages).not.toMatch(/letter (has been |was )?sent/i);
+
+    // The panel stays open on the retry offer rather than closing on the 201.
+    const retryButton = await screen.findByRole('button', { name: /retry generating letter/i });
+
+    dataActionMock.mockClear();
+    dataActionMock.mockResolvedValue({ letter_generated: true, referral: { id: 'r-1', has_letter: true } });
+    fireEvent.click(retryButton);
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [retryPath, retryMethod] = dataActionMock.mock.calls[0];
+    expect(retryPath).toBe(ENDPOINTS.REFERRAL_REGENERATE_LETTER('r-1'));
+    expect(retryMethod).toBe('POST');
   });
 });
 

@@ -548,6 +548,108 @@ export interface ReferralResponseInput {
   diagnosis?: string;
 }
 
+/**
+ * POST /referrals/ request body — `ReferralCreateRequest`, read from
+ * `apps/referrals/serializers.py` (`ReferralCreateSerializer`) and cross-checked
+ * against the live schema 2026-09-08 (they agree here).
+ *
+ * `reason`, `clinical_findings` and `provisional_diagnosis` are the only
+ * clinical fields that are actually required (model fields with no
+ * `blank=True`) — `relevant_history` and `recommended_*` are optional.
+ * `referring_episode_id` is optional (`null=True, blank=True`), internal
+ * tracking only and never shown to the receiving org.
+ *
+ * `patient_consent_obtained` / `consent_destination_disclosed` are
+ * DOCTOR-ATTESTED (FLAG-272 on the backend) — the doctor is confirming they
+ * personally obtained verbal consent and told the patient which org they're
+ * being referred to, not a checkbox the patient ticks. Both are required by
+ * the serializer's `extra_kwargs` and re-validated in `validate()`.
+ */
+export interface ReferralCreateInput {
+  patient: string;
+  to_organization: string;
+  referring_episode_id?: string;
+  reason: string;
+  relevant_history?: string;
+  clinical_findings: string;
+  provisional_diagnosis: string;
+  recommended_investigations?: string;
+  recommended_treatment?: string;
+  urgency: 'EMERGENCY' | 'URGENT' | 'SEMI_URGENT' | 'ROUTINE' | 'ELECTIVE';
+  patient_consent_obtained: boolean;
+  consent_destination_disclosed: boolean;
+}
+
+/**
+ * What `POST /referrals/` actually returns on 201 — read from backend
+ * `apps/referrals/views.py` (`ReferralViewSet.create`), 2026-09-08 (D9/FLAG-565,
+ * backend PR #180).
+ *
+ * ⚠️ **`letter_generated` is the field to check, NOT the 201 status.** Before
+ * #180, `create` swallowed PDF-generation failures and returned 201 regardless
+ * — a referral could exist with no letter and nothing said so. It now returns
+ * this explicitly: `letter_generated: false` plus a `warnings` array when the
+ * PDF failed. The referral itself is still created either way — the letter is
+ * recoverable via `POST /referrals/<id>/regenerate-letter/`
+ * (`REFERRAL_REGENERATE_LETTER`), which is NOT true of the referral being
+ * re-creatable, so tell the doctor the referral was created and offer the
+ * retry rather than treating this as a full failure.
+ *
+ * `referral.has_letter` (from `ReferralDetailSerializer`) still exists and
+ * agrees with `letter_generated` on create, but prefer the explicit top-level
+ * field here — it's the one this endpoint actually documents the contract on.
+ */
+export interface ReferralCreateResponse {
+  message?: string;
+  letter_generated?: boolean;
+  warnings?: string[];
+  referral?: {
+    id: string;
+    letter_number?: string;
+    has_letter?: boolean;
+    status?: string;
+  };
+}
+
+/**
+ * What `POST /referrals/{id}/regenerate-letter/` returns — read from
+ * `apps/referrals/views.py` (`ReferralViewSet.regenerate_letter`), 2026-09-08.
+ * 200 on success (`letter_generated: true`); **503**, not 200 with a warning,
+ * if generation fails again — the caller asked for exactly this one thing, so
+ * there's no partial success to report.
+ */
+export interface RegenerateLetterResponse {
+  message?: string;
+  letter_generated?: boolean;
+  referral?: { id: string; has_letter?: boolean };
+}
+
+/**
+ * GET /referrals/target-organizations/ item — the organisations a DOCTOR may
+ * refer TO. Read from `apps/referrals/serializers.py`
+ * (`ReferralTargetOrganizationSerializer`) and `apps/referrals/views.py`
+ * (`ReferralViewSet.target_organizations`), 2026-09-08 (FLAG-566, backend PR
+ * #181).
+ *
+ * Deliberately narrow — six fields, no contact/address/licence data. A
+ * backend test feeds every row this endpoint returns into the real
+ * `validate_to_organization`, so picking any returned row is guaranteed not
+ * to 400 on submit (never your own org, active only).
+ *
+ * Standard DRF pagination (`count`/`next`/`previous`/`results`), 20/page.
+ * `?search=` matches `name` OR `city` — city is in the payload (and belongs
+ * in the option label, not just the query) because Nigerian hospital names
+ * collide heavily and city is what actually disambiguates them.
+ */
+export interface ReferralTargetOrganization {
+  id: string;
+  org_id: string;
+  name: string;
+  org_type: string;
+  city: string;
+  state: string;
+}
+
 export interface Ward {
   id: string;
   name: string;
