@@ -3235,40 +3235,17 @@ smaller change, and consistent with `CanManageAdmissions` already trusting a DOC
 frontend is told DOCTOR admits are intentionally nurse-mediated and the tile stays inert. Cross-Lane
 Ask filed in `HANDOFF.md` rather than guessed at here.
 
-### FLAG-041 — a doctor handover has nowhere to be seen: `attending_doctor` is absent from the one list a nurse actually reads
-**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN
-**Found:** 2026-09-13, correcting #139 against the medical advisor's real Q2/Q3 answers
-
-The advisor's Q2 answer says a handover must be **visible**: *"any doctor at that hospital can
-reassign it later, with the change recorded."* Checked against backend source, not guessed:
-`ActiveAdmissionSerializer` (`apps/ward/nurse_serializers.py:60-75`), which is the **only** shape
-`GET /nurse/my-patients/` returns, does not expose `attending_doctor` at all:
-
-```python
-fields = [
-    'id', 'patient', 'bed', 'ward', 'room',
-    'episode', 'admitted_at', 'admission_reason', 'length_of_stay',
-]
-```
-
-Confirmed against the fixture in `NurseDashboard.test.tsx` too — it is captioned "Real admission item —
-verified live 2026-07-11" and carries no `attending_doctor` field either. So today, after a
-reassignment, there is **no persistent place in this UI** where a nurse — or anyone else — can see who
-is currently attending an admission, let alone that a handover happened. The My Patients table has no
-"Attending doctor" column because there is no field to put in one.
-
-**Not worked around.** Per this repo's own contract-seam rule, a missing field is a thing to flag, not
-invent — rendering a column against data the API never sends is the exact FLAG-222/227/231 bug class
-this repo has hit four times already. `fix/admissions-medical-answers-ui`'s `ReassignDoctorPanel` does
-the one thing available without a new field: it names the new doctor in the confirmation toast
-(`Attending doctor updated to Dr. X`), which is real but ephemeral — visible only to the person who
-just did it, not to "the next person" the advisor's answer is about.
-
-**Done when:** `ActiveAdmissionSerializer` (and ideally `AdmissionDetailSerializer`) exposes
-`attending_doctor`, so the My Patients table can show who is currently attending. A persistent handover
-record (previous → new, who changed it, when) would close the advisor's answer fully, but that is a
-new field/model on their side, not something to guess at the shape of here. Raised in `HANDOFF.md`'s
-Cross-Lane Asks table.
+> ✅ **FLAG-041 dropped from this branch, 2026-09-14 — superseded by #145 (merged first).** This PR
+> had independently minted its own FLAG-041 for the same finding (`attending_doctor` missing from
+> `GET /nurse/my-patients/`), per the numbering note on the OTHER FLAG-041 entry earlier in this
+> file. Per @Qeeyat's review of #142: *"If #145 merges first, drop this PR's FLAG-041 entry and its
+> Cross-Lane row — the backend ask is no longer needed."* #145 solved it a different way than either
+> FLAG-041 write-up proposed — not a new field, but `useAttendingDoctors()` fetching the SAME data
+> off `GET /ward/admissions/`, which already carried it — so nothing here needs reconciling
+> additively; the finding is simply closed. This entry also described `ReassignDoctorPanel` naming
+> the new doctor in a toast as the ephemeral workaround; that panel has since been removed from the
+> nurse dashboard entirely (see the FLAG-042 pointer below and #139's own fix), so there is nothing
+> left here to reconcile either way.
 
 ### FLAG-042 — an against-medical-advice discharge cannot be completed from this frontend at all, by anyone
 **Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN

@@ -906,6 +906,7 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
           admission_reason: 'Collapsed at reception',
           admission_source: 'EMERGENCY_DIRECT',
           override: false,
+          attending_doctor_override: false,
         },
       );
     });
@@ -940,6 +941,57 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
         ENDPOINTS.ADMISSIONS,
         'POST',
         expect.objectContaining({ attending_doctor: onDutyDoctor.id }),
+      );
+    });
+  });
+
+  it('an off-duty doctor is selectable, not disabled, and naming one shows the on-duty two-step (never blocks the admission)', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockImplementation((path: string) => {
+      if (path === ENDPOINTS.EPISODES) {
+        return Promise.resolve({ message: 'ok', episode: { id: 'ep-5' } });
+      }
+      // `_check_attending_doctor_on_duty` (apps/ward/serializers.py) raises
+      // a REAL serializers.ValidationError — unlike the gender check, this
+      // one genuinely arrives under `details`.
+      return Promise.reject(
+        new ClientApiError(
+          400,
+          {
+            error: 'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+            code: 'BAD_REQUEST',
+            details: {
+              attending_doctor: ['Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.'],
+            },
+          },
+          'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+        ),
+      );
+    });
+
+    await openEmergencyPanel();
+    await selectPatient();
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
+    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Chest pain' } });
+
+    // Selectable, not disabled — the override the backend supports must be
+    // reachable from the UI, per the medical advisor's "never block care".
+    expect(screen.getByRole('option', { name: offDutyDoctor.full_name })).not.toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Attending doctor'), { target: { value: offDutyDoctor.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    expect(await screen.findByText(/is not currently on duty/)).toBeInTheDocument();
+    // A deliberate pause, not a silent retry.
+    expect(dataActionMock).toHaveBeenCalledTimes(2); // episode create + the rejected admission attempt
+
+    dataActionMock.mockResolvedValueOnce({ message: 'ok', admission: { id: 'adm-6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenLastCalledWith(
+        ENDPOINTS.ADMISSIONS,
+        'POST',
+        expect.objectContaining({ attending_doctor: offDutyDoctor.id, attending_doctor_override: true }),
       );
     });
   });
@@ -1332,25 +1384,4 @@ describe('WARD-PART2 — no doctor-reassign control on the nurse dashboard', () 
     expect(screen.getByRole('button', { name: 'Discharge' })).toBeInTheDocument();
   });
 
-  it('treats on-duty as a real constraint — an off-duty doctor is disabled, not just sorted second (FLAG-041)', async () => {
-    dataGetMock.mockImplementation((path: string) => {
-      if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
-        return Promise.resolve({ count: 1, results: [admission] });
-      }
-      if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) {
-        return Promise.resolve([
-          { id: 'doc-r1', full_name: 'Dr. Chika Eze', staff_id: 'DOC-R1', is_on_duty: true },
-          { id: 'doc-r2', full_name: 'Dr. Bello Musa', staff_id: 'DOC-R2', is_on_duty: false },
-        ]);
-      }
-      return Promise.resolve({ count: 0, results: [] });
-    });
-    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
-    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
-    await screen.findByText(/Chidi Nwosu/);
-    fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
-
-    expect(await screen.findByRole('option', { name: 'Dr. Chika Eze' })).not.toBeDisabled();
-    expect(screen.getByRole('option', { name: 'Dr. Bello Musa' })).toBeDisabled();
-  });
 });
