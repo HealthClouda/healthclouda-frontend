@@ -93,36 +93,40 @@ of `usePaginatedList`.
 ---
 
 ### FLAG-031 — The ward gender-policy override can never fire: the backend's 400 for it carries no field name at all
-**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ⚠️ **WORKED AROUND, not fixed at source**
+**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — fixed
+at source in the backend, PR #194** (`fix/gender-mismatch-error-shape`, merged 2026-09-14)
 **Found:** 2026-09-14, wiring the "Admit anyway" gender two-step on the ordered-admit Accept panel (#139)
 
-`admit_patient()` (`apps/ward/services.py`) raises a plain `ValueError` for the ward gender-policy
-mismatch (FLAG-239/301) — not `serializers.ValidationError`. Every ward view that calls it
-(`AdmissionViewSet.create`, `AdmissionRequestViewSet.accept`) catches that `ValueError` and returns a
-**flat** `Response({'error': str(exc)}, status=400)`. That response never goes through
-`apps.core.exceptions.custom_exception_handler` — it's a hand-built `Response`, not a raised DRF
-exception — so it carries **no `details` key and no field name**, unlike every other validation
-rejection in this app.
+`admit_patient()` (`apps/ward/services.py`) raised a plain `ValueError` for the ward gender-policy
+mismatch (FLAG-239/301) — not `serializers.ValidationError`. Every ward view that called it
+(`AdmissionViewSet.create`, `AdmissionRequestViewSet.accept`, and `AdmissionViewSet.transfer`'s own
+inline check) returned a **flat** `Response({'error': str(exc)}, status=400)`. That response never went
+through `apps.core.exceptions.custom_exception_handler` — it carried **no `details` key and no field
+name**, unlike every other validation rejection in this app.
 
 `readFieldError()` (`NurseDashboard.tsx`) — the helper all three admit surfaces (direct emergency
 admit, ordered-admit Accept, and the create path) use to decide whether to show the gender two-step —
-only ever read `err.data.details[field]`. Since `details` is always `undefined` for this specific
-error, `field` was always `null`, so **the two-step could never fire on any of the three surfaces**,
-including the direct-admit path a previous review called "correct" — that review confirmed the
-`override` field exists on the serializer, not that the response shape let the frontend recognise
-which field had failed. The clinician would see a plain error banner quoting the backend's own
-"Resend with override=true to admit anyway" sentence, with no button that does that resend.
+only ever read `err.data.details[field]`. Since `details` was always `undefined` for this specific
+error, `field` was always `null`, so **the two-step could never fire on any of the three surfaces**.
+The clinician would see a plain error banner quoting the backend's own "Resend with override=true to
+admit anyway" sentence, with no button that does that resend.
 
-**Worked around** (not a real fix): `readFieldError` now falls back to matching the backend's fixed
-wording ("does not match the ward's gender policy") when `details` is absent and `'gender'` is in the
-caller's priority list. This is a text-matching dependency on a message no one is contractually
-obligated to keep byte-for-byte stable — it happens to be centralized in one function
-(`admit_patient()`, since the FLAG-576 consolidation) rather than duplicated, which is the only reason
-matching it once covers every call site.
+**Was worked around, now fixed at source.** The frontend previously carried a text-matching fallback
+in `readFieldError()` against the backend's fixed wording — fragile by construction, since nothing
+obligated that message to stay byte-for-byte stable. Backend #194 fixes it properly: `admit_patient()`
+now raises a typed `WardGenderMismatch` (a `ValueError` subclass), and all three admit surfaces
+translate it into `serializers.ValidationError({'gender': str(exc)})`, so it arrives under
+`details.gender` the same way every other field rejection does. **`details.gender` is a STRING, not a
+list** — matching what `AdmissionCreateSerializer` produced before #193's regression.
 
-**Done when:** the backend raises this as `serializers.ValidationError({'gender': [...]})` (or
-equivalent) instead of `ValueError`, so it arrives under `details` the same way every other field
-rejection does, and the frontend's text match can be deleted.
+The frontend's text-match fallback has been removed (`NurseDashboard.tsx`'s `readFieldError` is now a
+pure `details` read, no `GENDER_MISMATCH_MARKER`), and the three gender-two-step test mocks
+(`NurseDashboard.test.tsx`) were restored to assert the real `details.gender` shape instead of the flat
+workaround shape they'd been rewritten to.
+
+**Done when:** the backend raises this as `serializers.ValidationError({'gender': ...})` instead of
+`ValueError`, so it arrives under `details` the same way every other field rejection does, and the
+frontend's text match can be deleted. — **Done, 2026-09-14.**
 
 ---
 

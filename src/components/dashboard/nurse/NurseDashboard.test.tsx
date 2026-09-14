@@ -697,19 +697,22 @@ describe('WARD-1 — admit patient', () => {
 
   it('shows the gender two-step as a deliberate warning, not a silent retry', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
-    // `admit_patient()` raises a plain `ValueError` for this check, and the
-    // view catches it and returns a FLAT `{error: message}` — NO `details`
-    // key at all, unlike every DRF-validated field rejection (FLAG-031).
-    // Asserting the DRF-shaped mock here would pass against a response the
-    // real backend can never send for THIS error.
+    // `admit_patient()` now raises a typed `WardGenderMismatch`, and the
+    // view translates it to a DRF field error under `details.gender` —
+    // backend #194 (FLAG-031 closed at source). `details.gender` is a
+    // STRING, not a list, matching what `AdmissionCreateSerializer`
+    // produced before #193.
     dataActionMock.mockRejectedValueOnce(
       new ClientApiError(
         400,
         {
-          error: "Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+          error: "gender: Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
           code: 'BAD_REQUEST',
+          details: {
+            gender: "Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+          },
         },
-        "Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
+        "gender: Patient gender (Female) does not match the ward's gender policy (Male). Resend with override=true to admit anyway.",
       ),
     );
     await openAdmitPage();
@@ -1004,9 +1007,8 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
 
   it('shows the gender two-step as a deliberate warning on this path too, not an auto-retry', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
-    // Flat `{error: message}`, no `details` — same FLAG-031 shape as the
-    // ordered-admit test above; `admit_patient()`'s plain `ValueError`
-    // never goes through the DRF field-error envelope.
+    // `details.gender` (a string) — same real shape as the ordered-admit
+    // test above, backend #194 (FLAG-031 closed at source).
     dataActionMock.mockImplementation((path: string) => {
       if (path === ENDPOINTS.EPISODES) {
         return Promise.resolve({ message: 'ok', episode: { id: 'ep-4' } });
@@ -1015,10 +1017,13 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
         new ClientApiError(
           400,
           {
-            error: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+            error: "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
             code: 'BAD_REQUEST',
+            details: {
+              gender: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+            },
           },
-          "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+          "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
         ),
       );
     });
@@ -1134,16 +1139,19 @@ describe('WARD-PART2 — nurse admission-request queue (accept/decline)', () => 
 
   it('shows the gender two-step on Accept too, then resends with override=true (FLAG-031)', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
-    // Flat `{error: message}`, no `details` — `admit_patient()`'s plain
-    // ValueError, same shape on all three admit surfaces (FLAG-031).
+    // `details.gender` (a string) — the real shape on all three admit
+    // surfaces since backend #194 (FLAG-031 closed at source).
     dataActionMock.mockRejectedValueOnce(
       new ClientApiError(
         400,
         {
-          error: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+          error: "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
           code: 'BAD_REQUEST',
+          details: {
+            gender: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+          },
         },
-        "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+        "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
       ),
     );
     await openQueue();

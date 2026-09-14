@@ -673,18 +673,26 @@ function VitalsPage({ selected, onSelect }: {
 
 /**
  * Reads apps/core/exceptions.py's custom_exception_handler shape —
- * {error, code, details: {<field>: [<message>, ...]}} — directly from
- * `details` rather than the flattened `.message` (which prefixes the field
- * name, e.g. "gender: Patient gender..."). Returning which field failed is
- * what lets the caller branch into the gender two-step.
+ * {error, code, details: {<field>: <message> | [<message>, ...]}} —
+ * directly from `details` rather than the flattened `.message` (which
+ * prefixes the field name, e.g. "gender: Patient gender..."). Returning
+ * which field failed is what lets the caller branch into the gender
+ * two-step.
+ *
+ * The ward gender-policy mismatch (FLAG-239/301) used to arrive as a flat
+ * `{error: message}` with no `details` key at all — `admit_patient()`
+ * (apps/ward/services.py) raised a plain `ValueError`, and every ward view
+ * caught it and returned a hand-built `Response`, bypassing
+ * `custom_exception_handler` entirely. That made this branch structurally
+ * unreachable on all three admit surfaces (FLAG-031), worked around here
+ * with a text match against the backend's fixed wording. Fixed at the
+ * source in backend #194 (`WardGenderMismatch`, a typed `ValueError`
+ * subclass the views translate to `serializers.ValidationError({'gender':
+ * ...})`) — `details.gender` now arrives as a STRING, not a list, matching
+ * what `AdmissionCreateSerializer` produced before #193. The text-match
+ * fallback is gone; this is a pure `details` read like every other field
+ * rejection.
  */
-// The exact wording `admit_patient()` raises for a ward gender-policy
-// mismatch (apps/ward/services.py — single source since the FLAG-576
-// consolidation, so this stays true for all three admit surfaces that call
-// it). Matched below because that path's 400 carries NO `details` key at
-// all — see the comment on the fallback.
-const GENDER_MISMATCH_MARKER = "does not match the ward's gender policy";
-
 function readFieldError(
   err: unknown,
   priority: string[],
@@ -699,22 +707,6 @@ function readFieldError(
         const message = Array.isArray(v) ? String(v[0]) : String(v);
         return { field: field === 'non_field_errors' ? null : field, message };
       }
-    }
-    // `admit_patient()` raises a plain `ValueError` for the deceased guard
-    // and the ward gender-policy check (FLAG-239/301), and every ward view
-    // that calls it catches ValueError and returns a FLAT
-    // `{error: message}` — no `details`, no field name, unlike every
-    // DRF-validated rejection above. Without this, the gender two-step
-    // could never fire on ANY of the three admit surfaces: `details` is
-    // always undefined here, so the loop above never runs and `field` was
-    // always `null`. Matching the backend's own fixed wording is the only
-    // way to recover which field failed from this shape. Fragile by
-    // construction — flagged (FLAG-031): the durable fix is the backend
-    // raising `serializers.ValidationError({'gender': [...]})` instead of
-    // `ValueError`, like every other field rejection, so it arrives under
-    // `details` the normal way and this match is not needed.
-    if (priority.includes('gender') && err.message.includes(GENDER_MISMATCH_MARKER)) {
-      return { field: 'gender', message: err.message };
     }
   }
   return { field: null, message: err instanceof Error ? err.message : fallback };
