@@ -762,7 +762,7 @@ describe('checking a patient in — POST /receptionist/check-ins/', () => {
     expect(await screen.findByText(/Queue number: 4/)).toBeInTheDocument();
   });
 
-  it('omits assigned_doctor when none is chosen, and never sends the empty string', async () => {
+  it('omits assigned_doctor AND reason_for_visit when neither is filled in — never sends an empty string', async () => {
     dataActionMock.mockResolvedValue({ message: 'Patient checked in. Queue number: 1', check_in: { id: 'ci-9' } });
     await openPanel();
 
@@ -770,15 +770,25 @@ describe('checking a patient in — POST /receptionist/check-ins/', () => {
 
     await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
     const [, , body] = dataActionMock.mock.calls[0];
-    expect(body).toEqual({ patient: 'p-1', reason_for_visit: '' });
+    // `reason_for_visit = CharField(required=False, default='')` with
+    // `allow_blank=False` (DRF's default) — sending '' explicitly is a
+    // validation error, not a use of the default. Must be omitted, same as
+    // assigned_doctor above.
+    expect(body).toEqual({ patient: 'p-1' });
   });
 
   it('surfaces the backend\'s own rejection reason for FLAG-236/238, not a generic error', async () => {
+    // Real envelope from apps.core.exceptions.custom_exception_handler —
+    // NOT DRF's default {"patient": [...]}. Field errors live under `details`.
     dataActionMock.mockRejectedValue(
       new ClientApiError(
         400,
-        { patient: ['Patient already has an active check-in at your organization.'] },
-        'Request failed (HTTP 400)',
+        {
+          error: 'patient: Patient already has an active check-in at your organization.',
+          code: 'BAD_REQUEST',
+          details: { patient: ['Patient already has an active check-in at your organization.'] },
+        },
+        'patient: Patient already has an active check-in at your organization.',
       ),
     );
     await openPanel();
@@ -786,6 +796,27 @@ describe('checking a patient in — POST /receptionist/check-ins/', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check in patient' }));
 
     expect(await screen.findByText(/already has an active check-in/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Request failed/i)).not.toBeInTheDocument();
+  });
+
+  it('surfaces a rejection on ANY field — not just `patient` — e.g. a blank reason', async () => {
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(
+        400,
+        {
+          error: 'reason_for_visit: This field may not be blank.',
+          code: 'BAD_REQUEST',
+          details: { reason_for_visit: ['This field may not be blank.'] },
+        },
+        'reason_for_visit: This field may not be blank.',
+      ),
+    );
+    await openPanel();
+
+    fireEvent.change(await screen.findByLabelText(/Reason for visit/i), { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check in patient' }));
+
+    expect(await screen.findByText(/may not be blank/i)).toBeInTheDocument();
     expect(screen.queryByText(/Request failed/i)).not.toBeInTheDocument();
   });
 });

@@ -47,17 +47,25 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 }
 
 /**
- * `client-api`'s `errorMessage()` only reads `.detail` / `.error` — a DRF
- * *field* error (`{"patient": ["…"]}`, which is how both check-in write
- * rejections below arrive: FLAG-236 no org access, FLAG-238 already active)
- * falls through it to a generic "Request failed (HTTP 400)". Pull the actual
- * server sentence back out of `ClientApiError.data` before falling back.
+ * The backend's `apps.core.exceptions.custom_exception_handler` wraps every
+ * rejection as `{error, code, details}` — field errors live under
+ * `details`, never at the top level of `ClientApiError.data`. This is how
+ * both check-in write rejections below arrive (FLAG-236 no org access,
+ * FLAG-238 already active), and a blank `reason_for_visit` arrives the same
+ * way. Take the first field's first message rather than a single named
+ * field — any of `patient`, `reason_for_visit`, `assigned_doctor` or
+ * `non_field_errors` can reject a check-in, and the caller shouldn't have
+ * to enumerate them.
  */
-function readableFieldError(err: unknown, field: string): string | null {
+function readableFieldError(err: unknown): string | null {
   if (!(err instanceof ClientApiError)) return null;
-  const data = err.data as Record<string, unknown> | null;
-  const val = data?.[field];
-  return Array.isArray(val) && typeof val[0] === 'string' ? val[0] : null;
+  const data = err.data as { details?: Record<string, unknown> } | null;
+  const details = data?.details;
+  if (!details) return null;
+  for (const val of Object.values(details)) {
+    if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
+  }
+  return null;
 }
 
 // ─── Overview ────────────────────────────────────────────────────
@@ -324,10 +332,10 @@ function CheckInsPage() {
             >
               <option value="">All</option>
               <option value="WAITING">Waiting</option>
-              {/* FLAG-027: this was "CALLED", a status the backend does not
-                  have — PatientCheckInUpdateSerializer's choices are WAITING /
+              {/* This was "CALLED", a status the backend does not have —
+                  PatientCheckInUpdateSerializer's choices are WAITING /
                   IN_PROGRESS / COMPLETED / NO_SHOW, so the filter never
-                  matched a single row. See CODEBASE_FLAGS.md. */}
+                  matched a single row. Not tracked under any flag number. */}
               <option value="IN_PROGRESS">In Progress</option>
               <option value="COMPLETED">Completed</option>
               <option value="NO_SHOW">No show</option>
@@ -656,12 +664,13 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
     setCheckInError(null);
     setCheckInMessage(null);
     try {
-      const payload: Record<string, unknown> = {
-        patient: patient.id,
-        reason_for_visit: checkInReason,
-      };
-      // Optional/nullable on the backend — omit rather than send '', which
-      // would fail PrimaryKeyRelatedField validation.
+      const payload: Record<string, unknown> = { patient: patient.id };
+      // Both optional on the backend — omit rather than send '', which
+      // fails validation instead of falling back to the field's default.
+      // `reason_for_visit = CharField(required=False, default='')` has
+      // `allow_blank=False` (DRF's default): `default` only applies when
+      // the key is absent, so an explicit '' 400s instead.
+      if (checkInReason.trim()) payload.reason_for_visit = checkInReason.trim();
       if (checkInDoctor) payload.assigned_doctor = checkInDoctor;
 
       const res = (await apiAction(ENDPOINTS.REC_CHECK_INS, 'POST', payload)) as
@@ -670,10 +679,11 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
       setCheckInReason('');
       setCheckInDoctor('');
     } catch (e) {
-      // FLAG-236 (no org access yet) / FLAG-238 (already an active check-in)
-      // both arrive as a `patient` field error — surface the backend's own
-      // actionable sentence, not a generic "Request failed" message.
-      const msg = readableFieldError(e, 'patient') ??
+      // FLAG-236 (no org access yet) / FLAG-238 (already an active
+      // check-in) / a blank reason all arrive as a field error under
+      // `details` — surface the backend's own actionable sentence, not a
+      // generic "Request failed" message.
+      const msg = readableFieldError(e) ??
         (e instanceof Error ? e.message : 'Could not check in patient');
       setCheckInError(msg);
       toast.error(msg);

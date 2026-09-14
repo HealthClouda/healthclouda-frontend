@@ -55,7 +55,7 @@ Every flag needs a **Done when** that someone else can verify without asking the
 
 ## Open flags
 
-### FLAG-027 — `GET /receptionist/check-ins/` is a hand-built `{count, results}` dict, not real DRF pagination
+### FLAG-030 — `GET /receptionist/check-ins/` is a hand-built `{count, results}` dict, not real DRF pagination
 **Severity:** P3 · **Area:** Receptionist / Contract · **Owner:** @Bastoh · **Status:** OPEN
 **Found:** 2026-09-11, building the check-in write path (POST/PATCH)
 
