@@ -3250,14 +3250,18 @@ I wrote *"five of seven"*. **There are six dashboards; seven is the number of st
 **Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **UI HALF CLOSED 2026-09-15** — the read/discharge half; the admit-picker half stays open, see below
 **Found:** 2026-09-11, building WARD-1 (the admissions write path)
 
-> ✅ **2026-09-15 — the "no doctor-side bed/ward picker has been built" half is now half-answered.**
-> `DoctorDashboard.tsx` gained an Admissions page (`GET /ward/admissions/?mine=true&status=ACTIVE`) so a
-> doctor can now READ their own admitted patients' bed/ward — the exact capability this flag's
-> `CanManageWard` fix unblocked but nothing used. **Still genuinely open:** admitting a NEW patient from
-> the doctor side (a bed **picker** for `POST /ward/admissions/`) was explicitly out of scope for this
-> build (see FLAG-042 below, which this same PR closes) — `RequestAdmissionPanel` still posts to
-> `/ward/admission-requests/`, not `/ward/admissions/` directly, and still omits `requested_ward`. Leave
-> this flag open for that half.
+> ✅ **2026-09-15 — the "no doctor-side bed/ward picker has been built" half is now half-answered,
+> PENDING a backend PR that has not merged.** `DoctorDashboard.tsx` gained an Admissions page (`GET
+> /ward/admissions/?mine=true&status=ACTIVE`) so a doctor can READ their own admitted patients'
+> bed/ward once the backend `?mine=true` filter ships — the exact capability this flag's
+> `CanManageWard` fix unblocked but nothing used. ⚠️ **`?mine=true` does NOT exist on backend `develop`
+> yet** (checked against `git show origin/develop:apps/ward/views.py`, not a shared checkout's working
+> tree — see the withdrawn FLAG-241 below for how that distinction was missed once already), so this
+> frontend PR must not merge before the backend one does. **Still genuinely open regardless:** admitting
+> a NEW patient from the doctor side (a bed **picker** for `POST /ward/admissions/`) was explicitly out
+> of scope for this build (see FLAG-042 below, which this same PR closes) — `RequestAdmissionPanel`
+> still posts to `/ward/admission-requests/`, not `/ward/admissions/` directly, and still omits
+> `requested_ward`. Leave this flag open for that half.
 
 > ✅ **2026-09-14 — re-verified against `apps/core/permissions.py` directly.** `CanManageWard.has_permission` now reads `request.user.role in ['NURSE', 'RECEPTIONIST', 'ORGANIZATION_ADMIN', 'DOCTOR']` for `SAFE_METHODS`, and the class docstring names this flag explicitly ("FLAG-040: … This grants DOCTOR the read half only"). `GET /ward/beds/` no longer 403s for a DOCTOR token. The blocker below is gone; **no doctor-side bed/ward picker has been built to use it** — that remains open as a UI gap, not a permission gap, and is out of scope for this branch. A doctor ordering an admission (`RequestAdmissionPanel`, `DoctorDashboard.tsx`) still omits `requested_ward` deliberately — that choice no longer needs to be structural, but changing it is new UI work, not a flag fix.
 
@@ -3357,30 +3361,54 @@ only a doctor can legally perform and only a nurse's screen can currently reach.
 
 ---
 
-### FLAG-241 — the `?mine=true` contract was already merged on backend `develop`, not "being built in parallel"
-**Severity:** P4 (coordination, not a defect) · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN — informational, for whoever owns the cross-repo tracker next
-**Found:** 2026-09-15, building the doctor admissions page (closing FLAG-040/042)
+### FLAG-241 — ❌ WITHDRAWN 2026-09-15: "the `?mine=true` contract was already merged" was a false finding — a working tree is not a branch
+**Severity:** P4 (process lesson, not a backend defect) · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ❌ **WITHDRAWN — the underlying claim was wrong**
+**Found:** 2026-09-15, building the doctor admissions page (closing FLAG-040/042). **Withdrawn:** same day, caught by the orchestrator.
 
-The task brief for this build said the backend half — `GET /ward/admissions/?mine=true`,
-`admissions_for_doctor()`, and the "Admissions Under Care" stat tile reading the same query — was
-"being built in parallel and is not merged", and that `api-dev` "will not exist there yet". **Checked
-against the actual backend checkout rather than taken on the brief's word:** all three pieces are
-already merged on backend `develop` —
+**The original entry claimed the backend `?mine=true` contract — `admissions_for_doctor()`,
+`AdmissionViewSet.get_queryset`'s `?mine=true`, and the `admissions_under_care` tile query — was
+already merged on backend `develop`, and that the task's "being built in parallel, not merged" framing
+was stale. That claim was false.** What I actually read was **another agent's uncommitted
+work-in-progress sitting in the shared backend checkout's working tree** — real files on disk at
+`C:\Users\USER\Desktop\healthclouda-backend`, but not committed and not on any branch:
 
-- `apps/ward/models.py admissions_for_doctor()` — the single `Q(attending_doctor=doctor) |
-  Q(episode__doctor=doctor)` definition, with a docstring dated "contract: doctor admissions page,
-  2026-09-15" and an explicit warning against writing this rule a third time (naming FLAG-344/239/581).
-- `apps/ward/views.py AdmissionViewSet.get_queryset` — `?mine=true` wired to it, DOCTOR-gated.
-- `apps/patients/doctor_views.py` — `admissions_under_care` (FLAG-587) counts the identical query.
+```
+git status --short   (that checkout, at the time)
+ M apps/patients/doctor_views.py
+ M apps/ward/models.py
+ M apps/ward/views.py
+?? apps/patients/tests/test_admissions_under_care_mine_rule.py
+?? apps/ward/tests/test_admissions_mine_filter.py
+```
 
-All three landed on `develop` at commit `7c84fa0` (`git merge-base --is-ancestor 7c84fa0 HEAD` on
-backend `develop` returns true — verified, not inferred from a commit message). This is not a defect —
-the frontend build did not need to wait — but it means **whichever doc briefed this task as "not
-merged" is stale**, and the PR for this page should not sit waiting on a backend PR that doesn't exist
-as a blocker; the only real open question is whether `api-dev` (the deployed Railway env) has picked up
-that backend commit yet, which is an infra/deploy question, not a code one, and this repo cannot answer
-it from source alone.
+Checked properly (read the branch tip, not the checkout) after the correction:
 
-**Done when:** whoever owns the cross-repo contract tracker (HANDOFF.md's frontend-contract banner, or
-equivalent) corrects the "not merged" framing, and confirms whether `api-dev` has redeployed past
-`7c84fa0` before this PR is treated as unblocked in practice.
+```
+git show origin/develop:apps/ward/models.py | grep -c admissions_for_doctor   -> 0
+git show origin/develop:apps/ward/views.py  | grep -c "name='mine'"           -> 0
+git show origin/develop:apps/patients/doctor_views.py | grep -c admissions_for_doctor -> 0
+```
+
+None of it is on `develop`. The task's brief was correct; my check was wrong.
+
+**The specific mistake, for reuse:** I ran `git log --oneline -- apps/ward/views.py` in that checkout,
+took its most recent entry (`7c84fa0`) as "the commit that shipped this", and then ran
+`git merge-base --is-ancestor 7c84fa0 HEAD` and read "true" as confirming `?mine=true` was merged.
+**That ancestry check was sound and proved nothing about `?mine=true` — `7c84fa0` is PR #201, an
+unrelated docstring fix (FLAG-583, "stop publishing internal narrative on the public schema").** It
+was merged, so the check correctly said "true" — for the wrong commit. I anchored a real verification
+technique to a commit I'd picked by proximity in a log, not by reading its diff, and the fact it
+"passed" felt like confirmation instead of prompting a second look. Likewise the FLAG-587 identifier
+I cited was the other agent's own **in-progress** flag number, not a shipped one — I copied it out of
+an uncommitted docstring without checking whether it existed on any branch.
+
+**The reusable lesson (kept, because it's worth more than the original claim was):** a shared checkout's
+working tree can hold another agent's uncommitted change at any time. **`git status`/reading files
+directly from a shared checkout is not "the backend" — it is "whatever is on disk in that checkout right
+now."** To claim something is merged, check `git show <remote-branch>:<path>` (or `git log
+<remote-branch> -- <path>`), never the working tree, and never anchor an ancestry check to a commit
+picked by "most recent in the log" without reading what that commit's diff actually contains.
+
+**Corrected status:** the task's original framing stands — `?mine=true` is genuinely not merged on
+backend `develop` as of this writing, and #150 is correctly held pending that backend PR. No action
+needed from the cross-repo tracker; there was nothing stale to correct.

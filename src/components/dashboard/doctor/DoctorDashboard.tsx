@@ -318,9 +318,12 @@ function OverviewPage({
             ✅ Clickable again (FLAG-040/042) — an "admissions" page now exists in
             NAV, so `onNavigate('admissions')` lands where the label promises rather
             than on `episodes` (the earlier bug this comment used to warn against)
-            or nowhere at all. Same query as the tile's own count
-            (apps/patients/doctor_views.py `admissions_under_care`, FLAG-587), so the
-            number here and the row count on that page should always agree. */}
+            or nowhere at all. Per the contract, the Admissions page's list and
+            this tile's `admissions_under_care` count are meant to share the SAME
+            "mine" rule (apps/patients/doctor_views.py) — ⚠️ NOT yet verified
+            against a merged backend as of this write; see the note on
+            `AdmissionsPage` below, this depends on a backend PR that has not
+            merged. */}
         <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BedIcon />} color="purple" onClick={() => onNavigate('admissions')} />
       </div>
 
@@ -1250,14 +1253,19 @@ function PrescriptionsPage() {
 // ─── Admissions (FLAG-040 UI half / FLAG-042) ──────────────────────
 //
 // GET /ward/admissions/?mine=true&status=ACTIVE. "mine" is attending_doctor
-// OR episode.doctor (an OR, not either field alone) — the single definition
-// in `apps.ward.models.admissions_for_doctor`, verified against
-// `apps/ward/views.py AdmissionViewSet.get_queryset` on backend `develop`
-// (commit 7c84fa0). The Overview tile above ("Admissions Under Care") counts
-// the SAME query at the SAME `status=ACTIVE` filter
-// (apps/patients/doctor_views.py, FLAG-587) — if this list's `count` and
-// that tile's number ever disagree for the same account, that is a real bug
-// to report, not something to paper over here.
+// OR episode.doctor (an OR, not either field alone) — per the contract this
+// page is built against (owner's decision, 2026-09-15): `apps.ward.models.
+// admissions_for_doctor()` on the backend, shared by `AdmissionViewSet.
+// get_queryset`'s `?mine=true` and the Overview tile's `admissions_under_care`
+// count (apps/patients/doctor_views.py) — if this list's `count` and that
+// tile's number ever disagree for the same account, that is a real bug to
+// report, not something to paper over here.
+//
+// ⚠️ **This depends on a backend PR that has NOT merged as of this write.**
+// Checked properly against the branch tip (`git show origin/develop:<path>`),
+// not a shared checkout's working tree — `?mine=true` does not exist on
+// backend `develop` yet. Do not merge this frontend PR before that backend
+// PR lands, or this page fetches an unfiltered/unrecognised query param.
 //
 // No client-side narrowing of a wider fetch: the request itself carries
 // `?mine=true`, never "fetch every admission and filter in the browser" —
