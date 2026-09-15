@@ -4,6 +4,7 @@ import { DoctorDashboard } from './DoctorDashboard';
 import { ENDPOINTS } from '@/lib/config';
 import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
+import type { DoctorAdmission } from '@/types/dashboard';
 
 /**
  * RED-first tests for D5, covering FLAG-004 (E1) and the doctor half of
@@ -51,7 +52,7 @@ vi.mock('@/lib/client-api', () => ({
   },
 }));
 
-import { dataGet, dataAction } from '@/lib/client-api';
+import { dataGet, dataAction, ClientApiError } from '@/lib/client-api';
 const dataGetMock = vi.mocked(dataGet);
 const dataActionMock = vi.mocked(dataAction);
 
@@ -782,6 +783,183 @@ describe('WARD-PART2 — a doctor requests an admission from an active episode',
           clinical_reason: 'Deteriorating oxygen saturation',
         },
       );
+    });
+  });
+});
+
+/**
+ * The doctor admissions page (FLAG-040 UI half / FLAG-042).
+ *
+ * GET /ward/admissions/?mine=true&status=ACTIVE — AdmissionListSerializer,
+ * apps/ward/serializers.py. Shape verified against backend source, not the
+ * schema: `patient` is the same 4-field nested object every other ward
+ * endpoint uses (id, healthclouda_id, first_name, last_name — no age/gender,
+ * unlike /nurse/my-patients/'s DIFFERENT patient shape), `bed` nests
+ * `ward`/`room`, and `attending_doctor_name`/`needs_attending_doctor` are
+ * declared directly on the serializer.
+ */
+describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
+  const doctorAdmission: DoctorAdmission = {
+    id: 'adm-doc-1',
+    patient: {
+      id: 'p-doc-1',
+      healthclouda_id: 'HCL-DOC001',
+      first_name: 'Ngozi',
+      last_name: 'Eze',
+    },
+    bed: {
+      id: 'bed-doc-1',
+      bed_number: 'ICU-03',
+      status: 'OCCUPIED',
+      ward: { id: 'ward-doc-1', name: 'ICU' },
+      room: null,
+    },
+    status: 'ACTIVE',
+    admitted_at: '2026-09-10T08:00:00Z',
+    admitted_by: { id: 'r-1', email: 'nurse@demo.test', first_name: 'Chika', last_name: 'Obi' },
+    admission_reason: 'Post-operative monitoring.',
+    discharged_at: null,
+    length_of_stay: 5,
+    admission_source: 'REFERRAL',
+    // Deliberately a DIFFERENT doctor from the signed-in `user` fixture
+    // (Emeka Okafor) — the ward round doctor and the case-owning doctor
+    // are genuinely different people (`admissions_for_doctor`'s OR), and a
+    // shared name would make this assertion ambiguous against the sidebar's
+    // own signed-in-user name rather than wrong.
+    attending_doctor: 'd2',
+    attending_doctor_name: 'Bola Adeyemi',
+    needs_attending_doctor: false,
+  };
+
+  function mockAdmissionsBackend(admissions = [doctorAdmission]) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.ADMISSIONS)) {
+        return Promise.resolve({ count: admissions.length, results: admissions });
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  it('requests ?mine=true&status=ACTIVE — never fetches the org\'s full admission list and filters client-side', async () => {
+    mockAdmissionsBackend();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    await waitFor(() => expect(urlsFor(ENDPOINTS.ADMISSIONS).length).toBeGreaterThan(0));
+    const urls = urlsFor(ENDPOINTS.ADMISSIONS);
+    expect(urls.some(u => /[?&]mine=true\b/.test(u))).toBe(true);
+    expect(urls.some(u => /[?&]status=ACTIVE\b/.test(u))).toBe(true);
+  });
+
+  it('renders the patient, bed/ward, admission reason and attending doctor from the real payload shape', async () => {
+    mockAdmissionsBackend();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    expect(await screen.findByText('Ngozi Eze')).toBeInTheDocument();
+    expect(screen.getByText('HCL-DOC001')).toBeInTheDocument();
+    expect(screen.getByText(/ICU.*Bed ICU-03/)).toBeInTheDocument();
+    expect(screen.getByText('Post-operative monitoring.')).toBeInTheDocument();
+    expect(screen.getByText('Bola Adeyemi')).toBeInTheDocument();
+  });
+
+  it('shows "Unassigned" rather than a blank when needs_attending_doctor is true — never conflated with a missing lookup', async () => {
+    mockAdmissionsBackend([{ ...doctorAdmission, attending_doctor: null, attending_doctor_name: null, needs_attending_doctor: true }]);
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    await screen.findByText('Ngozi Eze');
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+  });
+
+  it('the Overview "Admissions Under Care" tile now navigates to the Admissions page (FLAG-040/042 fix — it used to be permanently inert)', async () => {
+    mockAdmissionsBackend();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+    fireEvent.click(screen.getByText('Admissions Under Care'));
+    expect(await screen.findByText('Ngozi Eze')).toBeInTheDocument();
+  });
+
+  describe('discharge from the doctor side', () => {
+    async function openDischarge() {
+      mockAdmissionsBackend();
+      render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+      await screen.findByText('Ngozi Eze');
+      fireEvent.click(screen.getByRole('button', { name: 'Discharge' }));
+    }
+
+    it('a routine discharge sends discharge_outcome=ROUTINE with no extra fields', async () => {
+      dataActionMock.mockResolvedValue({ message: 'Patient discharged successfully' });
+      await openDischarge();
+
+      const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
+      expect(submit).not.toBeDisabled();
+      fireEvent.click(submit);
+
+      await waitFor(() => {
+        expect(dataActionMock).toHaveBeenCalledWith(
+          ENDPOINTS.ADMISSION_DISCHARGE(doctorAdmission.id),
+          'POST',
+          { discharge_outcome: 'ROUTINE' },
+        );
+      });
+    });
+
+    it("AGAINST_MEDICAL_ADVICE is submittable from the doctor's own dashboard — the ONE surface in the app where this outcome can complete (FLAG-042) — and sends no witnessed_by/reason field", async () => {
+      dataActionMock.mockResolvedValue({ message: 'Patient discharged successfully' });
+      await openDischarge();
+
+      fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
+
+      // No signer field of any kind — the acting user (this doctor) IS the
+      // signature (apps/ward/services.py discharge_patient(); FLAG-042 —
+      // backend #190 dropped `witnessed_by` outright, no replacement field).
+      expect(screen.queryByLabelText('Signed by (doctor)')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Witnessed by')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
+      expect(await screen.findByLabelText('Reason (optional)')).toBeInTheDocument();
+
+      // Unlike NurseDashboard's DischargePanel, this is NOT blocked — this
+      // screen only renders for a signed-in DOCTOR, who IS a valid signer.
+      const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
+      expect(submit).not.toBeDisabled();
+      expect(screen.queryByText(/only a doctor can complete/i)).not.toBeInTheDocument();
+
+      fireEvent.click(submit);
+
+      await waitFor(() => {
+        const call = dataActionMock.mock.calls.find(c => c[0] === ENDPOINTS.ADMISSION_DISCHARGE(doctorAdmission.id));
+        expect(call).toBeDefined();
+        const body = call![2] as Record<string, unknown>;
+        expect(body.discharge_outcome).toBe('AGAINST_MEDICAL_ADVICE');
+        expect(body).not.toHaveProperty('witnessed_by');
+        expect(body).not.toHaveProperty('reason');
+      });
+    });
+
+    it('a flat {error: ...} discharge refusal (no `details` wrapper) renders the backend\'s own message — verified against AdmissionViewSet.discharge, which never wraps a ValueError in `details`', async () => {
+      dataActionMock.mockRejectedValue(
+        new ClientApiError(400, { error: 'destination is required when discharge_outcome=TRANSFERRED_OUT.' }, 'destination is required when discharge_outcome=TRANSFERRED_OUT.'),
+      );
+      await openDischarge();
+
+      fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'TRANSFERRED_OUT' } });
+      fireEvent.change(screen.getByLabelText('Destination'), { target: { value: 'City General Hospital' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0]);
+
+      expect(await screen.findByText('destination is required when discharge_outcome=TRANSFERRED_OUT.')).toBeInTheDocument();
+    });
+
+    it('DECEASED never uses success/celebratory styling on this screen either', async () => {
+      dataActionMock.mockResolvedValue({ message: 'Patient discharged successfully' });
+      await openDischarge();
+
+      fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'DECEASED' } });
+      expect(screen.queryAllByRole('button', { name: 'Discharge' })).toHaveLength(1);
+      const recordButton = screen.getByRole('button', { name: 'Record outcome' });
+      expect(recordButton.className).not.toMatch(/bg-primary/);
+      expect(screen.getByText(/records the patient as deceased/i)).toBeInTheDocument();
     });
   });
 });

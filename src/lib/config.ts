@@ -205,6 +205,15 @@ export const ENDPOINTS = {
   WARD_BEDS: '/ward/beds/',
   WARD_BED: (id: string) => `/ward/beds/${id}/`,
   WARD_ROOMS: '/ward/rooms/',
+  // FLAG-040/042 (doctor admissions page, 2026-09-15 contract): append
+  // `?mine=true` for a DOCTOR to restrict this list to admissions where the
+  // caller is the attending_doctor OR episode.doctor. Per the contract,
+  // `apps/ward/models.py admissions_for_doctor()` is meant to be the single
+  // definition, shared by `AdmissionViewSet.get_queryset` and the doctor
+  // dashboard's "Admissions Under Care" stat tile — the two must never
+  // disagree. ⚠️ NOT merged on backend `develop` as of this write (checked
+  // against the branch tip, not a shared checkout's working tree) — this
+  // frontend PR must not merge before the backend one does.
   ADMISSIONS: '/ward/admissions/',
   ADMISSION: (id: string) => `/ward/admissions/${id}/`,
   // A-2b (emergency admission): DOCTORs in the caller's org, for the
