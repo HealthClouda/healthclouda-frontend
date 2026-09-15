@@ -3247,8 +3247,17 @@ I wrote *"five of seven"*. **There are six dashboards; seven is the number of st
 ---
 
 ### FLAG-040 — A DOCTOR can POST an admission but cannot read a single bed, so a doctor-side admit UI cannot be built as designed
-**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **PERMISSION RESOLVED on the backend, UI still not built**
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **UI HALF CLOSED 2026-09-15** — the read/discharge half; the admit-picker half stays open, see below
 **Found:** 2026-09-11, building WARD-1 (the admissions write path)
+
+> ✅ **2026-09-15 — the "no doctor-side bed/ward picker has been built" half is now half-answered.**
+> `DoctorDashboard.tsx` gained an Admissions page (`GET /ward/admissions/?mine=true&status=ACTIVE`) so a
+> doctor can now READ their own admitted patients' bed/ward — the exact capability this flag's
+> `CanManageWard` fix unblocked but nothing used. **Still genuinely open:** admitting a NEW patient from
+> the doctor side (a bed **picker** for `POST /ward/admissions/`) was explicitly out of scope for this
+> build (see FLAG-042 below, which this same PR closes) — `RequestAdmissionPanel` still posts to
+> `/ward/admission-requests/`, not `/ward/admissions/` directly, and still omits `requested_ward`. Leave
+> this flag open for that half.
 
 > ✅ **2026-09-14 — re-verified against `apps/core/permissions.py` directly.** `CanManageWard.has_permission` now reads `request.user.role in ['NURSE', 'RECEPTIONIST', 'ORGANIZATION_ADMIN', 'DOCTOR']` for `SAFE_METHODS`, and the class docstring names this flag explicitly ("FLAG-040: … This grants DOCTOR the read half only"). `GET /ward/beds/` no longer 403s for a DOCTOR token. The blocker below is gone; **no doctor-side bed/ward picker has been built to use it** — that remains open as a UI gap, not a permission gap, and is out of scope for this branch. A doctor ordering an admission (`RequestAdmissionPanel`, `DoctorDashboard.tsx`) still omits `requested_ward` deliberately — that choice no longer needs to be structural, but changing it is new UI work, not a flag fix.
 
@@ -3305,8 +3314,24 @@ Ask filed in `HANDOFF.md` rather than guessed at here.
 > left here to reconcile either way.
 
 ### FLAG-042 — an against-medical-advice discharge cannot be completed from this frontend at all, by anyone
-**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **CLOSED 2026-09-15**
 **Found:** 2026-09-13, reconciling `fix/admissions-medical-answers-ui` (#142) against backend PR #190
+
+> ✅ **2026-09-15 — the doctor admissions page closes this.** `DoctorDashboard.tsx` now has an
+> Admissions page (`GET /ward/admissions/?mine=true&status=ACTIVE`) with its own `DischargePanel`,
+> reachable from NAV and from the (now-clickable) "Admissions Under Care" stat tile. Unlike
+> `NurseDashboard.tsx`'s copy, AGAINST_MEDICAL_ADVICE is **not** blocked here — the panel only ever
+> renders for a signed-in DOCTOR, and `discharge_patient()` (apps/ward/services.py) role-gates that
+> outcome to exactly that role, so the account submitting this form is always a valid signer. Verified
+> live against backend source, not the schema: `AdmissionViewSet.discharge` (apps/ward/views.py) wraps
+> every `ValueError` — including the wrong-signer-role case — as a flat `{'error': str(exc)}`, never a
+> `details` dict, so the doctor-side panel reads the message directly rather than reusing
+> `NurseDashboard`'s `details.field` reader, which would not match this shape. Tests: `WARD-DOC-
+> ADMISSIONS` in `DoctorDashboard.test.tsx`, including a positive control that submits
+> AGAINST_MEDICAL_ADVICE and asserts the outcome reaches the backend with no `witnessed_by`/`reason`
+> key. **Reassigning the attending doctor (`/reassign-doctor/`) was left out of this build** — in
+> scope for the flag this closes, but not asked for; the endpoint exists and is DOCTOR-permitted, so a
+> follow-up can add a "Reassign" action to the same table without a backend change.
 
 Backend PR #190 drops the `witnessed_by` column outright (`ward/migrations/0008_remove_witnessed_by_
 medical_answers.py`) and does not replace it with a submittable field. Confirmed from the task's own
@@ -3329,3 +3354,33 @@ large, stop and report instead of building it").
 likely alongside whatever answers FLAG-040's doctor-side admit gap — the same missing "doctor manages
 their admitted patients" screen would plausibly host both). Until then, an AMA discharge is a workflow
 only a doctor can legally perform and only a nurse's screen can currently reach.
+
+---
+
+### FLAG-241 — the `?mine=true` contract was already merged on backend `develop`, not "being built in parallel"
+**Severity:** P4 (coordination, not a defect) · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN — informational, for whoever owns the cross-repo tracker next
+**Found:** 2026-09-15, building the doctor admissions page (closing FLAG-040/042)
+
+The task brief for this build said the backend half — `GET /ward/admissions/?mine=true`,
+`admissions_for_doctor()`, and the "Admissions Under Care" stat tile reading the same query — was
+"being built in parallel and is not merged", and that `api-dev` "will not exist there yet". **Checked
+against the actual backend checkout rather than taken on the brief's word:** all three pieces are
+already merged on backend `develop` —
+
+- `apps/ward/models.py admissions_for_doctor()` — the single `Q(attending_doctor=doctor) |
+  Q(episode__doctor=doctor)` definition, with a docstring dated "contract: doctor admissions page,
+  2026-09-15" and an explicit warning against writing this rule a third time (naming FLAG-344/239/581).
+- `apps/ward/views.py AdmissionViewSet.get_queryset` — `?mine=true` wired to it, DOCTOR-gated.
+- `apps/patients/doctor_views.py` — `admissions_under_care` (FLAG-587) counts the identical query.
+
+All three landed on `develop` at commit `7c84fa0` (`git merge-base --is-ancestor 7c84fa0 HEAD` on
+backend `develop` returns true — verified, not inferred from a commit message). This is not a defect —
+the frontend build did not need to wait — but it means **whichever doc briefed this task as "not
+merged" is stale**, and the PR for this page should not sit waiting on a backend PR that doesn't exist
+as a blocker; the only real open question is whether `api-dev` (the deployed Railway env) has picked up
+that backend commit yet, which is an infra/deploy question, not a code one, and this repo cannot answer
+it from source alone.
+
+**Done when:** whoever owns the cross-repo contract tracker (HANDOFF.md's frontend-contract banner, or
+equivalent) corrects the "not merged" framing, and confirms whether `api-dev` has redeployed past
+`7c84fa0` before this PR is treated as unblocked in practice.

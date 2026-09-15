@@ -15,12 +15,14 @@ import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { Avatar } from '@/components/ui/Avatar';
+import { formInputClass } from '@/components/ui/FormField';
 import { formatDate, formatTime, isToday, personName, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
   ReferralCreateInput, ReferralCreateResponse, ReferralTargetOrganization, RegenerateLetterResponse,
+  DoctorAdmission,
 } from '@/types/dashboard';
 import { URGENCY_OPTIONS, LEVEL_OF_CARE_OPTIONS } from '@/types/dashboard';
 import { ClientApiError } from '@/lib/client-api';
@@ -45,6 +47,8 @@ const NAV: NavItem[] = [
   { id: 'appointments',  label: 'Appointments',  icon: <CalIcon /> },
   { id: 'referrals',     label: 'Referrals',     icon: <ArrowIcon /> },
   { id: 'prescriptions', label: 'Prescriptions', icon: <BeakerIcon /> },
+  // FLAG-040/042 — same BedIcon as the (now clickable) Overview stat tile.
+  { id: 'admissions',    label: 'Admissions',    icon: <BedIcon /> },
 ];
 
 /**
@@ -311,16 +315,13 @@ function OverviewPage({
             to render an integer. Asked for upstream. Meanwhile this tile shows a
             real field, and Prescriptions stays reachable from the sidebar.
 
-            🔴 **Deliberately NOT clickable, and that is the point of the fix.** The
-            substitution first shipped with `onNavigate('episodes')` carried over
-            from the tile it replaced: the doctor's NAV has six pages and none of
-            them is admissions, so the click landed on Episodes — a different
-            dataset with a different count, under a label promising this one.
-            `StatCard` takes an undefined `onClick` (Pending Referrals above does it
-            conditionally), so the tile is honest and inert rather than pointing
-            somewhere it is not. Give it a destination when an admissions page
-            exists, not before. */}
-        <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BedIcon />} color="purple" />
+            ✅ Clickable again (FLAG-040/042) — an "admissions" page now exists in
+            NAV, so `onNavigate('admissions')` lands where the label promises rather
+            than on `episodes` (the earlier bug this comment used to warn against)
+            or nowhere at all. Same query as the tile's own count
+            (apps/patients/doctor_views.py `admissions_under_care`, FLAG-587), so the
+            number here and the row count on that page should always agree. */}
+        <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BedIcon />} color="purple" onClick={() => onNavigate('admissions')} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -1246,6 +1247,286 @@ function PrescriptionsPage() {
   );
 }
 
+// ─── Admissions (FLAG-040 UI half / FLAG-042) ──────────────────────
+//
+// GET /ward/admissions/?mine=true&status=ACTIVE. "mine" is attending_doctor
+// OR episode.doctor (an OR, not either field alone) — the single definition
+// in `apps.ward.models.admissions_for_doctor`, verified against
+// `apps/ward/views.py AdmissionViewSet.get_queryset` on backend `develop`
+// (commit 7c84fa0). The Overview tile above ("Admissions Under Care") counts
+// the SAME query at the SAME `status=ACTIVE` filter
+// (apps/patients/doctor_views.py, FLAG-587) — if this list's `count` and
+// that tile's number ever disagree for the same account, that is a real bug
+// to report, not something to paper over here.
+//
+// No client-side narrowing of a wider fetch: the request itself carries
+// `?mine=true`, never "fetch every admission and filter in the browser" —
+// that shape is exactly the over-fetch the parameter was added to remove.
+
+function wardBedLabel(a: DoctorAdmission): string {
+  const parts = [a.bed?.ward?.name, a.bed ? `Bed ${a.bed.bed_number}` : null].filter(Boolean);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function admissionColumns(onDischarge: (a: DoctorAdmission) => void): DataTableColumn<DoctorAdmission>[] {
+  return [
+    {
+      key: 'patient', header: 'Patient', render: a => (
+        <div className="flex items-center gap-2.5">
+          <Avatar firstName={a.patient.first_name} lastName={a.patient.last_name} size="sm" />
+          <div>
+            <div className="font-medium text-ink">{a.patient.first_name} {a.patient.last_name}</div>
+            <div className="text-xs text-text-soft font-mono">{a.patient.healthclouda_id}</div>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'bed', header: 'Bed / Ward', className: 'whitespace-nowrap', render: a => <span className="text-text-soft">{wardBedLabel(a)}</span> },
+    { key: 'reason', header: 'Admission Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.admission_reason || '—', 50)}</span> },
+    {
+      key: 'attending', header: 'Attending', render: a => a.attending_doctor_name ? (
+        <span className="text-text-mid">{a.attending_doctor_name}</span>
+      ) : a.needs_attending_doctor ? (
+        <span className="font-semibold text-warning-strong">Unassigned</span>
+      ) : (
+        <span className="text-text-soft">—</span>
+      ),
+    },
+    { key: 'admitted', header: 'Admitted', className: 'whitespace-nowrap', render: a => <span className="text-text-soft">{formatDate(a.admitted_at)}</span> },
+    {
+      key: 'actions', header: '', className: 'text-right',
+      render: a => a.status === 'ACTIVE' ? (
+        <button onClick={() => onDischarge(a)} className="text-xs font-semibold text-primary-dark hover:underline">
+          Discharge
+        </button>
+      ) : null,
+    },
+  ];
+}
+
+// Mirrors NurseDashboard.tsx's DISCHARGE_OUTCOMES / DischargePanel — same
+// `DischargeSerializer` / `discharge_patient()` (apps/ward/serializers.py +
+// services.py), kept as a second per-dashboard copy rather than a shared
+// module, consistent with this file's existing convention of its own
+// icon/column definitions (see the icon comments above). **The one
+// deliberate difference:** AGAINST_MEDICAL_ADVICE is NOT blocked here.
+// `discharge_patient()` role-gates that outcome to `discharged_by.role ==
+// 'DOCTOR'` — this screen only ever renders for a signed-in DOCTOR
+// (route-gated the same way every dashboard is), so the account submitting
+// this form is always a valid signer. There is no `witnessed_by`/`reason`
+// field to collect any more — backend #190 dropped that column; the
+// signature IS the acting user (apps/ward/services.py, "attest via the
+// acting user"). If NurseDashboard's outcome list ever changes shape, check
+// this one too — a rule copied instead of shared is this codebase's most
+// repeated defect (FLAG-344, FLAG-239, FLAG-581 on the backend side; this is
+// the same shape on the frontend).
+interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
+interface DischargeOutcomeConfig {
+  value: string;
+  label: string;
+  // 'somber' gets no success styling/checkmark — a DECEASED discharge must
+  // never read like the others.
+  tone: 'neutral' | 'caution' | 'somber';
+  extraFields: DischargeExtraField[];
+}
+const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
+  { value: 'ROUTINE', label: 'Routine discharge', tone: 'neutral', extraFields: [] },
+  {
+    value: 'TRANSFERRED_OUT', label: 'Transferred out', tone: 'neutral',
+    extraFields: [{ key: 'destination', label: 'Destination', type: 'text' }],
+  },
+  // No extra fields — the AMA reason (optional) reuses the discharge summary
+  // textarea below, same as NurseDashboard. No signature field: the signer
+  // is this account.
+  { value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution', extraFields: [] },
+  {
+    value: 'ABSCONDED', label: 'Absconded', tone: 'caution',
+    extraFields: [{ key: 'discovered_at', label: 'Discovered at', type: 'datetime-local' }],
+  },
+  {
+    value: 'DECEASED', label: 'Deceased', tone: 'somber',
+    extraFields: [{ key: 'deceased_at', label: 'Time of death', type: 'datetime-local' }],
+  },
+];
+
+/**
+ * `POST /ward/admissions/{id}/discharge/` errors are a FLAT `{error: "..."}`
+ * body — verified against `AdmissionViewSet.discharge`
+ * (apps/ward/views.py): both the FLAG-304 status-race and every
+ * `discharge_patient()` `ValueError` (missing companion field, wrong signer
+ * role for AGAINST_MEDICAL_ADVICE) are caught and returned as
+ * `{'error': str(exc)}`, never wrapped in a `details` key. `errorMessage()`
+ * (lib/client-api.ts) already reads `.error` into `ClientApiError.message`,
+ * so this needs no `details.field` reader and no 409 bed-race handling the
+ * way the ADMIT write path does (NurseDashboard's `admissionFieldError` /
+ * `isBedConflict`) — this form picks no bed, so there is nothing to race.
+ */
+function readDischargeError(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
+function DischargePanel({ admission, onClose, onDischarged }: {
+  admission: DoctorAdmission | null;
+  onClose: () => void;
+  onDischarged: () => void;
+}) {
+  const { toast } = useToast();
+  const [outcome, setOutcome] = useState<string>('ROUTINE');
+  const [extra, setExtra] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const outcomeConfig = DISCHARGE_OUTCOMES.find(o => o.value === outcome) ?? DISCHARGE_OUTCOMES[0];
+  const missingRequired = outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!admission || saving || missingRequired) return;
+    setSaving(true);
+    setFormError(null);
+    try {
+      const payload: Record<string, string> = { discharge_outcome: outcome };
+      if (summary.trim()) payload.discharge_summary = summary.trim();
+      if (instructions.trim()) payload.discharge_instructions = instructions.trim();
+      for (const f of outcomeConfig.extraFields) {
+        payload[f.key] = extra[f.key].trim();
+      }
+
+      await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
+
+      const name = `${admission.patient.first_name} ${admission.patient.last_name}`;
+      // Never `toast.success` for DECEASED — success toasts render green
+      // with a checkmark, which this outcome must never look like.
+      if (outcome === 'DECEASED') {
+        toast.info(`Recorded: ${name} — deceased.`);
+      } else if (outcome === 'AGAINST_MEDICAL_ADVICE' || outcome === 'ABSCONDED') {
+        toast.warning(`${name} discharged — ${outcomeConfig.label.toLowerCase()}.`);
+      } else {
+        toast.success(`${name} discharged`);
+      }
+      onDischarged();
+      onClose();
+    } catch (err) {
+      setFormError(readDischargeError(err, 'Failed to discharge patient'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SlidePanel
+      open={!!admission}
+      onClose={onClose}
+      title="Discharge patient"
+      subtitle={admission ? `${admission.patient.first_name} ${admission.patient.last_name}` : undefined}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+          <button
+            type="submit"
+            form="doctor-discharge-patient"
+            disabled={saving || missingRequired}
+            className={`px-4 py-2 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors ${
+              outcomeConfig.tone === 'somber' ? 'bg-ink hover:opacity-90' : 'bg-primary hover:bg-primary-dark'
+            }`}
+          >
+            {saving ? 'Saving…' : outcomeConfig.tone === 'somber' ? 'Record outcome' : 'Discharge'}
+          </button>
+        </div>
+      }
+    >
+      <form id="doctor-discharge-patient" onSubmit={submit} className="space-y-4">
+        <div>
+          <label htmlFor="doctor-discharge-outcome" className="block text-xs font-medium text-text-soft mb-1">Outcome</label>
+          <select
+            id="doctor-discharge-outcome"
+            value={outcome}
+            onChange={e => { setOutcome(e.target.value); setExtra({}); }}
+            className={formInputClass}
+          >
+            {DISCHARGE_OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+
+        {outcomeConfig.tone === 'somber' && (
+          <p role="alert" className="text-xs font-semibold text-ink bg-row-hover border border-border rounded-lg px-3 py-2.5">
+            This records the patient as deceased. It closes the episode and frees the bed.
+          </p>
+        )}
+
+        {outcome === 'AGAINST_MEDICAL_ADVICE' && (
+          <p role="status" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
+            This is recorded under your name as the signing doctor — the backend attests an
+            against-medical-advice discharge to the account that submits it, not a separate
+            signature field (FLAG-042).
+          </p>
+        )}
+
+        {outcomeConfig.extraFields.map(f => (
+          <div key={f.key}>
+            <label htmlFor={`doctor-discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
+            <input
+              id={`doctor-discharge-${f.key}`}
+              type={f.type}
+              value={extra[f.key] ?? ''}
+              onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
+              className={formInputClass}
+            />
+          </div>
+        ))}
+
+        <div>
+          <label htmlFor="doctor-discharge-summary" className="block text-xs font-medium text-text-soft mb-1">
+            {outcome === 'AGAINST_MEDICAL_ADVICE' ? 'Reason (optional)' : 'Discharge summary (optional)'}
+          </label>
+          <textarea id="doctor-discharge-summary" rows={2} value={summary} onChange={e => setSummary(e.target.value)} className={`${formInputClass} h-auto py-2`} />
+        </div>
+        <div>
+          <label htmlFor="doctor-discharge-instructions" className="block text-xs font-medium text-text-soft mb-1">Discharge instructions (optional)</label>
+          <textarea id="doctor-discharge-instructions" rows={2} value={instructions} onChange={e => setInstructions(e.target.value)} className={`${formInputClass} h-auto py-2`} />
+        </div>
+
+        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+      </form>
+    </SlidePanel>
+  );
+}
+
+function AdmissionsPage() {
+  const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&status=ACTIVE');
+  const [discharging, setDischarging] = useState<DoctorAdmission | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <PageHeading title="Admissions" count={count} unit="active" />
+      <DataTable
+        columns={admissionColumns(setDischarging)}
+        data={admissions}
+        getRowKey={a => a.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No active admissions"
+        emptyDescription="Patients admitted under your care — as attending doctor or as the doctor on their episode — will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
+      <DischargePanel
+        key={`discharge-${discharging?.id ?? 'none'}`}
+        admission={discharging}
+        onClose={() => setDischarging(null)}
+        onDischarged={refetch}
+      />
+    </div>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────────
 
 const PAGE_TITLES: Record<string, string> = {
@@ -1255,6 +1536,7 @@ const PAGE_TITLES: Record<string, string> = {
   appointments:  'Appointments',
   referrals:     'Referrals',
   prescriptions: 'Prescriptions',
+  admissions:    'Admissions',
 };
 
 interface Props {
@@ -1288,6 +1570,7 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'appointments'  && <AppointmentsPage />}
       {page === 'referrals'     && <ReferralsPage />}
       {page === 'prescriptions' && <PrescriptionsPage />}
+      {page === 'admissions'    && <AdmissionsPage />}
     </DashboardShell>
   );
 }

@@ -205,6 +205,13 @@ export const ENDPOINTS = {
   WARD_BEDS: '/ward/beds/',
   WARD_BED: (id: string) => `/ward/beds/${id}/`,
   WARD_ROOMS: '/ward/rooms/',
+  // FLAG-040/042 (doctor admissions page, 2026-09-15 contract): append
+  // `?mine=true` for a DOCTOR to restrict this list to admissions where the
+  // caller is the attending_doctor OR episode.doctor — verified against
+  // `apps/ward/models.py admissions_for_doctor` + `apps/ward/views.py`
+  // `AdmissionViewSet.get_queryset` on backend `develop`. The doctor
+  // dashboard's "Admissions Under Care" stat tile counts the identical query
+  // (apps/patients/doctor_views.py, FLAG-587) — the two must never disagree.
   ADMISSIONS: '/ward/admissions/',
   ADMISSION: (id: string) => `/ward/admissions/${id}/`,
   // A-2b (emergency admission): DOCTORs in the caller's org, for the
