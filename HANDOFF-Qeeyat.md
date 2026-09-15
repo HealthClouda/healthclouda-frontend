@@ -60,6 +60,48 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-15 — reviewing @Bastoh's four PRs (#147–#150) (branch: docs/review-147-150-flags-2026-09-15)
+
+**Goal:** session ritual, then review the four open PRs.
+
+**What I did:**
+- Reviewed #147, #148, #149 and #150 against backend `develop` source, the live schema and the
+  backend PR bodies, not only the diffs. Posted a comment on each.
+- Logged **FLAG-242** and **FLAG-243**. Raised a Cross-Lane row for @Bastoh about agents sharing one
+  backend checkout. Opened **#152** (docs only, reviewer @Bastoh). tsc clean · **328/328** · build green.
+- **#150: CHANGES_REQUESTED.**
+
+**What I found:**
+- **#148:** matches backend #199's shapes (merged 09:29): the string `details.patient` and the flat 409.
+  The one real gap is FLAG-243. `POST /episodes/` has no deceased guard, so the emergency admit
+  leaves an ACTIVE episode behind on the new hard stop. Every caller of `patient_is_deceased()` is in
+  referrals or `apps/ward`.
+- **#150:** first review said hold, because backend `get_queryset` returned **the whole org's
+  admissions** to any staff user and `?mine=true` was unmerged. **@Qeeyat told me #207 had merged.
+  Verified it before correcting**: merged 14:48 (`baf2c8b`), and the live `api-dev` schema now lists
+  `mine`. Posted a correction. The PR still copies the discharge form, and with it FLAG-242.
+- 🔴 **FLAG-242 is live on `develop` today.** Discharge `datetime-local` values go out with no offset
+  against `TIME_ZONE='UTC'`, so time of death is stored an hour late for Lagos.
+- **#147/#149** are one-row claim PRs that conflict at the same line (FLAG-240 again). #147 is stale
+  (backend merged). #149's row claims `?mine=true` was merged at `7c84fa0`, which is false; that
+  commit is backend #201, a docstring fix.
+- 🎯 **@Bastoh's agent numbered a flag FLAG-241, in my range.** I skipped to 242 rather than collide.
+  Its write-up says agents read a shared backend checkout holding another agent's uncommitted work.
+  That is how the false "merged" claim happened.
+
+**Decisions:**
+- Posted comments only, no approvals. Recommended closing #147/#149 and carrying each row in the
+  feature PR's own commit instead.
+- `?status=ACTIVE` is not an invented param: `get_queryset` reads it by hand, and the schema now
+  documents it.
+
+**Left undone / next:**
+- [ ] **Set my own verdicts on #148 (request changes: FLAG-243), #149 and #147.** Only #150's is set.
+- [ ] **The five `.claude/` files are deleted but unstaged in my working tree, cause unknown.** Restore
+      them with `git restore .claude` unless the deletion was deliberate. They are @Bastoh's agent setup.
+- [ ] Fix FLAG-242 in both copies once #150 settles, ideally as one shared discharge module.
+- [ ] Re-review #150 when he pushes.
+
 ### 2026-09-13 — landing a session that spent four days on a laptop (branch: docs/land-2026-09-09-session)
 
 **Goal:** session ritual after a break. The ritual itself turned up the finding: **the 9 Sep session
