@@ -762,8 +762,43 @@ function admissionFieldError(err: unknown): { field: string | null; message: str
     // A-3: 'admission_reason'/'admission_source'/'attending_doctor' added
     // for the emergency path — AdmissionCreateSerializer.validate
     // (apps/ward/serializers.py) can now reject on any of these three too.
+    // 'patient' (backend fix/admission-refusal-shapes, paired with this
+    // branch) is a hard stop — see admissionFieldError's caller, which never
+    // offers an override for it the way it does for 'gender'.
     ['gender', 'admission_reason', 'admission_source', 'attending_doctor', 'episode', 'bed', 'patient', 'non_field_errors'],
     'Failed to admit patient',
+  );
+}
+
+/**
+ * A bed assigned seconds ago by someone else — 409, not 400. Deliberately
+ * checked BEFORE `readFieldError`/`admissionFieldError`: the backend's 409
+ * body is flat (no `details` key at all, same shape the flat gender-mismatch
+ * error used to have pre-#194), so routing it through the field-error path
+ * would just fall through to `non_field_errors`/the generic fallback and get
+ * rendered as if the nurse had typed something wrong. She didn't — the bed
+ * she picked was valid when she picked it. The only correct response is to
+ * re-fetch the bed list and let her pick again, not to blame a field.
+ */
+function isBedConflict(err: unknown): boolean {
+  return err instanceof ClientApiError && err.status === 409;
+}
+
+const BED_CONFLICT_MESSAGE = 'That bed was just taken by another patient — the list below has been refreshed, pick another.';
+
+// Non-blocking by design — `role="status"` (polite), not `role="alert"`,
+// and it renders ALONGSIDE the rest of the form rather than replacing it
+// the way GenderOverrideWarning/PatientBlockedNotice do. Her input was
+// valid; nothing about the rest of what she typed (reason, doctor, …) needs
+// re-entering, only the bed.
+function BedConflictNotice({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div role="status" className="rounded-lg border border-info/30 bg-info-bg px-3 py-2.5 flex items-start justify-between gap-2">
+      <p className="text-xs font-semibold text-info">{BED_CONFLICT_MESSAGE}</p>
+      <button type="button" onClick={onDismiss} className="text-xs font-semibold text-text-soft hover:text-ink flex-shrink-0">
+        Dismiss
+      </button>
+    </div>
   );
 }
 
@@ -876,6 +911,22 @@ function GenderOverrideWarning({ message, saving, onOverride, onCancel }: {
   );
 }
 
+// `details.patient` — a hard stop, not a two-step. Unlike the gender/on-duty
+// warnings above there is no override: no bed choice or confirmation click
+// changes this outcome, so the form offers neither. Deliberately renders
+// only the backend's own message, with no "why" added and no "try again" —
+// the instruction for the nurse here is to escalate, not retry.
+function PatientBlockedNotice({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div role="alert" className="rounded-lg border border-danger/30 bg-danger-bg px-3 py-2.5 space-y-2">
+      <p className="text-xs font-semibold text-danger">{message}</p>
+      <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs font-semibold text-text-soft hover:text-ink">
+        Close
+      </button>
+    </div>
+  );
+}
+
 function AdmitForm({ episode, onClose, onAdmitted }: {
   episode: EpisodeListItem | null;
   onClose: () => void;
@@ -891,6 +942,12 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
   // Set only when the server's gender two-step fires (backend FLAG-301) — a
   // deliberate pause for the clinician to confirm, never auto-retried.
   const [genderWarning, setGenderWarning] = useState<string | null>(null);
+  // Set on `details.patient` — a hard stop, never retried and never given an
+  // override (see PatientBlockedNotice).
+  const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
+  // Set on a 409 — non-blocking (see BedConflictNotice): the rest of the
+  // form stays live, only the bed list gets refreshed.
+  const [bedConflict, setBedConflict] = useState(false);
 
   async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
     e.preventDefault();
@@ -910,9 +967,21 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       onAdmitted();
       onClose();
     } catch (err) {
+      // The bed she picked was valid when she picked it — someone else just
+      // took it. Not her mistake and not a field to correct: re-fetch the
+      // beds and let her carry on, rather than showing a validation error.
+      if (isBedConflict(err)) {
+        setBedId('');
+        setBedConflict(true);
+        void refetchBeds();
+        toast.warning(BED_CONFLICT_MESSAGE);
+        return;
+      }
       const { field, message } = admissionFieldError(err);
       if (field === 'gender' && !override) {
         setGenderWarning(message);
+      } else if (field === 'patient') {
+        setPatientBlocked(message);
       } else {
         setFormError(message);
       }
@@ -930,7 +999,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && (
+          {!genderWarning && !patientBlocked && (
             <button type="submit" form="admit-patient" disabled={saving || !bedId}
               className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {saving ? 'Admitting…' : 'Admit'}
@@ -940,6 +1009,11 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       }
     >
       <form id="admit-patient" onSubmit={(e) => void submit(e, false)} className="space-y-4">
+        {patientBlocked ? (
+          <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
+        ) : (
+          <>
+        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
         <BedPicker
           id="admit-bed"
           beds={beds}
@@ -947,7 +1021,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
         />
 
         <div>
@@ -968,6 +1042,8 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
             onOverride={(e) => void submit(e, true)}
             onCancel={() => setGenderWarning(null)}
           />
+        )}
+          </>
         )}
 
         {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
@@ -1200,6 +1276,14 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
   // selectable in the picker below (not disabled) precisely so this
   // override can be exercised from the UI.
   const [doctorWarning, setDoctorWarning] = useState<string | null>(null);
+  // Set on `details.patient` from the admission POST (e.g. the patient
+  // cannot be admitted at all) — a hard stop, never retried and never given
+  // an override. Distinct from `episodeFieldError`'s own 'patient' case
+  // above (the episode-consent rejection), which is a plain formError.
+  const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
+  // Set on a 409 from the admission POST — non-blocking, the episode is
+  // already created and the rest of the form stays live.
+  const [bedConflict, setBedConflict] = useState(false);
   // Set once the episode POST succeeds. Kept in STATE, not a local variable
   // in `submit` — the gender two-step (and a plain retry after a failed bed
   // assignment) re-invokes `submit` from scratch, and a local variable would
@@ -1271,11 +1355,27 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       onAdmitted();
       onClose();
     } catch (err) {
+      // The bed she picked was valid a moment ago — someone else just took
+      // it. The episode already exists (ACTIVE), so this is purely a bed
+      // re-pick, not a lost admission: re-fetch the beds and let her retry
+      // the same episode/patient with a different bed.
+      if (isBedConflict(err)) {
+        setBedId('');
+        setBedConflict(true);
+        void refetchBeds();
+        toast.warning(BED_CONFLICT_MESSAGE);
+        return;
+      }
       const { field, message } = admissionFieldError(err);
       if (field === 'gender' && !overrides.gender) {
         setGenderWarning(message);
       } else if (field === 'attending_doctor' && !overrides.doctor) {
         setDoctorWarning(message);
+      } else if (field === 'patient') {
+        // Hard stop — no override, no "find them in the list to retry"
+        // language (unlike the else branch below), since retrying cannot
+        // change this outcome.
+        setPatientBlocked(message);
       } else {
         // The episode is already created and ACTIVE at this point — it will
         // show up in the ordinary Admit Patient list below, so a failed bed
@@ -1300,7 +1400,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && !doctorWarning && (
+          {!genderWarning && !doctorWarning && !patientBlocked && (
             <button
               type="submit"
               form="emergency-admit"
@@ -1328,6 +1428,10 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           </div>
         )}
 
+        {patientBlocked ? (
+          <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
+        ) : (
+          <>
         <div>
           <label htmlFor="emergency-reason" className="block text-xs font-medium text-text-soft mb-1">
             Reason for admission
@@ -1342,6 +1446,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           />
         </div>
 
+        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
         <BedPicker
           id="emergency-admit-bed"
           beds={beds}
@@ -1349,7 +1454,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
         />
 
         <DoctorPicker
@@ -1377,6 +1482,8 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
             onOverride={(e) => void submit(e, { doctor: true })}
             onCancel={() => setDoctorWarning(null)}
           />
+        )}
+          </>
         )}
 
         {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
@@ -1485,6 +1592,11 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [genderWarning, setGenderWarning] = useState<string | null>(null);
+  // Set on `details.patient` — a hard stop, never retried and never given
+  // an override, same as the other two admit surfaces.
+  const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
+  // Set on a 409 — non-blocking, same as the other two admit surfaces.
+  const [bedConflict, setBedConflict] = useState(false);
 
   async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
     e.preventDefault();
@@ -1498,12 +1610,24 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
       onAccepted();
       onClose();
     } catch (err) {
+      // The bed she picked was valid a moment ago — someone else just took
+      // it. Not her mistake: re-fetch the beds and let her pick again,
+      // rather than treating it as a validation error on the bed field.
+      if (isBedConflict(err)) {
+        setBedId('');
+        setBedConflict(true);
+        void refetchBeds();
+        toast.warning(BED_CONFLICT_MESSAGE);
+        return;
+      }
       // Reuses the same gender two-step as the other two admit paths
       // (backend FLAG-301) — a ward gender-policy mismatch applies to a bed
       // regardless of which of the three entry points put the patient there.
-      const { field, message } = readFieldError(err, ['gender', 'bed', 'non_field_errors'], 'Failed to accept admission request');
+      const { field, message } = readFieldError(err, ['gender', 'bed', 'patient', 'non_field_errors'], 'Failed to accept admission request');
       if (field === 'gender' && !override) {
         setGenderWarning(message);
+      } else if (field === 'patient') {
+        setPatientBlocked(message);
       } else {
         setFormError(message);
       }
@@ -1521,7 +1645,7 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && (
+          {!genderWarning && !patientBlocked && (
             <button type="submit" form="accept-request" disabled={saving || !bedId}
               className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {saving ? 'Admitting…' : 'Accept & admit'}
@@ -1537,6 +1661,11 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
             {request.clinical_reason && <p>{request.clinical_reason}</p>}
           </div>
         )}
+        {patientBlocked ? (
+          <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
+        ) : (
+          <>
+        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
         <BedPicker
           id="accept-request-bed"
           beds={beds}
@@ -1544,7 +1673,7 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
         />
         {genderWarning && (
           <GenderOverrideWarning
@@ -1553,6 +1682,8 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
             onOverride={(e) => void submit(e, true)}
             onCancel={() => setGenderWarning(null)}
           />
+        )}
+          </>
         )}
         {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
       </form>
