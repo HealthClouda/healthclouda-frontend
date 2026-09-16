@@ -105,7 +105,7 @@ export function ContactForm() {
       <div>
         <textarea
           {...register('message')}
-          placeholder="Tell us about your facility — size, locations, what you need…"
+          placeholder="Tell us about your facility: size, locations, what you need…"
           aria-label="Message"
           className={`min-h-[140px] w-full px-4 py-3.5 bg-input-bg border-[1.5px] rounded-[11px] font-body text-sm text-ink outline-none transition-all resize-y placeholder:text-gray-400 focus:border-primary focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,117,255,0.09)] ${
             errors.message ? 'border-red-300 bg-red-50' : 'border-hairline'

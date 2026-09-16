@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://healthclouda.com'),
   title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
   description:
-    'HealthClouda links hospitals and clinics across Africa so records and referrals move with the patient — securely, instantly. No repeated tests. No paper files.',
+    'HealthClouda links hospitals and clinics across Africa so records and referrals move with the patient, securely and instantly. No repeated tests. No paper files.',
   openGraph: {
     type: 'website',
     siteName: 'HealthClouda',
