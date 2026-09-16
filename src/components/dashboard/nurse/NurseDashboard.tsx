@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { formInputClass } from '@/components/ui/FormField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SlidePanel } from '@/components/ui/SlidePanel';
+import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
 import { useApi, useAllPages, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -241,217 +242,22 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 
 // ─── Discharge (Part 2) ────────────────────────────────────────────
 //
-// Verified against backend source 2026-09-14 (`DischargeSerializer`,
-// `discharge_patient()`, `apps/ward/serializers.py` + `services.py`):
-// `discharge_outcome`, `destination`, `deceased_at`, `discovered_at` are
-// real fields, not contract-only. AGAINST_MEDICAL_ADVICE is different from
-// what's below, though — the backend has NO `reason`/`witnessed_by` fields
-// for it at all; the medical advisor's 2026-09-13 answer made the signature
-// `discharged_by`'s own role (DOCTOR-only), not a second free-text field.
-// `CanManageAdmissions` still lets a NURSE reach this endpoint, so a nurse
-// choosing AGAINST_MEDICAL_ADVICE here would 400 role-gated at the service
-// layer — see the fix stacked on this branch.
+// The outcome list and the panel itself now live in one shared module
+// (`@/components/dashboard/shared/DischargePanel`), used by both this file
+// and DoctorDashboard.tsx — see that module's header comment for why
+// (FLAG-242 review of #150: a rule copied instead of shared meant the same
+// timezone bug had to be fixed twice). The one real behavioural difference
+// between the two dashboards — AGAINST_MEDICAL_ADVICE being blocked for a
+// nurse but not a doctor — is passed in as `canRecordAgainstMedicalAdvice`,
+// not a second copy of the panel.
 //
-// The outcome list is declared exactly ONCE — value, label, tone, and which
-// extra fields it requires — so correcting it is a one-place edit.
-//
-// ⚠️ CORRECTED against the advisor's actual Q3 answer, twice now:
-// - The AMA reason must NOT be required ("sometimes there might be no
-//   particular reason, the patient just wants to leave"). It is no longer a
-//   separate extra field — it reuses the existing, already-optional
-//   "Discharge summary" textarea below, which is exactly what the backend's
-//   `discharge_patient()` reads as the AMA reason (`summary` ->
-//   `discharge_summary`). The previous `reason` extra field sent a
-//   `reason` key the backend has never read — required-and-wrong at once.
-// - FLAG-042 — "signed by a doctor" is NOT a form field any more.
-//   `witnessed_by` was a first correction's stand-in for this (a doctor
-//   picker sending a name into the old free-text CharField), but the
-//   backend went further than an FK: `apps/ward/migrations/0008_remove_
-//   witnessed_by_medical_answers.py` DROPS the column outright, and
-//   `DischargeSerializer` (apps/ward/serializers.py:527) no longer accepts
-//   it — sending it 400s. The signer is now `discharged_by`, the ACTING
-//   user, role-gated to DOCTOR for this one outcome inside
-//   `discharge_patient()` (the FLAG-272 "attest via the acting user"
-//   precedent, not a second signature field). There is nothing left to
-//   submit here — see the AMA-blocked banner in DischargePanel below.
-interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
-interface DischargeOutcomeConfig {
-  value: string;
-  label: string;
-  // 'somber' gets NO green, NO "success" language, NO checkmark — the
-  // explicit ask: a DECEASED discharge must never read like the others.
-  tone: 'neutral' | 'caution' | 'somber';
-  extraFields: DischargeExtraField[];
-}
-const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
-  { value: 'ROUTINE', label: 'Routine discharge', tone: 'neutral', extraFields: [] },
-  {
-    value: 'TRANSFERRED_OUT', label: 'Transferred out', tone: 'neutral',
-    extraFields: [{ key: 'destination', label: 'Destination', type: 'text' }],
-  },
-  {
-    // No extra fields at all — see the FLAG-042 block comment above. The
-    // required "reason" the backend once wanted is gone, and the doctor
-    // signature is the acting user, not something this form submits.
-    value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution',
-    extraFields: [],
-  },
-  {
-    value: 'ABSCONDED', label: 'Absconded', tone: 'caution',
-    extraFields: [{ key: 'discovered_at', label: 'Discovered at', type: 'datetime-local' }],
-  },
-  {
-    value: 'DECEASED', label: 'Deceased', tone: 'somber',
-    extraFields: [{ key: 'deceased_at', label: 'Time of death', type: 'datetime-local' }],
-  },
-];
-
-function DischargePanel({ admission, onClose, onDischarged }: {
-  admission: NurseAdmission | null;
-  onClose: () => void;
-  onDischarged: () => void;
-}) {
-  const { toast } = useToast();
-  const [outcome, setOutcome] = useState<string>('ROUTINE');
-  const [extra, setExtra] = useState<Record<string, string>>({});
-  const [summary, setSummary] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const outcomeConfig = DISCHARGE_OUTCOMES.find(o => o.value === outcome) ?? DISCHARGE_OUTCOMES[0];
-  // FLAG-042 — this screen is nurse-only (route-gated the same way every
-  // dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
-  // `discharge_patient()` now rejects AGAINST_MEDICAL_ADVICE unless the
-  // ACTING user's role is DOCTOR. So this outcome can never be completed
-  // from here — not "sometimes fails", always. Block it client-side with a
-  // clear reason instead of letting a nurse submit and hit a 400 she can't
-  // interpret.
-  const amaBlockedForRole = outcome === 'AGAINST_MEDICAL_ADVICE';
-  const missingRequired = amaBlockedForRole || outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!admission || saving || missingRequired) return;
-    setSaving(true);
-    setFormError(null);
-    try {
-      const payload: Record<string, string> = { discharge_outcome: outcome };
-      // The AMA reason lives here, not as a separate required field — see
-      // the FLAG-042 comment on DISCHARGE_OUTCOMES. Optional for every
-      // outcome, including AMA.
-      if (summary.trim()) payload.discharge_summary = summary.trim();
-      if (instructions.trim()) payload.discharge_instructions = instructions.trim();
-      for (const f of outcomeConfig.extraFields) {
-        payload[f.key] = extra[f.key].trim();
-      }
-
-      await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
-
-      const name = `${admission.patient.first_name} ${admission.patient.last_name}`;
-      // Never `toast.success` for DECEASED — the explicit ask is no
-      // celebratory/"success" language on that path, and success toasts in
-      // this app render green with a checkmark.
-      if (outcome === 'DECEASED') {
-        toast.info(`Recorded: ${name} — deceased.`);
-      } else if (outcome === 'AGAINST_MEDICAL_ADVICE' || outcome === 'ABSCONDED') {
-        toast.warning(`${name} discharged — ${outcomeConfig.label.toLowerCase()}.`);
-      } else {
-        toast.success(`${name} discharged`);
-      }
-      onDischarged();
-      onClose();
-    } catch (err) {
-      const { message } = readFieldError(
-        err,
-        ['discharge_outcome', 'discharge_summary', ...outcomeConfig.extraFields.map(f => f.key), 'non_field_errors'],
-        'Failed to discharge patient',
-      );
-      setFormError(message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <SlidePanel
-      open={!!admission}
-      onClose={onClose}
-      title="Discharge patient"
-      subtitle={admission ? `${admission.patient.first_name} ${admission.patient.last_name}` : undefined}
-      footer={
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          <button
-            type="submit"
-            form="discharge-patient"
-            disabled={saving || missingRequired}
-            className={`px-4 py-2 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors ${
-              outcomeConfig.tone === 'somber' ? 'bg-ink hover:opacity-90' : 'bg-primary hover:bg-primary-dark'
-            }`}
-          >
-            {saving ? 'Saving…' : outcomeConfig.tone === 'somber' ? 'Record outcome' : 'Discharge'}
-          </button>
-        </div>
-      }
-    >
-      <form id="discharge-patient" onSubmit={submit} className="space-y-4">
-        <div>
-          <label htmlFor="discharge-outcome" className="block text-xs font-medium text-text-soft mb-1">Outcome</label>
-          <select
-            id="discharge-outcome"
-            value={outcome}
-            onChange={e => { setOutcome(e.target.value); setExtra({}); }}
-            className={formInputClass}
-          >
-            {DISCHARGE_OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-
-        {outcomeConfig.tone === 'somber' && (
-          <p role="alert" className="text-xs font-semibold text-ink bg-row-hover border border-border rounded-lg px-3 py-2.5">
-            This records the patient as deceased. It closes the episode and frees the bed.
-          </p>
-        )}
-
-        {amaBlockedForRole && (
-          <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
-            Only a doctor can complete an against-medical-advice discharge — the backend now
-            attests this to the signed-in account, and a nurse account cannot be the signer.
-            Ask an on-duty doctor to record this discharge.
-          </p>
-        )}
-
-        {outcomeConfig.extraFields.map(f => (
-          <div key={f.key}>
-            <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
-            <input
-              id={`discharge-${f.key}`}
-              type={f.type}
-              value={extra[f.key] ?? ''}
-              onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
-              className={formInputClass}
-            />
-          </div>
-        ))}
-
-        <div>
-          <label htmlFor="discharge-summary" className="block text-xs font-medium text-text-soft mb-1">
-            {/* Reused by AMA as the (optional) reason — see the FLAG-042 comment above. */}
-            {outcome === 'AGAINST_MEDICAL_ADVICE' ? 'Reason (optional)' : 'Discharge summary (optional)'}
-          </label>
-          <textarea id="discharge-summary" rows={2} value={summary} onChange={e => setSummary(e.target.value)} className={`${formInputClass} h-auto py-2`} />
-        </div>
-        <div>
-          <label htmlFor="discharge-instructions" className="block text-xs font-medium text-text-soft mb-1">Discharge instructions (optional)</label>
-          <textarea id="discharge-instructions" rows={2} value={instructions} onChange={e => setInstructions(e.target.value)} className={`${formInputClass} h-auto py-2`} />
-        </div>
-
-        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
-      </form>
-    </SlidePanel>
-  );
-}
+// FLAG-042 — this screen is nurse-only (route-gated the same way every
+// dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
+// `discharge_patient()` rejects AGAINST_MEDICAL_ADVICE unless the ACTING
+// user's role is DOCTOR. So `canRecordAgainstMedicalAdvice={false}` below is
+// not "sometimes blocked" — it is always, because `CanManageAdmissions`
+// still lets a NURSE reach this endpoint and the service layer 400s on the
+// role check.
 
 // ─── My Patients page ─────────────────────────────────────────────
 //
@@ -504,6 +310,13 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
         admission={discharging}
         onClose={() => setDischarging(null)}
         onDischarged={refetch}
+        canRecordAgainstMedicalAdvice={false}
+        idPrefix="discharge"
+        readError={(err, fallback) => readFieldError(
+          err,
+          ['discharge_outcome', 'discharge_summary', 'destination', 'deceased_at', 'discovered_at', 'non_field_errors'],
+          fallback,
+        ).message}
       />
     </div>
   );

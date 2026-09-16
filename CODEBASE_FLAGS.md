@@ -3250,18 +3250,17 @@ I wrote *"five of seven"*. **There are six dashboards; seven is the number of st
 **Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **UI HALF CLOSED 2026-09-15** — the read/discharge half; the admit-picker half stays open, see below
 **Found:** 2026-09-11, building WARD-1 (the admissions write path)
 
-> ✅ **2026-09-15 — the "no doctor-side bed/ward picker has been built" half is now half-answered,
-> PENDING a backend PR that has not merged.** `DoctorDashboard.tsx` gained an Admissions page (`GET
-> /ward/admissions/?mine=true&status=ACTIVE`) so a doctor can READ their own admitted patients'
-> bed/ward once the backend `?mine=true` filter ships — the exact capability this flag's
-> `CanManageWard` fix unblocked but nothing used. ⚠️ **`?mine=true` does NOT exist on backend `develop`
-> yet** (checked against `git show origin/develop:apps/ward/views.py`, not a shared checkout's working
-> tree — see the withdrawn FLAG-241 below for how that distinction was missed once already), so this
-> frontend PR must not merge before the backend one does. **Still genuinely open regardless:** admitting
-> a NEW patient from the doctor side (a bed **picker** for `POST /ward/admissions/`) was explicitly out
-> of scope for this build (see FLAG-042 below, which this same PR closes) — `RequestAdmissionPanel`
-> still posts to `/ward/admission-requests/`, not `/ward/admissions/` directly, and still omits
-> `requested_ward`. Leave this flag open for that half.
+> ✅ **2026-09-15 — the "no doctor-side bed/ward picker has been built" half is now half-answered.**
+> `DoctorDashboard.tsx` gained an Admissions page (`GET /ward/admissions/?mine=true&status=ACTIVE`) so
+> a doctor can READ their own admitted patients' bed/ward — the exact capability this flag's
+> `CanManageWard` fix unblocked but nothing used until now. Backend #207 (the `?mine=true` filter /
+> `admissions_for_doctor()` contract) merged to backend `develop` 2026-09-15 — see the withdrawn
+> FLAG-043 below (renumbered from FLAG-241) for the process lesson from checking that too casually the
+> first time. **Still genuinely open regardless:** admitting a NEW patient from the doctor side (a bed
+> **picker** for `POST /ward/admissions/`) was explicitly out of scope for this build (see FLAG-042
+> below, which this same PR closes) — `RequestAdmissionPanel` still posts to
+> `/ward/admission-requests/`, not `/ward/admissions/` directly, and still omits `requested_ward`.
+> Leave this flag open for that half.
 
 > ✅ **2026-09-14 — re-verified against `apps/core/permissions.py` directly.** `CanManageWard.has_permission` now reads `request.user.role in ['NURSE', 'RECEPTIONIST', 'ORGANIZATION_ADMIN', 'DOCTOR']` for `SAFE_METHODS`, and the class docstring names this flag explicitly ("FLAG-040: … This grants DOCTOR the read half only"). `GET /ward/beds/` no longer 403s for a DOCTOR token. The blocker below is gone; **no doctor-side bed/ward picker has been built to use it** — that remains open as a UI gap, not a permission gap, and is out of scope for this branch. A doctor ordering an admission (`RequestAdmissionPanel`, `DoctorDashboard.tsx`) still omits `requested_ward` deliberately — that choice no longer needs to be structural, but changing it is new UI work, not a flag fix.
 
@@ -3361,7 +3360,12 @@ only a doctor can legally perform and only a nurse's screen can currently reach.
 
 ---
 
-### FLAG-241 — ❌ WITHDRAWN 2026-09-15: "the `?mine=true` contract was already merged" was a false finding — a working tree is not a branch
+### FLAG-043 — ❌ WITHDRAWN 2026-09-15: "the `?mine=true` contract was already merged" was a false finding — a working tree is not a branch
+
+⚠️ **Renumbered from FLAG-241 to FLAG-043 on 2026-09-16 (Qeeyat's #150 review).** 241 sits in
+@Qeeyat's 200–399 range; @Bastoh's is 001–199. 043 is the next free number in that range, confirmed
+against `CODEBASE_FLAGS.md` on `origin/develop` and every open PR branch (#147–#153) as of this
+renumbering — the highest number genuinely minted in 001–199 anywhere was FLAG-042.
 **Severity:** P4 (process lesson, not a backend defect) · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ❌ **WITHDRAWN — the underlying claim was wrong**
 **Found:** 2026-09-15, building the doctor admissions page (closing FLAG-040/042). **Withdrawn:** same day, caught by the orchestrator.
 
@@ -3409,6 +3413,12 @@ now."** To claim something is merged, check `git show <remote-branch>:<path>` (o
 <remote-branch> -- <path>`), never the working tree, and never anchor an ancestry check to a commit
 picked by "most recent in the log" without reading what that commit's diff actually contains.
 
-**Corrected status:** the task's original framing stands — `?mine=true` is genuinely not merged on
-backend `develop` as of this writing, and #150 is correctly held pending that backend PR. No action
-needed from the cross-repo tracker; there was nothing stale to correct.
+**Corrected status (2026-09-15):** the task's original framing stood at the time — `?mine=true` was
+genuinely not merged on backend `develop`, and #150 was correctly held pending that backend PR. No
+action was needed from the cross-repo tracker; there was nothing stale to correct.
+
+**Update (2026-09-16):** backend #207 shipped the contract and merged to `develop` the same day this
+entry was written (2026-09-15, 14:48) — #150's hold has been lifted and the false "NOT merged" notes
+it carried (PR body, FLAG-040, and the in-code comments in `DoctorDashboard.tsx`/`config.ts`) have
+been removed. This entry itself stays WITHDRAWN — the finding it records was always about *how* the
+false claim was reached, not about the backend's actual state at any one moment.

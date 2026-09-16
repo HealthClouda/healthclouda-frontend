@@ -961,5 +961,30 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
       expect(recordButton.className).not.toMatch(/bg-primary/);
       expect(screen.getByText(/records the patient as deceased/i)).toBeInTheDocument();
     });
+
+    it("a doctor's time of death is sent with a timezone offset, not the raw datetime-local string (FLAG-242 — shared with NurseDashboard's DischargePanel)", async () => {
+      dataActionMock.mockResolvedValue({ message: 'Patient discharged successfully' });
+      await openDischarge();
+
+      fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'DECEASED' } });
+      const recordButton = screen.getByRole('button', { name: 'Record outcome' });
+      fireEvent.change(screen.getByLabelText('Time of death'), { target: { value: '2026-09-15T10:00' } });
+      fireEvent.click(recordButton);
+
+      // Same instant, expressed with an explicit offset — see the identical
+      // assertion on NurseDashboard.test.tsx for why a computed value (not a
+      // hardcoded literal) is used here.
+      const expectedDeceasedAt = new Date('2026-09-15T10:00').toISOString();
+      await waitFor(() => {
+        expect(dataActionMock).toHaveBeenCalledWith(
+          ENDPOINTS.ADMISSION_DISCHARGE(doctorAdmission.id),
+          'POST',
+          expect.objectContaining({ discharge_outcome: 'DECEASED', deceased_at: expectedDeceasedAt }),
+        );
+      });
+      const sentPayload = dataActionMock.mock.calls.at(-1)?.[2] as Record<string, string>;
+      expect(sentPayload.deceased_at).toMatch(/Z$|[+-]\d{2}:\d{2}$/);
+      expect(sentPayload.deceased_at).not.toBe('2026-09-15T10:00');
+    });
   });
 });
