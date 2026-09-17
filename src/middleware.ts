@@ -8,6 +8,7 @@ import {
 import { ROLES } from '@/lib/config';
 import type { Role } from '@/lib/config';
 import { refreshSessionTokens } from '@/lib/session-refresh';
+import { SESSION_EXPIRY_REASON, type SessionExpiryCode } from '@/lib/session-expiry-code';
 
 // Role → dashboard path (mirrors roleDashboardPath from lib/router — duplicated
 // here because middleware runs on the edge and cannot import from lib/router safely)
@@ -73,11 +74,20 @@ function signinUrlFor(pathname: string, request: NextRequest): URL {
  * that just failed to resume. Without this marker, an unreachable backend would
  * send dashboard → signin → dashboard → signin without end.
  */
+const KNOWN_EXPIRY_REASONS: ReadonlySet<string> = new Set(Object.values(SESSION_EXPIRY_REASON));
+
 const EXPIRED_MARKER = 'session=expired';
 
-function expiredSigninRedirect(pathname: string, request: NextRequest) {
+/**
+ * Build 5 / FLAG-044: when the refusal carries SESSION_IDLE_EXPIRED or
+ * SESSION_MAX_AGE_EXPIRED, redirect with `?reason=idle|max_age` instead of the
+ * generic marker, so the signin page can show the specific plain-language
+ * message (`session-expiry-code.ts`). An ORDINARY rejection (bad/blacklisted
+ * refresh token, no code) keeps today's `?session=expired` unchanged.
+ */
+function expiredSigninRedirect(pathname: string, request: NextRequest, code?: SessionExpiryCode) {
   const url = signinUrlFor(pathname, request);
-  url.search = EXPIRED_MARKER;
+  url.search = code ? `reason=${SESSION_EXPIRY_REASON[code]}` : EXPIRED_MARKER;
   return NextResponse.redirect(url);
 }
 
@@ -108,7 +118,7 @@ async function resumeSession(request: NextRequest, refreshToken: string) {
   const outcome = await refreshSessionTokens(refreshToken);
 
   if (!outcome.ok) {
-    const res = expiredSigninRedirect(pathname, request);
+    const res = expiredSigninRedirect(pathname, request, outcome.reason === 'rejected' ? outcome.code : undefined);
     // `unreachable` says nothing about whether the session is alive, so the
     // cookies stay and the next navigation retries. Only an outright refusal
     // clears them.
@@ -167,10 +177,17 @@ export async function middleware(request: NextRequest) {
     return resumeSession(request, refreshToken);
   }
 
+  // Only the two reasons this build actually emits count as "bounced here".
+  // Matching ANY `?reason=` would let an arbitrary param suppress the
+  // signed-in redirect.
   // Redirect authenticated users away from signin pages to their dashboard.
   // Skipped when we just failed to resume this session, or the two rules
-  // redirect at each other forever.
-  const cameFromFailedResume = request.nextUrl.searchParams.get('session') === 'expired';
+  // redirect at each other forever. `reason=` (build 5 / FLAG-044) is the same
+  // kind of marker as `session=expired` — both say "we just bounced here from
+  // a failed resume", not "the user navigated here fresh".
+  const cameFromFailedResume =
+    request.nextUrl.searchParams.get('session') === 'expired' ||
+    KNOWN_EXPIRY_REASONS.has(request.nextUrl.searchParams.get('reason') ?? '');
   if (hasSession && userRaw && isSigninRoute(pathname) && !cameFromFailedResume) {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw)) as { role: Role; organization_slug?: string };

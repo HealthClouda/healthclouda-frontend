@@ -9,8 +9,12 @@ export interface User {
   organization_slug?: string;
   organization_name?: string;
   // Present on /auth/me/ for DOCTOR/NURSE only (GLOBAL-4, shipped 2026-07-09);
-  // keys omitted entirely for other roles.
+  // keys omitted entirely for other roles. `is_on_duty` now means "on duty
+  // RIGHT NOW" (active in the last 15 minutes AND not switched off), and
+  // `off_duty_override` (build 5 / FLAG-044) says whether the OFF state was
+  // the person's own doing rather than inactivity — see `DutyToggle.tsx`.
   is_on_duty?: boolean;
+  off_duty_override?: boolean;
   duty_toggled_at?: string | null;
 }
 

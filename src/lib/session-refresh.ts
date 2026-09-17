@@ -1,4 +1,5 @@
 import { API_BASE_URL, ENDPOINTS } from './config';
+import { sessionExpiryCodeFrom, type SessionExpiryCode } from './session-expiry-code';
 
 /**
  * The one place that trades a refresh token for a new pair — FLAG-001 / A5.
@@ -18,8 +19,13 @@ import { API_BASE_URL, ENDPOINTS } from './config';
 export type RefreshOutcome =
   /** New pair. `refresh` is absent only if the backend has rotation disabled. */
   | { ok: true; access: string; refresh?: string }
-  /** The backend refused the token: expired, blacklisted, or malformed. The session is over. */
-  | { ok: false; reason: 'rejected' }
+  /**
+   * The backend refused the token: expired, blacklisted, malformed — OR the
+   * session had already lapsed (idle/12h cap), in which case `code` is set.
+   * Build 5 / FLAG-044: refreshing is pointless here, the backend would just
+   * return the same code again — callers must NOT retry when `code` is set.
+   */
+  | { ok: false; reason: 'rejected'; code?: SessionExpiryCode }
   /** No answer at all — DNS, TLS, timeout, connection refused. Says nothing about the session. */
   | { ok: false; reason: 'unreachable' };
 
@@ -42,7 +48,14 @@ export async function refreshSessionTokens(refreshToken: string): Promise<Refres
     return { ok: false, reason: 'unreachable' };
   }
 
-  if (!res.ok) return { ok: false, reason: 'rejected' };
+  if (!res.ok) {
+    // The refresh endpoint can itself return SESSION_IDLE_EXPIRED /
+    // SESSION_MAX_AGE_EXPIRED (contract point 2) — carry it so callers show
+    // the right message instead of the generic "session expired".
+    const body = await res.json().catch(() => null);
+    const code = sessionExpiryCodeFrom(body) ?? undefined;
+    return { ok: false, reason: 'rejected', code };
+  }
 
   try {
     const { access, refresh } = (await res.json()) as { access?: string; refresh?: string };

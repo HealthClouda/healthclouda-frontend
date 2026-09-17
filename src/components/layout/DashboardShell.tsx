@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { SmallScreenGate } from './SmallScreenGate';
 import { useWideViewport } from '@/hooks/use-wide-viewport';
+import { useHeartbeat } from '@/hooks/use-heartbeat';
 import type { NavItem } from './Sidebar';
 import type { Notification } from './DashboardHeader';
 import type { User } from '@/types/auth';
@@ -51,6 +52,12 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const viewport = useWideViewport();
+  // Build 5 / FLAG-044 — one listener here covers every dashboard (staff and
+  // patient) this shell renders. Mounted unconditionally, ABOVE the small-
+  // screen gate below: the session is still live on a narrow screen showing
+  // the gate notice, and the heartbeat carries no PHI, so there is no reason
+  // to tie it to whether the dashboard subtree itself mounts.
+  useHeartbeat();
 
   // FLAG-203 — the gate decides whether this subtree MOUNTS, not how it looks.
   // `children` are React elements the caller already built, but React does not

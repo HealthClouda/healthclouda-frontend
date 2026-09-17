@@ -75,6 +75,13 @@ export const ENDPOINTS = {
   // #66 follow-up). Anti-enumeration: always a generic 200.
   SETUP_PW_RESEND: '/auth/setup-password/resend/',
   TOGGLE_DUTY: '/auth/me/toggle-duty/',
+  // Build 5 (idle sign-out / 12h session cap / duty-as-off-only, FLAG-044).
+  // Counts as activity; refused with SESSION_IDLE_EXPIRED /
+  // SESSION_MAX_AGE_EXPIRED once the session has already lapsed. Fire ONLY on
+  // real interaction (`useHeartbeat`) — never on a timer, or an abandoned ward
+  // computer stays signed in forever, which is the exact threat this build
+  // exists to close.
+  HEARTBEAT: '/auth/me/heartbeat/',
 
   // ── Public / org ───────────────────────────────────────────
   CONTACT_FORM: '/contact/contact-form/',

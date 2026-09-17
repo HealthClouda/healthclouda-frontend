@@ -3411,7 +3411,38 @@ likely alongside whatever answers FLAG-040's doctor-side admit gap — the same 
 their admitted patients" screen would plausibly host both). Until then, an AMA discharge is a workflow
 only a doctor can legally perform and only a nurse's screen can currently reach.
 
----
+### FLAG-044 — a session never ends by itself, and "on duty" is a switch nobody turns off (build 5, frontend half)
+**Severity:** P2 · **Area:** Auth / Session · **Owner:** @Bastoh · **Status:** 🔨 **IN FLIGHT** — this PR (#155)
+**Raised:** 2026-09-16, owner's build-5 assignment. Backend counterparts: **FLAG-569** (duty) and **FLAG-579** (session) in `healthclouda-backend`.
+
+**On the ward.** A doctor signs in on a shared ward computer on Monday morning and walks away without signing out. Today that session lasts the week, so on Wednesday whoever sits down *is* that doctor, with full access to patient records. Separately, "on duty" is a switch flipped by hand that nothing ever flips back, so referrals are routed to doctors who went home days ago. **Real patient data arrives 2026-10-01.**
+
+**Owner's decisions (2026-09-16), which this half implements:**
+- **15 idle minutes** ⇒ signed out **and** off the on-duty list, one mechanism for both.
+- **Typing and clicking count as activity.** A clinician writing a 20-minute note must not be signed out when they press Save.
+- **12 hours from sign-in** ⇒ signed out however active, so a session cannot carry into the next shift.
+- **The duty switch stays, but only takes someone OFF.** On duty = active in the last 15 minutes **and** not manually switched off.
+
+**The backend contract this half is built against** — pinned by the owner before either half started, so the two could be built in parallel. Backend branch `feat/duty-and-session-hardening-569-579`; its PR is linked in #155 once opened.
+
+| | |
+|---|---|
+| `POST /api/v1/auth/me/heartbeat/` | authenticated, empty body, **204 No Content**; counts as activity; never revives an expired session |
+| 401 `code: SESSION_IDLE_EXPIRED` | over 15 minutes idle — on any authenticated request **and** on `POST /auth/refresh/` |
+| 401 `code: SESSION_MAX_AGE_EXPIRED` | over 12 hours since sign-in, same surfaces |
+| `GET /auth/me/` | `is_on_duty` (same field, now derived) **+ new** `off_duty_override` |
+| `POST /auth/me/toggle-duty/` | `{is_on_duty: false}` switches off; `true` clears the override and does **not** by itself put anyone on duty |
+
+⚠️ **This PR must not merge before the backend's**, or the heartbeat 404s and the duty switch reads a field that does not exist.
+
+**Two defects found in review (@Qeeyat, 2026-09-17) and fixed in the same PR — both worth keeping as lessons:**
+1. 🟠 **An active clinician could be signed out as "idle" while typing.** The access cookie's `maxAge` equals the access token's hour (FLAG-026), so it lapses on a perfectly healthy session. The heartbeat treated that ordinary 401 as "not my problem — the next data call will refresh". But a clinician typing a long note **makes no data call for minutes**, so every heartbeat after the hour failed silently, the backend judged the session idle, and the first thing they saw was being signed out on Submit — **losing what they had typed, while active throughout.** Fixed by refreshing once through `client-api.ts`'s **single-flight** promise and retrying the heartbeat exactly once. ⚠️ Deliberately **not** refreshed server-side inside the heartbeat route: a second, independent refresh races the client's own, and the backend rotates and blacklists refresh tokens, so the loser of that race is signed out.
+2. 🟠 **A crafted `?reason=` crashed the sign-in page.** The message lookup was a plain object indexed by an untrusted query param, so `/signin?reason=__proto__` passed `Object.prototype` to React — *"Objects are not valid as a React child"* — and `?reason=constructor` rendered an empty banner. Anyone could put either in a link to an org's sign-in URL. Fixed with `Object.hasOwn`, reproduced RED first (the test throws that exact React error on the pre-fix code).
+
+🎯 **The load-bearing test is the one that proves a NEGATIVE:** with no interaction, **no heartbeat is sent**, however much time passes. A heartbeat on a timer — or on focus or visibility — would keep an abandoned ward computer signed in forever, recreating the very threat this build closes. `use-heartbeat.test.tsx` carries a deliberately-wrong `TimerBasedHeartbeatProbe` decoy and asserts the *decoy* fires, which is what proves the assertion is capable of failing.
+
+**Done when:** the backend half merges, both halves are verified against each other on `api-dev`, and a clinician can complete a long note without being signed out mid-write.
+
 
 ### FLAG-043 — ❌ WITHDRAWN 2026-09-15: "the `?mine=true` contract was already merged" was a false finding — a working tree is not a branch
 

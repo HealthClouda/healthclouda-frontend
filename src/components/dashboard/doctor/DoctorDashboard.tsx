@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { DutyToggle } from '@/components/dashboard/DutyToggle';
+import { DutyToggle, dutyBannerText, type DutyState } from '@/components/dashboard/DutyToggle';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { dataGet } from '@/lib/client-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
@@ -267,8 +267,8 @@ function prescriptionColumns(onCancel: (rx: Prescription) => void): DataTableCol
 // ─── Overview ─────────────────────────────────────────────────────
 
 function OverviewPage({
-  stats, onNavigate, isOnDuty,
-}: { stats: DoctorStats | null; onNavigate: (p: string) => void; isOnDuty: boolean }) {
+  stats, onNavigate, duty,
+}: { stats: DoctorStats | null; onNavigate: (p: string) => void; duty: DutyState }) {
   const { data: apptData, loading: apptLoading, error: apptError, refetch: apptRefetch } =
     useApi<Paginated<Appointment>>(ENDPOINTS.DOC_APPOINTMENTS);
   // ?status=ACTIVE is the real enum value (ACTIVE | COMPLETED, verified against
@@ -295,9 +295,9 @@ function OverviewPage({
   return (
     <div className="space-y-6">
       {/* Duty status banner */}
-      <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${isOnDuty ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
-        <p className={`text-sm font-medium ${isOnDuty ? 'text-blue-700' : 'text-gray-500'}`}>
-          {isOnDuty ? 'You are on duty — patients may be assigned to you.' : 'You are currently off duty.'}
+      <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${duty.isOnDuty ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+        <p className={`text-sm font-medium ${duty.isOnDuty ? 'text-blue-700' : 'text-gray-500'}`}>
+          {dutyBannerText(duty)}
         </p>
       </div>
 
@@ -1395,7 +1395,10 @@ interface Props {
 
 export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
   const [page, setPage] = useState('overview');
-  const [isOnDuty, setIsOnDuty] = useState(user.is_on_duty ?? false);
+  const [duty, setDuty] = useState<DutyState>({
+    isOnDuty: user.is_on_duty ?? false,
+    offDutyOverride: user.off_duty_override ?? false,
+  });
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch (client-api refreshes on 401) instead of
   // shimmering forever.
@@ -1407,12 +1410,12 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       navItems={NAV}
       activePage={page}
       onPageChange={setPage}
-      user={{ ...user, is_on_duty: isOnDuty }}
+      user={{ ...user, is_on_duty: duty.isOnDuty, off_duty_override: duty.offDutyOverride }}
       pageTitle={PAGE_TITLES[page]}
-      dutyToggle={<DutyToggle isOnDuty={isOnDuty} onToggle={setIsOnDuty} />}
+      dutyToggle={<DutyToggle isOnDuty={duty.isOnDuty} offDutyOverride={duty.offDutyOverride} onChange={setDuty} />}
       smallScreenGateFor="Doctor"
     >
-      {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} isOnDuty={isOnDuty} />}
+      {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} duty={duty} />}
       {page === 'patients'      && <MyPatientsPage />}
       {page === 'episodes'      && <EpisodesPage />}
       {page === 'appointments'  && <AppointmentsPage />}
