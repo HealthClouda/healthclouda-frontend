@@ -38,3 +38,17 @@ export const SESSION_EXPIRY_MESSAGES: Record<string, string> = {
   idle: 'You were signed out after 15 minutes of inactivity.',
   max_age: 'Your 12-hour session ended — please sign in again.',
 };
+
+/**
+ * Safe lookup for `?reason=` — the value is an UNTRUSTED query param, so it
+ * must never index the record directly. `messages['__proto__']` returns
+ * `Object.prototype`, which React throws on when rendered as a child
+ * ("Objects are not valid as a React child"), taking down the signin page;
+ * `?reason=constructor` renders an empty banner. Anyone can put either in a
+ * link to an org's signin URL. `Object.hasOwn` admits only real keys.
+ */
+export function sessionExpiryMessageFor(reason: string | null | undefined): string | undefined {
+  if (!reason || !Object.hasOwn(SESSION_EXPIRY_MESSAGES, reason)) return undefined;
+  const message = SESSION_EXPIRY_MESSAGES[reason];
+  return typeof message === 'string' ? message : undefined;
+}

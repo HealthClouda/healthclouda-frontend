@@ -74,6 +74,8 @@ function signinUrlFor(pathname: string, request: NextRequest): URL {
  * that just failed to resume. Without this marker, an unreachable backend would
  * send dashboard → signin → dashboard → signin without end.
  */
+const KNOWN_EXPIRY_REASONS: ReadonlySet<string> = new Set(Object.values(SESSION_EXPIRY_REASON));
+
 const EXPIRED_MARKER = 'session=expired';
 
 /**
@@ -175,6 +177,9 @@ export async function middleware(request: NextRequest) {
     return resumeSession(request, refreshToken);
   }
 
+  // Only the two reasons this build actually emits count as "bounced here".
+  // Matching ANY `?reason=` would let an arbitrary param suppress the
+  // signed-in redirect.
   // Redirect authenticated users away from signin pages to their dashboard.
   // Skipped when we just failed to resume this session, or the two rules
   // redirect at each other forever. `reason=` (build 5 / FLAG-044) is the same
@@ -182,7 +187,7 @@ export async function middleware(request: NextRequest) {
   // a failed resume", not "the user navigated here fresh".
   const cameFromFailedResume =
     request.nextUrl.searchParams.get('session') === 'expired' ||
-    request.nextUrl.searchParams.has('reason');
+    KNOWN_EXPIRY_REASONS.has(request.nextUrl.searchParams.get('reason') ?? '');
   if (hasSession && userRaw && isSigninRoute(pathname) && !cameFromFailedResume) {
     try {
       const user = JSON.parse(decodeURIComponent(userRaw)) as { role: Role; organization_slug?: string };

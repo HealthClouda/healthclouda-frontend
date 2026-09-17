@@ -20,7 +20,10 @@ import { useHeartbeat, HEARTBEAT_THROTTLE_MS } from './use-heartbeat';
  * against the real hook and must be GREEN.
  */
 
-vi.mock('@/lib/client-api', () => ({ endSessionAndRedirect: vi.fn() }));
+vi.mock('@/lib/client-api', () => ({
+  endSessionAndRedirect: vi.fn(),
+  refreshSession: vi.fn().mockResolvedValue({ ok: true }),
+}));
 
 function HeartbeatProbe() {
   useHeartbeat();
@@ -134,5 +137,60 @@ describe('useHeartbeat', () => {
 
     const { endSessionAndRedirect } = await import('@/lib/client-api');
     expect(endSessionAndRedirect).not.toHaveBeenCalled();
+  });
+
+  // ── Ordinary 401: the hourly access-token lapse ──────────────────────────
+  //
+  // The access cookie's maxAge equals the access token's hour (FLAG-026), so
+  // it lapses on a perfectly healthy session. A clinician typing a long note
+  // makes no data call for minutes, so nothing else refreshes for them. If
+  // the heartbeat just gave up here, the backend would judge the session idle
+  // and sign them out on Submit, losing what they typed — while they were
+  // active throughout. Raised by @Qeeyat reviewing #155.
+  it('refreshes ONCE and retries the heartbeat when the access cookie has lapsed (ordinary 401, no code)', async () => {
+    const { refreshSession } = await import('@/lib/client-api');
+    const { endSessionAndRedirect } = await import('@/lib/client-api');
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    render(<HeartbeatProbe />);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2); // original + one retry
+    expect(endSessionAndRedirect).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a second time — a retry loop is the thing being avoided', async () => {
+    const { refreshSession } = await import('@/lib/client-api');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
+    );
+
+    render(<HeartbeatProbe />);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2); // never a third
+  });
+
+  it('acts on a lapsed-session code reported by the refresh itself', async () => {
+    const { refreshSession, endSessionAndRedirect } = await import('@/lib/client-api');
+    vi.mocked(refreshSession).mockResolvedValueOnce({ ok: false, code: 'SESSION_IDLE_EXPIRED' });
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
+    );
+
+    render(<HeartbeatProbe />);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(endSessionAndRedirect).toHaveBeenCalledWith('SESSION_IDLE_EXPIRED');
+    expect(fetchMock).toHaveBeenCalledTimes(1); // not retried
   });
 });

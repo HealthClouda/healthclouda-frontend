@@ -13,7 +13,7 @@ import { MailIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { roleDashboardPath, passwordFlowPath } from '@/lib/router';
 import { formatApiError } from '@/lib/api';
-import { SESSION_EXPIRY_MESSAGES } from '@/lib/session-expiry-code';
+import { sessionExpiryMessageFor } from '@/lib/session-expiry-code';
 import type { User } from '@/types/auth';
 
 const schema = z.object({
@@ -39,7 +39,7 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
   // ended a lapsed session (idle > 15 min, or the 12h cap). `reason` is the
   // plain param (`idle` | `max_age`), never the raw backend code.
   const expiryReason = searchParams.get('reason');
-  const expiryMessage = expiryReason ? SESSION_EXPIRY_MESSAGES[expiryReason] : undefined;
+  const expiryMessage = sessionExpiryMessageFor(expiryReason);
 
   const {
     register,
@@ -169,7 +169,10 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
         )}
 
         {expiryMessage && !serverError && (
-          <div className="rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <div
+            role="status"
+            className="rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700"
+          >
             {expiryMessage}
           </div>
         )}

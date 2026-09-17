@@ -23,7 +23,13 @@ import { sessionExpiryCodeFrom, SESSION_EXPIRY_REASON, type SessionExpiryCode } 
 type RefreshResult = { ok: true } | { ok: false; code?: SessionExpiryCode };
 let refreshInFlight: Promise<RefreshResult> | null = null;
 
-function refreshSession(): Promise<RefreshResult> {
+/**
+ * Single-flight refresh. Exported so the heartbeat (`use-heartbeat.ts`) can
+ * reuse THIS promise rather than starting a second, competing refresh: the
+ * backend rotates and blacklists refresh tokens, so two in-flight refreshes
+ * race and one of them logs the user out.
+ */
+export function refreshSession(): Promise<RefreshResult> {
   refreshInFlight ??= fetch('/api/auth/refresh', { method: 'POST' })
     .then(async (r): Promise<RefreshResult> => {
       if (r.ok) return { ok: true };
@@ -36,6 +42,8 @@ function refreshSession(): Promise<RefreshResult> {
     });
   return refreshInFlight;
 }
+
+let endingSessionInFlight: Promise<void> | null = null;
 
 export function redirectToSignin(): void {
   const slug = getOrgSlugFromPathname(window.location.pathname);
@@ -50,10 +58,21 @@ export function redirectToSignin(): void {
  * the same code again.
  */
 export async function endSessionAndRedirect(code: SessionExpiryCode): Promise<void> {
-  await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
-  const slug = getOrgSlugFromPathname(window.location.pathname);
-  const base = slug ? `/${slug}/signin` : '/signin';
-  window.location.href = `${base}?reason=${SESSION_EXPIRY_REASON[code]}`;
+  // N concurrent 401s carrying a code would otherwise fire N logouts and N
+  // navigations. Single-flight, the same shape as `refreshSession` — callers
+  // that arrive while one is running share it. Deliberately NOT a permanent
+  // latch: after this resolves the page is navigating anyway, and a latch
+  // would silently disable the next sign-out in any context that outlives a
+  // navigation (a test file, or a client-side route change).
+  endingSessionInFlight ??= (async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
+    const slug = getOrgSlugFromPathname(window.location.pathname);
+    const base = slug ? `/${slug}/signin` : '/signin';
+    window.location.href = `${base}?reason=${SESSION_EXPIRY_REASON[code]}`;
+  })().finally(() => {
+    endingSessionInFlight = null;
+  });
+  return endingSessionInFlight;
 }
 
 // ── Core fetch with 401 → refresh → retry ──────────────────────

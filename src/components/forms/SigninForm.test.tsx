@@ -32,6 +32,20 @@ describe('SigninForm — session-expiry message', () => {
     expect(screen.getByText(/12-hour session ended/i)).toBeInTheDocument();
   });
 
+  // A `?reason=` value is an UNTRUSTED query param. Indexing the message
+  // record directly meant `?reason=__proto__` handed React `Object.prototype`
+  // ("Objects are not valid as a React child" — the signin page dies) and
+  // `?reason=constructor` rendered an empty banner. Anyone could put either in
+  // a link to an org's signin URL. Raised by @Qeeyat reviewing #155.
+  it.each(['__proto__', 'constructor', 'toString', 'nonsense'])(
+    'renders no banner and does not crash for ?reason=%s',
+    (value) => {
+      search = `reason=${value}`;
+      expect(() => render(<SigninForm loginType="general" />)).not.toThrow();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    },
+  );
+
   it('shows neither message on an ordinary visit with no reason', () => {
     search = '';
     render(<SigninForm loginType="general" />);
