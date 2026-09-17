@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { roleLabel, splitName } from './utils';
+import { roleLabel, splitName, localDateTimeToISOString } from './utils';
 
 /**
  * `roleLabel` is shared by Org Admin, Superadmin, Doctor and the invite flows,
@@ -48,5 +48,30 @@ describe('splitName', () => {
   it('survives an absent or empty name', () => {
     expect(splitName(undefined)).toEqual({ firstName: undefined, lastName: undefined });
     expect(splitName('   ')).toEqual({ firstName: undefined, lastName: undefined });
+  });
+});
+
+// FLAG-046 (ward rota, build 6) — the rota's add/edit-shift form uses a
+// `datetime-local` input, exactly the shape FLAG-242 already found broken in
+// the discharge panel: a zone-less string sent as-is lets the backend (UTC)
+// assume ITS zone rather than the browser's.
+describe('localDateTimeToISOString', () => {
+  it('appends a UTC offset to a zone-less datetime-local value', () => {
+    const result = localDateTimeToISOString('2026-09-17T19:00');
+    // A bare `datetime-local` value has no 'Z'/offset at all — this is the
+    // exact defect this function exists to prevent, so assert on the RAW
+    // value first: it must not equal what a naive `JSON.stringify` would send.
+    expect(result).not.toBe('2026-09-17T19:00');
+    expect(result.endsWith('Z')).toBe(true);
+    // The instant is derived from the LOCAL wall-clock reading, not reinterpreted
+    // as UTC — round-tripping through Date and back to the machine's own zone
+    // must reproduce the same hour/minute the user typed.
+    const roundTripped = new Date(result);
+    expect(roundTripped.getHours()).toBe(19);
+    expect(roundTripped.getMinutes()).toBe(0);
+  });
+
+  it('passes through an unparsable value unchanged rather than sending "Invalid Date"', () => {
+    expect(localDateTimeToISOString('not-a-date')).toBe('not-a-date');
   });
 });

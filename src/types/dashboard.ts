@@ -756,6 +756,37 @@ export interface WardBed {
   created_at?: string;
 }
 
+// GET/POST/PATCH/DELETE /ward/shifts/ — the ward rota (build 6, FLAG-046).
+// Contract fixed 2026-09-17 ahead of the backend PR (parallel build; not on
+// `develop` at time of writing — do not probe api-dev for this shape).
+// `ward`/`nurse` are ids; `ward_name`/`nurse_name` are denormalised for
+// display. Kept as HISTORY (never deleted by the passage of time) so "who
+// was in charge of ward X that night" is answerable months later — only an
+// explicit DELETE by an ORG_ADMIN removes a row.
+//
+// ⚠️ The rota NAMES and ROUTES; it never GATES. Any nurse can still admit,
+// discharge or accept a request whether or not she has a current Shift row —
+// see the positive-control tests in NurseDashboard.test.tsx that assert this.
+export interface Shift {
+  id: string;
+  ward: string;
+  ward_name: string;
+  nurse: string;
+  nurse_name: string;
+  starts_at: string;
+  ends_at: string;
+  is_in_charge: boolean;
+  created_at: string;
+}
+
+export interface ShiftInput {
+  ward: string;
+  nurse: string;
+  starts_at: string;
+  ends_at: string;
+  is_in_charge: boolean;
+}
+
 export interface Prescription {
   id: string;
   patient?: { first_name: string; last_name: string };
