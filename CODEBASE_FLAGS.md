@@ -1943,6 +1943,59 @@ change it claims, which is option (a).
 
 ---
 
+### FLAG-242 — Discharge times ("Time of death", "Discovered at") are sent with no timezone and stored an hour late
+**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-15, reviewing #150 against backend `develop` source
+
+⚠️ **Numbered 242, not 241.** #150 (unmerged) already writes a withdrawn FLAG-241 into this file.
+
+**The value a clinician types is not the instant the backend stores.**
+- `NurseDashboard.tsx` `DISCHARGE_OUTCOMES` renders `deceased_at` and `discovered_at` as
+  `<input type="datetime-local">`, and the submit loop sends the raw value, for example
+  `"2026-09-15T10:00"`. There is no offset and no conversion.
+- Backend `healthclouda/settings/base.py`: `TIME_ZONE = 'UTC'`, `USE_TZ = True`.
+  `DischargeSerializer.deceased_at` is a plain `DateTimeField`, so DRF makes the naive value aware in
+  the server's zone.
+- **Result:** 10:00 entered in Lagos (WAT, UTC+1) is stored as 10:00 UTC, which is **11:00 local**.
+  That is a time of death on a legal record, one hour late, with no error anywhere.
+
+**Spreading:** #150 copies `DISCHARGE_OUTCOMES` and the panel into `DoctorDashboard.tsx`, so on merge
+the defect lives in two places.
+
+**Done when:** both discharge forms send an ISO string with an offset (for example
+`new Date(value).toISOString()`, using the browser's zone), there is a test asserting the offset is
+present, and ideally the two copies share one module so the fix happens once.
+
+---
+
+### FLAG-243 — The emergency admit creates an ACTIVE episode before the deceased check, and #148's hard stop leaves it orphaned
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-15, reviewing #148 against backend `develop` (#199 merged)
+
+`EmergencyAdmitForm` calls `POST /episodes/` first, then `POST /ward/admissions/`. After backend #199,
+the admission refuses a deceased patient with `details.patient`. **The episode call has no such
+guard.** Every caller of `patient_is_deceased()` on backend `develop` is:
+- `apps/referrals/serializers.py`
+- `request_admission()`
+- `admit_patient()`
+
+None of those is in `apps/patients`.
+
+**Sequence:**
+1. The episode is created, ACTIVE.
+2. The admission returns 400 with `details.patient`.
+3. #148 shows `PatientBlockedNotice` with the backend's message and a Close button. It does not
+   mention the episode it just created.
+4. That episode now lists the patient under "Patients to admit", and every retry hits the same
+   refusal.
+
+**Done when** one of these is true:
+- The backend guards episode creation (a Cross-Lane / `api-request` ask).
+- The emergency form checks first, or closes the episode on this refusal.
+- At minimum, the notice tells the nurse an episode was opened and needs closing.
+
+---
+
 ### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
 
 **Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
