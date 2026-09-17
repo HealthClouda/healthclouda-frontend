@@ -26,6 +26,9 @@ vi.stubGlobal('fetch', fetchMock);
 const rotated = (access: string, refresh?: string) =>
   ({ ok: true, json: async () => ({ access, refresh }) }) as unknown as Response;
 const rejected = () => ({ ok: false, status: 401, json: async () => ({}) }) as unknown as Response;
+// Build 5 / FLAG-044 — the refresh endpoint itself can carry a session-expiry code.
+const rejectedWithCode = (code: string) =>
+  ({ ok: false, status: 401, json: async () => ({ code }) }) as unknown as Response;
 
 beforeEach(() => {
   fetchMock.mockReset();
@@ -256,6 +259,44 @@ describe('middleware — server-side session resume (the hourly-logout regressio
     const res = await middleware(makeReq('/superadmin', expired));
 
     expect(location(res)).toBe('https://app.test/superadmin/signin?session=expired');
+  });
+});
+
+/**
+ * Build 5 / FLAG-044 — the refresh call this same block already exercises can
+ * itself come back carrying SESSION_IDLE_EXPIRED / SESSION_MAX_AGE_EXPIRED
+ * (contract point 2). That must redirect with the SPECIFIC reason, not the
+ * generic `?session=expired` the ordinary-rejection tests above assert —
+ * those two tests are the positive control that an ordinary rejection is
+ * untouched by this change.
+ */
+describe('middleware — session-expiry codes on the refresh call itself', () => {
+  const expired = { [AUTH_COOKIES.REFRESH]: 'refresh-abc' };
+
+  it('redirects with ?reason=idle on SESSION_IDLE_EXPIRED, and clears the cookies', async () => {
+    fetchMock.mockResolvedValueOnce(rejectedWithCode('SESSION_IDLE_EXPIRED'));
+    const res = await middleware(makeReq('/acme/doctor', expired));
+
+    expect(location(res)).toBe('https://app.test/acme/signin?reason=idle');
+    expect(setCookies(res)).toContain('hc_refresh_token=;');
+  });
+
+  it('redirects with ?reason=max_age on SESSION_MAX_AGE_EXPIRED', async () => {
+    fetchMock.mockResolvedValueOnce(rejectedWithCode('SESSION_MAX_AGE_EXPIRED'));
+    const res = await middleware(makeReq('/acme/doctor', expired));
+
+    expect(location(res)).toBe('https://app.test/acme/signin?reason=max_age');
+  });
+
+  it('does not bounce a reason= redirect back off the signin page (same loop guard as ?session=expired)', async () => {
+    const res = await middleware(
+      makeReq('/acme/signin?reason=idle', {
+        ...expired,
+        [AUTH_COOKIES.USER]: userCookie({ role: 'DOCTOR', organization_slug: 'acme' }),
+      }),
+    );
+
+    expect(location(res)).toBeNull();
   });
 });
 
