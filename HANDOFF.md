@@ -22,9 +22,12 @@
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
 
 | @Qeeyat | **FLAG-239 + FLAG-240** logged from the 14 Sep review of @Bastoh's 11 PRs, plus the backend #192 Cross-Lane row | `docs/flags-239-240-review-2026-09-14` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-14 | 🟡 **Docs only.** Claimed in this PR's own commit rather than a separate claim PR, which is FLAG-240's option (a), done deliberately |
+
+| @Bastoh | **Build 5 (frontend)** — idle sign-out, 12h session cap, duty-switch-as-off-only. **FLAG-044** reserved | `feat/session-idle-and-duty-cap` | `src/lib/client-api.ts`, `src/lib/session-refresh.ts`, `src/middleware.ts`, `src/app/api/auth/refresh/route.ts`, `src/components/layout/DashboardShell.tsx`, `src/components/dashboard/DutyToggle.tsx`, `src/components/forms/SigninForm.tsx` | 2026-09-16 | 🟡 **Must not merge before the backend build-5 PR** (heartbeat 404s / duty fields absent until then) |
+
 | @Bastoh | **Apex landing copy** — em-dashes out of all visitor-facing wording, `hello@healthclouda.ng` → `info@healthclouda.com` (**sprint plan B6**) | `fix/landing-copy-email-contact` | `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/ContactForm.tsx`, the landing design source, `docs/FRONTEND_SPRINT_PLAN.md` | 2026-09-16 | 🟡 **Copy only — no component, route or contract change.** Claimed in this PR's own commit (FLAG-240 option (a)), as @Qeeyat did above. Paired with backend `feat/contact-form-email-notification`, which emails form submissions to the same address 
 
-| @Qeeyat | **FLAG-242 + FLAG-243** logged from the 15 Sep review of #147–#150, plus a Cross-Lane row | `docs/review-147-150-flags-2026-09-15` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-15 | 🟡 **Docs only.** Claimed in this PR's own commit (FLAG-240 option (a)). Also clears the #146 row, which merged 2026-09-15 |
+| @Qeeyat | **FLAG-242 + FLAG-243** logged from the 15 Sep review of #147–#150, plus a Cross-Lane row | `docs/review-147-150-flags-2026-09-15` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-15 | 🟡 **Docs only.** Claimed in this PR's own commit (FLAG-240 option (a)). Also clears the #146 row, which merged 2026-09-1
 
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
