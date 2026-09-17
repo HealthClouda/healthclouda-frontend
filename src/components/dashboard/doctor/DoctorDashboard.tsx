@@ -14,6 +14,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SlidePanel } from '@/components/ui/SlidePanel';
+import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, formatTime, isToday, personName, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
@@ -21,6 +22,7 @@ import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
   ReferralCreateInput, ReferralCreateResponse, ReferralTargetOrganization, RegenerateLetterResponse,
+  DoctorAdmission,
 } from '@/types/dashboard';
 import { URGENCY_OPTIONS, LEVEL_OF_CARE_OPTIONS } from '@/types/dashboard';
 import { ClientApiError } from '@/lib/client-api';
@@ -45,6 +47,8 @@ const NAV: NavItem[] = [
   { id: 'appointments',  label: 'Appointments',  icon: <CalIcon /> },
   { id: 'referrals',     label: 'Referrals',     icon: <ArrowIcon /> },
   { id: 'prescriptions', label: 'Prescriptions', icon: <BeakerIcon /> },
+  // FLAG-040/042 — same BedIcon as the (now clickable) Overview stat tile.
+  { id: 'admissions',    label: 'Admissions',    icon: <BedIcon /> },
 ];
 
 /**
@@ -311,16 +315,16 @@ function OverviewPage({
             to render an integer. Asked for upstream. Meanwhile this tile shows a
             real field, and Prescriptions stays reachable from the sidebar.
 
-            🔴 **Deliberately NOT clickable, and that is the point of the fix.** The
-            substitution first shipped with `onNavigate('episodes')` carried over
-            from the tile it replaced: the doctor's NAV has six pages and none of
-            them is admissions, so the click landed on Episodes — a different
-            dataset with a different count, under a label promising this one.
-            `StatCard` takes an undefined `onClick` (Pending Referrals above does it
-            conditionally), so the tile is honest and inert rather than pointing
-            somewhere it is not. Give it a destination when an admissions page
-            exists, not before. */}
-        <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BedIcon />} color="purple" />
+            ✅ Clickable again (FLAG-040/042) — an "admissions" page now exists in
+            NAV, so `onNavigate('admissions')` lands where the label promises rather
+            than on `episodes` (the earlier bug this comment used to warn against)
+            or nowhere at all. Per the contract, the Admissions page's list and
+            this tile's `admissions_under_care` count are meant to share the SAME
+            "mine" rule (apps/patients/doctor_views.py) — ⚠️ NOT yet verified
+            against a merged backend as of this write; see the note on
+            `AdmissionsPage` below, this depends on a backend PR that has not
+            merged. */}
+        <StatCard loading={!stats} label="Admissions Under Care" value={stats?.admissions_under_care} icon={<BedIcon />} color="purple" onClick={() => onNavigate('admissions')} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -1246,6 +1250,131 @@ function PrescriptionsPage() {
   );
 }
 
+// ─── Admissions (FLAG-040 UI half / FLAG-042) ──────────────────────
+//
+// GET /ward/admissions/?mine=true&status=ACTIVE. "mine" is attending_doctor
+// OR episode.doctor (an OR, not either field alone) — per the contract this
+// page is built against (owner's decision, 2026-09-15): `apps.ward.models.
+// admissions_for_doctor()` on the backend, shared by `AdmissionViewSet.
+// get_queryset`'s `?mine=true` and the Overview tile's `admissions_under_care`
+// count (apps/patients/doctor_views.py) — if this list's `count` and that
+// tile's number ever disagree for the same account, that is a real bug to
+// report, not something to paper over here.
+//
+// Backend #207 (`?mine=true` / `admissions_for_doctor()`) merged to backend
+// `develop` 2026-09-15 — verified against `git show origin/develop:apps/ward/
+// models.py`, not a shared checkout's working tree (see the withdrawn
+// FLAG-043 entry in CODEBASE_FLAGS.md for why that distinction matters here).
+//
+// No client-side narrowing of a wider fetch: the request itself carries
+// `?mine=true`, never "fetch every admission and filter in the browser" —
+// that shape is exactly the over-fetch the parameter was added to remove.
+
+function wardBedLabel(a: DoctorAdmission): string {
+  const parts = [a.bed?.ward?.name, a.bed ? `Bed ${a.bed.bed_number}` : null].filter(Boolean);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function admissionColumns(onDischarge: (a: DoctorAdmission) => void): DataTableColumn<DoctorAdmission>[] {
+  return [
+    {
+      key: 'patient', header: 'Patient', render: a => (
+        <div className="flex items-center gap-2.5">
+          <Avatar firstName={a.patient.first_name} lastName={a.patient.last_name} size="sm" />
+          <div>
+            <div className="font-medium text-ink">{a.patient.first_name} {a.patient.last_name}</div>
+            <div className="text-xs text-text-soft font-mono">{a.patient.healthclouda_id}</div>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'bed', header: 'Bed / Ward', className: 'whitespace-nowrap', render: a => <span className="text-text-soft">{wardBedLabel(a)}</span> },
+    { key: 'reason', header: 'Admission Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.admission_reason || '—', 50)}</span> },
+    {
+      key: 'attending', header: 'Attending', render: a => a.attending_doctor_name ? (
+        <span className="text-text-mid">{a.attending_doctor_name}</span>
+      ) : a.needs_attending_doctor ? (
+        <span className="font-semibold text-warning-strong">Unassigned</span>
+      ) : (
+        <span className="text-text-soft">—</span>
+      ),
+    },
+    { key: 'admitted', header: 'Admitted', className: 'whitespace-nowrap', render: a => <span className="text-text-soft">{formatDate(a.admitted_at)}</span> },
+    {
+      key: 'actions', header: '', className: 'text-right',
+      render: a => a.status === 'ACTIVE' ? (
+        <button onClick={() => onDischarge(a)} className="text-xs font-semibold text-primary-dark hover:underline">
+          Discharge
+        </button>
+      ) : null,
+    },
+  ];
+}
+
+// The discharge outcome list and panel now live in one shared module
+// (`@/components/dashboard/shared/DischargePanel`), used by both this file
+// and NurseDashboard.tsx — see that module's header comment for why
+// (FLAG-242 review of #150: this file used to keep its own copy of
+// `DISCHARGE_OUTCOMES`/`DischargePanel`, which is exactly how the same
+// timezone bug ended up needing to be fixed in two places). **The one
+// deliberate difference between the dashboards:** AGAINST_MEDICAL_ADVICE is
+// NOT blocked here — `discharge_patient()` role-gates that outcome to
+// `discharged_by.role == 'DOCTOR'`, this screen only ever renders for a
+// signed-in DOCTOR (route-gated the same way every dashboard is), so the
+// account submitting this form is always a valid signer. That is passed in
+// as `canRecordAgainstMedicalAdvice={true}` below, not a second copy of the
+// panel.
+//
+// `POST /ward/admissions/{id}/discharge/` errors are a FLAT `{error: "..."}`
+// body — verified against `AdmissionViewSet.discharge` (apps/ward/views.py):
+// both the FLAG-304 status-race and every `discharge_patient()` `ValueError`
+// (missing companion field, wrong signer role for AGAINST_MEDICAL_ADVICE)
+// are caught and returned that way, never wrapped in a `details` key.
+// `errorMessage()` (lib/client-api.ts) already reads `.error` into
+// `ClientApiError.message`, so this needs no `details.field` reader and no
+// 409 bed-race handling the way the ADMIT write path does (NurseDashboard's
+// `admissionFieldError` / `isBedConflict`) — this form picks no bed, so
+// there is nothing to race.
+function readDischargeError(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
+function AdmissionsPage() {
+  const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&status=ACTIVE');
+  const [discharging, setDischarging] = useState<DoctorAdmission | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <PageHeading title="Admissions" count={count} unit="active" />
+      <DataTable
+        columns={admissionColumns(setDischarging)}
+        data={admissions}
+        getRowKey={a => a.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No active admissions"
+        emptyDescription="Patients admitted under your care — as attending doctor or as the doctor on their episode — will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
+      <DischargePanel
+        key={`discharge-${discharging?.id ?? 'none'}`}
+        admission={discharging}
+        onClose={() => setDischarging(null)}
+        onDischarged={refetch}
+        canRecordAgainstMedicalAdvice={true}
+        idPrefix="doctor-discharge"
+        readError={readDischargeError}
+      />
+    </div>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────────
 
 const PAGE_TITLES: Record<string, string> = {
@@ -1255,6 +1384,7 @@ const PAGE_TITLES: Record<string, string> = {
   appointments:  'Appointments',
   referrals:     'Referrals',
   prescriptions: 'Prescriptions',
+  admissions:    'Admissions',
 };
 
 interface Props {
@@ -1291,6 +1421,7 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'appointments'  && <AppointmentsPage />}
       {page === 'referrals'     && <ReferralsPage />}
       {page === 'prescriptions' && <PrescriptionsPage />}
+      {page === 'admissions'    && <AdmissionsPage />}
     </DashboardShell>
   );
 }

@@ -930,6 +930,24 @@ export interface AdmissionDetail {
   needs_attending_doctor: boolean;
 }
 
+// GET /ward/admissions/?mine=true — the doctor admissions page (FLAG-040/042,
+// contract 2026-09-15). Served by `AdmissionListSerializer`
+// (apps/ward/serializers.py), NOT `AdmissionDetailSerializer` — a `Pick` of
+// `AdmissionDetail` above rather than the full type, because the list action
+// does not carry `episode`/`discharged_by`/`discharge_summary`/
+// `discharge_instructions`/`created_at`/`updated_at` at all (verified against
+// `AdmissionListSerializer.Meta.fields` directly). Typing this as the full
+// `AdmissionDetail` would silently claim those six fields are always present
+// on a list row, which is exactly the kind of contract mismatch this file
+// exists to prevent.
+export type DoctorAdmission = Pick<
+  AdmissionDetail,
+  | 'id' | 'patient' | 'bed' | 'status' | 'admitted_at' | 'admitted_by'
+  | 'admission_reason' | 'discharged_at' | 'length_of_stay'
+  | 'admission_source' | 'attending_doctor' | 'attending_doctor_name'
+  | 'needs_attending_doctor'
+>;
+
 // POST /episodes/ response — apps/patients/views.py EpisodeViewSet.create:
 // {message, episode: EpisodeDetailSerializer}. Unlike the stale warning on
 // NewEpisodePanel (DoctorDashboard.tsx) — which is about a DIFFERENT call
