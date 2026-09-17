@@ -12,7 +12,7 @@ import { ContactForm } from '@/components/landing/ContactForm';
 export const metadata: Metadata = {
   title: 'HealthClouda | The Connective Infrastructure for African Healthcare',
   description:
-    'HealthClouda links hospitals and clinics across Africa so your records and referrals move with you — securely, instantly. No repeated tests. No paper files. No starting over.',
+    'HealthClouda links hospitals and clinics across Africa so your records and referrals move with you, securely and instantly. No repeated tests. No paper files. No starting over.',
 };
 
 const kicker = 'font-heading text-[13px] font-bold text-primary uppercase tracking-[0.1em]';
@@ -45,7 +45,7 @@ function PortalMock() {
           <div className="flex flex-col gap-4 min-w-0">
             <div>
               <h3 className="font-heading text-[21px] font-[750] text-ink mb-1">Good afternoon, Adaeze</h3>
-              <p className="font-body text-[13.5px] text-gray-500">Your health, in one place — wherever you&apos;re treated.</p>
+              <p className="font-body text-[13.5px] text-gray-500">Your health in one place, wherever you&apos;re treated.</p>
             </div>
             <div className="inline-flex items-center gap-2.5 bg-white border border-dashed border-primary/40 rounded-xl px-4 py-3 self-start">
               <span className="font-body text-xs text-gray-500 font-bold">Your HealthClouda ID</span>
@@ -68,7 +68,7 @@ function PortalMock() {
                 <p className="font-heading text-[13.5px] font-bold text-ink">
                   Referral · Ikeja Clinic <span className="text-primary">⟶</span> LUTH Cardiology
                 </p>
-                <p className="font-body text-xs text-gray-500 mt-1">Your records travelled with the referral — no paper needed.</p>
+                <p className="font-body text-xs text-gray-500 mt-1">Your records travelled with the referral. No paper needed.</p>
               </div>
               <span className="font-heading text-[11.5px] font-bold text-green-600 bg-green-50 border border-green-200 px-[11px] py-[5px] rounded-full whitespace-nowrap">Letter ready</span>
             </div>
@@ -112,7 +112,7 @@ function HeroSection() {
           One patient record.<br />Every facility, <span className="text-primary">connected.</span>
         </h1>
         <p className="font-body text-lg leading-[1.7] text-gray-700 max-w-[620px] text-pretty">
-          HealthClouda links hospitals and clinics across Africa so your records and referrals move with you — securely, instantly. No repeated tests. No paper files. No starting over.
+          HealthClouda links hospitals and clinics across Africa so your records and referrals move with you, securely and instantly. No repeated tests. No paper files. No starting over.
         </p>
         <div className="flex flex-wrap justify-center gap-3.5 mt-1.5">
           <Link
@@ -129,7 +129,7 @@ function HeroSection() {
           </a>
         </div>
         <p className="font-body text-[13px] text-gray-500">
-          Patient accounts are created at any registered HealthClouda facility — not online.
+          Patient accounts are created at any registered HealthClouda facility, not online.
         </p>
         <div className="flex flex-wrap justify-center gap-7 mt-1">
           {['HIPAA & NDPR compliant', 'Secure cloud infrastructure', 'You control access'].map(t => (
@@ -151,7 +151,7 @@ const STEPS = [
   {
     n: '01',
     title: 'One ID, created once',
-    body: 'A patient registers at any connected facility and receives a unique HealthClouda ID. Their record starts here — and follows them everywhere.',
+    body: 'A patient registers at any connected facility and receives a unique HealthClouda ID. Their record starts here and follows them everywhere.',
     chip: <span className="tracking-[0.06em]">HCL-NG-DEMO-4Q2A</span>,
   },
   {
@@ -167,7 +167,7 @@ const STEPS = [
   {
     n: '03',
     title: 'Care continues instantly',
-    body: "The receiving team sees the full picture before the patient arrives — with the patient's consent controlling exactly who sees what.",
+    body: "The receiving team sees the full picture before the patient arrives, with the patient's consent controlling exactly who sees what.",
     chip: (
       <span className="flex items-center gap-2">
         <span className="w-2 h-2 bg-green-600 rounded-full" />Access granted by patient
@@ -183,7 +183,7 @@ function NetworkSection() {
         <p className={kicker}>How it works</p>
         <h2 className={h2}>Records that travel with the patient</h2>
         <p className="font-body text-base text-gray-500 leading-[1.65]">
-          Most EHRs stop at the hospital door. HealthClouda is the network between facilities — the referral, the records and the results arrive before the patient does.
+          Most EHRs stop at the hospital door. HealthClouda is the network between facilities: the referral, the records and the results arrive before the patient does.
         </p>
       </div>
 
@@ -212,7 +212,7 @@ const FEATURES = [
   {
     icon: '/assets/images/person_add.png',
     title: 'Unified patient records',
-    desc: 'Complete history, vitals, episodes and admissions under one HealthClouda ID — accessible at any connected facility.',
+    desc: 'Complete history, vitals, episodes and admissions under one HealthClouda ID, accessible at any connected facility.',
   },
   {
     icon: '/assets/images/chat_bubble.png',
@@ -222,12 +222,12 @@ const FEATURES = [
   {
     icon: '/assets/images/pill.png',
     title: 'Prescriptions',
-    desc: 'Digital prescribing that follows the patient — visible to the pharmacy, the next doctor and the patient themselves.',
+    desc: 'Digital prescribing that follows the patient, visible to the pharmacy, the next doctor and the patient themselves.',
   },
   {
     icon: '/assets/images/science.png',
     title: 'Wards, beds & admissions',
-    desc: 'Live ward occupancy, admissions and emergency beds — visible to the roles that need them.',
+    desc: 'Live ward occupancy, admissions and emergency beds, all visible to the roles that need them.',
   },
 ];
 
@@ -239,7 +239,7 @@ function FeaturesSection() {
           <p className={kicker}>Features</p>
           <h2 className={h2}>Everything a connected facility needs</h2>
           <p className="font-body text-base text-gray-500 leading-[1.65]">
-            Role-specific tools for every person in the building — designed around how care actually flows.
+            Role-specific tools for every person in the building, designed around how care actually flows.
           </p>
         </div>
 
@@ -275,7 +275,7 @@ function OnePlatformSection() {
           Every role in the building, on the same page
         </h2>
         <p className="font-body text-base text-gray-700 leading-[1.7]">
-          From the receptionist checking a patient in to the doctor closing an episode, everyone works from one live record. No transcription between systems, no lost paper — and administrators see the whole facility at a glance.
+          From the receptionist checking a patient in to the doctor closing an episode, everyone works from one live record. No transcription between systems, no lost paper, and administrators see the whole facility at a glance.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 mt-1">
           {ROLES.map(r => (
@@ -315,7 +315,7 @@ const BENEFITS = [
     alt: 'Adaptable clinical workflows',
     tag: 'Workflow',
     title: 'Effortless patient workflows',
-    body: 'Every clinic operates differently — HealthClouda adapts. Registration, history taking, vitals, diagnostic notes and follow-ups shape themselves around how your team already works. Faster onboarding, fewer errors, more time for care.',
+    body: 'Every clinic operates differently, and HealthClouda adapts. Registration, history taking, vitals, diagnostic notes and follow-ups shape themselves around how your team already works. Faster onboarding, fewer errors, more time for care.',
     maxH: 280,
     flipped: false,
   },
@@ -324,7 +324,7 @@ const BENEFITS = [
     alt: 'Patient safety alerts',
     tag: 'Safety',
     title: 'Intelligence that keeps patients safe',
-    body: 'Safety alerts for allergies, drug interactions, critical vitals, duplicate records and missed follow-ups. When something looks off, the system prompts staff to double-check and intervene early — the right care at the right time.',
+    body: 'Safety alerts for allergies, drug interactions, critical vitals, duplicate records and missed follow-ups. When something looks off, the system prompts staff to double-check and intervene early, so patients get the right care at the right time.',
     maxH: 240,
     flipped: true,
   },
@@ -333,7 +333,7 @@ const BENEFITS = [
     alt: 'Built for Africa',
     tag: 'Africa-first',
     title: "Built for Africa's realities",
-    body: 'Full offline mode keeps work going through power and connectivity drops. Priced for varying budgets, it scales from a single-practitioner clinic to a multi-campus hospital — with intuitive design your team adopts in days, not months.',
+    body: 'Full offline mode keeps work going through power and connectivity drops. Priced for varying budgets, it scales from a single-practitioner clinic to a multi-campus hospital, with intuitive design your team adopts in days, not months.',
     maxH: 240,
     flipped: false,
   },
@@ -378,7 +378,7 @@ function AboutSection() {
           <p className={kicker}>About</p>
           <h2 className={h2}>Who we are</h2>
           <p className="font-body text-base text-gray-700 leading-[1.75]">
-            HealthClouda is the connective infrastructure for healthcare in Nigeria and Sub-Saharan Africa — a secure, cloud-based platform that ends long queues and paper files by letting medical records move safely between the facilities that care for a patient.
+            HealthClouda is the connective infrastructure for healthcare in Nigeria and Sub-Saharan Africa: a secure, cloud-based platform that ends long queues and paper files by letting medical records move safely between the facilities that care for a patient.
           </p>
         </div>
 
@@ -387,12 +387,12 @@ function AboutSection() {
             {
               icon: '/assets/images/target.png',
               title: 'Our mission',
-              body: "To digitize patient records and build Africa's referral infrastructure — so no referral ever travels on paper again, and every provider treats with the patient's full history in hand.",
+              body: "To digitize patient records and build Africa's referral infrastructure, so no referral ever travels on paper again and every provider treats with the patient's full history in hand.",
             },
             {
               icon: '/assets/images/eye.png',
               title: 'Our vision',
-              body: 'A continent where every hospital and clinic is connected — where any patient can be referred anywhere and their history is one consented request away.',
+              body: 'A continent where every hospital and clinic is connected, where any patient can be referred anywhere and their history is one consented request away.',
             },
           ].map(c => (
             <div key={c.title} className="bg-white rounded-[20px] border-t-8 border-primary px-[30px] py-[34px] flex flex-col items-center text-center gap-3.5 shadow-[0_2px_8px_rgba(0,8,37,0.06)]">
@@ -412,7 +412,7 @@ function AboutSection() {
               <p className="font-heading text-xs font-bold text-amber-700 uppercase tracking-[0.08em]">The problem</p>
             </div>
             <p className="font-body text-[14.5px] text-gray-700 leading-[1.7]">
-              In many hospitals, patient records still live in paper files. And even facilities that have gone digital hit a wall at their own front door — they can&apos;t refer out. Referral letters are still printed, carried by hand and lost, so every new facility means repeated tests and starting over.
+              In many hospitals, patient records still live in paper files. And even facilities that have gone digital hit a wall at their own front door: they can&apos;t refer out. Referral letters are still printed, carried by hand and lost, so every new facility means repeated tests and starting over.
             </p>
           </div>
           <div className="bg-primary rounded-[20px] px-[30px] py-[34px] shadow-[0_4px_24px_rgba(0,117,255,0.25)] flex flex-col gap-3.5">
@@ -421,7 +421,7 @@ function AboutSection() {
               <p className="font-heading text-xs font-bold text-blue-200 uppercase tracking-[0.08em]">Our solution</p>
             </div>
             <p className="font-body text-[14.5px] text-chip leading-[1.7]">
-              We fix both. HealthClouda digitizes the record, then connects the facility: one HealthClouda ID per patient, digital referrals between registered facilities, and records that arrive before the patient does — always with the patient&apos;s consent.
+              We fix both. HealthClouda digitizes the record, then connects the facility: one HealthClouda ID per patient, digital referrals between registered facilities, and records that arrive before the patient does, always with the patient&apos;s consent.
             </p>
           </div>
         </div>
@@ -433,9 +433,9 @@ function AboutSection() {
 // ─── Security ─────────────────────────────────────────────────────
 
 const SECURITY_ITEMS = [
-  { title: 'Patient-consented access', sub: 'Facilities request access; patients grant or deny it — every request logged.' },
+  { title: 'Patient-consented access', sub: 'Facilities request access; patients grant or deny it. Every request is logged.' },
   { title: '256-bit encryption', sub: 'All data encrypted in transit and at rest, end to end.' },
-  { title: 'Role-based access control', sub: 'Every user sees only what their role requires — nothing more.' },
+  { title: 'Role-based access control', sub: 'Every user sees only what their role requires, nothing more.' },
   { title: 'Complete audit trails', sub: 'Every view, edit and transfer is logged and attributable.' },
 ];
 
@@ -477,7 +477,7 @@ function SecuritySection() {
           </div>
         </div>
         <p className="font-body text-sm text-gray-500 leading-[1.65]">
-          Built on secure, modern cloud infrastructure to serve everything from a single clinic to a multi-campus hospital network — reliably, at African scale.
+          Built on secure, modern cloud infrastructure to serve everything from a single clinic to a multi-campus hospital network, reliably and at African scale.
         </p>
         <div className="grid grid-cols-2 gap-3">
           {[
@@ -515,13 +515,13 @@ function ContactSection() {
           <div className="flex flex-col gap-5">
             <div className="bg-white border border-hairline rounded-[20px] p-7 flex flex-col gap-2 shadow-[0_2px_8px_rgba(0,8,37,0.05)]">
               <h4 className="font-heading text-[15px] font-bold text-ink">Email us</h4>
-              <a href="mailto:hello@healthclouda.ng" className="font-body text-[14.5px] text-primary font-bold hover:text-primary-dark">hello@healthclouda.ng</a>
+              <a href="mailto:info@healthclouda.com" className="font-body text-[14.5px] text-primary font-bold hover:text-primary-dark">info@healthclouda.com</a>
               <p className="font-body text-[13px] text-gray-500 leading-[1.6]">We respond within one business day.</p>
             </div>
             <div className="bg-white border border-hairline rounded-[20px] p-7 flex flex-col gap-2 shadow-[0_2px_8px_rgba(0,8,37,0.05)]">
               <h4 className="font-heading text-[15px] font-bold text-ink">Staff &amp; patients</h4>
               <p className="font-body text-[13.5px] text-gray-700 leading-[1.65]">
-                Accounts can&apos;t be created online. Visit the reception desk at any registered facility — admin staff will create your login.
+                Accounts can&apos;t be created online. Visit the reception desk at any registered facility and admin staff will create your login.
               </p>
             </div>
           </div>
@@ -580,7 +580,7 @@ function Footer() {
               <span className="font-heading text-[19px] font-extrabold text-white">HealthClouda</span>
             </div>
             <p className="font-body text-[13.5px] text-slate-400 leading-[1.65] max-w-[280px]">
-              The connective infrastructure for African healthcare — secure, cloud-based records that move with the patient.
+              The connective infrastructure for African healthcare. Secure, cloud-based records that move with the patient.
             </p>
           </div>
           <div className="flex flex-col gap-3">

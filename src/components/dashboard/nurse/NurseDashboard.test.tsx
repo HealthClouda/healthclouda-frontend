@@ -759,6 +759,66 @@ describe('WARD-1 — admit patient', () => {
 
     expect(await screen.findByText(/Bed GW-09 is not available/)).toBeInTheDocument();
   });
+
+  it('a `details.patient` rejection is a hard stop — no override, no retry button', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        400,
+        {
+          error: 'patient: This patient cannot be admitted.',
+          code: 'BAD_REQUEST',
+          details: { patient: 'This patient cannot be admitted.' },
+        },
+        'patient: This patient cannot be admitted.',
+      ),
+    );
+    await openAdmitPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    // Row "Admit" link + the panel's own submit button, same as the gender
+    // two-step test above.
+    const beforeSubmitCount = screen.getAllByRole('button', { name: 'Admit' }).length;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    expect(await screen.findByText('This patient cannot be admitted.')).toBeInTheDocument();
+    // No override affordance (unlike the gender two-step) — the message is
+    // shown with a plain "Close", never an "Admit anyway".
+    expect(screen.queryByRole('button', { name: 'Admit anyway' })).not.toBeInTheDocument();
+    // The panel's own submit button is gone (a hard stop, not left standing
+    // to invite a retry) — only the row's link "Admit" button, from behind
+    // the still-open panel, remains.
+    expect(screen.getAllByRole('button', { name: 'Admit' }).length).toBe(beforeSubmitCount - 1);
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 409 on admit refreshes the bed list instead of showing a validation error', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    // The backend's 409 body is flat — no `details` key at all, the same
+    // shape the flat gender-mismatch error used to have pre-#194. Her input
+    // was valid when she picked the bed; someone else just took it.
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(409, { error: 'Bed GW-09 was just assigned to another patient.' }, 'Conflict'),
+    );
+    await openAdmitPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    // A non-blocking notice, not a field-level validation error.
+    expect(await screen.findByText(/taken by another patient/)).toBeInTheDocument();
+    // The bed list is refetched (GET fires again) rather than the form
+    // being left stuck on a bed that no longer exists.
+    await waitFor(() => {
+      expect(dataGetMock.mock.calls.filter(([path]) => path.startsWith(ENDPOINTS.WARD_BEDS)).length).toBeGreaterThan(1);
+    });
+    // The stale selection is cleared, and the form is still usable — the
+    // "Admit" button is still there, ready for a different bed.
+    expect(screen.getByLabelText('Bed')).toHaveValue('');
+    expect(screen.getAllByRole('button', { name: 'Admit' }).length).toBeGreaterThan(0);
+  });
 });
 
 /**
@@ -1102,6 +1162,59 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
       );
     });
   });
+
+  it('a `details.patient` rejection on the admission call is a hard stop, distinct from the episode-consent rejection', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockImplementation((path: string) => {
+      if (path === ENDPOINTS.EPISODES) {
+        return Promise.resolve({ message: 'ok', episode: { id: 'ep-5' } });
+      }
+      return Promise.reject(
+        new ClientApiError(
+          400,
+          {
+            error: 'patient: This patient cannot be admitted.',
+            code: 'BAD_REQUEST',
+            details: { patient: 'This patient cannot be admitted.' },
+          },
+          'patient: This patient cannot be admitted.',
+        ),
+      );
+    });
+
+    await openEmergencyPanel();
+    await selectPatient();
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
+    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Trauma' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    expect(await screen.findByText('This patient cannot be admitted.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Admit anyway' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Admit now' })).not.toBeInTheDocument();
+  });
+
+  it('a 409 on the admission call refreshes the bed list, not a validation error — the episode already exists', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockImplementation((path: string) => {
+      if (path === ENDPOINTS.EPISODES) {
+        return Promise.resolve({ message: 'ok', episode: { id: 'ep-6' } });
+      }
+      return Promise.reject(
+        new ClientApiError(409, { error: 'That bed was just assigned to another patient.' }, 'Conflict'),
+      );
+    });
+
+    await openEmergencyPanel();
+    await selectPatient();
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
+    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Trauma' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    expect(await screen.findByText(/taken by another patient/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Bed')).toHaveValue('');
+    // Still usable — the form was not treated as a dead end.
+    expect(screen.getByRole('button', { name: 'Admit now' })).toBeInTheDocument();
+  });
 });
 
 /**
@@ -1350,13 +1463,32 @@ describe('WARD-PART2 — discharge with outcome', () => {
     fireEvent.change(screen.getByLabelText('Time of death'), { target: { value: '2026-09-12T09:30' } });
     fireEvent.click(recordButton);
 
+    // FLAG-242 — the raw `datetime-local` value ("2026-09-12T09:30") carries
+    // no timezone. The backend runs `TIME_ZONE='UTC'`, `USE_TZ=True`, and
+    // `DischargeSerializer.deceased_at` is a plain `DateTimeField`, so
+    // sending that string naked makes the server treat 09:30 AS ALREADY
+    // UTC — an hour (or more) wrong for anyone west of Greenwich. Comparing
+    // against `new Date(...).toISOString()` (rather than a hardcoded literal)
+    // keeps this assertion honest about WHAT property matters — the
+    // submitted value represents the same instant the browser resolved the
+    // input to, with an explicit offset — without hardcoding this machine's
+    // timezone into the test.
+    const expectedDeceasedAt = new Date('2026-09-12T09:30').toISOString();
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenCalledWith(
         ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
         'POST',
-        expect.objectContaining({ discharge_outcome: 'DECEASED', deceased_at: '2026-09-12T09:30' }),
+        expect.objectContaining({ discharge_outcome: 'DECEASED', deceased_at: expectedDeceasedAt }),
       );
     });
+    // Belt-and-braces: whatever `expectedDeceasedAt` resolves to on this
+    // machine, it must carry an explicit offset. A value that happened to
+    // equal the raw local string would pass the `objectContaining` check
+    // above by accident if `toISOString` were ever swapped for something
+    // that doesn't convert — this line is the one that actually catches that.
+    const sentPayload = dataActionMock.mock.calls.at(-1)?.[2] as Record<string, string>;
+    expect(sentPayload.deceased_at).toMatch(/Z$|[+-]\d{2}:\d{2}$/);
+    expect(sentPayload.deceased_at).not.toBe('2026-09-12T09:30');
   });
 });
 
