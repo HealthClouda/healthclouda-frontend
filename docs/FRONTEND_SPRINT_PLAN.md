@@ -91,7 +91,7 @@ builds the design on top of already-correct behaviour.
 | B3 | Env vars per environment: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` | 🟡 **dev tier set and live.** The `staging`-scoped value waits on `api-beta` (31 Aug). ⚠️ Set the var **before** attaching `beta.`, or the beta host serves against the dev backend — both failure modes are silent |
 | B4 | `staging` branch cut from `develop` post-Gate-2 | 🔄 **PR #98 open, approved.** Until it merges, `staging` still holds the **12 Apr vanilla-JS app** |
 | B5 | Confirm Vercel deployment protection doesn't block the beta org's testers | ❗ **open — FLAG-017.** Deployment protection is currently OFF; decided to re-enable at beta stand-up rather than today |
-| B6 | Settle `hello@healthclouda.ng` vs `.com` — app and designs say `.ng`, infra is `.com` | open — `src/app/page.tsx:518` + design files |
+| B6 | Settle `hello@healthclouda.ng` vs `.com` — app and designs say `.ng`, infra is `.com` | ✅ **done 2026-09-16.** Settled as **`info@healthclouda.com`** — the address Cloudflare Email Routing actually delivers. Changed in `src/app/page.tsx:518` and in the design source |
 
 **The tier map:**
 
