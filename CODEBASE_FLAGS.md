@@ -3247,8 +3247,20 @@ I wrote *"five of seven"*. **There are six dashboards; seven is the number of st
 ---
 
 ### FLAG-040 — A DOCTOR can POST an admission but cannot read a single bed, so a doctor-side admit UI cannot be built as designed
-**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **PERMISSION RESOLVED on the backend, UI still not built**
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **UI HALF CLOSED 2026-09-15** — the read/discharge half; the admit-picker half stays open, see below
 **Found:** 2026-09-11, building WARD-1 (the admissions write path)
+
+> ✅ **2026-09-15 — the "no doctor-side bed/ward picker has been built" half is now half-answered.**
+> `DoctorDashboard.tsx` gained an Admissions page (`GET /ward/admissions/?mine=true&status=ACTIVE`) so
+> a doctor can READ their own admitted patients' bed/ward — the exact capability this flag's
+> `CanManageWard` fix unblocked but nothing used until now. Backend #207 (the `?mine=true` filter /
+> `admissions_for_doctor()` contract) merged to backend `develop` 2026-09-15 — see the withdrawn
+> FLAG-043 below (renumbered from FLAG-241) for the process lesson from checking that too casually the
+> first time. **Still genuinely open regardless:** admitting a NEW patient from the doctor side (a bed
+> **picker** for `POST /ward/admissions/`) was explicitly out of scope for this build (see FLAG-042
+> below, which this same PR closes) — `RequestAdmissionPanel` still posts to
+> `/ward/admission-requests/`, not `/ward/admissions/` directly, and still omits `requested_ward`.
+> Leave this flag open for that half.
 
 > ✅ **2026-09-14 — re-verified against `apps/core/permissions.py` directly.** `CanManageWard.has_permission` now reads `request.user.role in ['NURSE', 'RECEPTIONIST', 'ORGANIZATION_ADMIN', 'DOCTOR']` for `SAFE_METHODS`, and the class docstring names this flag explicitly ("FLAG-040: … This grants DOCTOR the read half only"). `GET /ward/beds/` no longer 403s for a DOCTOR token. The blocker below is gone; **no doctor-side bed/ward picker has been built to use it** — that remains open as a UI gap, not a permission gap, and is out of scope for this branch. A doctor ordering an admission (`RequestAdmissionPanel`, `DoctorDashboard.tsx`) still omits `requested_ward` deliberately — that choice no longer needs to be structural, but changing it is new UI work, not a flag fix.
 
@@ -3305,8 +3317,24 @@ Ask filed in `HANDOFF.md` rather than guessed at here.
 > left here to reconcile either way.
 
 ### FLAG-042 — an against-medical-advice discharge cannot be completed from this frontend at all, by anyone
-**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **CLOSED 2026-09-15**
 **Found:** 2026-09-13, reconciling `fix/admissions-medical-answers-ui` (#142) against backend PR #190
+
+> ✅ **2026-09-15 — the doctor admissions page closes this.** `DoctorDashboard.tsx` now has an
+> Admissions page (`GET /ward/admissions/?mine=true&status=ACTIVE`) with its own `DischargePanel`,
+> reachable from NAV and from the (now-clickable) "Admissions Under Care" stat tile. Unlike
+> `NurseDashboard.tsx`'s copy, AGAINST_MEDICAL_ADVICE is **not** blocked here — the panel only ever
+> renders for a signed-in DOCTOR, and `discharge_patient()` (apps/ward/services.py) role-gates that
+> outcome to exactly that role, so the account submitting this form is always a valid signer. Verified
+> live against backend source, not the schema: `AdmissionViewSet.discharge` (apps/ward/views.py) wraps
+> every `ValueError` — including the wrong-signer-role case — as a flat `{'error': str(exc)}`, never a
+> `details` dict, so the doctor-side panel reads the message directly rather than reusing
+> `NurseDashboard`'s `details.field` reader, which would not match this shape. Tests: `WARD-DOC-
+> ADMISSIONS` in `DoctorDashboard.test.tsx`, including a positive control that submits
+> AGAINST_MEDICAL_ADVICE and asserts the outcome reaches the backend with no `witnessed_by`/`reason`
+> key. **Reassigning the attending doctor (`/reassign-doctor/`) was left out of this build** — in
+> scope for the flag this closes, but not asked for; the endpoint exists and is DOCTOR-permitted, so a
+> follow-up can add a "Reassign" action to the same table without a backend change.
 
 Backend PR #190 drops the `witnessed_by` column outright (`ward/migrations/0008_remove_witnessed_by_
 medical_answers.py`) and does not replace it with a submittable field. Confirmed from the task's own
@@ -3329,3 +3357,68 @@ large, stop and report instead of building it").
 likely alongside whatever answers FLAG-040's doctor-side admit gap — the same missing "doctor manages
 their admitted patients" screen would plausibly host both). Until then, an AMA discharge is a workflow
 only a doctor can legally perform and only a nurse's screen can currently reach.
+
+---
+
+### FLAG-043 — ❌ WITHDRAWN 2026-09-15: "the `?mine=true` contract was already merged" was a false finding — a working tree is not a branch
+
+⚠️ **Renumbered from FLAG-241 to FLAG-043 on 2026-09-16 (Qeeyat's #150 review).** 241 sits in
+@Qeeyat's 200–399 range; @Bastoh's is 001–199. 043 is the next free number in that range, confirmed
+against `CODEBASE_FLAGS.md` on `origin/develop` and every open PR branch (#147–#153) as of this
+renumbering — the highest number genuinely minted in 001–199 anywhere was FLAG-042.
+**Severity:** P4 (process lesson, not a backend defect) · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ❌ **WITHDRAWN — the underlying claim was wrong**
+**Found:** 2026-09-15, building the doctor admissions page (closing FLAG-040/042). **Withdrawn:** same day, caught by the orchestrator.
+
+**The original entry claimed the backend `?mine=true` contract — `admissions_for_doctor()`,
+`AdmissionViewSet.get_queryset`'s `?mine=true`, and the `admissions_under_care` tile query — was
+already merged on backend `develop`, and that the task's "being built in parallel, not merged" framing
+was stale. That claim was false.** What I actually read was **another agent's uncommitted
+work-in-progress sitting in the shared backend checkout's working tree** — real files on disk at
+`C:\Users\USER\Desktop\healthclouda-backend`, but not committed and not on any branch:
+
+```
+git status --short   (that checkout, at the time)
+ M apps/patients/doctor_views.py
+ M apps/ward/models.py
+ M apps/ward/views.py
+?? apps/patients/tests/test_admissions_under_care_mine_rule.py
+?? apps/ward/tests/test_admissions_mine_filter.py
+```
+
+Checked properly (read the branch tip, not the checkout) after the correction:
+
+```
+git show origin/develop:apps/ward/models.py | grep -c admissions_for_doctor   -> 0
+git show origin/develop:apps/ward/views.py  | grep -c "name='mine'"           -> 0
+git show origin/develop:apps/patients/doctor_views.py | grep -c admissions_for_doctor -> 0
+```
+
+None of it is on `develop`. The task's brief was correct; my check was wrong.
+
+**The specific mistake, for reuse:** I ran `git log --oneline -- apps/ward/views.py` in that checkout,
+took its most recent entry (`7c84fa0`) as "the commit that shipped this", and then ran
+`git merge-base --is-ancestor 7c84fa0 HEAD` and read "true" as confirming `?mine=true` was merged.
+**That ancestry check was sound and proved nothing about `?mine=true` — `7c84fa0` is PR #201, an
+unrelated docstring fix (FLAG-583, "stop publishing internal narrative on the public schema").** It
+was merged, so the check correctly said "true" — for the wrong commit. I anchored a real verification
+technique to a commit I'd picked by proximity in a log, not by reading its diff, and the fact it
+"passed" felt like confirmation instead of prompting a second look. Likewise the FLAG-587 identifier
+I cited was the other agent's own **in-progress** flag number, not a shipped one — I copied it out of
+an uncommitted docstring without checking whether it existed on any branch.
+
+**The reusable lesson (kept, because it's worth more than the original claim was):** a shared checkout's
+working tree can hold another agent's uncommitted change at any time. **`git status`/reading files
+directly from a shared checkout is not "the backend" — it is "whatever is on disk in that checkout right
+now."** To claim something is merged, check `git show <remote-branch>:<path>` (or `git log
+<remote-branch> -- <path>`), never the working tree, and never anchor an ancestry check to a commit
+picked by "most recent in the log" without reading what that commit's diff actually contains.
+
+**Corrected status (2026-09-15):** the task's original framing stood at the time — `?mine=true` was
+genuinely not merged on backend `develop`, and #150 was correctly held pending that backend PR. No
+action was needed from the cross-repo tracker; there was nothing stale to correct.
+
+**Update (2026-09-16):** backend #207 shipped the contract and merged to `develop` the same day this
+entry was written (2026-09-15, 14:48) — #150's hold has been lifted and the false "NOT merged" notes
+it carried (PR body, FLAG-040, and the in-code comments in `DoctorDashboard.tsx`/`config.ts`) have
+been removed. This entry itself stays WITHDRAWN — the finding it records was always about *how* the
+false claim was reached, not about the backend's actual state at any one moment.

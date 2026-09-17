@@ -1463,13 +1463,32 @@ describe('WARD-PART2 — discharge with outcome', () => {
     fireEvent.change(screen.getByLabelText('Time of death'), { target: { value: '2026-09-12T09:30' } });
     fireEvent.click(recordButton);
 
+    // FLAG-242 — the raw `datetime-local` value ("2026-09-12T09:30") carries
+    // no timezone. The backend runs `TIME_ZONE='UTC'`, `USE_TZ=True`, and
+    // `DischargeSerializer.deceased_at` is a plain `DateTimeField`, so
+    // sending that string naked makes the server treat 09:30 AS ALREADY
+    // UTC — an hour (or more) wrong for anyone west of Greenwich. Comparing
+    // against `new Date(...).toISOString()` (rather than a hardcoded literal)
+    // keeps this assertion honest about WHAT property matters — the
+    // submitted value represents the same instant the browser resolved the
+    // input to, with an explicit offset — without hardcoding this machine's
+    // timezone into the test.
+    const expectedDeceasedAt = new Date('2026-09-12T09:30').toISOString();
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenCalledWith(
         ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
         'POST',
-        expect.objectContaining({ discharge_outcome: 'DECEASED', deceased_at: '2026-09-12T09:30' }),
+        expect.objectContaining({ discharge_outcome: 'DECEASED', deceased_at: expectedDeceasedAt }),
       );
     });
+    // Belt-and-braces: whatever `expectedDeceasedAt` resolves to on this
+    // machine, it must carry an explicit offset. A value that happened to
+    // equal the raw local string would pass the `objectContaining` check
+    // above by accident if `toISOString` were ever swapped for something
+    // that doesn't convert — this line is the one that actually catches that.
+    const sentPayload = dataActionMock.mock.calls.at(-1)?.[2] as Record<string, string>;
+    expect(sentPayload.deceased_at).toMatch(/Z$|[+-]\d{2}:\d{2}$/);
+    expect(sentPayload.deceased_at).not.toBe('2026-09-12T09:30');
   });
 });
 
