@@ -374,6 +374,29 @@ export interface Episode {
   created_at?: string;
   /** @deprecated Not sent by /doctor/episodes/ — the field is `episode_end`. */
   closed_at?: string | null;
+  // ── Build 4 (FLAG-045) — GET /doctor/episodes/{id}/ only (the detail
+  // action, EpisodeCompleteView's sibling retrieve). NOT sent by the LIST
+  // action (/doctor/episodes/), so both are optional here rather than
+  // forking a second type — every existing list-page read above is
+  // unaffected. `discharge_summary` is the whole-CASE summary a doctor
+  // writes when completing the episode (POST .../complete/); the array
+  // below is each ward stay's own summary, one per DISCHARGED admission
+  // under this episode, ordered by `admitted_at`.
+  discharge_summary?: string | null;
+  admission_summaries?: EpisodeAdmissionSummary[];
+}
+
+// One entry in `Episode.admission_summaries` (build 4, FLAG-045) — verified
+// against the fixed contract, section D. Only DISCHARGED stays are listed;
+// an admission still ACTIVE under this episode does not appear here yet.
+export interface EpisodeAdmissionSummary {
+  admission_id: string;
+  admitted_at: string;
+  discharged_at: string | null;
+  discharge_outcome: string;
+  discharge_summary: string;
+  discharged_by_name: string | null;
+  needs_doctor_review: boolean;
 }
 
 // GET /patients/me/appointments/ item (PATIENT-1) — shape verified live
@@ -928,6 +951,22 @@ export interface AdmissionDetail {
   attending_doctor: string | null;
   attending_doctor_name: string | null;
   needs_attending_doctor: boolean;
+  // Build 4 (FLAG-045, backend FLAG-592/574) — gained on BOTH the list and
+  // detail actions per the fixed contract, section A. `needs_doctor_review`
+  // is true only when a NURSE recorded ABSCONDED or DECEASED; a doctor
+  // recording either himself never sets it.
+  needs_doctor_review: boolean;
+  doctor_reviewed_by_name: string | null;
+  doctor_reviewed_at: string | null;
+  // ⚠️ NOT in the fixed contract's list of what section A adds — that text
+  // names only the three fields above. Read as optional/tolerant: if the
+  // backend build-4 PR does add `discharge_outcome` to
+  // `AdmissionListSerializer`/`AdmissionDetailSerializer` (today, per
+  // `apps/ward/serializers.py` on `origin/develop`, NEITHER exposes it —
+  // it is write-only, on `DischargeSerializer`), the pending-reviews row
+  // below can label itself by outcome; if not, it falls back to a generic
+  // label rather than guessing. Flagged FLAG-046 for the backend lane.
+  discharge_outcome?: string;
 }
 
 // GET /ward/admissions/?mine=true — the doctor admissions page (FLAG-040/042,
@@ -945,7 +984,8 @@ export type DoctorAdmission = Pick<
   | 'id' | 'patient' | 'bed' | 'status' | 'admitted_at' | 'admitted_by'
   | 'admission_reason' | 'discharged_at' | 'length_of_stay'
   | 'admission_source' | 'attending_doctor' | 'attending_doctor_name'
-  | 'needs_attending_doctor'
+  | 'needs_attending_doctor' | 'needs_doctor_review' | 'doctor_reviewed_by_name'
+  | 'doctor_reviewed_at' | 'discharge_outcome'
 >;
 
 // POST /episodes/ response — apps/patients/views.py EpisodeViewSet.create:
