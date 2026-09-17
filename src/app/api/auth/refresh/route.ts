@@ -31,8 +31,14 @@ export async function POST() {
       // session survives to be resumed on the next attempt.
       return NextResponse.json({ detail: 'Unable to reach the server.' }, { status: 503 });
     }
-    // Refresh expired — clear all cookies so middleware redirects to signin
-    const res = NextResponse.json({ detail: 'Session expired. Please sign in again.' }, { status: 401 });
+    // Refresh expired — clear all cookies so middleware redirects to signin.
+    // `code` is set only when the session had already lapsed (idle/12h cap,
+    // build 5 / FLAG-044) — `client-api.ts` reads it to show the specific
+    // message instead of the generic "session expired".
+    const res = NextResponse.json(
+      { detail: 'Session expired. Please sign in again.', code: outcome.code },
+      { status: 401 },
+    );
     res.cookies.delete(AUTH_COOKIES.ACCESS);
     res.cookies.delete(AUTH_COOKIES.REFRESH);
     res.cookies.delete(AUTH_COOKIES.USER);

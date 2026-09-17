@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +13,7 @@ import { MailIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { roleDashboardPath, passwordFlowPath } from '@/lib/router';
 import { formatApiError } from '@/lib/api';
+import { SESSION_EXPIRY_MESSAGES } from '@/lib/session-expiry-code';
 import type { User } from '@/types/auth';
 
 const schema = z.object({
@@ -29,10 +30,16 @@ interface SigninFormProps {
   orgLogo?: string;
 }
 
-export function SigninForm({ loginType, orgSlug, orgName, orgLogo }: SigninFormProps) {
+function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [serverError, setServerError] = useState('');
   const [redirectMsg, setRedirectMsg] = useState('');
+  // Build 5 / FLAG-044 — landed here after `middleware.ts` or `client-api.ts`
+  // ended a lapsed session (idle > 15 min, or the 12h cap). `reason` is the
+  // plain param (`idle` | `max_age`), never the raw backend code.
+  const expiryReason = searchParams.get('reason');
+  const expiryMessage = expiryReason ? SESSION_EXPIRY_MESSAGES[expiryReason] : undefined;
 
   const {
     register,
@@ -161,6 +168,11 @@ export function SigninForm({ loginType, orgSlug, orgName, orgLogo }: SigninFormP
           </div>
         )}
 
+        {expiryMessage && !serverError && (
+          <div className="rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            {expiryMessage}
+          </div>
+        )}
         {serverError && (
           <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {serverError}
@@ -190,5 +202,13 @@ export function SigninForm({ loginType, orgSlug, orgName, orgLogo }: SigninFormP
         </div>
       )}
     </AuthCard>
+  );
+}
+
+export function SigninForm(props: SigninFormProps) {
+  return (
+    <Suspense>
+      <SigninFormInner {...props} />
+    </Suspense>
   );
 }

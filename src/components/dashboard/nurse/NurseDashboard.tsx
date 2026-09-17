@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { DutyToggle } from '@/components/dashboard/DutyToggle';
+import { DutyToggle, dutyBannerText, type DutyState } from '@/components/dashboard/DutyToggle';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { formInputClass } from '@/components/ui/FormField';
@@ -188,11 +188,11 @@ function useAttendingDoctors(): AttendingByAdmission {
 
 // ─── Overview ────────────────────────────────────────────────────
 
-function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
+function OverviewPage({ stats, onNavigate, onRecordVitals, duty }: {
   stats: NurseStats | null;
   onNavigate: (p: string) => void;
   onRecordVitals: (a: NurseAdmission) => void;
-  isOnDuty: boolean;
+  duty: DutyState;
 }) {
   const { data, loading, error, refetch } =
     useApi<Paginated<NurseAdmission>>(ENDPOINTS.NURSE_MY_PATIENTS + '?page_size=5');
@@ -202,9 +202,9 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
   return (
     <div className="space-y-6">
       {/* Status banner */}
-      <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${isOnDuty ? 'bg-success-bg border-success/20' : 'bg-chip border-border'}`}>
-        <p className={`text-sm font-medium ${isOnDuty ? 'text-success-strong' : 'text-text-soft'}`}>
-          {isOnDuty ? 'You are currently on duty and visible to the system.' : 'You are currently off duty.'}
+      <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${duty.isOnDuty ? 'bg-success-bg border-success/20' : 'bg-chip border-border'}`}>
+        <p className={`text-sm font-medium ${duty.isOnDuty ? 'text-success-strong' : 'text-text-soft'}`}>
+          {dutyBannerText(duty)}
         </p>
       </div>
 
@@ -1831,7 +1831,10 @@ export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
   // Patient whose vitals are open — set by "Record vitals" row actions so
   // the Vitals page lands with that patient already selected.
   const [vitalsFor, setVitalsFor] = useState<NurseAdmission | null>(null);
-  const [isOnDuty, setIsOnDuty] = useState(user.is_on_duty ?? false);
+  const [duty, setDuty] = useState<DutyState>({
+    isOnDuty: user.is_on_duty ?? false,
+    offDutyOverride: user.off_duty_override ?? false,
+  });
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch instead of shimmering forever.
   const { data: fetchedStats } = useApi<NurseStats>(initialStats ? null : ENDPOINTS.NURSE_STATS);
@@ -1847,16 +1850,16 @@ export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
       navItems={NAV}
       activePage={page}
       onPageChange={setPage}
-      user={{ ...user, is_on_duty: isOnDuty }}
+      user={{ ...user, is_on_duty: duty.isOnDuty, off_duty_override: duty.offDutyOverride }}
       pageTitle={PAGE_TITLES[page]}
-      dutyToggle={<DutyToggle isOnDuty={isOnDuty} onToggle={setIsOnDuty} />}
+      dutyToggle={<DutyToggle isOnDuty={duty.isOnDuty} offDutyOverride={duty.offDutyOverride} onChange={setDuty} />}
       // D1 built this prop and Superadmin/Org Admin pass it; Nurse never did,
       // so this dashboard had no mobile gate at all. Same omission the T5
       // harness caught on Superadmin.
       smallScreenGateFor="Nurse"
     >
       {page === 'overview' && (
-        <OverviewPage stats={stats} onNavigate={setPage} onRecordVitals={openVitals} isOnDuty={isOnDuty} />
+        <OverviewPage stats={stats} onNavigate={setPage} onRecordVitals={openVitals} duty={duty} />
       )}
       {page === 'patients' && <MyPatientsPage onRecordVitals={openVitals} />}
       {page === 'vitals'   && <VitalsPage selected={vitalsFor} onSelect={setVitalsFor} />}
