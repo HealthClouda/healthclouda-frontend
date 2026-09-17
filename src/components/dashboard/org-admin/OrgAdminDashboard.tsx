@@ -15,6 +15,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Avatar } from '@/components/ui/Avatar';
+import { WardRotaPanel } from '@/components/dashboard/org-admin/WardRotaPanel';
 import { formatDate, roleLabel, splitName, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
@@ -296,6 +297,8 @@ function PatientsPage() {
 function WardsPage() {
   const { data: wards, loading, error, refetch } = useApi<Ward[] | Paginated<Ward>>(ENDPOINTS.ORG_ADMIN_WARDS_OVERVIEW);
   const wardList = Array.isArray(wards) ? wards : wards?.results ?? [];
+  // Build 6 / FLAG-046 — which ward's rota is open in the side panel.
+  const [rotaFor, setRotaFor] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <div className="space-y-4">
@@ -339,11 +342,23 @@ function WardsPage() {
                   </div>
                   <p className="text-xs text-text-soft">{ward.total_beds} beds total</p>
                 </div>
+
+                {/* Build 6 / FLAG-046 — plan/edit which nurses are rostered
+                    on this ward and who is in charge. */}
+                <button
+                  type="button"
+                  onClick={() => setRotaFor({ id: ward.id, name: ward.name })}
+                  className="mt-3 pt-3 border-t border-border w-full text-left text-[11.5px] font-semibold text-primary hover:underline"
+                >
+                  Manage rota
+                </button>
               </div>
             );
           })}
         </div>
       )}
+
+      <WardRotaPanel ward={rotaFor} onClose={() => setRotaFor(null)} />
     </div>
   );
 }
