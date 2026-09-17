@@ -3551,3 +3551,43 @@ whoever is building the backend PR whether this was an intentional omission or a
 
 **Done when:** the backend build-4 PR merges, both halves are verified against each other on `api-dev`,
 and FLAG-046 is either resolved (the field lands) or explicitly decided against (the label stays generic).
+
+### FLAG-046 — the ward rota: who is on which ward, and who is in charge (build 6, frontend half)
+**Severity:** P1 · **Area:** Ward · **Owner:** @Bastoh · **Status:** 🔨 **IN FLIGHT** — branch `feat/ward-rota`
+**Raised:** 2026-09-17, owner's build-6 assignment. Backend counterpart built in parallel (contract fixed
+2026-09-17, `ward.Shift`; not on `develop` at time of writing).
+
+**On the ward.** There is no nurse-to-ward assignment and no rota anywhere (grep-verified, backend
+FLAG-567): nobody can see who is responsible for a ward on a given shift, then or months later, and
+ward alerts go to every active nurse in the whole hospital rather than the nurses actually on that ward.
+
+**Owner's decisions (2026-09-17):** the rota NAMES and ROUTES; it never BLOCKS care — any nurse can
+still admit, discharge or accept a request, rostered or not. The org admin plans shifts; the nurse
+currently in charge can hand over to another nurse on that ward. Shifts carry times and are kept as
+HISTORY (ward, nurse, start, end, in-charge), never deleted by the passage of time. "Rostered" means
+on the ward — alerts reach rostered nurses regardless of session idle state (build 5's 15-minute rule
+governs sessions, not ward alerts).
+
+**Built this half:**
+- `WardRotaPanel` (org admin, `src/components/dashboard/org-admin/WardRotaPanel.tsx`) — a ward's full
+  shift history (upcoming AND past) with add/edit/remove, wired from a "Manage rota" control on each
+  ward card in `OrgAdminDashboard`'s Wards & Beds page.
+- `WardOnDutyList` (nurse, `src/components/dashboard/shared/WardOnDutyList.tsx`) — "who's on this ward
+  now", queried with `?ward_id=&current=true` (server-side, not a client-side scan of the whole rota),
+  the in-charge nurse marked, and a "Hand over" control visible ONLY to the in-charge nurse herself.
+- `localDateTimeToISOString` (`src/lib/utils.ts`) — the FLAG-242 lesson (a `datetime-local` input
+  carries no timezone) extracted from `DischargePanel`'s `toDischargePayloadValue` into a reusable
+  helper, so the rota's add/edit-shift form gets it without touching the discharge code.
+
+**Positive control, per the brief's own warning that this is the likely failure mode:**
+`NurseDashboard.test.tsx`'s "positive control" describe block puts a nurse rostered NOWHERE (the
+`?current=true` response is empty for her, everywhere) and asserts Discharge, Accept and
+Admit Patient/Emergency admission are all still present and enabled. Confirmed this control actually
+catches a regression: temporarily gated the Discharge button on a fake condition, watched the control
+fail, then reverted.
+
+**Not yet wired:** ward alerts reaching only rostered nurses (that is a backend delivery-routing
+change, not a frontend one — nothing in this build's contract exposes an alerts-recipient endpoint to
+change), and a doctor-facing view of who is in charge (out of scope per the brief: "wherever a ward is
+displayed and it fits naturally" — today that is the two ward-bearing screens, Org Admin and Nurse;
+the Doctor dashboard has no ward-level screen at all to add this to).
