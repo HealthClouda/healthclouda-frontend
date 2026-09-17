@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { formInputClass } from '@/components/ui/FormField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SlidePanel } from '@/components/ui/SlidePanel';
+import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
 import { useApi, useAllPages, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -241,217 +242,22 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, isOnDuty }: {
 
 // ─── Discharge (Part 2) ────────────────────────────────────────────
 //
-// Verified against backend source 2026-09-14 (`DischargeSerializer`,
-// `discharge_patient()`, `apps/ward/serializers.py` + `services.py`):
-// `discharge_outcome`, `destination`, `deceased_at`, `discovered_at` are
-// real fields, not contract-only. AGAINST_MEDICAL_ADVICE is different from
-// what's below, though — the backend has NO `reason`/`witnessed_by` fields
-// for it at all; the medical advisor's 2026-09-13 answer made the signature
-// `discharged_by`'s own role (DOCTOR-only), not a second free-text field.
-// `CanManageAdmissions` still lets a NURSE reach this endpoint, so a nurse
-// choosing AGAINST_MEDICAL_ADVICE here would 400 role-gated at the service
-// layer — see the fix stacked on this branch.
+// The outcome list and the panel itself now live in one shared module
+// (`@/components/dashboard/shared/DischargePanel`), used by both this file
+// and DoctorDashboard.tsx — see that module's header comment for why
+// (FLAG-242 review of #150: a rule copied instead of shared meant the same
+// timezone bug had to be fixed twice). The one real behavioural difference
+// between the two dashboards — AGAINST_MEDICAL_ADVICE being blocked for a
+// nurse but not a doctor — is passed in as `canRecordAgainstMedicalAdvice`,
+// not a second copy of the panel.
 //
-// The outcome list is declared exactly ONCE — value, label, tone, and which
-// extra fields it requires — so correcting it is a one-place edit.
-//
-// ⚠️ CORRECTED against the advisor's actual Q3 answer, twice now:
-// - The AMA reason must NOT be required ("sometimes there might be no
-//   particular reason, the patient just wants to leave"). It is no longer a
-//   separate extra field — it reuses the existing, already-optional
-//   "Discharge summary" textarea below, which is exactly what the backend's
-//   `discharge_patient()` reads as the AMA reason (`summary` ->
-//   `discharge_summary`). The previous `reason` extra field sent a
-//   `reason` key the backend has never read — required-and-wrong at once.
-// - FLAG-042 — "signed by a doctor" is NOT a form field any more.
-//   `witnessed_by` was a first correction's stand-in for this (a doctor
-//   picker sending a name into the old free-text CharField), but the
-//   backend went further than an FK: `apps/ward/migrations/0008_remove_
-//   witnessed_by_medical_answers.py` DROPS the column outright, and
-//   `DischargeSerializer` (apps/ward/serializers.py:527) no longer accepts
-//   it — sending it 400s. The signer is now `discharged_by`, the ACTING
-//   user, role-gated to DOCTOR for this one outcome inside
-//   `discharge_patient()` (the FLAG-272 "attest via the acting user"
-//   precedent, not a second signature field). There is nothing left to
-//   submit here — see the AMA-blocked banner in DischargePanel below.
-interface DischargeExtraField { key: string; label: string; type: 'text' | 'datetime-local' }
-interface DischargeOutcomeConfig {
-  value: string;
-  label: string;
-  // 'somber' gets NO green, NO "success" language, NO checkmark — the
-  // explicit ask: a DECEASED discharge must never read like the others.
-  tone: 'neutral' | 'caution' | 'somber';
-  extraFields: DischargeExtraField[];
-}
-const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
-  { value: 'ROUTINE', label: 'Routine discharge', tone: 'neutral', extraFields: [] },
-  {
-    value: 'TRANSFERRED_OUT', label: 'Transferred out', tone: 'neutral',
-    extraFields: [{ key: 'destination', label: 'Destination', type: 'text' }],
-  },
-  {
-    // No extra fields at all — see the FLAG-042 block comment above. The
-    // required "reason" the backend once wanted is gone, and the doctor
-    // signature is the acting user, not something this form submits.
-    value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution',
-    extraFields: [],
-  },
-  {
-    value: 'ABSCONDED', label: 'Absconded', tone: 'caution',
-    extraFields: [{ key: 'discovered_at', label: 'Discovered at', type: 'datetime-local' }],
-  },
-  {
-    value: 'DECEASED', label: 'Deceased', tone: 'somber',
-    extraFields: [{ key: 'deceased_at', label: 'Time of death', type: 'datetime-local' }],
-  },
-];
-
-function DischargePanel({ admission, onClose, onDischarged }: {
-  admission: NurseAdmission | null;
-  onClose: () => void;
-  onDischarged: () => void;
-}) {
-  const { toast } = useToast();
-  const [outcome, setOutcome] = useState<string>('ROUTINE');
-  const [extra, setExtra] = useState<Record<string, string>>({});
-  const [summary, setSummary] = useState('');
-  const [instructions, setInstructions] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const outcomeConfig = DISCHARGE_OUTCOMES.find(o => o.value === outcome) ?? DISCHARGE_OUTCOMES[0];
-  // FLAG-042 — this screen is nurse-only (route-gated the same way every
-  // dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
-  // `discharge_patient()` now rejects AGAINST_MEDICAL_ADVICE unless the
-  // ACTING user's role is DOCTOR. So this outcome can never be completed
-  // from here — not "sometimes fails", always. Block it client-side with a
-  // clear reason instead of letting a nurse submit and hit a 400 she can't
-  // interpret.
-  const amaBlockedForRole = outcome === 'AGAINST_MEDICAL_ADVICE';
-  const missingRequired = amaBlockedForRole || outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!admission || saving || missingRequired) return;
-    setSaving(true);
-    setFormError(null);
-    try {
-      const payload: Record<string, string> = { discharge_outcome: outcome };
-      // The AMA reason lives here, not as a separate required field — see
-      // the FLAG-042 comment on DISCHARGE_OUTCOMES. Optional for every
-      // outcome, including AMA.
-      if (summary.trim()) payload.discharge_summary = summary.trim();
-      if (instructions.trim()) payload.discharge_instructions = instructions.trim();
-      for (const f of outcomeConfig.extraFields) {
-        payload[f.key] = extra[f.key].trim();
-      }
-
-      await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
-
-      const name = `${admission.patient.first_name} ${admission.patient.last_name}`;
-      // Never `toast.success` for DECEASED — the explicit ask is no
-      // celebratory/"success" language on that path, and success toasts in
-      // this app render green with a checkmark.
-      if (outcome === 'DECEASED') {
-        toast.info(`Recorded: ${name} — deceased.`);
-      } else if (outcome === 'AGAINST_MEDICAL_ADVICE' || outcome === 'ABSCONDED') {
-        toast.warning(`${name} discharged — ${outcomeConfig.label.toLowerCase()}.`);
-      } else {
-        toast.success(`${name} discharged`);
-      }
-      onDischarged();
-      onClose();
-    } catch (err) {
-      const { message } = readFieldError(
-        err,
-        ['discharge_outcome', 'discharge_summary', ...outcomeConfig.extraFields.map(f => f.key), 'non_field_errors'],
-        'Failed to discharge patient',
-      );
-      setFormError(message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <SlidePanel
-      open={!!admission}
-      onClose={onClose}
-      title="Discharge patient"
-      subtitle={admission ? `${admission.patient.first_name} ${admission.patient.last_name}` : undefined}
-      footer={
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          <button
-            type="submit"
-            form="discharge-patient"
-            disabled={saving || missingRequired}
-            className={`px-4 py-2 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors ${
-              outcomeConfig.tone === 'somber' ? 'bg-ink hover:opacity-90' : 'bg-primary hover:bg-primary-dark'
-            }`}
-          >
-            {saving ? 'Saving…' : outcomeConfig.tone === 'somber' ? 'Record outcome' : 'Discharge'}
-          </button>
-        </div>
-      }
-    >
-      <form id="discharge-patient" onSubmit={submit} className="space-y-4">
-        <div>
-          <label htmlFor="discharge-outcome" className="block text-xs font-medium text-text-soft mb-1">Outcome</label>
-          <select
-            id="discharge-outcome"
-            value={outcome}
-            onChange={e => { setOutcome(e.target.value); setExtra({}); }}
-            className={formInputClass}
-          >
-            {DISCHARGE_OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-
-        {outcomeConfig.tone === 'somber' && (
-          <p role="alert" className="text-xs font-semibold text-ink bg-row-hover border border-border rounded-lg px-3 py-2.5">
-            This records the patient as deceased. It closes the episode and frees the bed.
-          </p>
-        )}
-
-        {amaBlockedForRole && (
-          <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
-            Only a doctor can complete an against-medical-advice discharge — the backend now
-            attests this to the signed-in account, and a nurse account cannot be the signer.
-            Ask an on-duty doctor to record this discharge.
-          </p>
-        )}
-
-        {outcomeConfig.extraFields.map(f => (
-          <div key={f.key}>
-            <label htmlFor={`discharge-${f.key}`} className="block text-xs font-medium text-text-soft mb-1">{f.label}</label>
-            <input
-              id={`discharge-${f.key}`}
-              type={f.type}
-              value={extra[f.key] ?? ''}
-              onChange={e => setExtra(v => ({ ...v, [f.key]: e.target.value }))}
-              className={formInputClass}
-            />
-          </div>
-        ))}
-
-        <div>
-          <label htmlFor="discharge-summary" className="block text-xs font-medium text-text-soft mb-1">
-            {/* Reused by AMA as the (optional) reason — see the FLAG-042 comment above. */}
-            {outcome === 'AGAINST_MEDICAL_ADVICE' ? 'Reason (optional)' : 'Discharge summary (optional)'}
-          </label>
-          <textarea id="discharge-summary" rows={2} value={summary} onChange={e => setSummary(e.target.value)} className={`${formInputClass} h-auto py-2`} />
-        </div>
-        <div>
-          <label htmlFor="discharge-instructions" className="block text-xs font-medium text-text-soft mb-1">Discharge instructions (optional)</label>
-          <textarea id="discharge-instructions" rows={2} value={instructions} onChange={e => setInstructions(e.target.value)} className={`${formInputClass} h-auto py-2`} />
-        </div>
-
-        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
-      </form>
-    </SlidePanel>
-  );
-}
+// FLAG-042 — this screen is nurse-only (route-gated the same way every
+// dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
+// `discharge_patient()` rejects AGAINST_MEDICAL_ADVICE unless the ACTING
+// user's role is DOCTOR. So `canRecordAgainstMedicalAdvice={false}` below is
+// not "sometimes blocked" — it is always, because `CanManageAdmissions`
+// still lets a NURSE reach this endpoint and the service layer 400s on the
+// role check.
 
 // ─── My Patients page ─────────────────────────────────────────────
 //
@@ -504,6 +310,13 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
         admission={discharging}
         onClose={() => setDischarging(null)}
         onDischarged={refetch}
+        canRecordAgainstMedicalAdvice={false}
+        idPrefix="discharge"
+        readError={(err, fallback) => readFieldError(
+          err,
+          ['discharge_outcome', 'discharge_summary', 'destination', 'deceased_at', 'discovered_at', 'non_field_errors'],
+          fallback,
+        ).message}
       />
     </div>
   );
@@ -762,8 +575,43 @@ function admissionFieldError(err: unknown): { field: string | null; message: str
     // A-3: 'admission_reason'/'admission_source'/'attending_doctor' added
     // for the emergency path — AdmissionCreateSerializer.validate
     // (apps/ward/serializers.py) can now reject on any of these three too.
+    // 'patient' (backend fix/admission-refusal-shapes, paired with this
+    // branch) is a hard stop — see admissionFieldError's caller, which never
+    // offers an override for it the way it does for 'gender'.
     ['gender', 'admission_reason', 'admission_source', 'attending_doctor', 'episode', 'bed', 'patient', 'non_field_errors'],
     'Failed to admit patient',
+  );
+}
+
+/**
+ * A bed assigned seconds ago by someone else — 409, not 400. Deliberately
+ * checked BEFORE `readFieldError`/`admissionFieldError`: the backend's 409
+ * body is flat (no `details` key at all, same shape the flat gender-mismatch
+ * error used to have pre-#194), so routing it through the field-error path
+ * would just fall through to `non_field_errors`/the generic fallback and get
+ * rendered as if the nurse had typed something wrong. She didn't — the bed
+ * she picked was valid when she picked it. The only correct response is to
+ * re-fetch the bed list and let her pick again, not to blame a field.
+ */
+function isBedConflict(err: unknown): boolean {
+  return err instanceof ClientApiError && err.status === 409;
+}
+
+const BED_CONFLICT_MESSAGE = 'That bed was just taken by another patient — the list below has been refreshed, pick another.';
+
+// Non-blocking by design — `role="status"` (polite), not `role="alert"`,
+// and it renders ALONGSIDE the rest of the form rather than replacing it
+// the way GenderOverrideWarning/PatientBlockedNotice do. Her input was
+// valid; nothing about the rest of what she typed (reason, doctor, …) needs
+// re-entering, only the bed.
+function BedConflictNotice({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div role="status" className="rounded-lg border border-info/30 bg-info-bg px-3 py-2.5 flex items-start justify-between gap-2">
+      <p className="text-xs font-semibold text-info">{BED_CONFLICT_MESSAGE}</p>
+      <button type="button" onClick={onDismiss} className="text-xs font-semibold text-text-soft hover:text-ink flex-shrink-0">
+        Dismiss
+      </button>
+    </div>
   );
 }
 
@@ -876,6 +724,22 @@ function GenderOverrideWarning({ message, saving, onOverride, onCancel }: {
   );
 }
 
+// `details.patient` — a hard stop, not a two-step. Unlike the gender/on-duty
+// warnings above there is no override: no bed choice or confirmation click
+// changes this outcome, so the form offers neither. Deliberately renders
+// only the backend's own message, with no "why" added and no "try again" —
+// the instruction for the nurse here is to escalate, not retry.
+function PatientBlockedNotice({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div role="alert" className="rounded-lg border border-danger/30 bg-danger-bg px-3 py-2.5 space-y-2">
+      <p className="text-xs font-semibold text-danger">{message}</p>
+      <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs font-semibold text-text-soft hover:text-ink">
+        Close
+      </button>
+    </div>
+  );
+}
+
 function AdmitForm({ episode, onClose, onAdmitted }: {
   episode: EpisodeListItem | null;
   onClose: () => void;
@@ -891,6 +755,12 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
   // Set only when the server's gender two-step fires (backend FLAG-301) — a
   // deliberate pause for the clinician to confirm, never auto-retried.
   const [genderWarning, setGenderWarning] = useState<string | null>(null);
+  // Set on `details.patient` — a hard stop, never retried and never given an
+  // override (see PatientBlockedNotice).
+  const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
+  // Set on a 409 — non-blocking (see BedConflictNotice): the rest of the
+  // form stays live, only the bed list gets refreshed.
+  const [bedConflict, setBedConflict] = useState(false);
 
   async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
     e.preventDefault();
@@ -910,9 +780,21 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       onAdmitted();
       onClose();
     } catch (err) {
+      // The bed she picked was valid when she picked it — someone else just
+      // took it. Not her mistake and not a field to correct: re-fetch the
+      // beds and let her carry on, rather than showing a validation error.
+      if (isBedConflict(err)) {
+        setBedId('');
+        setBedConflict(true);
+        void refetchBeds();
+        toast.warning(BED_CONFLICT_MESSAGE);
+        return;
+      }
       const { field, message } = admissionFieldError(err);
       if (field === 'gender' && !override) {
         setGenderWarning(message);
+      } else if (field === 'patient') {
+        setPatientBlocked(message);
       } else {
         setFormError(message);
       }
@@ -930,7 +812,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && (
+          {!genderWarning && !patientBlocked && (
             <button type="submit" form="admit-patient" disabled={saving || !bedId}
               className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {saving ? 'Admitting…' : 'Admit'}
@@ -940,6 +822,11 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       }
     >
       <form id="admit-patient" onSubmit={(e) => void submit(e, false)} className="space-y-4">
+        {patientBlocked ? (
+          <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
+        ) : (
+          <>
+        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
         <BedPicker
           id="admit-bed"
           beds={beds}
@@ -947,7 +834,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
         />
 
         <div>
@@ -968,6 +855,8 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
             onOverride={(e) => void submit(e, true)}
             onCancel={() => setGenderWarning(null)}
           />
+        )}
+          </>
         )}
 
         {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
@@ -1200,6 +1089,14 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
   // selectable in the picker below (not disabled) precisely so this
   // override can be exercised from the UI.
   const [doctorWarning, setDoctorWarning] = useState<string | null>(null);
+  // Set on `details.patient` from the admission POST (e.g. the patient
+  // cannot be admitted at all) — a hard stop, never retried and never given
+  // an override. Distinct from `episodeFieldError`'s own 'patient' case
+  // above (the episode-consent rejection), which is a plain formError.
+  const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
+  // Set on a 409 from the admission POST — non-blocking, the episode is
+  // already created and the rest of the form stays live.
+  const [bedConflict, setBedConflict] = useState(false);
   // Set once the episode POST succeeds. Kept in STATE, not a local variable
   // in `submit` — the gender two-step (and a plain retry after a failed bed
   // assignment) re-invokes `submit` from scratch, and a local variable would
@@ -1271,11 +1168,27 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       onAdmitted();
       onClose();
     } catch (err) {
+      // The bed she picked was valid a moment ago — someone else just took
+      // it. The episode already exists (ACTIVE), so this is purely a bed
+      // re-pick, not a lost admission: re-fetch the beds and let her retry
+      // the same episode/patient with a different bed.
+      if (isBedConflict(err)) {
+        setBedId('');
+        setBedConflict(true);
+        void refetchBeds();
+        toast.warning(BED_CONFLICT_MESSAGE);
+        return;
+      }
       const { field, message } = admissionFieldError(err);
       if (field === 'gender' && !overrides.gender) {
         setGenderWarning(message);
       } else if (field === 'attending_doctor' && !overrides.doctor) {
         setDoctorWarning(message);
+      } else if (field === 'patient') {
+        // Hard stop — no override, no "find them in the list to retry"
+        // language (unlike the else branch below), since retrying cannot
+        // change this outcome.
+        setPatientBlocked(message);
       } else {
         // The episode is already created and ACTIVE at this point — it will
         // show up in the ordinary Admit Patient list below, so a failed bed
@@ -1300,7 +1213,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && !doctorWarning && (
+          {!genderWarning && !doctorWarning && !patientBlocked && (
             <button
               type="submit"
               form="emergency-admit"
@@ -1328,6 +1241,10 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           </div>
         )}
 
+        {patientBlocked ? (
+          <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
+        ) : (
+          <>
         <div>
           <label htmlFor="emergency-reason" className="block text-xs font-medium text-text-soft mb-1">
             Reason for admission
@@ -1342,6 +1259,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           />
         </div>
 
+        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
         <BedPicker
           id="emergency-admit-bed"
           beds={beds}
@@ -1349,7 +1267,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
         />
 
         <DoctorPicker
@@ -1377,6 +1295,8 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
             onOverride={(e) => void submit(e, { doctor: true })}
             onCancel={() => setDoctorWarning(null)}
           />
+        )}
+          </>
         )}
 
         {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
@@ -1485,6 +1405,11 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [genderWarning, setGenderWarning] = useState<string | null>(null);
+  // Set on `details.patient` — a hard stop, never retried and never given
+  // an override, same as the other two admit surfaces.
+  const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
+  // Set on a 409 — non-blocking, same as the other two admit surfaces.
+  const [bedConflict, setBedConflict] = useState(false);
 
   async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
     e.preventDefault();
@@ -1498,12 +1423,24 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
       onAccepted();
       onClose();
     } catch (err) {
+      // The bed she picked was valid a moment ago — someone else just took
+      // it. Not her mistake: re-fetch the beds and let her pick again,
+      // rather than treating it as a validation error on the bed field.
+      if (isBedConflict(err)) {
+        setBedId('');
+        setBedConflict(true);
+        void refetchBeds();
+        toast.warning(BED_CONFLICT_MESSAGE);
+        return;
+      }
       // Reuses the same gender two-step as the other two admit paths
       // (backend FLAG-301) — a ward gender-policy mismatch applies to a bed
       // regardless of which of the three entry points put the patient there.
-      const { field, message } = readFieldError(err, ['gender', 'bed', 'non_field_errors'], 'Failed to accept admission request');
+      const { field, message } = readFieldError(err, ['gender', 'bed', 'patient', 'non_field_errors'], 'Failed to accept admission request');
       if (field === 'gender' && !override) {
         setGenderWarning(message);
+      } else if (field === 'patient') {
+        setPatientBlocked(message);
       } else {
         setFormError(message);
       }
@@ -1521,7 +1458,7 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && (
+          {!genderWarning && !patientBlocked && (
             <button type="submit" form="accept-request" disabled={saving || !bedId}
               className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {saving ? 'Admitting…' : 'Accept & admit'}
@@ -1537,6 +1474,11 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
             {request.clinical_reason && <p>{request.clinical_reason}</p>}
           </div>
         )}
+        {patientBlocked ? (
+          <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
+        ) : (
+          <>
+        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
         <BedPicker
           id="accept-request-bed"
           beds={beds}
@@ -1544,7 +1486,7 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
         />
         {genderWarning && (
           <GenderOverrideWarning
@@ -1553,6 +1495,8 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
             onOverride={(e) => void submit(e, true)}
             onCancel={() => setGenderWarning(null)}
           />
+        )}
+          </>
         )}
         {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
       </form>
