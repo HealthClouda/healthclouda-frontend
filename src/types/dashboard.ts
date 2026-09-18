@@ -996,7 +996,7 @@ export interface AdmissionDetail {
   // `apps/ward/serializers.py` on `origin/develop`, NEITHER exposes it —
   // it is write-only, on `DischargeSerializer`), the pending-reviews row
   // below can label itself by outcome; if not, it falls back to a generic
-  // label rather than guessing. Flagged FLAG-046 for the backend lane.
+  // label rather than guessing. Flagged FLAG-045 for the backend lane.
   discharge_outcome?: string;
 }
 
