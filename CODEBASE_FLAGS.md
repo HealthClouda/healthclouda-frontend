@@ -1944,8 +1944,20 @@ change it claims, which is option (a).
 ---
 
 ### FLAG-242 — Discharge times ("Time of death", "Discovered at") are sent with no timezone and stored an hour late
-**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED** (2026-09-16, @Bastoh, `629c0ef` on #150)
 **Found:** 2026-09-15, reviewing #150 against backend `develop` source
+
+> **Fixed in the shape the flag asked for — one shared module, not two copies.** `629c0ef`
+> (*"rework #150 per Qeeyat’s review"*) extracted `DischargePanel.tsx` and put the offset fix in its
+> `toDischargePayloadValue`, so the nurse and doctor discharge forms are the same component and the
+> conversion happens once. Tests on both sides: `DoctorDashboard.test.tsx:989` and
+> `NurseDashboard.test.tsx:1463`, each asserting the sent value is **not** the raw `datetime-local`
+> string. Verified on `develop` 2026-09-18 — `git grep datetime-local` finds no second copy.
+>
+> ⚠️ **This entry read OPEN for two days after it was fixed.** Logged here because the same review
+> that fixed it (#150) did not come back to close the flag, and #159 then cited FLAG-242 as a live
+> lesson while its fix was already merged. The reviewer who raises a flag is usually the only person
+> watching for the commit that closes it.
 
 ⚠️ **Numbered 242, not 241.** #150 (unmerged) already writes a withdrawn FLAG-241 into this file.
 
