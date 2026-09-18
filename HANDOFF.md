@@ -23,7 +23,7 @@
 
 | @Qeeyat | **FLAG-239 + FLAG-240** logged from the 14 Sep review of @Bastoh's 11 PRs, plus the backend #192 Cross-Lane row | `docs/flags-239-240-review-2026-09-14` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-14 | 🟡 **Docs only.** Claimed in this PR's own commit rather than a separate claim PR, which is FLAG-240's option (a), done deliberately |
 
-| @Bastoh | **Build 5 (frontend)** — idle sign-out, 12h session cap, duty-switch-as-off-only. **FLAG-044** reserved | `feat/session-idle-and-duty-cap` | `src/lib/client-api.ts`, `src/lib/session-refresh.ts`, `src/middleware.ts`, `src/app/api/auth/refresh/route.ts`, `src/components/layout/DashboardShell.tsx`, `src/components/dashboard/DutyToggle.tsx`, `src/components/forms/SigninForm.tsx` | 2026-09-16 | 🟡 **Must not merge before the backend build-5 PR** (heartbeat 404s / duty fields absent until then) |
+| @Bastoh | **Build 4 (frontend)** — who may discharge (nurse restricted to ABSCONDED/DECEASED), doctor pending-review queue, readable discharge summaries. **FLAG-045** reserved | `feat/discharge-outcome-review-and-summaries` | `src/components/dashboard/shared/DischargePanel.tsx`, `src/components/dashboard/doctor/DoctorDashboard.tsx`, doctor episode detail view, doctor complete-episode form | 2026-09-17 | 🟡 **Must not merge before the backend build-4 PR** (backend FLAG-592/FLAG-574 — `needs_doctor_review` fields, `doctor-review/` endpoint, `admission_summaries` not live until then) |
 
 | @Bastoh | **Apex landing copy** — em-dashes out of all visitor-facing wording, `hello@healthclouda.ng` → `info@healthclouda.com` (**sprint plan B6**) | `fix/landing-copy-email-contact` | `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/ContactForm.tsx`, the landing design source, `docs/FRONTEND_SPRINT_PLAN.md` | 2026-09-16 | 🟡 **Copy only — no component, route or contract change.** Claimed in this PR's own commit (FLAG-240 option (a)), as @Qeeyat did above. Paired with backend `feat/contact-form-email-notification`, which emails form submissions to the same address 
 
@@ -38,6 +38,8 @@
 
 > ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
 > 🔴 **2026-09-04 — this stacking guidance has a cost nobody had measured: a stacked child gets NO CI.** `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`, and a base change on retarget fires an event type the workflow does not listen for. **#100, #117 and #119 all merged into `develop` without a single CI job ever running on them** — verified 2026-09-04. Keep stacking; it is still the right pattern. But see **FLAG-230**, and do not read "no checks reported" as "not yet".
+
+*Cleared on merge — **2026-09-16/17**: **#155** Build 5 (idle sign-out, 12h session cap, duty-switch-as-off-only, FLAG-044) — merged, row above replaced with Build 4's claim.*
 
 *Cleared on merge — **2026-09-08/09**: **#129** the six-row In Flight clear · **#131** T3 role-gate & tenant-isolation matrix (58 tests, sabotage-partitioned 8/32/12) · **#133** FLAG-235 logged. ⚠️ **#133 landed the flag, not the fix** — the mask in `roles.spec.ts` is unchanged on `develop` today, and the flag has since been escalated (this branch). A row reading "FLAG-235" on a merged PR does **not** mean the harness is fixed.*
 
