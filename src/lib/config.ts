@@ -178,6 +178,22 @@ export const ENDPOINTS = {
   REC_SEND_PORTAL_INVITE: (id: string) => `/receptionist/patients/${id}/send-portal-invite/`,
   CREATE_PATIENT: '/patients/',
 
+  // Build 2 PR B (backend FLAG-373) — the duplicate-patient merge queue.
+  // apps/patients/merge_views.py PatientMergeRequestViewSet, mounted on its
+  // own SimpleRouter BEFORE the empty-prefix patient router.
+  //
+  // ⚠️ Reception FLAGS, an ORG_ADMIN confirms — the list and create are open
+  // to both (IsReceptionistOrOrgAdmin), but confirm/reject/undo are gated to
+  // ORGANIZATION_ADMIN and SUPERADMIN inside the view (`_require_admin`).
+  // That two-person rule is the point of the feature, not an accident of
+  // permissions: the person who spotted the duplicate is not the person who
+  // decides it is one.
+  PATIENT_MERGE_REQUESTS: '/patients/merge-requests/',
+  PATIENT_MERGE_REQUEST: (id: string) => `/patients/merge-requests/${id}/`,
+  PATIENT_MERGE_CONFIRM: (id: string) => `/patients/merge-requests/${id}/confirm/`,
+  PATIENT_MERGE_REJECT: (id: string) => `/patients/merge-requests/${id}/reject/`,
+  PATIENT_MERGE_UNDO: (id: string) => `/patients/merge-requests/${id}/undo/`,
+
   // ── Nurse ──────────────────────────────────────────────────
   NURSE_STATS: '/nurse/dashboard/stats/',
   NURSE_WARDS_OVERVIEW: '/nurse/wards/overview/',
