@@ -515,6 +515,16 @@ export interface PatientDetail {
   gender?: string;
   has_portal_account: boolean;
   is_active?: boolean;
+  // Build 2 / FLAG-575 (apps/patients/models.py, apps/patients/serializers.py
+  // PatientDetailSerializer). True whenever this record was created by the
+  // emergency-admission endpoint with no `patient_id` — a description in
+  // `first_name`, no consent, phone-when-no-email waived until reception
+  // completes it. Never set by the nurse; only ever shown to her.
+  registration_incomplete?: boolean;
+  // An HCL-ID the patient/family stated at admission — a note only, per
+  // `EmergencyAdmissionSerializer.stated_hcl_id`: it grants nothing and links
+  // nothing, so never render it as though it resolved to a real record.
+  stated_hcl_id?: string;
 }
 
 /**
@@ -993,9 +1003,15 @@ export type DoctorAdmission = Pick<
 // NewEpisodePanel (DoctorDashboard.tsx) — which is about a DIFFERENT call
 // signature and predates this read — `id` IS present here (verified against
 // apps/patients/serializers.py EpisodeDetailSerializer.Meta.fields, which
-// lists 'id' first, 2026-09-12). The emergency-admission flow depends on
-// this: it chains episode creation straight into the admission POST using
-// the id from this response, with no intermediate refetch.
+// lists 'id' first, 2026-09-12).
+//
+// ⚠️ No longer used by the emergency-admission flow — build 2 (FLAG-575/
+// FLAG-243) replaced the old chained POST /episodes/ then POST
+// /ward/admissions/ with the single POST /ward/emergency-admissions/ below,
+// specifically because the two-call version could open an ACTIVE episode
+// and then have the admission refuse a deceased patient, leaving the
+// episode orphaned. Still used by the doctor-side "start a new episode"
+// panel (DoctorDashboard.tsx), which is unaffected.
 export interface EpisodeCreateResponse {
   message: string;
   episode: { id: string };
@@ -1005,6 +1021,54 @@ export interface EpisodeCreateResponse {
 export interface AdmissionCreateResponse {
   message: string;
   admission: AdmissionDetail;
+}
+
+// ─── Emergency admission, ONE call (build 2 — FLAG-575, closes FLAG-243) ──
+//
+// POST /ward/emergency-admissions/ — apps/ward/views.py EmergencyAdmissionView
+// / EmergencyAdmissionSerializer, apps/ward/services.py emergency_admit().
+// Finds-or-creates the patient, grants this hospital access, refuses a
+// deceased patient BEFORE anything is written, opens the episode, admits —
+// all inside one `transaction.atomic()`. Replaces the old two-call
+// POST /episodes/ → POST /ward/admissions/ chain: there, the admit's
+// deceased guard ran with no equivalent guard on episode creation, so a
+// refused admit left an open ACTIVE episode with nobody in a bed behind it
+// (FLAG-243). Verified against backend source on `origin/develop`
+// (#210), not the schema.
+export interface EmergencyAdmissionRequest {
+  bed_id: string;
+  // Omit for a genuine first-ever walk-in with no record at this hospital —
+  // give `description` instead. When given, must be a patient THIS hospital
+  // already has (an approved OrgAccessRequest or an existing episode here);
+  // any other id is refused with a plain not-found 400
+  // (`PatientNotAvailableHere`, deliberately indistinguishable from a typo —
+  // see the service's own docstring on why there is no break-glass).
+  patient_id?: string;
+  // Required when `patient_id` is omitted — who the patient is, in the
+  // nurse's own words ("man, ~40, brought in by police"). Goes verbatim into
+  // `first_name` so reception's search can still find them; never send a
+  // placeholder like "Unknown Unknown", which would collide every unnamed
+  // patient together.
+  description?: string;
+  presenting_complaint?: string;
+  attending_doctor_id?: string;
+  // A note only — see `PatientDetail.stated_hcl_id`. Never used to resolve
+  // or link a record.
+  stated_hcl_id?: string;
+  // Resend =true to proceed past a warning (ward gender policy, or an
+  // off-duty attending doctor) — ONE flag covers both; there is no separate
+  // `attending_doctor_override` on this endpoint (unlike the ordered-admit
+  // and Part-2-accept paths).
+  override?: boolean;
+}
+
+// {message, admission, patient} — `patient` is PatientDetailSerializer, so
+// `registration_incomplete`/`stated_hcl_id` ride along whenever this call
+// created the record.
+export interface EmergencyAdmissionResponse {
+  message: string;
+  admission: AdmissionDetail;
+  patient: PatientDetail;
 }
 
 // ═══ PART 2 — the full ordered admission workflow (contract addendum, 2026-09-12) ═══

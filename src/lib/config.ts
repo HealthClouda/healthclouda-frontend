@@ -221,6 +221,12 @@ export const ENDPOINTS = {
   // (this contract) merged to `develop` 2026-09-15.
   ADMISSIONS: '/ward/admissions/',
   ADMISSION: (id: string) => `/ward/admissions/${id}/`,
+  // Build 2 (FLAG-575) — the emergency admission as ONE call, closing
+  // FLAG-243. apps/ward/views.py EmergencyAdmissionView, NURSE + DOCTOR
+  // (CanManageAdmissions). Replaces the old chained POST /episodes/ then
+  // POST /ward/admissions/ — see EmergencyAdmissionRequest in
+  // types/dashboard.ts for the full contract.
+  WARD_EMERGENCY_ADMISSIONS: '/ward/emergency-admissions/',
   // A-2b (emergency admission): DOCTORs in the caller's org, for the
   // attending-doctor picker. Bare array, on-duty first — apps/ward/views.py
   // AttendingDoctorListView. NURSE-accessible (CanManageAdmissions).

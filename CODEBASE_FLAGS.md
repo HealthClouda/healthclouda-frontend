@@ -1969,8 +1969,19 @@ present, and ideally the two copies share one module so the fix happens once.
 ---
 
 ### FLAG-243 — The emergency admit creates an ACTIVE episode before the deceased check, and #148's hard stop leaves it orphaned
-**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED** (2026-09-18, @Bastoh, `feat/emergency-admission-single-call`)
 **Found:** 2026-09-15, reviewing #148 against backend `develop` (#199 merged)
+
+> **Resolved by the first "Done when" option, on the backend side.** Build 2 replaced the two
+> calls with a single `POST /ward/emergency-admissions/` (backend FLAG-575, #213) that does
+> find-or-create patient → access grant → deceased check → episode → admission inside one
+> `transaction.atomic()`. There is no longer a client-side window in which an episode exists
+> without the admission behind it — the form does not create episodes at all.
+>
+> **Pinned by a control that was watched failing first:** `sends exactly ONE request and never
+> creates an episode of its own — FLAG-243 closed` asserts one call and no `/episodes/` POST.
+> Run against the pre-change component it fails, along with 9 of its 14 siblings — checked by
+> reverting the component and re-running, not assumed.
 
 `EmergencyAdmitForm` calls `POST /episodes/` first, then `POST /ward/admissions/`. After backend #199,
 the admission refuses a deceased patient with `details.patient`. **The episode call has no such
