@@ -229,6 +229,10 @@ export const ENDPOINTS = {
   // already ships), reassign-doctor is the new PART 2 action alongside it.
   ADMISSION_DISCHARGE: (id: string) => `/ward/admissions/${id}/discharge/`,
   ADMISSION_REASSIGN_DOCTOR: (id: string) => `/ward/admissions/${id}/reassign-doctor/`,
+  // Build 4 (FLAG-045) — DOCTOR-only, empty body. Clears `needs_doctor_review`
+  // on an admission a NURSE discharged as ABSCONDED/DECEASED (backend
+  // FLAG-592/574). One endpoint for both "Confirm death" and "Mark reviewed".
+  ADMISSION_DOCTOR_REVIEW: (id: string) => `/ward/admissions/${id}/doctor-review/`,
   // ⚠️ PART 2 (2026-09-12 contract addendum) — ward.AdmissionRequest. NOT YET
   // BUILT on the parallel backend branch as of this write (verified: `git
   // status` on healthclouda-backend shows only apps/ward/{models,serializers,

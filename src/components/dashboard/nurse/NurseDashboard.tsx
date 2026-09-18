@@ -240,24 +240,27 @@ function OverviewPage({ stats, onNavigate, onRecordVitals, duty }: {
   );
 }
 
-// ─── Discharge (Part 2) ────────────────────────────────────────────
+// ─── Discharge (Part 2 / Build 4, FLAG-045) ────────────────────────
 //
 // The outcome list and the panel itself now live in one shared module
 // (`@/components/dashboard/shared/DischargePanel`), used by both this file
 // and DoctorDashboard.tsx — see that module's header comment for why
 // (FLAG-242 review of #150: a rule copied instead of shared meant the same
-// timezone bug had to be fixed twice). The one real behavioural difference
-// between the two dashboards — AGAINST_MEDICAL_ADVICE being blocked for a
-// nurse but not a doctor — is passed in as `canRecordAgainstMedicalAdvice`,
-// not a second copy of the panel.
+// timezone bug had to be fixed twice). Which outcomes this dashboard offers
+// is decided in exactly one place — `outcomesAllowedForRole('NURSE')` in
+// that shared module — passed in here as `role="NURSE"`, not a boolean per
+// outcome living beside it.
 //
-// FLAG-042 — this screen is nurse-only (route-gated the same way every
-// dashboard is; see requireDashboardUser() in CLAUDE.md §5), and
-// `discharge_patient()` rejects AGAINST_MEDICAL_ADVICE unless the ACTING
-// user's role is DOCTOR. So `canRecordAgainstMedicalAdvice={false}` below is
-// not "sometimes blocked" — it is always, because `CanManageAdmissions`
-// still lets a NURSE reach this endpoint and the service layer 400s on the
-// role check.
+// FLAG-045/FLAG-592 (owner's decision, 2026-09-17) — this screen is
+// nurse-only (route-gated the same way every dashboard is; see
+// requireDashboardUser() in CLAUDE.md §5), and offers ONLY ABSCONDED and
+// DECEASED — ROUTINE / TRANSFERRED_OUT / AGAINST_MEDICAL_ADVICE are a
+// doctor's judgement call, not hers. `discharge_patient()` now rejects all
+// three from a non-doctor caller, not only AMA (that was the bug: the
+// backend previously only enforced the doctor-only rule for AMA, leaving a
+// nurse able to send a patient home on her own authority for every other
+// outcome). ABSCONDED and DECEASED both come back `needs_doctor_review` so
+// a doctor reviews them the next morning.
 
 // ─── My Patients page ─────────────────────────────────────────────
 //
@@ -310,7 +313,7 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
         admission={discharging}
         onClose={() => setDischarging(null)}
         onDischarged={refetch}
-        canRecordAgainstMedicalAdvice={false}
+        role="NURSE"
         idPrefix="discharge"
         readError={(err, fallback) => readFieldError(
           err,

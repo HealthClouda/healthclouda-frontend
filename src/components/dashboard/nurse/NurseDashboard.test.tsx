@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NurseDashboard } from './NurseDashboard';
 import { ENDPOINTS } from '@/lib/config';
+import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
 
 /**
@@ -1395,51 +1396,47 @@ describe('WARD-PART2 — discharge with outcome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Discharge' }));
   }
 
-  it('a routine discharge sends discharge_outcome=ROUTINE with no extra fields required', async () => {
+  it('FLAG-045/FLAG-592 — offers ONLY Absconded and Deceased, never Routine / Transferred out / Against medical advice', async () => {
+    // The positive control: the previous version of this gate only blocked
+    // AGAINST_MEDICAL_ADVICE (a second boolean living beside the outcome
+    // list), leaving ROUTINE/TRANSFERRED_OUT open to a nurse — the exact
+    // bug the owner's 2026-09-17 decision (backend FLAG-592) closed. The
+    // likely regression is this spreading the wrong way and hiding the two
+    // outcomes a nurse must still be able to record at 3am with no doctor
+    // reachable — so both halves are asserted here, not just the omission.
+    await openDischarge();
+
+    const select = screen.getByLabelText('Outcome') as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    expect(values).toEqual(['ABSCONDED', 'DECEASED']);
+    expect(values).not.toContain('ROUTINE');
+    expect(values).not.toContain('TRANSFERRED_OUT');
+    expect(values).not.toContain('AGAINST_MEDICAL_ADVICE');
+  });
+
+  it('an absconded discharge sends discharge_outcome=ABSCONDED with discovered_at, and tells the nurse it awaits doctor confirmation', async () => {
+    useToastStore.setState({ toasts: [] });
     dataActionMock.mockResolvedValue({ message: 'ok' });
     await openDischarge();
 
+    // ABSCONDED is the default (first allowed outcome) — the select need
+    // not be touched to reach it.
+    fireEvent.change(screen.getByLabelText('Discovered at'), { target: { value: '2026-09-17T03:00' } });
     const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
     expect(submit).not.toBeDisabled();
     fireEvent.click(submit);
 
+    const expectedDiscoveredAt = new Date('2026-09-17T03:00').toISOString();
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenCalledWith(
         ENDPOINTS.ADMISSION_DISCHARGE(admission.id),
         'POST',
-        { discharge_outcome: 'ROUTINE' },
+        { discharge_outcome: 'ABSCONDED', discovered_at: expectedDiscoveredAt },
       );
     });
-  });
-
-  it('AGAINST_MEDICAL_ADVICE cannot be completed by a nurse — the backend now attests the signer as the acting user, role-gated to DOCTOR (FLAG-042)', async () => {
-    dataActionMock.mockResolvedValue({ message: 'ok' });
-    await openDischarge();
-
-    fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'AGAINST_MEDICAL_ADVICE' } });
-    const submit = screen.getAllByRole('button', { name: 'Discharge' }).slice(-1)[0];
-
-    // `witnessed_by` is gone from the API entirely (ward/0008 drops the
-    // column) and there is no replacement field to submit — the signer is
-    // whoever is logged in, so there is nothing left for this form to ask
-    // for. No doctor picker, no typed witness name.
-    expect(screen.queryByLabelText('Signed by (doctor)')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Witnessed by')).not.toBeInTheDocument();
-
-    // The reason stays optional and reuses the existing summary textarea —
-    // the advisor's Q3 answer on that point is unchanged.
-    expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
-    expect(await screen.findByLabelText('Reason (optional)')).toBeInTheDocument();
-
-    // But the discharge can never go through from here: this is a role
-    // gate, not a missing-field gate, so it stays disabled even once every
-    // other field is filled in.
-    expect(submit).toBeDisabled();
-    expect(screen.getByText(/only a doctor can complete/i)).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Reason (optional)'), { target: { value: 'Wants to leave' } });
-    expect(submit).toBeDisabled();
-    expect(dataActionMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(useToastStore.getState().toasts.length).toBeGreaterThan(0));
+    const messages = useToastStore.getState().toasts.map(t => t.message).join(' ');
+    expect(messages).toMatch(/awaiting doctor confirmation/i);
   });
 
   it('DECEASED never uses success/celebratory styling — no green "Discharge" button, an explicit warning, and a neutral confirmation', async () => {

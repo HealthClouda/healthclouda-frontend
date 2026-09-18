@@ -42,8 +42,8 @@ export const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
   {
     // No extra fields at all — the (optional) reason reuses the discharge
     // summary textarea below; there is no signature field, the signer is
-    // whichever account submits this (role-gated on the backend, see
-    // `canRecordAgainstMedicalAdvice` below).
+    // whichever account submits this (role-gated on the backend — see
+    // `outcomesAllowedForRole` below).
     value: 'AGAINST_MEDICAL_ADVICE', label: 'Against medical advice', tone: 'caution',
     extraFields: [],
   },
@@ -56,6 +56,28 @@ export const DISCHARGE_OUTCOMES: DischargeOutcomeConfig[] = [
     extraFields: [{ key: 'deceased_at', label: 'Time of death', type: 'datetime-local' }],
   },
 ];
+
+export type DischargeActorRole = 'NURSE' | 'DOCTOR';
+
+// ─── Build 4 (FLAG-045) — who may pick which outcome, in ONE place ────────
+//
+// Owner's decision, 2026-09-17 (backend FLAG-592/FLAG-574): a nurse may
+// record ABSCONDED and DECEASED on her own authority — both are things
+// found, not decided, usually at night when no doctor is reachable — but
+// ROUTINE / TRANSFERRED_OUT / AGAINST_MEDICAL_ADVICE are all a doctor's
+// call, not hers. Both outcomes a nurse CAN record are also flagged
+// `needs_doctor_review` server-side, so a doctor reviews them the next
+// morning (the pending-reviews section on the doctor dashboard).
+//
+// This used to be a second boolean living beside AGAINST_MEDICAL_ADVICE's
+// own role gate (`canRecordAgainstMedicalAdvice`) — exactly the shape that
+// let FLAG-592 happen: the backend only enforced "doctor only" for AMA,
+// leaving every other outcome open to a nurse. One function, one list, so a
+// role's permitted outcomes cannot drift outcome-by-outcome again.
+export function outcomesAllowedForRole(role: DischargeActorRole): string[] {
+  if (role === 'DOCTOR') return DISCHARGE_OUTCOMES.map(o => o.value);
+  return ['ABSCONDED', 'DECEASED'];
+}
 
 // FLAG-242 — a `datetime-local` input's value ("2026-09-15T10:00") carries no
 // timezone. The backend runs `TIME_ZONE='UTC'`, `USE_TZ=True`, and
@@ -85,17 +107,19 @@ export function DischargePanel({
   admission,
   onClose,
   onDischarged,
-  canRecordAgainstMedicalAdvice,
+  role,
   idPrefix,
   readError,
 }: {
   admission: DischargeAdmission | null;
   onClose: () => void;
   onDischarged: () => void;
-  // NURSE is always false (discharge_patient() role-gates AMA to DOCTOR);
-  // DOCTOR is always true — this screen only ever renders for a signed-in
-  // DOCTOR, so the account submitting the form is always a valid signer.
-  canRecordAgainstMedicalAdvice: boolean;
+  // The single source of which outcomes this form offers — see
+  // `outcomesAllowedForRole` above. This screen still handles a 400 from the
+  // backend gracefully (`readError` below) in case the allowed-outcomes list
+  // here and the backend's own role check ever disagree, but the disallowed
+  // options are not offered in the first place, not offered-then-blocked.
+  role: DischargeActorRole;
   // Keeps DOM ids unique when both dashboards' tests/markup could otherwise
   // collide (e.g. 'discharge' for the nurse form, 'doctor-discharge' here).
   idPrefix: string;
@@ -107,7 +131,9 @@ export function DischargePanel({
   readError: (err: unknown, fallback: string) => string;
 }) {
   const { toast } = useToast();
-  const [outcome, setOutcome] = useState<string>('ROUTINE');
+  const allowedOutcomes = outcomesAllowedForRole(role);
+  const availableOutcomes = DISCHARGE_OUTCOMES.filter(o => allowedOutcomes.includes(o.value));
+  const [outcome, setOutcome] = useState<string>(availableOutcomes[0]?.value ?? DISCHARGE_OUTCOMES[0].value);
   const [extra, setExtra] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -115,8 +141,11 @@ export function DischargePanel({
   const [formError, setFormError] = useState<string | null>(null);
 
   const outcomeConfig = DISCHARGE_OUTCOMES.find(o => o.value === outcome) ?? DISCHARGE_OUTCOMES[0];
-  const amaBlockedForRole = outcome === 'AGAINST_MEDICAL_ADVICE' && !canRecordAgainstMedicalAdvice;
-  const missingRequired = amaBlockedForRole || outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
+  // Defence in depth only — the select below never offers a disallowed
+  // outcome, so this should be unreachable in practice. Kept in case the
+  // allowed-outcomes list and the backend's own role check ever disagree.
+  const outcomeBlockedForRole = !allowedOutcomes.includes(outcome);
+  const missingRequired = outcomeBlockedForRole || outcomeConfig.extraFields.some(f => !extra[f.key]?.trim());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -136,12 +165,18 @@ export function DischargePanel({
       await apiAction(ENDPOINTS.ADMISSION_DISCHARGE(admission.id), 'POST', payload);
 
       const name = `${admission.patient.first_name} ${admission.patient.last_name}`;
+      // A nurse recording ABSCONDED/DECEASED leaves this admission flagged
+      // `needs_doctor_review` server-side — say so here, not silently, so
+      // she knows it isn't the end of the record.
+      const pendingReviewSuffix = role === 'NURSE' && (outcome === 'ABSCONDED' || outcome === 'DECEASED')
+        ? ' Awaiting doctor confirmation.'
+        : '';
       // Never `toast.success` for DECEASED — success toasts render green
       // with a checkmark, which this outcome must never look like.
       if (outcome === 'DECEASED') {
-        toast.info(`Recorded: ${name} — deceased.`);
+        toast.info(`Recorded: ${name} — deceased.${pendingReviewSuffix}`);
       } else if (outcome === 'AGAINST_MEDICAL_ADVICE' || outcome === 'ABSCONDED') {
-        toast.warning(`${name} discharged — ${outcomeConfig.label.toLowerCase()}.`);
+        toast.warning(`${name} discharged — ${outcomeConfig.label.toLowerCase()}.${pendingReviewSuffix}`);
       } else {
         toast.success(`${name} discharged`);
       }
@@ -187,7 +222,7 @@ export function DischargePanel({
             onChange={e => { setOutcome(e.target.value); setExtra({}); }}
             className={formInputClass}
           >
-            {DISCHARGE_OUTCOMES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {availableOutcomes.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
 
@@ -197,15 +232,21 @@ export function DischargePanel({
           </p>
         )}
 
-        {amaBlockedForRole && (
-          <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
-            Only a doctor can complete an against-medical-advice discharge — the backend now
-            attests this to the signed-in account, and a nurse account cannot be the signer.
-            Ask an on-duty doctor to record this discharge.
+        {role === 'NURSE' && (outcome === 'ABSCONDED' || outcome === 'DECEASED') && (
+          <p role="status" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
+            A doctor reviews this the next morning — it stays flagged for review until one does.
           </p>
         )}
 
-        {!amaBlockedForRole && outcome === 'AGAINST_MEDICAL_ADVICE' && (
+        {outcomeBlockedForRole && (
+          <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
+            Only a doctor can complete this kind of discharge — the backend now attests this to
+            the signed-in account, and a nurse account cannot be the signer. Ask an on-duty
+            doctor to record this discharge.
+          </p>
+        )}
+
+        {!outcomeBlockedForRole && outcome === 'AGAINST_MEDICAL_ADVICE' && (
           <p role="status" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
             This is recorded under your name as the signing doctor — the backend attests an
             against-medical-advice discharge to the account that submits it, not a separate

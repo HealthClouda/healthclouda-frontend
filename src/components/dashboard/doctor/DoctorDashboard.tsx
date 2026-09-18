@@ -13,6 +13,9 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ShimmerRows } from '@/components/ui/Shimmer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { formInputClass } from '@/components/ui/FormField';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
 import { Avatar } from '@/components/ui/Avatar';
@@ -183,6 +186,7 @@ function patientColumns(
 function episodeColumns(
   onComplete: (ep: Episode) => void,
   onRequestAdmission: (ep: Episode) => void,
+  onView: (ep: Episode) => void,
 ): DataTableColumn<Episode>[] {
   return [
     { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
@@ -192,23 +196,35 @@ function episodeColumns(
     {
       key: 'actions',
       header: 'Actions',
-      // ACTIVE, not OPEN — see FLAG-004. Gated on the wrong value, this action
-      // never rendered at all.
-      render: ep => ep.status === 'ACTIVE' ? (
+      render: ep => (
         <div className="flex items-center gap-3">
-          {/* Part 2 — hidden once an admission already exists for this
-              episode, same defensive gate the Nurse dashboard's eligible-
-              episode picker uses (`has_admission`). */}
-          {!ep.has_admission && (
-            <button onClick={() => onRequestAdmission(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
-              Request admission
-            </button>
-          )}
-          <button onClick={() => onComplete(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
-            Complete
+          {/* Build 4 (FLAG-045) — the only way to read a discharge summary
+              anywhere in the app. Available on every episode, not just
+              ACTIVE ones: a COMPLETED episode's own whole-case summary and
+              its stays' summaries are exactly what a doctor comes back to
+              read later. */}
+          <button onClick={() => onView(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+            View
           </button>
+          {/* ACTIVE, not OPEN — see FLAG-004. Gated on the wrong value, this
+              pair of actions never rendered at all. */}
+          {ep.status === 'ACTIVE' && (
+            <>
+              {/* Part 2 — hidden once an admission already exists for this
+                  episode, same defensive gate the Nurse dashboard's eligible-
+                  episode picker uses (`has_admission`). */}
+              {!ep.has_admission && (
+                <button onClick={() => onRequestAdmission(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+                  Request admission
+                </button>
+              )}
+              <button onClick={() => onComplete(ep)} className="text-xs font-semibold text-primary-dark hover:underline">
+                Complete
+              </button>
+            </>
+          )}
         </div>
-      ) : null,
+      ),
     },
   ];
 }
@@ -1047,6 +1063,77 @@ function MyPatientsPage() {
   );
 }
 
+// ─── Episode detail — discharge summaries (Build 4, FLAG-045) ─────────────
+//
+// Nowhere in the app renders a discharge summary before this — the form
+// collects one on every discharge and nothing ever displays it back. This is
+// the smallest detail view that fits the existing layout: a SlidePanel off
+// the Episodes table, fetched on demand rather than folded into the list
+// (the list action's `Episode` shape doesn't carry `discharge_summary` /
+// `admission_summaries` at all — only `GET /doctor/episodes/{id}/` does).
+function EpisodeDetailPanel({ episode, onClose }: { episode: Episode | null; onClose: () => void }) {
+  const { data: detail, loading, error, refetch } =
+    useApi<Episode>(episode ? ENDPOINTS.DOC_EPISODE(episode.id) : null);
+
+  return (
+    <SlidePanel
+      open={!!episode}
+      onClose={onClose}
+      title="Episode"
+      subtitle={episode ? subjectName(episode) : undefined}
+    >
+      {loading && <ShimmerRows count={3} />}
+      {error && <ErrorState message={error} onRetry={refetch} />}
+      {!loading && !error && detail && (
+        <div className="space-y-5">
+          <div>
+            <h4 className="text-xs font-semibold text-text-soft mb-1">Chief complaint</h4>
+            <p className="text-sm text-ink">{detail.chief_complaint || '—'}</p>
+          </div>
+          {detail.diagnosis && (
+            <div>
+              <h4 className="text-xs font-semibold text-text-soft mb-1">Diagnosis</h4>
+              <p className="text-sm text-ink">{detail.diagnosis}</p>
+            </div>
+          )}
+          <div>
+            <h4 className="text-xs font-semibold text-text-soft mb-1">Case summary</h4>
+            <p className="text-sm text-ink whitespace-pre-wrap">
+              {detail.discharge_summary || 'Not written yet — added when the episode is completed.'}
+            </p>
+          </div>
+          <div>
+            <h4 className="text-xs font-semibold text-text-soft mb-2">Ward stays</h4>
+            {!detail.admission_summaries || detail.admission_summaries.length === 0 ? (
+              <p className="text-xs text-text-soft">No discharged ward stay under this episode yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {detail.admission_summaries.map(s => (
+                  <li key={s.admission_id} className="rounded-lg border border-border p-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-ink">
+                        {formatDate(s.admitted_at)} – {s.discharged_at ? formatDate(s.discharged_at) : '—'}
+                      </span>
+                      <StatusBadge status={s.discharge_outcome} />
+                    </div>
+                    <p className="text-xs text-text-soft">
+                      Discharged by {s.discharged_by_name ?? '—'}
+                      {s.needs_doctor_review && ' · awaiting doctor confirmation'}
+                    </p>
+                    <p className="text-sm text-ink whitespace-pre-wrap">
+                      {s.discharge_summary || 'No summary written.'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </SlidePanel>
+  );
+}
+
 // ─── Episodes ─────────────────────────────────────────────────────
 
 function EpisodesPage() {
@@ -1060,14 +1147,26 @@ function EpisodesPage() {
     usePaginatedList<Episode>(path);
   const { toast } = useToast();
   const [completing, setCompleting] = useState<Episode | null>(null);
+  const [completeSummary, setCompleteSummary] = useState('');
   const [working, setWorking] = useState(false);
   const [requestingAdmission, setRequestingAdmission] = useState<Episode | null>(null);
+  const [viewing, setViewing] = useState<Episode | null>(null);
+
+  function openComplete(ep: Episode) {
+    setCompleting(ep);
+    setCompleteSummary('');
+  }
 
   async function completeEpisode() {
     if (!completing) return;
     setWorking(true);
     try {
-      await apiAction(ENDPOINTS.DOC_EPISODE_COMPLETE(completing.id), 'POST');
+      // Build 4 (FLAG-045) — the backend already accepts `discharge_summary`
+      // on this action (`EpisodeCompleteView`, apps/patients/doctor_views.py);
+      // this form previously never sent it, so the whole-case summary a
+      // doctor writes here had nowhere to go.
+      const body = completeSummary.trim() ? { discharge_summary: completeSummary.trim() } : undefined;
+      await apiAction(ENDPOINTS.DOC_EPISODE_COMPLETE(completing.id), 'POST', body);
       toast.success('Episode marked as complete');
       refetch();
     } catch (e) {
@@ -1091,7 +1190,7 @@ function EpisodesPage() {
       </div>
 
       <DataTable
-        columns={episodeColumns(setCompleting, setRequestingAdmission)}
+        columns={episodeColumns(openComplete, setRequestingAdmission, setViewing)}
         data={episodes}
         getRowKey={ep => ep.id}
         loading={loading}
@@ -1106,22 +1205,45 @@ function EpisodesPage() {
         pageSize={20}
       />
 
-      <ConfirmDialog
+      {/* Build 4 (FLAG-045) — grew from ConfirmDialog into a small Modal with
+          its own textarea because the backend already accepts
+          `discharge_summary` on this action and nothing sent it. */}
+      <Modal
         open={!!completing}
         onClose={() => setCompleting(null)}
-        onConfirm={completeEpisode}
-        loading={working}
         title="Complete Episode"
-        description={`Mark this episode for ${completing?.patient_name ?? completing?.patient ? `${completing.patient!.first_name} ${completing.patient!.last_name}` : 'this patient'} as complete?`}
-        confirmLabel="Mark Complete"
-        confirmVariant="primary"
-      />
+        description={`Mark this episode for ${completing?.patient_name ?? (completing?.patient ? `${completing.patient.first_name} ${completing.patient.last_name}` : 'this patient')} as complete?`}
+        footer={
+          <>
+            <Button variant="secondary" className="flex-1" onClick={() => setCompleting(null)} disabled={working}>
+              Cancel
+            </Button>
+            <Button variant="primary" className="flex-1" onClick={completeEpisode} loading={working}>
+              Mark Complete
+            </Button>
+          </>
+        }
+      >
+        <div>
+          <label htmlFor="complete-episode-summary" className="block text-xs font-medium text-text-soft mb-1">
+            Case summary (optional)
+          </label>
+          <textarea
+            id="complete-episode-summary"
+            rows={3}
+            value={completeSummary}
+            onChange={e => setCompleteSummary(e.target.value)}
+            className={`${formInputClass} h-auto py-2`}
+          />
+        </div>
+      </Modal>
       <RequestAdmissionPanel
         key={requestingAdmission?.id ?? 'none'}
         episode={requestingAdmission}
         onClose={() => setRequestingAdmission(null)}
         onRequested={refetch}
       />
+      <EpisodeDetailPanel episode={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
@@ -1316,14 +1438,13 @@ function admissionColumns(onDischarge: (a: DoctorAdmission) => void): DataTableC
 // and NurseDashboard.tsx — see that module's header comment for why
 // (FLAG-242 review of #150: this file used to keep its own copy of
 // `DISCHARGE_OUTCOMES`/`DischargePanel`, which is exactly how the same
-// timezone bug ended up needing to be fixed in two places). **The one
-// deliberate difference between the dashboards:** AGAINST_MEDICAL_ADVICE is
-// NOT blocked here — `discharge_patient()` role-gates that outcome to
-// `discharged_by.role == 'DOCTOR'`, this screen only ever renders for a
-// signed-in DOCTOR (route-gated the same way every dashboard is), so the
-// account submitting this form is always a valid signer. That is passed in
-// as `canRecordAgainstMedicalAdvice={true}` below, not a second copy of the
-// panel.
+// timezone bug ended up needing to be fixed in two places). Which outcomes
+// this dashboard offers is decided in exactly one place —
+// `outcomesAllowedForRole('DOCTOR')` in that shared module, which is every
+// outcome — passed in here as `role="DOCTOR"`, not a second copy of the
+// panel. This screen only ever renders for a signed-in DOCTOR (route-gated
+// the same way every dashboard is), so the account submitting this form is
+// always a valid signer for AGAINST_MEDICAL_ADVICE too.
 //
 // `POST /ward/admissions/{id}/discharge/` errors are a FLAT `{error: "..."}`
 // body — verified against `AdmissionViewSet.discharge` (apps/ward/views.py):
@@ -1339,6 +1460,82 @@ function readDischargeError(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
 
+// ─── Pending doctor review (Build 4, FLAG-045/FLAG-592/FLAG-574) ──────────
+//
+// A NURSE recording ABSCONDED or DECEASED leaves the admission
+// `needs_doctor_review` server-side — DISCHARGED, not ACTIVE, so this query
+// deliberately carries NO `status=ACTIVE`. Adding one is the exact mistake
+// the fixed contract calls out: it would make this section permanently
+// empty, silently, because every admission it exists to surface has already
+// left ACTIVE status by the time a nurse could record it.
+//
+// `discharge_outcome` on `DoctorAdmission` is an OPTIONAL, tolerant read —
+// see the type's own comment (FLAG-046): the fixed contract for THIS
+// endpoint only guarantees `needs_doctor_review` / `doctor_reviewed_by_name`
+// / `doctor_reviewed_at`, not the outcome itself, so the button falls back
+// to a safe generic label rather than guessing "Confirm death" wrong.
+function reviewButtonLabel(a: DoctorAdmission): string {
+  return a.discharge_outcome === 'DECEASED' ? 'Confirm death' : 'Mark reviewed';
+}
+
+function PendingReviewsSection() {
+  const { items, count, loading, error, refetch } =
+    usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&needs_doctor_review=true');
+  const { toast } = useToast();
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  async function review(a: DoctorAdmission) {
+    setReviewingId(a.id);
+    try {
+      await apiAction(ENDPOINTS.ADMISSION_DOCTOR_REVIEW(a.id), 'POST');
+      toast.success(
+        reviewButtonLabel(a) === 'Confirm death'
+          ? `Death confirmed for ${a.patient.first_name} ${a.patient.last_name}`
+          : `Marked reviewed — ${a.patient.first_name} ${a.patient.last_name}`,
+      );
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to record review');
+    } finally {
+      setReviewingId(null);
+    }
+  }
+
+  // Loading/error states get their own compact rendering rather than
+  // reusing DataTable's — this section disappears entirely once it is
+  // empty, which DataTable's permanent empty-state card is not built for.
+  if (loading) return null;
+  if (error) return <ErrorState message={error} onRetry={refetch} />;
+  if (count === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-warning/30 bg-warning-bg/60 p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-warning-strong">
+        Pending your review ({count})
+      </h3>
+      <ul className="space-y-2">
+        {items.map(a => (
+          <li key={a.id} className="flex items-center justify-between gap-3 bg-surface rounded-lg px-3 py-2">
+            <div className="min-w-0">
+              <div className="font-medium text-ink truncate">{a.patient.first_name} {a.patient.last_name}</div>
+              <div className="text-xs text-text-soft truncate">
+                {wardBedLabel(a)} · recorded {a.discharged_at ? timeAgo(a.discharged_at) : '—'}
+              </div>
+            </div>
+            <button
+              onClick={() => review(a)}
+              disabled={reviewingId === a.id}
+              className="shrink-0 px-3 py-1.5 text-xs font-semibold text-white bg-ink rounded-lg hover:opacity-90 disabled:opacity-50"
+            >
+              {reviewingId === a.id ? 'Saving…' : reviewButtonLabel(a)}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function AdmissionsPage() {
   const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&status=ACTIVE');
@@ -1347,6 +1544,7 @@ function AdmissionsPage() {
   return (
     <div className="space-y-4">
       <PageHeading title="Admissions" count={count} unit="active" />
+      <PendingReviewsSection />
       <DataTable
         columns={admissionColumns(setDischarging)}
         data={admissions}
@@ -1367,7 +1565,7 @@ function AdmissionsPage() {
         admission={discharging}
         onClose={() => setDischarging(null)}
         onDischarged={refetch}
-        canRecordAgainstMedicalAdvice={true}
+        role="DOCTOR"
         idPrefix="doctor-discharge"
         readError={readDischargeError}
       />

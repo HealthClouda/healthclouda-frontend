@@ -3506,3 +3506,48 @@ entry was written (2026-09-15, 14:48) — #150's hold has been lifted and the fa
 it carried (PR body, FLAG-040, and the in-code comments in `DoctorDashboard.tsx`/`config.ts`) have
 been removed. This entry itself stays WITHDRAWN — the finding it records was always about *how* the
 false claim was reached, not about the backend's actual state at any one moment.
+
+### FLAG-045 — who may discharge, and discharge summaries people can actually read (build 4, frontend half)
+**Severity:** P1 · **Area:** Ward / Discharge · **Owner:** @Bastoh · **Status:** 🔨 **IN FLIGHT** — branch `feat/discharge-outcome-review-and-summaries`
+**Raised:** 2026-09-17, owner's build-4 assignment. Backend counterparts: **FLAG-592** (who may discharge) and **FLAG-574** (readable summaries) in `healthclouda-backend`.
+
+**On the ward.** A nurse could send a patient home on her own authority for every outcome except
+against-medical-advice — the backend enforced "doctor only" for that one outcome and left
+ROUTINE/TRANSFERRED_OUT open to a nurse. Separately, the discharge form has always collected a
+discharge summary and never shown it back to anyone, anywhere — not to the doctor, not on the case.
+
+**Owner's decisions (2026-09-17):** ROUTINE / TRANSFERRED_OUT / AGAINST_MEDICAL_ADVICE are doctor-only;
+a nurse may still record ABSCONDED and DECEASED on her own authority (both are things found, not
+decided, usually at night with no doctor reachable), but both come back `needs_doctor_review` so a
+doctor reviews them the next morning. Two kinds of summary, explicitly linked: each ward stay keeps its
+own, and the whole case (episode) keeps one that shows its stays' summaries inside it.
+
+**What this half builds** (frontend, against the fixed contract the backend build-4 PR implements):
+1. `outcomesAllowedForRole()` in `DischargePanel.tsx` — the single source of which outcomes a role may
+   pick, replacing the `canRecordAgainstMedicalAdvice` boolean that let this exact bug happen (a second
+   gate living beside the outcome list, checked per-outcome instead of once).
+2. A "Pending your review" section on the doctor's Admissions page —
+   `GET /ward/admissions/?mine=true&needs_doctor_review=true` (deliberately **no** `status=ACTIVE` —
+   these rows are DISCHARGED) — with a `POST .../doctor-review/` action labelled "Confirm death" or
+   "Mark reviewed" by outcome.
+3. An episode detail panel (new — nothing previously showed a discharge summary anywhere) rendering
+   the whole-case `discharge_summary` and each entry in the new `admission_summaries` array.
+4. `discharge_summary` now sent on `POST /doctor/episodes/{id}/complete/` — the backend already
+   accepted it; nothing sent it before this.
+
+**FLAG-046, filed in the same pass — a genuine gap between the fixed contract and this feature's own
+ask.** Section A of the contract (build 4) names exactly three fields gained by
+`AdmissionListSerializer`/`AdmissionDetailSerializer`: `needs_doctor_review`,
+`doctor_reviewed_by_name`, `doctor_reviewed_at`. It does not add `discharge_outcome` or a
+discharged-by name to either — verified against `apps/ward/serializers.py` on backend `origin/develop`,
+where `discharge_outcome` is write-only (`DischargeSerializer` only) and is not in either serializer's
+`Meta.fields`. But the "label the review button by outcome" ask in the same build needs exactly that
+field on the pending-reviews list. Built as an optional, tolerant read (`DoctorAdmission.discharge_outcome?`)
+that falls back to a generic "Mark reviewed" label when absent, rather than guessing "Confirm death"
+wrong — but if the backend build-4 PR does not also add `discharge_outcome` (and ideally a
+discharged-by name) to the list/detail serializers, the button will never show "Confirm death" against
+a real backend, only in tests that supply the field directly. **Cross-Lane ask:** worth confirming with
+whoever is building the backend PR whether this was an intentional omission or a contract-writing gap.
+
+**Done when:** the backend build-4 PR merges, both halves are verified against each other on `api-dev`,
+and FLAG-046 is either resolved (the field lands) or explicitly decided against (the label stays generic).

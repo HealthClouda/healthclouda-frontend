@@ -829,10 +829,26 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
     attending_doctor: 'd2',
     attending_doctor_name: 'Bola Adeyemi',
     needs_attending_doctor: false,
+    // Build 4 (FLAG-045) — this fixture is NOT pending review; see the
+    // `pendingReview` fixture below for one that is.
+    needs_doctor_review: false,
+    doctor_reviewed_by_name: null,
+    doctor_reviewed_at: null,
   };
 
-  function mockAdmissionsBackend(admissions = [doctorAdmission]) {
+  // Build 4 (FLAG-045) — the doctor dashboard now fires TWO admission-list
+  // requests off this same page (`?mine=true&status=ACTIVE` for the table,
+  // `?mine=true&needs_doctor_review=true` for the pending-reviews section
+  // above it), so the mock must tell them apart by query string rather than
+  // returning one list for both — otherwise `doctorAdmission` (which is NOT
+  // pending review) would also render inside the pending-reviews section,
+  // breaking every `getByText('Ngozi Eze')` in this file with a duplicate
+  // match. `pending` defaults to none, matching most tests below.
+  function mockAdmissionsBackend(admissions = [doctorAdmission], pending: DoctorAdmission[] = []) {
     dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
+        return Promise.resolve({ count: pending.length, results: pending });
+      }
       if (path.startsWith(ENDPOINTS.ADMISSIONS)) {
         return Promise.resolve({ count: admissions.length, results: admissions });
       }
@@ -888,6 +904,14 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
       await screen.findByText('Ngozi Eze');
       fireEvent.click(screen.getByRole('button', { name: 'Discharge' }));
     }
+
+    it('offers all five outcomes — the doctor is never restricted the way the nurse now is (FLAG-045)', async () => {
+      await openDischarge();
+
+      const select = screen.getByLabelText('Outcome') as HTMLSelectElement;
+      const values = Array.from(select.options).map(o => o.value);
+      expect(values).toEqual(['ROUTINE', 'TRANSFERRED_OUT', 'AGAINST_MEDICAL_ADVICE', 'ABSCONDED', 'DECEASED']);
+    });
 
     it('a routine discharge sends discharge_outcome=ROUTINE with no extra fields', async () => {
       dataActionMock.mockResolvedValue({ message: 'Patient discharged successfully' });
@@ -985,6 +1009,189 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
       const sentPayload = dataActionMock.mock.calls.at(-1)?.[2] as Record<string, string>;
       expect(sentPayload.deceased_at).toMatch(/Z$|[+-]\d{2}:\d{2}$/);
       expect(sentPayload.deceased_at).not.toBe('2026-09-15T10:00');
+    });
+  });
+});
+
+/**
+ * Pending doctor review (Build 4 — FLAG-045, backend FLAG-592/FLAG-574).
+ *
+ * GET /ward/admissions/?mine=true&needs_doctor_review=true — same
+ * `AdmissionListSerializer` shape as the admissions table above, gaining
+ * `needs_doctor_review`/`doctor_reviewed_by_name`/`doctor_reviewed_at` per
+ * the fixed contract. These rows are DISCHARGED, not ACTIVE — the sharpest
+ * way this could regress is a `status=ACTIVE` creeping onto this query,
+ * which would make the section permanently, silently empty.
+ */
+describe('WARD-DOC-ADMISSIONS — pending doctor review (FLAG-045)', () => {
+  const pendingDeceased: DoctorAdmission = {
+    id: 'adm-pending-1',
+    patient: { id: 'p-pending-1', healthclouda_id: 'HCL-PEND01', first_name: 'Emeka', last_name: 'Nnaji' },
+    bed: { id: 'bed-p-1', bed_number: 'W-07', status: 'OCCUPIED', ward: { id: 'ward-p-1', name: 'General' }, room: null },
+    status: 'DISCHARGED',
+    admitted_at: '2026-09-14T08:00:00Z',
+    admitted_by: { id: 'r-2', email: 'nurse2@demo.test', first_name: 'Amaka', last_name: 'Uche' },
+    admission_reason: 'Chest pain.',
+    discharged_at: '2026-09-16T22:00:00Z',
+    length_of_stay: 2,
+    admission_source: 'REFERRAL',
+    attending_doctor: 'd1',
+    attending_doctor_name: 'Emeka Okafor',
+    needs_attending_doctor: false,
+    needs_doctor_review: true,
+    doctor_reviewed_by_name: null,
+    doctor_reviewed_at: null,
+    discharge_outcome: 'DECEASED',
+  };
+
+  // Derives "still pending" from `dataActionMock`'s own call history rather
+  // than a manually-flipped flag — a real backend would stop returning a row
+  // the instant its `doctor-review/` POST is recorded, and deriving it this
+  // way means the refetch this component fires right after that POST
+  // resolves sees the update with no race to hand-time.
+  function mockPendingBackend(pending: DoctorAdmission[] = [pendingDeceased]) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
+        const reviewedIds = new Set(
+          dataActionMock.mock.calls
+            .map(c => String(c[0]))
+            .filter(p => p.endsWith('/doctor-review/'))
+            .map(p => p.match(/\/admissions\/([^/]+)\//)?.[1]),
+        );
+        const remaining = pending.filter(a => !reviewedIds.has(a.id));
+        return Promise.resolve({ count: remaining.length, results: remaining });
+      }
+      if (path.startsWith(ENDPOINTS.ADMISSIONS)) {
+        return Promise.resolve({ count: 0, results: [] });
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  it('the pending-reviews query never carries status=ACTIVE — these rows are DISCHARGED', async () => {
+    mockPendingBackend();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    await screen.findByText('Emeka Nnaji');
+    const urls = urlsFor(ENDPOINTS.ADMISSIONS).filter(u => /[?&]needs_doctor_review=true\b/.test(u));
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.some(u => /[?&]status=ACTIVE\b/.test(u))).toBe(false);
+  });
+
+  it('labels the action "Confirm death" for a DECEASED row, POSTs to doctor-review/, and the row leaves the list on success', async () => {
+    mockPendingBackend();
+    dataActionMock.mockResolvedValue({ message: 'ok', admission: { ...pendingDeceased, needs_doctor_review: false } });
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    const button = await screen.findByRole('button', { name: 'Confirm death' });
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(ENDPOINTS.ADMISSION_DOCTOR_REVIEW(pendingDeceased.id), 'POST', undefined);
+    });
+
+    // The row leaves the list once the mocked backend has recorded the
+    // review — the section itself disappears rather than reading "reviewed".
+    await waitFor(() => expect(screen.queryByText('Emeka Nnaji')).not.toBeInTheDocument());
+  });
+
+  it('labels the action "Mark reviewed" for an ABSCONDED row', async () => {
+    mockPendingBackend([{ ...pendingDeceased, id: 'adm-pending-2', discharge_outcome: 'ABSCONDED' }]);
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    expect(await screen.findByRole('button', { name: 'Mark reviewed' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Confirm death' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Discharge summaries a doctor can actually read (Build 4 — FLAG-045).
+ *
+ * GET /doctor/episodes/{id}/ gains `admission_summaries` alongside the
+ * existing `discharge_summary` (the whole-case summary) — verified against
+ * the fixed contract, section D. Neither field is sent by the LIST action.
+ */
+describe('Episode discharge summaries (FLAG-045)', () => {
+  const summarised = {
+    ...episode,
+    id: 'ep-summary-1',
+    discharge_summary: 'Recovered well after two ward stays.',
+    admission_summaries: [
+      {
+        admission_id: 'adm-s-1',
+        admitted_at: '2026-09-01T08:00:00Z',
+        discharged_at: '2026-09-03T09:00:00Z',
+        discharge_outcome: 'ROUTINE',
+        discharge_summary: 'First stay — settled after observation.',
+        discharged_by_name: 'Dr. Ada Obi',
+        needs_doctor_review: false,
+      },
+      {
+        admission_id: 'adm-s-2',
+        admitted_at: '2026-09-10T08:00:00Z',
+        discharged_at: '2026-09-12T09:00:00Z',
+        discharge_outcome: 'ABSCONDED',
+        discharge_summary: 'Left before formal discharge.',
+        discharged_by_name: 'Nurse Chika Obi',
+        needs_doctor_review: true,
+      },
+    ],
+  };
+
+  function mockEpisodeDetail() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path === ENDPOINTS.DOC_EPISODE(summarised.id)) {
+        return Promise.resolve(summarised);
+      }
+      if (path.startsWith(ENDPOINTS.DOC_EPISODES)) {
+        return Promise.resolve({ count: 1, results: [summarised] });
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  it('renders the whole-case discharge_summary and every admission_summaries entry — nowhere in the app did this before', async () => {
+    mockEpisodeDetail();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+    await screen.findByText('Ifeoma Nwachukwu');
+
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    expect(await screen.findByText('Recovered well after two ward stays.')).toBeInTheDocument();
+    expect(await screen.findByText('First stay — settled after observation.')).toBeInTheDocument();
+    expect(await screen.findByText('Left before formal discharge.')).toBeInTheDocument();
+    expect(screen.getByText(/Dr\. Ada Obi/)).toBeInTheDocument();
+    expect(screen.getByText(/Nurse Chika Obi/)).toBeInTheDocument();
+  });
+
+  it('sends discharge_summary when completing an episode — the backend already accepted it, nothing sent it', async () => {
+    mockEpisodeDetail();
+    dataActionMock.mockResolvedValue({ message: 'Episode marked as complete' });
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Episodes' }));
+    await screen.findByText('Ifeoma Nwachukwu');
+
+    // An exact-string match, not the regex `/Complete/i` used elsewhere in
+    // this file — that regex also matches the "Completed" filter tab, and
+    // relying on `findByRole` resolving before the row action mounts is what
+    // let it get away with that. Waited for the patient's name above first,
+    // so the row action genuinely exists by now.
+    fireEvent.click(screen.getByRole('button', { name: 'Complete' }));
+    fireEvent.change(await screen.findByLabelText(/Case summary/), {
+      target: { value: 'Full case resolved.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.DOC_EPISODE_COMPLETE(summarised.id),
+        'POST',
+        { discharge_summary: 'Full case resolved.' },
+      );
     });
   });
 });
