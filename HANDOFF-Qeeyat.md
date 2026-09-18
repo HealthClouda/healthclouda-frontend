@@ -60,6 +60,81 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-18 — reviewing #161 and re-reviewing #159 (branch: docs/flags-244-246-review-161-2026-09-18)
+
+**Goal:** session ritual, then clear the review queue. All three open PRs were @Bastoh's and all
+three were waiting on me.
+
+**What I did:**
+- Reviewed **#161** (build 2: emergency admission in one call + duplicate-record merge screens)
+  against the live schema and backend `origin/develop` source. Logged **FLAG-244/245/246**, opened
+  **#162** (docs only, reviewer @Bastoh).
+- Re-reviewed **#159** (ward rota) — my 17 Sep block is fixed. **Verdict: approve.**
+- Marked **FLAG-242 resolved**; it had been fixed for two days while this file said OPEN.
+- Restored the five `.claude/` files that had been sitting deleted-but-unstaged in my tree.
+
+**What I found:**
+- 🔴 **#161 — every 409 on a merge confirm is reported as "Escalated to a superadmin".** `confirm`
+  returns 409 for three refusals (`merge_views.py:186-204`); only `MergeHistoryElsewhere` escalates.
+  The other two tell an admin a superadmin was notified when nobody was. **The discriminator is
+  already in the code** — the catch block types `body` as `{error?, resolution_note?, status?}` and
+  never reads `status`. FLAG-244.
+- 🔴 **#161 — `?status=` on `/patients/merge-requests/` is ignored.** No `filterset_fields` on the
+  viewset, `get_queryset` doesn't read query params, and the live schema documents only
+  `ordering`/`page`/`page_size`/`search`. Every dropdown option returns the same queue. FLAG-245.
+  🎯 **I nearly waved this through on pattern-matching:** I argued on #150 three days ago that
+  `?status=ACTIVE` was *not* an invented param because `get_queryset` read it by hand. It does
+  there. It does not here. **The precedent was mine and it did not transfer** — checking took two
+  minutes.
+- ✅ **#159's 204 fix went into `/api/action`, not the caller**, so the pre-existing
+  `SuperadminDashboard` delete is fixed as a side effect — and it brought `route.test.ts`, the
+  **first test coverage the proxy has ever had** (BETA_READINESS Tier 1 item 12 / FLAG-023). Its
+  fourth test — a genuinely unreachable upstream still returning 502 — is the control that makes
+  the other three mean something.
+- 🟠 **#159's FLAG-046 renumber is 2/4.** Both *source* references now point at FLAG-045; the two
+  inside `CODEBASE_FLAGS.md`'s own FLAG-045 entry do not, so on merge the file that governs flag
+  numbering would use 046 for two things within one screen. Approved anyway — see below.
+- ⚠️ **FLAG-242 was fixed on 16 Sep and I did not notice for two days.** `629c0ef` (#150's rework
+  per my own review) extracted the shared `DischargePanel` and fixed the offset there, with a test
+  on each side. I told the owner this morning it was "live on `develop` today". It was not.
+  **The reviewer who raises a flag is the only person watching for the commit that closes it** — and
+  #159 has since cited FLAG-242 as a live lesson while quoting a fix that had already merged.
+- **#147/#149 are closed and #148/#150 merged approved**, so the three verdicts I left unset on
+  15 Sep resolved without me.
+
+**Decisions:**
+- **Approved #159 rather than re-blocking on the two stale lines.** `dismiss_stale_reviews_on_push
+  = false` usually costs us a round trip; here it pays — an approval survives his push, so he can
+  fix them and merge without waiting on my availability. Re-blocking would have held #160 and #161
+  behind a two-line docs edit with Doctor UAT on Monday.
+- **Recommended keeping #161 as one PR** rather than splitting it. The two commits reviewed cleanly
+  apart, and a split buys separation we didn't need at the cost of a second trip through the queue.
+- **Did not fix FLAG-244/245 myself**, though both are small. #161 is his branch and his lane, and a
+  review verdict that arrives as commits on someone else's PR is not a review.
+- **Left the stray one-character `.gitignore` edit alone.** It appeared in the working tree while the
+  owner had the file open; sweeping someone else's uncommitted change into my docs commit is how a
+  change ends up attributed to the wrong person.
+
+**Verified:** #161's branch, locally rather than from its body — tsc clean · lint clean · 397/397
+(26 files) · build green · middleware 35.9 kB. #159 on a **trial merge** with `develop` — tsc clean ·
+lint clean · **397/397 (28 files)**, against `develop`'s own **377/26**, so +20 tests in +2 files and
+nothing existing red. Live schema fetched 2026-09-18 (HTTP 200) for both the emergency-admission and
+merge-queue contracts; backend read from `git show origin/develop:<path>`, never the shared working
+tree (@Bastoh's 15 Sep Cross-Lane row).
+
+**Left undone / next:**
+- [ ] 🔴 **Both review verdicts are still unposted.** `gh pr review` is denied to the assistant in
+      every form, so #159's approval and #161's CHANGES_REQUESTED exist only as prepared bodies.
+      **Until they are posted, #159 still reads CHANGES_REQUESTED and #161 reads REVIEW_REQUIRED**,
+      and nothing in the queue has actually moved.
+- [ ] Merge **#162** (FLAG-244/245/246 + the FLAG-242 correction) once @Bastoh reviews it.
+- [ ] Ask @Bastoh to take **FLAG-048** for the `discharge_outcome` gap when he fixes the two
+      remaining FLAG-046 references.
+- [ ] 🟠 **Four Cross-Lane rows are unchanged since 1–6 Sep** and none of them is work: required
+      status checks on ruleset 11328360, the `ci.yml` `branches: ['**']` one-liner (FLAG-230), #98's
+      DNS record, and #96 (FLAG-234).
+- [ ] `TARGET_ARCHITECTURE_CHECKLIST.md` still does not exist.
+
 ### 2026-09-15 — reviewing @Bastoh's four PRs (#147–#150) (branch: docs/review-147-150-flags-2026-09-15)
 
 **Goal:** session ritual, then review the four open PRs.
