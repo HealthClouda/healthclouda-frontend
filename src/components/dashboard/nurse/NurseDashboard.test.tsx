@@ -823,19 +823,28 @@ describe('WARD-1 — admit patient', () => {
 });
 
 /**
- * A-3 — emergency admission. Medical Q1 (2026-09-12): a NURSE admits a
- * patient no doctor has seen yet, directly, without a pre-existing ACTIVE
- * episode. Two calls, chained: POST /episodes/ (episode_type=EMERGENCY)
- * then POST /ward/admissions/ (admission_source=EMERGENCY_DIRECT) using the
- * id straight off the episode response.
+ * Build 2 (FLAG-575) — the emergency admission, as ONE call.
  *
- * Fixture shapes read from BACKEND SOURCE on the in-progress parallel branch
- * `feat/emergency-admission-source-doctor` (apps/ward/serializers.py
- * AttendingDoctorSerializer / AdmissionCreateSerializer, apps/patients/
- * views.py EpisodeViewSet.create, apps/patients/serializers.py
- * PatientListSerializer via PatientViewSet.search) — not the schema.
+ * Medical Q1 (2026-09-12): a NURSE admits a patient no doctor has seen yet,
+ * directly, without a pre-existing ACTIVE episode. This block used to describe
+ * a two-call chain — POST /episodes/ then POST /ward/admissions/ — which is
+ * exactly the defect FLAG-243 records: the admit refused a deceased patient
+ * while the episode call had no such guard, so a refusal left an ACTIVE
+ * episode open with nobody in a bed behind it.
+ *
+ * It is now a single POST /ward/emergency-admissions/ (apps/ward/views.py
+ * EmergencyAdmissionView, apps/ward/services.py emergency_admit) which does
+ * find-or-create patient → org access grant → deceased check → episode →
+ * admission inside one `transaction.atomic()`.
+ *
+ * Contract re-verified against backend source on `develop` 2026-09-18, after
+ * #217 — which renamed the override field to `override`, added
+ * `stated_hcl_id`, moved the bed race and "already admitted" to 409, and made
+ * the deceased refusal field-shaped under `details.patient`. Read from source,
+ * not from the schema: `/api/v1/schema/` publishes "No response body" for this
+ * view (backend FLAG-591).
  */
-describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
+describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, closes FLAG-243)', () => {
   // GET /patients/search/?query= — PatientListSerializer. ORG-scoped (see
   // OrgVisiblePatient's comment in types/dashboard.ts).
   const foundPatient = {
@@ -870,6 +879,16 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
     created_at: '2026-01-01T00:00:00Z',
   };
 
+  // {message, admission, patient} — `patient` is PatientDetailSerializer.
+  function admitted(overrides: Record<string, unknown> = {}) {
+    return {
+      message: 'Patient admitted.',
+      admission: { id: 'adm-1', needs_attending_doctor: false },
+      patient: { ...foundPatient, registration_incomplete: false },
+      ...overrides,
+    };
+  }
+
   function mockEmergencyBackend() {
     dataGetMock.mockImplementation((path: string) => {
       if (path.startsWith(ENDPOINTS.PATIENTS_SEARCH)) {
@@ -901,6 +920,18 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Emeka Uche/ }));
   }
 
+  async function fillBedAndReason(reason = 'Collapsed at reception') {
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
+    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: reason } });
+  }
+
+  // Builds the backend's real error envelope — apps/core/exceptions.py
+  // custom_exception_handler: {error, code, details}.
+  async function reject(status: number, body: Record<string, unknown>, message: string) {
+    const { ClientApiError } = await import('@/lib/client-api');
+    return Promise.reject(new ClientApiError(status, body, message));
+  }
+
   it('opens from an "Emergency admission" entry point on the Admit Patient page', async () => {
     await openEmergencyPanel();
     expect(screen.getByText('No doctor has seen this patient yet')).toBeInTheDocument();
@@ -920,7 +951,6 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
     await selectPatient();
     fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
 
-    // Reason left blank.
     expect(screen.getByRole('button', { name: 'Admit now' })).toBeDisabled();
 
     // Whitespace-only is not a bypass.
@@ -929,69 +959,118 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
     expect(dataActionMock).not.toHaveBeenCalled();
   });
 
-  it('chains episode creation into the admission call, sending admission_source=EMERGENCY_DIRECT with the new episode id', async () => {
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'Episode created successfully', episode: { id: 'ep-emergency-1' } });
-      }
-      if (path === ENDPOINTS.ADMISSIONS) {
-        return Promise.resolve({
-          message: 'Patient admitted successfully',
-          admission: { id: 'adm-1', needs_attending_doctor: true },
-        });
-      }
-      return Promise.resolve({});
-    });
+  // 🎯 THE control this rewrite exists for. It fails on the two-call version
+  // — that one called ENDPOINTS.EPISODES first and would trip both
+  // assertions — so it is a test that can actually fail, not one that merely
+  // passes (CLAUDE.md: a test that cannot fail proves nothing).
+  it('sends exactly ONE request and never creates an episode of its own — FLAG-243 closed', async () => {
+    dataActionMock.mockImplementation(() => Promise.resolve(admitted()));
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Collapsed at reception' } });
+    await fillBedAndReason();
     fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
 
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.EPISODES,
-        'POST',
-        { patient: foundPatient.id, episode_type: 'EMERGENCY', chief_complaint: 'Collapsed at reception' },
-      );
-    });
-    await waitFor(() => {
-      expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.ADMISSIONS,
+        ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
         'POST',
         {
-          patient: foundPatient.id,
-          episode: 'ep-emergency-1',
-          bed: emergencyBed.id,
-          admission_reason: 'Collapsed at reception',
-          admission_source: 'EMERGENCY_DIRECT',
+          bed_id: emergencyBed.id,
+          patient_id: foundPatient.id,
+          presenting_complaint: 'Collapsed at reception',
           override: false,
-          attending_doctor_override: false,
         },
       );
     });
-    // The panel closes on success.
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Emergency admission' })).not.toBeInTheDocument());
+    // One request in total, and none of them to /episodes/ — there is no
+    // window in which an episode can exist without the admission behind it.
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+    expect(dataActionMock).not.toHaveBeenCalledWith(ENDPOINTS.EPISODES, 'POST', expect.anything());
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Emergency admission' })).not.toBeInTheDocument(),
+    );
   });
 
-  it('includes the selected attending doctor, but omits the field entirely when none is chosen', async () => {
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'ok', episode: { id: 'ep-2' } });
-      }
-      return Promise.resolve({ message: 'ok', admission: { id: 'adm-2', needs_attending_doctor: false } });
+  it('admits a walk-in with no record at all, sending a description instead of a patient_id', async () => {
+    dataActionMock.mockImplementation(() =>
+      Promise.resolve(admitted({
+        patient: {
+          ...foundPatient,
+          id: 'patient-new',
+          first_name: 'man, ~40, brought in by police',
+          last_name: '',
+          registration_incomplete: true,
+        },
+      })),
+    );
+
+    await openEmergencyPanel();
+    // The path the old form had no answer for: she cannot find them because
+    // there is nothing to find.
+    fireEvent.click(await screen.findByRole('button', { name: /Admit as a new emergency patient/i }));
+    fireEvent.change(await screen.findByLabelText('Who is this patient?'), {
+      target: { value: 'man, ~40, brought in by police' },
     });
+    await fillBedAndReason('Unresponsive at the door');
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
+        'POST',
+        {
+          bed_id: emergencyBed.id,
+          description: 'man, ~40, brought in by police',
+          presenting_complaint: 'Unresponsive at the door',
+          override: false,
+        },
+      );
+    });
+    // `patient_id` is ABSENT, not null — the backend treats "omitted" as
+    // "create a record now" and would refuse a null id.
+    const body = dataActionMock.mock.calls[0][2] as Record<string, unknown>;
+    expect('patient_id' in body).toBe(false);
+  });
+
+  it('sends a stated HCL-ID as a note, and never as something that identifies the patient', async () => {
+    dataActionMock.mockImplementation(() => Promise.resolve(admitted()));
+
+    await openEmergencyPanel();
+    fireEvent.click(await screen.findByRole('button', { name: /Admit as a new emergency patient/i }));
+    fireEvent.change(await screen.findByLabelText('Who is this patient?'), {
+      target: { value: 'woman, ~30, collapsed in the market' },
+    });
+    fireEvent.change(screen.getByLabelText(/HealthClouda ID they say they have/i), {
+      target: { value: 'HCL-SAYS0' },
+    });
+    await fillBedAndReason('Collapse');
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
+        'POST',
+        expect.objectContaining({ stated_hcl_id: 'HCL-SAYS0' }),
+      );
+    });
+    // It rides along as a note only: it is NOT sent as patient_id, which is
+    // what "it grants nothing and links nothing" means in practice.
+    const body = dataActionMock.mock.calls[0][2] as Record<string, unknown>;
+    expect(body.patient_id).toBeUndefined();
+  });
+
+  it('includes the selected attending doctor as attending_doctor_id, and omits the field when none is chosen', async () => {
+    dataActionMock.mockImplementation(() => Promise.resolve(admitted()));
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Chest pain' } });
+    await fillBedAndReason('Chest pain');
     fireEvent.change(await screen.findByLabelText('Attending doctor'), { target: { value: onDutyDoctor.id } });
 
-    // Sanity, before submit closes the panel: the on-duty doctor is offered
-    // ahead of the off-duty one, in an "On duty" group — never silently
-    // dropped from the picker.
+    // Before submit closes the panel: both doctors are offered — the off-duty
+    // one is never silently dropped from the picker.
     expect(screen.getByRole('option', { name: onDutyDoctor.full_name })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: offDutyDoctor.full_name })).toBeInTheDocument();
 
@@ -999,222 +1078,236 @@ describe('WARD-EMERGENCY — emergency admission (A-3)', () => {
 
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenCalledWith(
-        ENDPOINTS.ADMISSIONS,
+        ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
         'POST',
-        expect.objectContaining({ attending_doctor: onDutyDoctor.id }),
+        expect.objectContaining({ attending_doctor_id: onDutyDoctor.id }),
       );
     });
   });
 
-  it('an off-duty doctor is selectable, not disabled, and naming one shows the on-duty two-step (never blocks the admission)', async () => {
-    const { ClientApiError } = await import('@/lib/client-api');
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'ok', episode: { id: 'ep-5' } });
-      }
-      // `_check_attending_doctor_on_duty` (apps/ward/serializers.py) raises
-      // a REAL serializers.ValidationError — unlike the gender check, this
-      // one genuinely arrives under `details`.
-      return Promise.reject(
-        new ClientApiError(
-          400,
-          {
-            error: 'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
-            code: 'BAD_REQUEST',
-            details: {
-              attending_doctor: ['Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.'],
-            },
+  it('an off-duty doctor is selectable, and "Admit anyway" resends the ONE override flag this endpoint actually reads', async () => {
+    dataActionMock.mockImplementation(() =>
+      reject(
+        400,
+        {
+          error: 'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+          code: 'BAD_REQUEST',
+          details: {
+            attending_doctor: ['Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.'],
           },
-          'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
-        ),
-      );
-    });
+        },
+        'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+      ),
+    );
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Chest pain' } });
+    await fillBedAndReason('Chest pain');
 
-    // Selectable, not disabled — the override the backend supports must be
-    // reachable from the UI, per the medical advisor's "never block care".
+    // Selectable, not disabled — the override must be reachable from the UI,
+    // per the medical advisor's "a night with no on-duty doctor must never
+    // refuse an admission outright".
     expect(screen.getByRole('option', { name: offDutyDoctor.full_name })).not.toBeDisabled();
     fireEvent.change(screen.getByLabelText('Attending doctor'), { target: { value: offDutyDoctor.id } });
     fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
 
     expect(await screen.findByText(/is not currently on duty/)).toBeInTheDocument();
-    // A deliberate pause, not a silent retry.
-    expect(dataActionMock).toHaveBeenCalledTimes(2); // episode create + the rejected admission attempt
+    // A deliberate pause, not a silent retry — and only ONE request so far.
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
 
-    dataActionMock.mockResolvedValueOnce({ message: 'ok', admission: { id: 'adm-6' } });
+    dataActionMock.mockImplementationOnce(() => Promise.resolve(admitted({ admission: { id: 'adm-6' } })));
     fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
 
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenLastCalledWith(
-        ENDPOINTS.ADMISSIONS,
+        ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
         'POST',
-        expect.objectContaining({ attending_doctor: offDutyDoctor.id, attending_doctor_override: true }),
+        expect.objectContaining({ attending_doctor_id: offDutyDoctor.id, override: true }),
       );
     });
+    // 🔴 The field the backend's own message tells her to send does NOT exist
+    // on this endpoint — DRF drops unknown keys, so sending it would loop for
+    // ever (backend FLAG-601, reproduced against real Postgres 2026-09-18).
+    // Asserting its ABSENCE is what stops a well-meaning "follow the error
+    // message" change from silently breaking the only override that works.
+    const lastBody = dataActionMock.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+    expect('attending_doctor_override' in lastBody).toBe(false);
   });
 
-  it('surfaces the consent_given=False rejection from episode creation legibly, and never attempts the admission call', async () => {
-    const { ClientApiError } = await import('@/lib/client-api');
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.reject(
-          new ClientApiError(
-            400,
-            {
-              error: 'patient: Cannot create episode for patient without consent.',
-              code: 'BAD_REQUEST',
-              details: { patient: ['Cannot create episode for patient without consent.'] },
-            },
-            'patient: Cannot create episode for patient without consent.',
-          ),
-        );
-      }
-      return Promise.resolve({});
-    });
+  it('keeps the backend’s "Resend with …=true" instruction off the nurse’s screen', async () => {
+    dataActionMock.mockImplementation(() =>
+      reject(
+        400,
+        {
+          error: "gender: Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.",
+          code: 'BAD_REQUEST',
+          details: { gender: 'Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.' },
+        },
+        "gender: Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.",
+      ),
+    );
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Unresponsive' } });
+    await fillBedAndReason('Trauma');
     fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
 
-    expect(await screen.findByText(/Cannot create episode for patient without consent/)).toBeInTheDocument();
-    // Never reached the second call — the episode never existed to admit against.
-    expect(dataActionMock).toHaveBeenCalledTimes(1);
+    // The clinical half is shown…
+    expect(await screen.findByText(/Sex not recorded/)).toBeInTheDocument();
+    // …the API instruction is not. She has a button; and on the on-duty
+    // variant of this message the instruction is actively wrong (FLAG-601).
+    expect(screen.queryByText(/Resend with/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Admit anyway' })).toBeInTheDocument();
   });
 
-  it('when the bed assignment fails after the episode was already created, says so plainly and points at the retry path — not a dead end', async () => {
-    const { ClientApiError } = await import('@/lib/client-api');
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'ok', episode: { id: 'ep-3' } });
-      }
-      return Promise.reject(
-        new ClientApiError(
-          400,
-          {
-            error: 'bed: Bed ER-01 is not available (status: OCCUPIED).',
-            code: 'BAD_REQUEST',
-            details: { bed: ['Bed ER-01 is not available (status: OCCUPIED).'] },
+  it('shows the ward-gender two-step as a deliberate warning, and the override resends as `override`', async () => {
+    dataActionMock.mockImplementation(() =>
+      reject(
+        400,
+        {
+          error: "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+          code: 'BAD_REQUEST',
+          details: {
+            gender: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
           },
-          'bed: Bed ER-01 is not available (status: OCCUPIED).',
-        ),
-      );
-    });
+        },
+        "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
+      ),
+    );
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Severe bleeding' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
-
-    expect(await screen.findByText(/Episode started for Emeka Uche/)).toBeInTheDocument();
-    expect(screen.getByText(/Find them in the Admit Patient list below to retry/)).toBeInTheDocument();
-    // The panel stays open — this is a retry, not a silent failure.
-    expect(screen.getByRole('dialog', { name: 'Emergency admission' })).toBeInTheDocument();
-  });
-
-  it('shows the gender two-step as a deliberate warning on this path too, not an auto-retry', async () => {
-    const { ClientApiError } = await import('@/lib/client-api');
-    // `details.gender` (a string) — same real shape as the ordered-admit
-    // test above, backend #194 (FLAG-031 closed at source).
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'ok', episode: { id: 'ep-4' } });
-      }
-      return Promise.reject(
-        new ClientApiError(
-          400,
-          {
-            error: "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
-            code: 'BAD_REQUEST',
-            details: {
-              gender: "Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
-            },
-          },
-          "gender: Patient gender (Male) does not match the ward's gender policy (Female). Resend with override=true to admit anyway.",
-        ),
-      );
-    });
-
-    await openEmergencyPanel();
-    await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Trauma' } });
+    await fillBedAndReason('Trauma');
     fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
 
     expect(await screen.findByText(/does not match the ward's gender policy/)).toBeInTheDocument();
-    expect(dataActionMock).toHaveBeenCalledTimes(2); // episode create + the rejected admission attempt
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
 
-    dataActionMock.mockImplementationOnce(() =>
-      Promise.resolve({ message: 'ok', admission: { id: 'adm-5', needs_attending_doctor: true } }),
-    );
+    dataActionMock.mockImplementationOnce(() => Promise.resolve(admitted({ admission: { id: 'adm-5' } })));
     fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
 
     await waitFor(() => {
       expect(dataActionMock).toHaveBeenLastCalledWith(
-        ENDPOINTS.ADMISSIONS,
+        ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
         'POST',
-        expect.objectContaining({ override: true, episode: 'ep-4' }),
+        expect.objectContaining({ override: true }),
       );
     });
   });
 
-  it('a `details.patient` rejection on the admission call is a hard stop, distinct from the episode-consent rejection', async () => {
-    const { ClientApiError } = await import('@/lib/client-api');
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'ok', episode: { id: 'ep-5' } });
-      }
-      return Promise.reject(
-        new ClientApiError(
-          400,
-          {
-            error: 'patient: This patient cannot be admitted.',
-            code: 'BAD_REQUEST',
-            details: { patient: 'This patient cannot be admitted.' },
-          },
-          'patient: This patient cannot be admitted.',
-        ),
-      );
-    });
+  it('a deceased patient is a hard stop — field-shaped, with no override offered', async () => {
+    dataActionMock.mockImplementation(() =>
+      reject(
+        400,
+        {
+          error: 'patient: This patient cannot be admitted at this time. Please check the record.',
+          code: 'BAD_REQUEST',
+          details: { patient: 'This patient cannot be admitted at this time. Please check the record.' },
+        },
+        'patient: This patient cannot be admitted at this time. Please check the record.',
+      ),
+    );
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Trauma' } });
+    await fillBedAndReason('Brought in unresponsive');
     fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
 
-    expect(await screen.findByText('This patient cannot be admitted.')).toBeInTheDocument();
+    expect(await screen.findByText(/cannot be admitted at this time/)).toBeInTheDocument();
+    // No two-step: resending cannot change this outcome, so the form must not
+    // imply that it can.
     expect(screen.queryByRole('button', { name: 'Admit anyway' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Admit now' })).not.toBeInTheDocument();
   });
 
-  it('a 409 on the admission call refreshes the bed list, not a validation error — the episode already exists', async () => {
-    const { ClientApiError } = await import('@/lib/client-api');
-    dataActionMock.mockImplementation((path: string) => {
-      if (path === ENDPOINTS.EPISODES) {
-        return Promise.resolve({ message: 'ok', episode: { id: 'ep-6' } });
-      }
-      return Promise.reject(
-        new ClientApiError(409, { error: 'That bed was just assigned to another patient.' }, 'Conflict'),
-      );
-    });
+  // Backend #217 moved BOTH the bed race and "this patient already has an
+  // active admission" to 409, and both arrive as a flat {error} with no
+  // `details` — indistinguishable without matching on wording. So the notice
+  // must repeat the SERVER's sentence rather than this file's canned bed
+  // message: "that bed was just taken" would send her round a loop that
+  // picking another bed can never end.
+  it('a 409 says what the server said — "already admitted" is not reported as a bed race', async () => {
+    useToastStore.setState({ toasts: [] });
+    dataActionMock.mockImplementation(() =>
+      reject(
+        409,
+        { error: 'This patient already has an active admission in your organization.' },
+        'This patient already has an active admission in your organization.',
+      ),
+    );
 
     await openEmergencyPanel();
     await selectPatient();
-    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: emergencyBed.id } });
-    fireEvent.change(screen.getByLabelText('Reason for admission'), { target: { value: 'Trauma' } });
+    await fillBedAndReason('Chest pain');
     fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
 
-    expect(await screen.findByText(/taken by another patient/)).toBeInTheDocument();
+    expect(await screen.findByText(/already has an active admission/)).toBeInTheDocument();
+    expect(screen.queryByText(/That bed was just taken/)).not.toBeInTheDocument();
+    // The panel stays open and usable — nothing was written server-side, so
+    // this is a re-pick, never a lost admission.
+    expect(screen.getByRole('dialog', { name: 'Emergency admission' })).toBeInTheDocument();
+  });
+
+  it('a genuine bed race still reads as a bed race', async () => {
+    dataActionMock.mockImplementation(() =>
+      reject(
+        409,
+        { error: 'Bed ER-01 is no longer available (status: OCCUPIED). Please choose another bed.' },
+        'Bed ER-01 is no longer available (status: OCCUPIED). Please choose another bed.',
+      ),
+    );
+
+    await openEmergencyPanel();
+    await selectPatient();
+    await fillBedAndReason('Severe bleeding');
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    expect(await screen.findByText(/no longer available/)).toBeInTheDocument();
+    // Her bed choice is cleared so she re-picks from the refreshed list; the
+    // rest of what she typed survives.
     expect(screen.getByLabelText('Bed')).toHaveValue('');
-    // Still usable — the form was not treated as a dead end.
-    expect(screen.getByRole('button', { name: 'Admit now' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Reason for admission')).toHaveValue('Severe bleeding');
+    // ⚠️ And NOT the old two-call wording: there is no half-finished episode
+    // to go and find any more.
+    expect(screen.queryByText(/Episode started for/)).not.toBeInTheDocument();
+  });
+
+  it('a patient id this hospital cannot reach is refused as a plain not-found, with no hint the record exists elsewhere', async () => {
+    dataActionMock.mockImplementation(() =>
+      reject(400, { error: 'Patient not found.' }, 'Patient not found.'),
+    );
+
+    await openEmergencyPanel();
+    await selectPatient();
+    await fillBedAndReason('Collapse');
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    // Byte-identical to a genuine typo, on purpose: reception's search is
+    // platform-wide, so ids are trivially obtainable and the refusal must not
+    // confirm that a record exists at another hospital (backend FLAG-593).
+    // The UI must not dress it up with "try another hospital" language.
+    expect(await screen.findByText('Patient not found.')).toBeInTheDocument();
+    expect(screen.queryByText(/another hospital|another organisation|another organization/i)).not.toBeInTheDocument();
+  });
+
+  it('tells the nurse when the record went in incomplete, so reception knows to finish it', async () => {
+    useToastStore.setState({ toasts: [] });
+    dataActionMock.mockImplementation(() =>
+      Promise.resolve(admitted({
+        admission: { id: 'adm-9', needs_attending_doctor: true },
+        patient: { ...foundPatient, first_name: 'man, ~40', last_name: '', registration_incomplete: true },
+      })),
+    );
+
+    await openEmergencyPanel();
+    fireEvent.click(await screen.findByRole('button', { name: /Admit as a new emergency patient/i }));
+    fireEvent.change(await screen.findByLabelText('Who is this patient?'), { target: { value: 'man, ~40' } });
+    await fillBedAndReason('Collapse at the door');
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    await waitFor(() => expect(useToastStore.getState().toasts.length).toBeGreaterThan(0));
+    const messages = useToastStore.getState().toasts.map(t => t.message).join(' ');
+    expect(messages).toMatch(/record incomplete/i);
+    expect(messages).toMatch(/no attending doctor/i);
   });
 });
 

@@ -20,8 +20,9 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   OrgAdminStats, OrgStaffMember, StaffInviteInput, OrgPatientSummary, Ward, AccessRequest, Paginated,
-  OrgReferral, ReferralResponseInput,
+  OrgReferral, ReferralResponseInput, PatientMergeRequest,
 } from '@/types/dashboard';
+import { ClientApiError } from '@/lib/client-api';
 
 // ─── Icons ───────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ function KeyIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="current
 function DocIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14,2 14,8 20,8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>; }
 function RecordsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>; }
 function SettingsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>; }
+function MergeIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M7 3v6a5 5 0 0 0 5 5h6" /><polyline points="15 11 19 14 15 17" /><path d="M17 3v2" /></svg>; }
 function PlusIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>; }
 function SendIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>; }
 
@@ -44,6 +46,7 @@ const NAV: NavItem[] = [
   { id: 'overview',         label: 'Dashboard',       icon: <GridIcon />, section: 'Main' },
   { id: 'staff',            label: 'Staff',           icon: <UsersIcon /> },
   { id: 'patients',         label: 'Patients',        icon: <UserIcon /> },
+  { id: 'duplicates',       label: 'Duplicate Records', icon: <MergeIcon /> },
   { id: 'wards',            label: 'Wards & Beds',    icon: <BedIcon /> },
   { id: 'access-requests',  label: 'Access Requests', icon: <KeyIcon /> },
   { id: 'referrals',        label: 'Referrals',       icon: <DocIcon /> },
@@ -632,12 +635,301 @@ function ReferralsPage() {
   );
 }
 
+// ─── Duplicate records (build 2 PR B — backend FLAG-373) ──────────
+
+/**
+ * The duplicate-patient merge queue.
+ *
+ * 🧭 The owner's model (2026-09-16, backend issue #210 Q4): reception FLAGS a
+ * suspected duplicate, an ORG_ADMIN CONFIRMS it, clinical rows move, **the
+ * audit trail is never rewritten** (the merge is logged as its own event), it
+ * is UNDOABLE, and it is refused and ESCALATED to a superadmin when either
+ * record has history at another hospital.
+ *
+ * 🪤 Two things this screen must not get wrong, both of which are easy to:
+ *
+ *  1. **ESCALATED is not "pending, but louder".** Once a merge escalates, the
+ *     backend refuses an org admin's confirm outright (409, `_require_admin`
+ *     passes but `confirm_merge` rejects a non-superadmin on an ESCALATED
+ *     row). Offering a Confirm button there would be offering a button that
+ *     cannot work — so the row shows the escalation note and a Reject, which
+ *     IS still permitted (`reject_merge` accepts FLAGGED and ESCALATED).
+ *
+ *  2. **The escalation arrives as a FAILED request.** Confirming a merge whose
+ *     records turn out to have history elsewhere returns **409**, and the body
+ *     carries both the updated record and the reason. So the escalation is a
+ *     real outcome to show calmly, not an error to apologise for: the flag has
+ *     moved to ESCALATED server-side and a superadmin has been notified.
+ *     Treating it as a generic failure would tell the admin nothing happened
+ *     when in fact the queue changed under them.
+ */
+
+// Only a FLAGGED row can be confirmed by this dashboard's audience; only a
+// MERGED one can be undone. Derived from the backend's own guards rather than
+// re-stated as a list of "actionable" statuses, so a status added later fails
+// closed (no buttons) instead of silently offering the wrong one.
+const canConfirm = (m: PatientMergeRequest) => m.status === 'FLAGGED';
+const canReject = (m: PatientMergeRequest) => m.status === 'FLAGGED' || m.status === 'ESCALATED';
+const canUndo = (m: PatientMergeRequest) => m.status === 'MERGED';
+
+function rowsMovedSummary(rowsMoved: Record<string, number> | undefined): string {
+  const entries = Object.entries(rowsMoved ?? {});
+  if (!entries.length) return 'no rows needed moving';
+  const total = entries.reduce((sum, [, n]) => sum + n, 0);
+  return `${total} ${total === 1 ? 'row' : 'rows'} across ${entries.length} ${entries.length === 1 ? 'table' : 'tables'}`;
+}
+
+function DuplicateRecordsPage() {
+  const [status, setStatus] = useState('');
+  const endpoint = ENDPOINTS.PATIENT_MERGE_REQUESTS + (status ? `?status=${status}` : '');
+  const { items: merges, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<PatientMergeRequest>(endpoint);
+  const { toast } = useToast();
+
+  const [acting, setActing] = useState<{ merge: PatientMergeRequest; action: 'confirm' | 'reject' | 'undo' } | null>(null);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  // An escalation is an OUTCOME, not a failure — see the docstring. Held
+  // separately from a plain error so it can be shown in its own words.
+  const [escalation, setEscalation] = useState<string | null>(null);
+
+  function open(merge: PatientMergeRequest, action: 'confirm' | 'reject' | 'undo') {
+    setNote('');
+    setEscalation(null);
+    setActing({ merge, action });
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!acting || saving) return;
+    const { merge, action } = acting;
+    if (action === 'reject' && !note.trim()) return;
+    setSaving(true);
+    setEscalation(null);
+    try {
+      if (action === 'confirm') {
+        const res = (await apiAction(ENDPOINTS.PATIENT_MERGE_CONFIRM(merge.id), 'POST')) as PatientMergeRequest;
+        toast.success(`Records merged — ${rowsMovedSummary(res?.rows_moved)} moved to ${merge.survivor_name}`);
+      } else if (action === 'reject') {
+        await apiAction(ENDPOINTS.PATIENT_MERGE_REJECT(merge.id), 'POST', { resolution_note: note.trim() });
+        toast.success('Closed — recorded as two different people');
+      } else {
+        await apiAction(ENDPOINTS.PATIENT_MERGE_UNDO(merge.id), 'POST');
+        toast.success(`Merge reversed — ${merge.duplicate_name}'s record is visible again`);
+      }
+      setActing(null);
+      refetch();
+    } catch (err) {
+      // 409 on a confirm is the cross-hospital boundary, and the body carries
+      // the backend's own explanation plus the row in its new ESCALATED state.
+      // The queue HAS changed, so refetch and explain rather than reporting a
+      // dead end.
+      const escalated = err instanceof ClientApiError
+        && err.status === 409
+        && action === 'confirm';
+      if (escalated) {
+        const body = err.data as { error?: string; resolution_note?: string; status?: string } | null;
+        setEscalation(body?.resolution_note || body?.error || err.message);
+        refetch();
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Could not complete that');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const columns: DataTableColumn<PatientMergeRequest>[] = [
+    {
+      key: 'records', header: 'Records',
+      render: (m) => (
+        <div>
+          {/* Direction matters and is not recoverable from two names side by
+              side: one record is hidden and the other keeps its identity. */}
+          <div className="text-[13px] font-semibold text-ink">{m.survivor_name || '—'}</div>
+          <div className="text-[11px] text-text-soft">
+            absorbs <span className="font-medium">{m.duplicate_name || '—'}</span>
+          </div>
+        </div>
+      ),
+    },
+    { key: 'reason', header: 'Why', className: 'max-w-xs', render: (m) => <span className="text-xs text-text-soft">{truncate(m.reason || '—', 60)}</span> },
+    { key: 'status', header: 'Status', render: (m) => <StatusBadge status={m.status} /> },
+    { key: 'raised', header: 'Raised', className: 'whitespace-nowrap', render: (m) => <span className="text-xs text-text-soft">{formatDate(m.created_at)}</span> },
+    {
+      key: 'actions', header: '',
+      render: (m) => (
+        <div className="flex gap-1.5 justify-end">
+          {canConfirm(m) && (
+            <button onClick={() => open(m, 'confirm')}
+              aria-label={`Confirm merging ${m.duplicate_name} into ${m.survivor_name}`}
+              className="px-2.5 py-1 text-[11.5px] font-semibold rounded-md bg-primary-dark text-white hover:opacity-90 transition-opacity">
+              Confirm
+            </button>
+          )}
+          {canReject(m) && (
+            <button onClick={() => open(m, 'reject')}
+              aria-label={`Reject the merge of ${m.duplicate_name} into ${m.survivor_name}`}
+              className="px-2.5 py-1 text-[11.5px] font-semibold rounded-md border border-border text-text-soft hover:text-ink transition-colors">
+              Not a duplicate
+            </button>
+          )}
+          {canUndo(m) && (
+            <button onClick={() => open(m, 'undo')}
+              aria-label={`Undo the merge of ${m.duplicate_name} into ${m.survivor_name}`}
+              className="px-2.5 py-1 text-[11.5px] font-semibold rounded-md border border-border text-text-soft hover:text-ink transition-colors">
+              Undo
+            </button>
+          )}
+          {!canConfirm(m) && !canReject(m) && !canUndo(m) && (
+            <span className="text-[11.5px] text-text-soft">—</span>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const action = acting?.action;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-ink">Duplicate records</h2>
+        <p className="text-sm text-text-soft mt-0.5">
+          The front desk flags two records that look like the same person; an administrator decides.
+          Merging moves the clinical records onto the surviving patient and hides the other — it never
+          rewrites the audit trail, and it can be undone.
+        </p>
+      </div>
+
+      {/* Escalations are the one status that needs explaining where it is
+          read, not in a tooltip: nothing on this screen can move them on. */}
+      <p className="text-xs text-text-soft bg-chip rounded-lg px-3 py-2">
+        A merge is escalated automatically when either record has history at another hospital. One
+        hospital does not get to rewrite a record another hospital also holds, so a superadmin carries
+        those out — you can still close one as &quot;not a duplicate&quot;.
+      </p>
+
+      <DataTable
+        columns={columns}
+        data={merges}
+        getRowKey={(m) => m.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No duplicate records flagged"
+        emptyDescription="When the front desk flags two records as the same person, they appear here."
+        toolbar={
+          <select aria-label="Filter by merge status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">All statuses</option>
+            <option value="FLAGGED">Flagged</option>
+            <option value="ESCALATED">Escalated</option>
+            <option value="MERGED">Merged</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="UNDONE">Undone</option>
+          </select>
+        }
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
+
+      <SlidePanel
+        open={!!acting}
+        onClose={() => setActing(null)}
+        title={
+          action === 'confirm' ? 'Merge these records'
+            : action === 'reject' ? 'Close without merging'
+            : 'Undo this merge'
+        }
+        subtitle={acting ? `${acting.merge.duplicate_name} → ${acting.merge.survivor_name}` : undefined}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setActing(null)} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">
+              {escalation ? 'Close' : 'Cancel'}
+            </button>
+            {!escalation && (
+              <Button type="submit" form="merge-action" disabled={saving || (action === 'reject' && !note.trim())}>
+                {saving ? 'Working…'
+                  : action === 'confirm' ? 'Merge records'
+                  : action === 'reject' ? 'Not a duplicate'
+                  : 'Undo merge'}
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <form id="merge-action" onSubmit={submit} className="space-y-4">
+          {escalation ? (
+            // Not an error state: the flag HAS moved to ESCALATED and a
+            // superadmin has been told. Said plainly, in the backend's words.
+            <div role="status" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-1.5">
+              <p className="text-xs font-semibold text-warning-strong">Escalated to a superadmin</p>
+              <p className="text-[11.5px] text-text-soft">{escalation}</p>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-lg bg-chip px-3 py-2.5 space-y-1">
+                <p className="text-[11px] text-text-soft">Flagged because</p>
+                <p className="text-[13px] text-ink">{acting?.merge.reason || '—'}</p>
+              </div>
+
+              {action === 'confirm' && (
+                <div className="space-y-2 text-[12.5px] text-text-soft">
+                  <p className="text-ink font-semibold text-[13px]">What this does</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>
+                      Every clinical record moves onto <span className="font-semibold text-ink">{acting?.merge.survivor_name}</span> —
+                      episodes, admissions, prescriptions, appointments, the lot.
+                    </li>
+                    <li>
+                      <span className="font-semibold text-ink">{acting?.merge.duplicate_name}</span>&apos;s record is hidden and points at
+                      the surviving one. Nothing is deleted.
+                    </li>
+                    <li>The audit trail is left exactly as it was. The merge is recorded as its own event.</li>
+                    <li>You can undo this afterwards.</li>
+                  </ul>
+                </div>
+              )}
+
+              {action === 'undo' && (
+                <p className="text-[12.5px] text-text-soft">
+                  Every row this merge moved goes back to <span className="font-semibold text-ink">{acting?.merge.duplicate_name}</span>,
+                  and the hidden record becomes visible again. Records that arrived after the merge stay where they are.
+                </p>
+              )}
+
+              {action === 'reject' && (
+                <FormField label="Why these are different people *">
+                  <textarea
+                    required
+                    rows={3}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className={`${formInputClass} h-auto py-2.5`}
+                  />
+                  <p className="mt-1 text-xs text-text-soft">
+                    Kept on the record so the same pair is not raised again next week.
+                  </p>
+                </FormField>
+              )}
+            </>
+          )}
+        </form>
+      </SlidePanel>
+    </div>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────────
 
 const PAGE_TITLES: Record<string, string> = {
   overview: 'Dashboard',
   staff: 'Staff',
   patients: 'Patients',
+  duplicates: 'Duplicate Records',
   wards: 'Wards & Beds',
   'access-requests': 'Access Requests',
   referrals: 'Referrals',
@@ -668,6 +960,7 @@ export function OrgAdminDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'overview'        && <OverviewPage stats={stats} onNavigate={setPage} />}
       {page === 'staff'           && <StaffPage />}
       {page === 'patients'        && <PatientsPage />}
+      {page === 'duplicates'      && <DuplicateRecordsPage />}
       {page === 'wards'           && <WardsPage />}
       {page === 'access-requests' && <AccessRequestsPage />}
       {page === 'referrals'       && <ReferralsPage />}

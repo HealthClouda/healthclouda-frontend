@@ -31,8 +31,7 @@ import type {
   EpisodeListItem,
   AttendingDoctor,
   OrgVisiblePatient,
-  EpisodeCreateResponse,
-  AdmissionCreateResponse,
+  EmergencyAdmissionResponse,
   AdmissionRequest,
 } from '@/types/dashboard';
 import { URGENCY_OPTIONS, LEVEL_OF_CARE_OPTIONS } from '@/types/dashboard';
@@ -572,6 +571,27 @@ function readFieldError(
   return { field: null, message: err instanceof Error ? err.message : fallback };
 }
 
+/**
+ * Strips the backend's trailing "Resend with <field>=true …" sentence before
+ * a warning reaches a nurse.
+ *
+ * Two reasons, and the second is the important one:
+ *  1. It is an API instruction. She has a button; she is not composing a
+ *     request by hand, and reading her a parameter name is noise mid-emergency.
+ *  2. On the emergency route the instruction is **wrong**. The on-duty refusal
+ *     says `attending_doctor_override=true`, but that endpoint declares no such
+ *     field and DRF drops unknown keys, so following it verbatim returns the
+ *     same 400 for ever (backend FLAG-601, reproduced 2026-09-18). The single
+ *     `override` flag this form already resends is what actually works.
+ *
+ * Deliberately display-only — the branch logic still reads `details`, never
+ * this text, so when FLAG-601 is fixed this quietly becomes a nicety again
+ * rather than something that has to be unwound.
+ */
+function withoutResendInstruction(message: string): string {
+  return message.replace(/\s*Resend with \S+=true[^.]*\.\s*$/, '').trim() || message;
+}
+
 function admissionFieldError(err: unknown): { field: string | null; message: string } {
   return readFieldError(
     err,
@@ -607,10 +627,14 @@ const BED_CONFLICT_MESSAGE = 'That bed was just taken by another patient — the
 // the way GenderOverrideWarning/PatientBlockedNotice do. Her input was
 // valid; nothing about the rest of what she typed (reason, doctor, …) needs
 // re-entering, only the bed.
-function BedConflictNotice({ onDismiss }: { onDismiss: () => void }) {
+// `message` exists because the emergency route's 409 is ambiguous — see the
+// comment at its catch block. The ordered paths pass nothing and keep the
+// canned wording, which is accurate for them: there, 409 only ever means the
+// bed went.
+function BedConflictNotice({ onDismiss, message }: { onDismiss: () => void; message?: string }) {
   return (
     <div role="status" className="rounded-lg border border-info/30 bg-info-bg px-3 py-2.5 flex items-start justify-between gap-2">
-      <p className="text-xs font-semibold text-info">{BED_CONFLICT_MESSAGE}</p>
+      <p className="text-xs font-semibold text-info">{message ?? BED_CONFLICT_MESSAGE}</p>
       <button type="button" onClick={onDismiss} className="text-xs font-semibold text-text-soft hover:text-ink flex-shrink-0">
         Dismiss
       </button>
@@ -618,16 +642,23 @@ function BedConflictNotice({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-// A-3: POST /episodes/ errors — EpisodeCreateSerializer (apps/patients/serializers.py).
-// 'patient' carries the consent_given=False rejection ("Cannot create episode
-// for patient without consent.") and the org-access gate (FLAG-212); a plain
-// ValidationError (e.g. "already has an active episode at your organization")
-// lands in 'non_field_errors'.
-function episodeFieldError(err: unknown): { field: string | null; message: string } {
+// Build 2 (FLAG-575) — POST /ward/emergency-admissions/ errors
+// (apps/ward/views.py EmergencyAdmissionView / EmergencyAdmissionSerializer).
+// 'gender' and 'attending_doctor' are the two warn-and-allow two-steps
+// (share the single `override` flag — see EmergencyAdmissionRequest's
+// comment in types/dashboard.ts); 'attending_doctor_id' is a genuine
+// validation failure (bad id), never reachable from this picker's own list;
+// 'patient' is the deceased hard stop. Everything else is a flat {error}
+// with no `details` key at all and falls through to the generic message.
+function emergencyAdmissionFieldError(err: unknown): { field: string | null; message: string } {
   return readFieldError(
     err,
-    ['patient', 'episode_type', 'chief_complaint', 'non_field_errors'],
-    'Failed to start episode',
+    [
+      'gender', 'attending_doctor', 'attending_doctor_id', 'patient',
+      'patient_id', 'bed_id', 'description', 'presenting_complaint',
+      'stated_hcl_id', 'non_field_errors',
+    ],
+    'Failed to admit patient',
   );
 }
 
@@ -700,16 +731,25 @@ function BedPicker({ id, beds, loading, error, onRetry, value, onChange }: {
 // Backend FLAG-301: warn-and-allow, not a dead end. Shared by both admit
 // forms — the ward gender policy applies to a bed regardless of which path
 // put the patient there.
-function GenderOverrideWarning({ message, saving, onOverride, onCancel }: {
+function GenderOverrideWarning({ message, saving, onOverride, onCancel, cancelLabel, note }: {
   message: string;
   saving: boolean;
   onOverride: (e: React.MouseEvent) => void;
   onCancel: () => void;
+  // The defaults suit the ward-gender two-step this box was written for. The
+  // on-duty two-step reuses it and NEITHER default is true there: "choose a
+  // different bed" is not the way out of an off-duty doctor, and on the
+  // emergency route that override is not audited at all (backend FLAG-601).
+  // So the caller overrides both rather than this box asserting them.
+  cancelLabel?: string;
+  note?: string;
 }) {
   return (
     <div role="alert" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-2">
-      <p className="text-xs font-semibold text-warning-strong">{message}</p>
-      <p className="text-[11px] text-text-soft">Admitting anyway is recorded in this patient&apos;s audit trail.</p>
+      <p className="text-xs font-semibold text-warning-strong">{withoutResendInstruction(message)}</p>
+      <p className="text-[11px] text-text-soft">
+        {note ?? 'Admitting anyway is recorded in this patient’s audit trail.'}
+      </p>
       <div className="flex gap-2">
         <button
           type="button"
@@ -720,7 +760,7 @@ function GenderOverrideWarning({ message, saving, onOverride, onCancel }: {
           {saving ? 'Admitting…' : 'Admit anyway'}
         </button>
         <button type="button" onClick={onCancel} className="px-3 py-1.5 text-xs font-semibold text-text-soft hover:text-ink">
-          Choose a different bed
+          {cancelLabel ?? 'Choose a different bed'}
         </button>
       </div>
     </div>
@@ -868,7 +908,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
   );
 }
 
-// ─── Emergency admission (A-3) ───────────────────────────────────────
+// ─── Emergency admission (build 2 — FLAG-575, closes FLAG-243) ─────────
 //
 // The flow above assumes a doctor or receptionist already opened an ACTIVE
 // episode before a nurse ever sees the patient. A patient who collapses at
@@ -881,26 +921,34 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
 // same date) — so ANY nurse may use this path; WHO admitted is still
 // recorded via the existing `admitted_by` on the admission.
 //
-// Two calls, chained: POST /episodes/ (episode_type=EMERGENCY) so the
-// admission has an ACTIVE episode to point at, then POST /ward/admissions/
-// with admission_source=EMERGENCY_DIRECT, using the id straight off the
-// episode-create response — no intermediate refetch (see
-// EpisodeCreateResponse's comment in types/dashboard.ts).
+// ONE call — POST /ward/emergency-admissions/. This replaces the old chained
+// POST /episodes/ then POST /ward/admissions/: that version's admission call
+// refused a deceased patient while the episode call had no such guard, so a
+// refusal left an ACTIVE episode open with nobody in a bed behind it
+// (FLAG-243, reproduced against #148). Inside the backend's single
+// `transaction.atomic()` there is nothing to orphan — either the patient (if
+// new), the org access grant, the episode and the admission all get created,
+// or none of them do.
 //
-// The two calls share ONE on-screen "reason" field rather than asking a
-// nurse mid-emergency to type two near-duplicate free-text boxes
-// (chief_complaint vs admission_reason describe the same event here) — sent
-// as chief_complaint to the episode call and admission_reason to the
-// admission call.
-//
-// ⚠️ Patient selection is narrower than "any patient who walks in" — see
-// OrgVisiblePatient's comment in types/dashboard.ts. A patient with no prior
-// relationship to this organization (no approved OrgAccessRequest, no
-// existing episode here) will not appear in this search AND will separately
-// 400 on the episode call. Reported to the orchestrator, not solved here —
-// out of scope tonight (AdmissionRequest / access-request flows, A-4).
+// Patient selection is now TWO paths, not one:
+//  - an existing patient THIS hospital already has (an approved
+//    OrgAccessRequest, or an existing episode here) — found via
+//    /patients/search/, same scoping as before (see OrgVisiblePatient's
+//    comment in types/dashboard.ts);
+//  - a genuine first-ever walk-in with no record anywhere here — a short
+//    free-text `description` instead of a name, admitted directly. This is
+//    the gap the old form had no path for at all (flagged, not built, in
+//    the previous round) — a patient with no prior relationship to this org
+//    could be found by nobody's search and could not be admitted.
+// A patient id belonging to another hospital is refused with a plain
+// not-found 400, deliberately indistinguishable from a typo
+// (`PatientNotAvailableHere` — see the backend service's own docstring:
+// "there is no break-glass").
 
-function EmergencyPatientSearch({ onSelect }: { onSelect: (p: OrgVisiblePatient) => void }) {
+function EmergencyPatientSearch({ onSelect, onNewPatient }: {
+  onSelect: (p: OrgVisiblePatient) => void;
+  onNewPatient: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<OrgVisiblePatient[]>([]);
   const [searching, setSearching] = useState(false);
@@ -952,7 +1000,15 @@ function EmergencyPatientSearch({ onSelect }: { onSelect: (p: OrgVisiblePatient)
       {error && <p role="alert" className="text-xs font-semibold text-danger">{error}</p>}
       {searching ? <ShimmerRows count={2} /> : searched && !results.length && !error ? (
         <p className="text-xs text-text-soft">No matching patient found at your organization.</p>
-      ) : results.length > 0 ? (
+      ) : null}
+      <button
+        type="button"
+        onClick={onNewPatient}
+        className="text-xs font-semibold text-primary-dark hover:underline"
+      >
+        Can&apos;t find them? Admit as a new emergency patient
+      </button>
+      {results.length > 0 ? (
         <ul className="border border-border rounded-lg divide-y divide-row-hairline max-h-56 overflow-auto">
           {results.map(p => (
             <li key={p.id}>
@@ -1079,6 +1135,13 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
     useApi<AttendingDoctor[]>(open ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
 
   const [patient, setPatient] = useState<OrgVisiblePatient | null>(null);
+  // True once the nurse has chosen "admit as a new emergency patient" — a
+  // genuine walk-in with no record here. Mutually exclusive with `patient`;
+  // switching back to search clears the description/HCL-ID fields below
+  // rather than leaving stale text behind for a different patient.
+  const [newPatient, setNewPatient] = useState(false);
+  const [description, setDescription] = useState('');
+  const [statedHclId, setStatedHclId] = useState('');
   const [reason, setReason] = useState('');
   const [bedId, setBedId] = useState('');
   const [doctorId, setDoctorId] = useState('');
@@ -1090,117 +1153,96 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
   // the gender check, never a hard block: "a night with no on-duty doctor
   // must never refuse an admission outright"). Off-duty doctors are
   // selectable in the picker below (not disabled) precisely so this
-  // override can be exercised from the UI.
+  // override can be exercised from the UI. Unlike the old two-call form,
+  // this endpoint has ONE `override` flag shared by both the gender and the
+  // on-duty warning — resending either resends the same field.
   const [doctorWarning, setDoctorWarning] = useState<string | null>(null);
-  // Set on `details.patient` from the admission POST (e.g. the patient
-  // cannot be admitted at all) — a hard stop, never retried and never given
-  // an override. Distinct from `episodeFieldError`'s own 'patient' case
-  // above (the episode-consent rejection), which is a plain formError.
+  // Set on `details.patient` (deceased) — a hard stop, never retried and
+  // never given an override.
   const [patientBlocked, setPatientBlocked] = useState<string | null>(null);
-  // Set on a 409 from the admission POST — non-blocking, the episode is
-  // already created and the rest of the form stays live.
-  const [bedConflict, setBedConflict] = useState(false);
-  // Set once the episode POST succeeds. Kept in STATE, not a local variable
-  // in `submit` — the gender two-step (and a plain retry after a failed bed
-  // assignment) re-invokes `submit` from scratch, and a local variable would
-  // re-run the episode POST on every retry. That creates a second Episode
-  // for the same patient/org on each attempt, which the backend's own
-  // duplicate-active-episode check then rejects — a real bug caught writing
-  // the retry test below, not a hypothetical.
-  const [episodeId, setEpisodeId] = useState<string | null>(null);
+  // Set on a 409 — bed taken, or the patient turns out to already be
+  // admitted. Holds the SERVER's sentence rather than a boolean, because
+  // those two cases are indistinguishable here and need different answers
+  // from the nurse. Non-blocking: nothing was written (the whole call is one
+  // transaction), so this is purely "pick again", not a lost admission.
+  const [bedConflict, setBedConflict] = useState<string | null>(null);
 
-  async function submit(
-    e: React.FormEvent | React.MouseEvent,
-    overrides: { gender?: boolean; doctor?: boolean } = {},
-  ) {
+  function resetPatientSelection() {
+    setPatient(null);
+    setNewPatient(false);
+    setDescription('');
+    setStatedHclId('');
+    setGenderWarning(null);
+    setDoctorWarning(null);
+  }
+
+  async function submit(e: React.FormEvent | React.MouseEvent, override = false) {
     e.preventDefault();
     const trimmedReason = reason.trim();
-    // Client-side gate: admission_reason must be non-blank for
-    // EMERGENCY_DIRECT (AdmissionCreateSerializer.validate sets
-    // allow_blank=False deliberately for exactly this — FLAG-336's trap —
-    // but a nurse should not have to discover that from a 400).
-    if (!patient || saving || !bedId || !trimmedReason) return;
+    const trimmedDescription = description.trim();
+    if (saving || !bedId || !trimmedReason) return;
+    if (!patient && !trimmedDescription) return;
     setSaving(true);
     setFormError(null);
 
-    let epId = episodeId;
-    if (!epId) {
-      try {
-        const episodeRes = (await apiAction(ENDPOINTS.EPISODES, 'POST', {
-          patient: patient.id,
-          episode_type: 'EMERGENCY',
-          chief_complaint: trimmedReason,
-        })) as EpisodeCreateResponse;
-        epId = episodeRes?.episode?.id ?? null;
-        if (epId) setEpisodeId(epId);
-      } catch (err) {
-        const { message } = episodeFieldError(err);
-        setFormError(message);
-        setSaving(false);
-        return;
-      }
-    }
-
-    if (!epId) {
-      setFormError(
-        'The episode was started but did not return an id, so the bed assignment could not continue. Please retry.',
-      );
-      setSaving(false);
-      return;
-    }
-
     try {
-      const admissionRes = (await apiAction(ENDPOINTS.ADMISSIONS, 'POST', {
-        patient: patient.id,
-        episode: epId,
-        bed: bedId,
-        admission_reason: trimmedReason,
-        admission_source: 'EMERGENCY_DIRECT',
-        ...(doctorId ? { attending_doctor: doctorId } : {}),
-        override: overrides.gender ?? false,
-        attending_doctor_override: overrides.doctor ?? false,
-      })) as AdmissionCreateResponse;
+      // 🎯 The control FLAG-243 exists to close: exactly ONE request, and no
+      // /episodes/ call at all — everything (find-or-create the patient, the
+      // org access grant, the episode, the admission) happens server-side in
+      // one transaction.
+      const res = (await apiAction(ENDPOINTS.WARD_EMERGENCY_ADMISSIONS, 'POST', {
+        bed_id: bedId,
+        ...(patient ? { patient_id: patient.id } : { description: trimmedDescription }),
+        presenting_complaint: trimmedReason,
+        ...(doctorId ? { attending_doctor_id: doctorId } : {}),
+        ...(statedHclId.trim() ? { stated_hcl_id: statedHclId.trim() } : {}),
+        override,
+      })) as EmergencyAdmissionResponse;
 
-      const needsDoctor = admissionRes?.admission?.needs_attending_doctor;
+      const needsDoctor = res?.admission?.needs_attending_doctor;
+      const incomplete = res?.patient?.registration_incomplete;
+      const admittedName = `${res?.patient?.first_name ?? patient?.first_name ?? ''} ${res?.patient?.last_name ?? patient?.last_name ?? ''}`.trim();
       toast.success(
-        `${patient.first_name} ${patient.last_name} admitted`
-        + (needsDoctor ? ' — no attending doctor assigned yet' : ''),
+        `${admittedName || 'Patient'} admitted`
+        + (needsDoctor ? ' — no attending doctor assigned yet' : '')
+        + (incomplete ? ' — record incomplete, reception can complete it later' : ''),
       );
       setGenderWarning(null);
       setDoctorWarning(null);
       onAdmitted();
       onClose();
     } catch (err) {
-      // The bed she picked was valid a moment ago — someone else just took
-      // it. The episode already exists (ACTIVE), so this is purely a bed
-      // re-pick, not a lost admission: re-fetch the beds and let her retry
-      // the same episode/patient with a different bed.
+      // ⚠️ This endpoint returns 409 for TWO different situations — the bed
+      // was taken a second ago, and "this patient already has an active
+      // admission" — and both arrive as a flat {error} with no `details`, so
+      // they are indistinguishable without matching on wording. We therefore
+      // show the SERVER's sentence rather than this file's canned bed message:
+      // telling a nurse "that bed was just taken" when the real answer is
+      // "he is already in a bed upstairs" sends her round a loop that picking
+      // another bed can never end. The bed list is refreshed either way — it
+      // is right for the common case and harmless for the other.
+      //
+      // Nothing was written in either case (the whole call is one backend
+      // transaction), so this is a re-pick, never a lost admission.
       if (isBedConflict(err)) {
+        const conflict = err instanceof Error && err.message ? err.message : BED_CONFLICT_MESSAGE;
         setBedId('');
-        setBedConflict(true);
+        setBedConflict(conflict);
         void refetchBeds();
-        toast.warning(BED_CONFLICT_MESSAGE);
+        toast.warning(conflict);
         return;
       }
-      const { field, message } = admissionFieldError(err);
-      if (field === 'gender' && !overrides.gender) {
+      const { field, message } = emergencyAdmissionFieldError(err);
+      if (field === 'gender' && !override) {
         setGenderWarning(message);
-      } else if (field === 'attending_doctor' && !overrides.doctor) {
+      } else if (field === 'attending_doctor' && !override) {
         setDoctorWarning(message);
       } else if (field === 'patient') {
-        // Hard stop — no override, no "find them in the list to retry"
-        // language (unlike the else branch below), since retrying cannot
-        // change this outcome.
+        // Hard stop — no override, no retry language: deceased, and
+        // resending cannot change that.
         setPatientBlocked(message);
       } else {
-        // The episode is already created and ACTIVE at this point — it will
-        // show up in the ordinary Admit Patient list below, so a failed bed
-        // assignment here is a retry, not a dead end.
-        setFormError(
-          `Episode started for ${patient.first_name} ${patient.last_name}, but the bed assignment failed: `
-          + `${message} Find them in the Admit Patient list below to retry.`,
-        );
-        onAdmitted();
+        setFormError(message);
       }
     } finally {
       setSaving(false);
@@ -1212,7 +1254,11 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       open={open}
       onClose={onClose}
       title="Emergency admission"
-      subtitle={patient ? `${patient.first_name} ${patient.last_name}` : 'No doctor has seen this patient yet'}
+      subtitle={
+        patient ? `${patient.first_name} ${patient.last_name}`
+          : newPatient ? 'New emergency patient — no record yet'
+          : 'No doctor has seen this patient yet'
+      }
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
@@ -1220,7 +1266,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
             <button
               type="submit"
               form="emergency-admit"
-              disabled={saving || !patient || !bedId || !reason.trim()}
+              disabled={saving || !bedId || !reason.trim() || (!patient && !description.trim())}
               className="px-4 py-2 bg-danger hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
             >
               {saving ? 'Admitting…' : 'Admit now'}
@@ -1229,18 +1275,58 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
         </div>
       }
     >
-      <form id="emergency-admit" onSubmit={(e) => void submit(e, {})} className="space-y-4">
-        {!patient ? (
-          <EmergencyPatientSearch onSelect={setPatient} />
-        ) : (
+      <form id="emergency-admit" onSubmit={(e) => void submit(e, false)} className="space-y-4">
+        {!patient && !newPatient ? (
+          <EmergencyPatientSearch onSelect={setPatient} onNewPatient={() => setNewPatient(true)} />
+        ) : patient ? (
           <div className="flex items-center justify-between bg-chip rounded-lg px-3 py-2">
             <div>
               <div className="text-[13px] font-semibold text-ink">{patient.first_name} {patient.last_name}</div>
               <div className="text-[11px] text-text-soft font-mono">{patient.healthclouda_id}</div>
             </div>
-            <button type="button" onClick={() => setPatient(null)} className="text-xs font-semibold text-primary-dark hover:underline">
+            <button type="button" onClick={resetPatientSelection} className="text-xs font-semibold text-primary-dark hover:underline">
               Change patient
             </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-ink">New emergency patient — no record yet</p>
+              <button type="button" onClick={resetPatientSelection} className="text-xs font-semibold text-primary-dark hover:underline">
+                Search instead
+              </button>
+            </div>
+            <div>
+              <label htmlFor="emergency-description" className="block text-xs font-medium text-text-soft mb-1">
+                Who is this patient?
+              </label>
+              <p className="text-[11px] text-text-soft mb-1">
+                Required — a short description, e.g. &quot;man, ~40, brought in by police&quot;. Reception
+                completes the full record later.
+              </p>
+              <input
+                id="emergency-description"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                maxLength={100}
+                className={formInputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="emergency-stated-hcl-id" className="block text-xs font-medium text-text-soft mb-1">
+                HealthClouda ID they say they have (optional)
+              </label>
+              <p className="text-[11px] text-text-soft mb-1">
+                A note only — it does not link or grant access to any record.
+              </p>
+              <input
+                id="emergency-stated-hcl-id"
+                value={statedHclId}
+                onChange={e => setStatedHclId(e.target.value)}
+                maxLength={64}
+                className={formInputClass}
+              />
+            </div>
           </div>
         )}
 
@@ -1262,7 +1348,9 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           />
         </div>
 
-        {bedConflict && <BedConflictNotice onDismiss={() => setBedConflict(false)} />}
+        {bedConflict && (
+          <BedConflictNotice message={bedConflict} onDismiss={() => setBedConflict(null)} />
+        )}
         <BedPicker
           id="emergency-admit-bed"
           beds={beds}
@@ -1270,7 +1358,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(false); }}
+          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(null); }}
         />
 
         <DoctorPicker
@@ -1286,7 +1374,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           <GenderOverrideWarning
             message={genderWarning}
             saving={saving}
-            onOverride={(e) => void submit(e, { gender: true })}
+            onOverride={(e) => void submit(e, true)}
             onCancel={() => setGenderWarning(null)}
           />
         )}
@@ -1295,8 +1383,18 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           <GenderOverrideWarning
             message={doctorWarning}
             saving={saving}
-            onOverride={(e) => void submit(e, { doctor: true })}
+            // The SAME `override` flag as the gender two-step — this endpoint
+            // has only one, unlike the ordered-admit and accept paths, which
+            // carry a separate `attending_doctor_override`.
+            onOverride={(e) => void submit(e, true)}
             onCancel={() => setDoctorWarning(null)}
+            cancelLabel="Choose another doctor"
+            // NOT "recorded in the audit trail": on this route that override
+            // writes no audit row at all (backend FLAG-601 — the three sibling
+            // routes do, this one discards the check's result). Saying it is
+            // audited would be telling a nurse something untrue about a
+            // clinical decision, so we say only what is actually the case.
+            note="The admission goes ahead and this doctor is recorded as attending."
           />
         )}
           </>

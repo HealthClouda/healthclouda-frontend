@@ -436,3 +436,198 @@ describe('FLAG-220 — org admin can respond to incoming referrals', () => {
     expect(body).not.toHaveProperty('create_episode');
   });
 });
+
+/**
+ * Build 2 PR B (backend FLAG-373) — the duplicate-patient merge queue.
+ *
+ * The owner's model: reception flags, an ORG_ADMIN confirms, rows move, the
+ * audit trail is never rewritten, it is undoable, and it is refused and
+ * ESCALATED to a superadmin when either record has history at another
+ * hospital.
+ *
+ * Fixture shapes read from backend source on `develop` 2026-09-18
+ * (apps/patients/merge_views.py PatientMergeRequestSerializer), not the
+ * schema.
+ */
+describe('FLAG-373 — org admin works the duplicate-records queue', () => {
+  const flagged = {
+    id: 'mr-1',
+    status: 'FLAGGED',
+    reason: 'Same phone number and date of birth, registered twice on Monday',
+    resolution_note: '',
+    duplicate: 'p-dup',
+    survivor: 'p-surv',
+    duplicate_name: 'Amina Yusuf',
+    survivor_name: 'Aminat Yusuf',
+    flagged_by: 'rec-1',
+    confirmed_by: null,
+    confirmed_at: null,
+    undone_by: null,
+    undone_at: null,
+    rows_moved: {},
+    created_at: '2026-09-18T08:15:00Z',
+  };
+
+  // A superadmin has been notified; this dashboard's audience can no longer
+  // confirm it — the backend answers their confirm with a 409.
+  const escalated = {
+    ...flagged,
+    id: 'mr-2',
+    status: 'ESCALATED',
+    duplicate_name: 'Bola Ade',
+    survivor_name: 'Bolanle Ade',
+    resolution_note:
+      'One of these records has history at another hospital, so this merge is outside a single '
+      + "hospital's authority. A superadmin has been notified and will carry it out.",
+  };
+
+  const merged = {
+    ...flagged,
+    id: 'mr-3',
+    status: 'MERGED',
+    duplicate_name: 'Chidi Okeke',
+    survivor_name: 'Chidinma Okeke',
+    confirmed_by: 'oa1',
+    confirmed_at: '2026-09-18T09:00:00Z',
+    rows_moved: { 'patients.Episode.patient': 3, 'ward.Bed.current_patient': 1 },
+  };
+
+  const rejected = { ...flagged, id: 'mr-4', status: 'REJECTED', duplicate_name: 'Dapo Ojo', survivor_name: 'Dapo Ojobade' };
+
+  const envelopeOf = (rows: unknown[]) => ({ count: rows.length, next: null, previous: null, results: rows });
+
+  async function openQueue(rows: unknown[] = [flagged, escalated, merged, rejected]) {
+    dataGetMock.mockResolvedValue(envelopeOf(rows));
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Records' }));
+    await waitFor(() => expect(screen.getByText('Aminat Yusuf')).toBeInTheDocument());
+  }
+
+  it('has a Duplicate Records page, and says which record survives rather than listing two names', async () => {
+    await openQueue();
+    expect(screen.getByText('Duplicate records')).toBeInTheDocument();
+    // The direction is the thing that cannot be recovered from two names side
+    // by side: one record is hidden, the other keeps its identity. Every row
+    // states it, hence getAllByText.
+    expect(screen.getAllByText(/absorbs/).length).toBe(4);
+    expect(screen.getByText('Amina Yusuf')).toBeInTheDocument();
+  });
+
+  it('offers Confirm and Not a duplicate on a FLAGGED row', async () => {
+    await openQueue();
+    expect(screen.getByRole('button', { name: /Confirm merging Amina Yusuf into Aminat Yusuf/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reject the merge of Amina Yusuf into Aminat Yusuf/ })).toBeInTheDocument();
+  });
+
+  // 🔴 The trap. `_require_admin` lets an org admin through, but `confirm_merge`
+  // then refuses a non-superadmin on an ESCALATED row with a 409. A Confirm
+  // button here would be a button that cannot work.
+  it('does NOT offer Confirm on an ESCALATED row, but still allows closing it as not a duplicate', async () => {
+    await openQueue();
+    expect(screen.queryByRole('button', { name: /Confirm merging Bola Ade into Bolanle Ade/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reject the merge of Bola Ade into Bolanle Ade/ })).toBeInTheDocument();
+  });
+
+  it('offers Undo only on a merge that actually happened', async () => {
+    await openQueue();
+    expect(screen.getByRole('button', { name: /Undo the merge of Chidi Okeke into Chidinma Okeke/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Undo the merge of Amina Yusuf/ })).not.toBeInTheDocument();
+    // A rejected flag is closed: nothing left to do to it.
+    expect(screen.queryByRole('button', { name: /Confirm merging Dapo Ojo/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Undo the merge of Dapo Ojo/ })).not.toBeInTheDocument();
+  });
+
+  it('spells out what a merge does before asking the admin to commit to it', async () => {
+    await openQueue();
+    fireEvent.click(screen.getByRole('button', { name: /Confirm merging Amina Yusuf into Aminat Yusuf/ }));
+    await screen.findByRole('dialog', { name: 'Merge these records' });
+
+    // Scoped to the dialog: the reason also appears (truncated) in the row
+    // behind it, and an unscoped match would pass on the table alone.
+    const dialog = screen.getByRole('dialog', { name: 'Merge these records' });
+    // The three facts an admin needs and cannot infer: where the records go,
+    // that nothing is deleted, and that the audit trail is untouched.
+    expect(within(dialog).getByText(/Every clinical record moves onto/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Nothing is deleted/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/audit trail is left exactly as it was/)).toBeInTheDocument();
+    // And the reason reception gave, so the decision is not made blind.
+    expect(within(dialog).getByText(/Same phone number and date of birth/)).toBeInTheDocument();
+  });
+
+  it('confirms against the merge endpoint and reports what actually moved', async () => {
+    await openQueue();
+    dataActionMock.mockResolvedValueOnce({
+      ...merged,
+      rows_moved: { 'patients.Episode.patient': 3, 'ward.Bed.current_patient': 1 },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Confirm merging Amina Yusuf into Aminat Yusuf/ }));
+    await screen.findByRole('dialog', { name: 'Merge these records' });
+    fireEvent.click(screen.getByRole('button', { name: 'Merge records' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith('/patients/merge-requests/mr-1/confirm/', 'POST', undefined);
+    });
+  });
+
+  // An escalation arrives as a FAILED request (409) whose body carries the
+  // record in its new state. The queue HAS changed, so this is an outcome to
+  // explain, not an error to apologise for.
+  it('treats a 409 on confirm as an escalation outcome, not a failure', async () => {
+    await openQueue();
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        409,
+        { ...escalated, error: escalated.resolution_note },
+        escalated.resolution_note,
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Confirm merging Amina Yusuf into Aminat Yusuf/ }));
+    await screen.findByRole('dialog', { name: 'Merge these records' });
+    fireEvent.click(screen.getByRole('button', { name: 'Merge records' }));
+
+    expect(await screen.findByText('Escalated to a superadmin')).toBeInTheDocument();
+    expect(screen.getByText(/outside a single hospital's authority/)).toBeInTheDocument();
+    // The action is gone — there is nothing more for this admin to do here.
+    expect(screen.queryByRole('button', { name: 'Merge records' })).not.toBeInTheDocument();
+  });
+
+  it('will not close a flag as "not a duplicate" without saying why', async () => {
+    await openQueue();
+    fireEvent.click(screen.getByRole('button', { name: /Reject the merge of Amina Yusuf into Aminat Yusuf/ }));
+    await screen.findByRole('dialog', { name: 'Close without merging' });
+
+    expect(screen.getByRole('button', { name: 'Not a duplicate' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Why these are different people/), {
+      target: { value: 'Different dates of birth and different next of kin — twins.' },
+    });
+    expect(screen.getByRole('button', { name: 'Not a duplicate' })).not.toBeDisabled();
+
+    dataActionMock.mockResolvedValueOnce({ ...flagged, status: 'REJECTED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Not a duplicate' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        '/patients/merge-requests/mr-1/reject/',
+        'POST',
+        { resolution_note: 'Different dates of birth and different next of kin — twins.' },
+      );
+    });
+  });
+
+  it('undoes a merge and says the absorbed record is visible again', async () => {
+    await openQueue();
+    dataActionMock.mockResolvedValueOnce({ ...merged, status: 'UNDONE' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Undo the merge of Chidi Okeke into Chidinma Okeke/ }));
+    await screen.findByRole('dialog', { name: 'Undo this merge' });
+    expect(screen.getByText(/Records that arrived after the merge stay where they are/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo merge' }));
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith('/patients/merge-requests/mr-3/undo/', 'POST', undefined);
+    });
+  });
+});

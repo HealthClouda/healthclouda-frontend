@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   ReceptionistStats, CheckIn, Appointment, Referral, PatientSearchResult, OnDutyDoctor, Paginated,
-  PatientDetail, NewPatient, PatientCreateResponse,
+  PatientDetail, NewPatient, PatientCreateResponse, OrgVisiblePatient,
 } from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -635,6 +635,215 @@ function RegisterPatientPanel({ open, onClose, onRegistered }: {
  * update "contact info only". Offering more would produce a 403 the
  * receptionist cannot act on.
  */
+/**
+ * Flag two records as the same person (build 2 PR B — backend FLAG-373).
+ *
+ * Reception raises it; an organisation admin decides. This side deliberately
+ * cannot merge anything — the two-person rule is the feature, not a
+ * permissions accident, so there is no "and merge it now" shortcut here even
+ * for a receptionist who is certain.
+ *
+ * 🪤 **Searches the ORG-scoped `/patients/search/`, not reception's global
+ * one.** A merge requires BOTH records to be reachable by this hospital; a
+ * patient id it cannot reach is refused with a plain "Patient not found."
+ * that is deliberately identical to a typo (backend FLAG-593's
+ * non-disclosure rule). Searching globally here would let reception pick a
+ * name, get an unexplainable not-found, and have no way to tell a typo from
+ * "that record belongs to another hospital" — so we only ever offer records
+ * the merge can actually accept.
+ *
+ * 🔴 **Which record survives is asked explicitly and has no default.** The
+ * absorbed record is hidden and its rows move; getting the direction backwards
+ * hides the wrong person. Two names side by side do not tell you which is
+ * which, so the form makes it a choice rather than an ordering convention
+ * nobody will remember at a busy front desk.
+ */
+function FlagDuplicateSection({ patient }: { patient: PatientSearchResult | null }) {
+  const { toast } = useToast();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<OrgVisiblePatient[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [other, setOther] = useState<OrgVisiblePatient | null>(null);
+  // 'this' = the record this panel is open on survives. No default: see above.
+  const [keep, setKeep] = useState<'this' | 'other' | ''>('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  // After the hooks, never before: an early return above them would change
+  // hook order between renders.
+  const targetId = patient?.id;
+
+  async function search() {
+    const q = query.trim();
+    if (!q || !targetId) return;
+    setSearching(true);
+    setError(null);
+    try {
+      const data = await dataGet<Paginated<OrgVisiblePatient>>(
+        ENDPOINTS.PATIENTS_SEARCH + '?query=' + encodeURIComponent(q),
+      );
+      // The patient already open in this panel is not a duplicate of itself —
+      // the backend refuses it, but offering it at all is a trap.
+      setResults((data?.results ?? []).filter(p => p.id !== targetId));
+      setSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not search');
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function submit() {
+    if (!other || !keep || !reason.trim() || saving || !patient) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await apiAction(ENDPOINTS.PATIENT_MERGE_REQUESTS, 'POST', {
+        duplicate_id: keep === 'this' ? other.id : patient.id,
+        survivor_id: keep === 'this' ? patient.id : other.id,
+        reason: reason.trim(),
+      });
+      toast.success('Flagged for an administrator to review');
+      setDone(true);
+      setOther(null);
+      setKeep('');
+      setReason('');
+      setResults([]);
+      setQuery('');
+      setSearched(false);
+    } catch (e) {
+      // Three refusals worth surfacing verbatim rather than flattening: the
+      // record is already queued (a second flag would take no rows, because
+      // the first merge already moved them), a record this hospital cannot
+      // reach, and merging a record into itself.
+      const msg = readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not flag these records');
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!patient) return null;
+
+  const thisName = `${patient.first_name} ${patient.last_name}`.trim();
+  const otherName = other ? `${other.first_name} ${other.last_name}`.trim() : '';
+
+  return (
+    <div className="border-t border-border pt-4">
+      <div className="text-xs font-medium text-text-soft mb-1">Duplicate record</div>
+      <p className="text-[11px] text-text-soft mb-2">
+        Same person registered twice? Flag it — an administrator reviews and merges.
+      </p>
+
+      {done && (
+        <p role="status" className="text-sm text-primary-dark bg-primary-soft border border-primary/20 rounded-lg px-3 py-2 mb-2">
+          Flagged. An administrator will review it; nothing has been merged yet.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-danger bg-danger-bg border border-danger/20 rounded-lg px-3 py-2 mb-2">
+          {error}
+        </p>
+      )}
+
+      {!other ? (
+        <>
+          <div className="flex gap-2">
+            <input
+              aria-label="Find the other record"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void search(); } }}
+              placeholder="Name or HealthClouda ID"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={() => void search()}
+              disabled={searching || !query.trim()}
+              className="px-3 py-1.5 border border-border text-text-soft hover:text-ink disabled:opacity-50 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+            >
+              {searching ? 'Searching…' : 'Find'}
+            </button>
+          </div>
+          {searched && !results.length && !searching && (
+            <p className="text-[11px] text-text-soft mt-2">
+              No other record found at this hospital.
+            </p>
+          )}
+          {results.length > 0 && (
+            <ul className="mt-2 border border-border rounded-lg divide-y divide-row-hairline max-h-48 overflow-auto">
+              {results.map(p => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOther(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-chip transition-colors"
+                  >
+                    <div className="text-[13px] font-semibold text-ink">{p.first_name} {p.last_name}</div>
+                    <div className="text-[11px] text-text-soft font-mono">{p.healthclouda_id}</div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between bg-chip rounded-lg px-3 py-2">
+            <div>
+              <div className="text-[13px] font-semibold text-ink">{otherName}</div>
+              <div className="text-[11px] text-text-soft font-mono">{other.healthclouda_id}</div>
+            </div>
+            <button type="button" onClick={() => { setOther(null); setKeep(''); }} className="text-xs font-semibold text-primary-dark hover:underline">
+              Change
+            </button>
+          </div>
+
+          <fieldset>
+            <legend className="text-xs font-medium text-text-soft mb-1">Which record should be kept?</legend>
+            <p className="text-[11px] text-text-soft mb-1.5">
+              The other one is hidden and its records move across. Nothing is deleted, and an
+              administrator can undo it.
+            </p>
+            <label className="flex items-start gap-2 text-[13px] text-ink py-1">
+              <input type="radio" name="merge-keep" value="this" checked={keep === 'this'} onChange={() => setKeep('this')} className="mt-1" />
+              <span>Keep <span className="font-semibold">{thisName}</span> <span className="font-mono text-[11px] text-text-soft">{patient.healthclouda_id}</span></span>
+            </label>
+            <label className="flex items-start gap-2 text-[13px] text-ink py-1">
+              <input type="radio" name="merge-keep" value="other" checked={keep === 'other'} onChange={() => setKeep('other')} className="mt-1" />
+              <span>Keep <span className="font-semibold">{otherName}</span> <span className="font-mono text-[11px] text-text-soft">{other.healthclouda_id}</span></span>
+            </label>
+          </fieldset>
+
+          <Field label="Why do you believe these are the same person?">
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              rows={2}
+              maxLength={1000}
+              className={inputCls}
+            />
+          </Field>
+
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={saving || !keep || !reason.trim()}
+            className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+          >
+            {saving ? 'Flagging…' : 'Flag as duplicate'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResult | null; onClose: () => void }) {
   const { toast } = useToast();
   const { data: detail, loading, error, refetch } =
@@ -829,6 +1038,9 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
               <p className="text-[11px] text-text-soft mt-1.5">Add an email address first — the invite is sent by email.</p>
             )}
           </div>
+
+          {/* ─── Flag a duplicate (build 2 PR B — backend FLAG-373) ───── */}
+          <FlagDuplicateSection patient={patient} />
         </div>
       ) : null}
     </SlidePanel>
