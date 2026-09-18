@@ -244,7 +244,9 @@ export const ENDPOINTS = {
   ADMISSION_REQUEST_DECLINE: (id: string) => `/ward/admission-requests/${id}/decline/`,
 
   // Ward rota (build 6, FLAG-046) — ward.Shift. Contract fixed 2026-09-17
-  // ahead of the backend PR; NOT on `develop` yet, do not probe api-dev.
+  // Backend: HealthClouda/healthclouda-backend#216, merged and deployed
+  // 2026-09-17. Verified live on the api-dev schema, with typed WardShift /
+  // WardShiftHandoverResponse components.
   // GET: any staff of the org, paginated, `?ward_id=`/`?current=true`/`?date=`.
   // POST/PATCH/DELETE: ORG_ADMIN only. hand-over: ORG_ADMIN or the nurse
   // currently in charge on that shift.
