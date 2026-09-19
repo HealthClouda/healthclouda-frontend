@@ -60,6 +60,56 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-19 — #160 reviewed, and three verdicts that exist but are not posted (branch: docs/flags-244-246-review-161-2026-09-18)
+
+**Goal:** finish the queue — #160 was the only one of @Bastoh's three I had never reviewed.
+
+**What I did:**
+- Reviewed **#160** (the one-row In Flight claim for Build 2) and posted a comment recommending it
+  be **closed**, with the row carried in #161's own commit — the #147/#149 call from 15 Sep.
+- **The owner's call is to approve it instead.** Written up as an approval that says so rather than
+  dropping the objection.
+- Wrote the three verdicts to `Desktop/healthclouda-reviews/` (outside the repo — this one is
+  public) with a `POST-THESE.md` carrying the commands, because the scratchpad dies with the session.
+
+**What I found:**
+- **#160 is stale on arrival.** Its row says *"🟡 In progress — Part A first"*; Part A is finished
+  and open as #161, which I reviewed on 18 Sep. 🎯 **A claim that lands after the work is in review
+  cannot do the table's one job** — it cannot warn the other lane off files whose diff they have
+  already read. That is a sharper objection than the #147/#149 one, which was only about churn.
+- **FLAG-047 is reserved by that row and used nowhere** — not on `feat/emergency-admission-single-call`,
+  not on `develop`. ♻️ **This corrects the advice I gave on #159 yesterday:** I said take FLAG-048
+  for the `discharge_outcome` gap *because 047 looked taken*. If #160 merges with 047 unused, 047 is
+  a hole and should be used for that gap instead.
+- ⚠️ **I expected #160 to conflict with my #162 and it does not.** Both edit the In Flight table,
+  which is the FLAG-240 pattern that bit #147/#149 — but `git merge-tree --write-tree` against my
+  branch returns clean. Checked before writing it up, and said so on the PR, rather than repeating a
+  complaint that did not apply this time.
+
+**Decisions:**
+- **Posted the #160 review as a plain comment, not a verdict.** `gh pr comment` works for the
+  assistant; `gh pr review` is denied in every form — approve and request-changes, inline body and
+  `--body-file`, three attempts across two days. A comment delivers findings and changes no state.
+- **Did not post the #159/#161 bodies as comments**, though I could have. A comment on #159 would
+  look like an answer while leaving CHANGES_REQUESTED standing, and GitHub refuses the merge over
+  it regardless — the appearance of a cleared block with none cleared is worse than a visibly open
+  one.
+
+**Verified:** no new commits on #159 or #161 since 18 Sep — re-measured today, both heads unchanged,
+so yesterday's review work stands without redoing it. `git merge-tree --write-tree` clean between
+#160 and #162. `git grep FLAG-047` empty on both the feature branch and `develop`.
+
+**Left undone / next:**
+- [ ] 🔴 **Nothing in the queue has actually moved in two days.** #159 still reads
+      CHANGES_REQUESTED, #160 and #161 still read REVIEW_REQUIRED. **Three finished reviews are
+      sitting in `Desktop/healthclouda-reviews/` waiting on three `gh pr review` commands a human
+      has to run.** #159 is the one that matters: it is the only standing change request, so it is
+      the only PR whose merge GitHub mechanically refuses.
+- [ ] **#162** (FLAG-244/245/246, FLAG-242 closed, both session logs) is open and awaiting @Bastoh.
+- [ ] 🟠 If this keeps recurring, it is worth a Cross-Lane row of its own: **an assistant that can
+      review but cannot record a verdict adds latency to exactly the bottleneck @Bastoh raised on
+      #135.** The work is done two days before the board shows it.
+
 ### 2026-09-18 — reviewing #161 and re-reviewing #159 (branch: docs/flags-244-246-review-161-2026-09-18)
 
 **Goal:** session ritual, then clear the review queue. All three open PRs were @Bastoh's and all
