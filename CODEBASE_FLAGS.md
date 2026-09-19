@@ -1944,8 +1944,20 @@ change it claims, which is option (a).
 ---
 
 ### FLAG-242 — Discharge times ("Time of death", "Discovered at") are sent with no timezone and stored an hour late
-**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED** (2026-09-16, @Bastoh, `629c0ef` on #150)
 **Found:** 2026-09-15, reviewing #150 against backend `develop` source
+
+> **Fixed in the shape the flag asked for — one shared module, not two copies.** `629c0ef`
+> (*"rework #150 per Qeeyat’s review"*) extracted `DischargePanel.tsx` and put the offset fix in its
+> `toDischargePayloadValue`, so the nurse and doctor discharge forms are the same component and the
+> conversion happens once. Tests on both sides: `DoctorDashboard.test.tsx:989` and
+> `NurseDashboard.test.tsx:1463`, each asserting the sent value is **not** the raw `datetime-local`
+> string. Verified on `develop` 2026-09-18 — `git grep datetime-local` finds no second copy.
+>
+> ⚠️ **This entry read OPEN for two days after it was fixed.** Logged here because the same review
+> that fixed it (#150) did not come back to close the flag, and #159 then cited FLAG-242 as a live
+> lesson while its fix was already merged. The reviewer who raises a flag is usually the only person
+> watching for the commit that closes it.
 
 ⚠️ **Numbered 242, not 241.** #150 (unmerged) already writes a withdrawn FLAG-241 into this file.
 
@@ -1993,6 +2005,105 @@ None of those is in `apps/patients`.
 - The backend guards episode creation (a Cross-Lane / `api-request` ask).
 - The emergency form checks first, or closes the episode on this refusal.
 - At minimum, the notice tells the nurse an episode was opened and needs closing.
+
+---
+
+### FLAG-244 — Every 409 on a merge confirm is reported to the admin as "Escalated to a superadmin"
+**Severity:** P2 · **Area:** Org Admin / Duplicate records · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-18, reviewing #161 against backend `origin/develop` source
+
+`DuplicateRecordsPage` (`OrgAdminDashboard.tsx`) decides it is looking at an escalation from the
+status code and the action alone:
+
+```ts
+const escalated = err instanceof ClientApiError && err.status === 409 && action === 'confirm';
+```
+
+**`confirm` returns 409 for three different refusals** (`apps/patients/merge_views.py:186-204`, read
+from `origin/develop` 2026-09-18):
+
+| Exception | Body | What actually happened |
+|---|---|---|
+| `MergeHistoryElsewhere` | the **full serialized record** (now `ESCALATED`) + `error` | a superadmin really has been notified |
+| `MergeAlreadyResolved` | `{error: "This merge is already merged."}` | nothing happened; the queue is stale |
+| `MergeClinicalConflict` | `{error: …}` | refused; a clinician has to settle it |
+
+The last two are shown under the heading **"Escalated to a superadmin"**, with the backend's
+sentence as the explanation, and the queue is refetched as though it had changed. So an admin
+confirming a row a colleague merged a minute ago is told a superadmin is now handling it. Nobody was
+told anything.
+
+🎯 **This is the same line PR #161 draws for itself in Part A** — it deliberately refuses to tell a
+nurse an override is audited when it is not (backend FLAG-601). The merge screen tells an admin a
+clinical record has moved to another authority when it has not.
+
+**The discriminator is already present and already typed.** The catch block declares
+`body as { error?, resolution_note?, status? }` and never reads `status`. Only the
+`MergeHistoryElsewhere` body carries it.
+
+**Done when** the escalation branch is entered only for a body whose `status === 'ESCALATED'`, and
+the other two 409s surface as what they are (the row is stale → refetch and say so; a clinical
+conflict → the backend's sentence, without the superadmin claim). A test for each of the three 409
+bodies, since all three are one status code apart from each other.
+
+---
+
+### FLAG-245 — The org admin's "Filter by merge status" dropdown sends a query param the backend ignores
+**Severity:** P2 · **Area:** Org Admin / Contract · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-18, reviewing #161 against the live schema and backend source
+
+`DuplicateRecordsPage` builds `ENDPOINTS.PATIENT_MERGE_REQUESTS + '?status=' + status`. Nothing on
+the backend reads it:
+
+- `PatientMergeRequestViewSet` sets **no `filterset_fields` and no `filterset_class`**
+  (`apps/patients/merge_views.py:109-131`). `DjangoFilterBackend` is a project-wide default
+  (`healthclouda/settings/base.py:297`), so with no filterset it filters nothing.
+- `get_queryset` org-scopes and does nothing else — it does **not** read `request.query_params`,
+  which is what makes this different from `?status=ACTIVE` on `/ward/admissions/` (#150), where
+  `get_queryset` really does read it by hand.
+- The live schema documents exactly four params on `GET /patients/merge-requests/` — `ordering`,
+  `page`, `page_size`, `search` (fetched 2026-09-18, HTTP 200).
+
+DRF drops the unknown param silently, so **every option in the dropdown returns the identical
+queue** and the admin has no way to tell. No test covers the dropdown, so the suite is green on a
+control that does nothing.
+
+⚠️ **`CLAUDE.md` names this exact bug class** — *"Invented query params are a recurring bug class
+here… the UI shows wrong data with no error."* Logging it as its own flag rather than folding it
+into FLAG-244 because the fix is a choice, not a correction: either filter client-side over the page
+we already hold, or ask the backend for `filterset_fields = ['status']` via an `api-request` issue.
+
+**Done when** the filter either filters, or is removed. If the backend route is taken, the row goes
+in 📥 Cross-Lane Asks and the issue is opened before the dropdown ships.
+
+---
+
+### FLAG-246 — Three smaller ones from #161's emergency-admission form
+**Severity:** P3 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-18, reviewing #161
+
+Grouped because each is a couple of lines and they live in one component.
+
+1. **The deceased hard stop is never cleared when the patient changes.** `resetPatientSelection()`
+   clears `patient`, `newPatient`, `description`, `statedHclId`, `genderWarning` and `doctorWarning`
+   — but **not `patientBlocked`**, which replaces the entire rest of the form. So after a deceased
+   refusal, "Change patient" visibly does nothing: the nurse picks a different patient and still
+   faces the previous patient's stop. The only way out is to close and reopen the panel (the
+   `emergencyKey` remount). Pre-existing behaviour, but the new helper clears its two siblings and
+   not this one, which reads as deliberate. **Done when** `resetPatientSelection` clears it too.
+
+2. **`reason` has no `maxLength` while the schema caps `presenting_complaint` at 1000.**
+   `description` (100) and `stated_hcl_id` (64) both match their caps; this one does not, so a long
+   reason is only refused after submit. **Done when** the textarea carries the cap, like its
+   siblings.
+
+3. **`withoutResendInstruction` is applied only inside `GenderOverrideWarning`.** If a gender or
+   on-duty refusal recurs when `override` was already sent, the branch falls through to
+   `setFormError(message)` and the nurse is shown the backend's raw *"Resend with
+   `attending_doctor_override=true`"* — the instruction that is wrong on this route and loops for
+   ever (backend FLAG-601), which is precisely what the helper exists to hide. **Done when** the
+   generic `formError` path strips it too.
+
 
 ---
 

@@ -27,7 +27,7 @@
 
 | @Bastoh | **Apex landing copy** — em-dashes out of all visitor-facing wording, `hello@healthclouda.ng` → `info@healthclouda.com` (**sprint plan B6**) | `fix/landing-copy-email-contact` | `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/ContactForm.tsx`, the landing design source, `docs/FRONTEND_SPRINT_PLAN.md` | 2026-09-16 | 🟡 **Copy only — no component, route or contract change.** Claimed in this PR's own commit (FLAG-240 option (a)), as @Qeeyat did above. Paired with backend `feat/contact-form-email-notification`, which emails form submissions to the same address 
 
-| @Qeeyat | **FLAG-242 + FLAG-243** logged from the 15 Sep review of #147–#150, plus a Cross-Lane row | `docs/review-147-150-flags-2026-09-15` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-15 | 🟡 **Docs only.** Claimed in this PR's own commit (FLAG-240 option (a)). Also clears the #146 row, which merged 2026-09-1
+| @Qeeyat | **FLAG-244 + FLAG-245 + FLAG-246** logged from the 18 Sep review of #161 | `docs/flags-244-246-review-161-2026-09-18` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-18 | 🟡 **Docs only.** Claimed in this PR’s own commit (FLAG-240 option (a)). Replaces the 15 Sep row, whose **#152 merged 2026-09-17**. #161 itself has **CHANGES_REQUESTED** from me on FLAG-244/245 |
 
 | @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
 
