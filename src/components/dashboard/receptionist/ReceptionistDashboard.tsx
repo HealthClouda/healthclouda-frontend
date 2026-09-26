@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   ReceptionistStats, CheckIn, Appointment, Referral, PatientSearchResult, OnDutyDoctor, Paginated,
-  PatientDetail, NewPatient, PatientCreateResponse, OrgVisiblePatient,
+  PatientDetail, NewPatient, PatientCreateResponse, OrgVisiblePatient, RecordCompletionUpdate,
 } from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -844,6 +844,139 @@ function FlagDuplicateSection({ patient }: { patient: PatientSearchResult | null
   );
 }
 
+// ─── Complete an emergency record (backend FLAG-602/603) ──────────
+//
+// A nurse can admit a walk-in with no record at all (build 2): the record is
+// created with her description as the first name, no contact details, and NO
+// consent. Two things follow, and this section is the only screen that
+// resolves either:
+//  1. The phone-when-no-email rule is waived while `registration_incomplete`
+//     is set. Completing the record clears it, so the rule applies again.
+//  2. `EpisodeCreateSerializer` refuses an ordinary episode for any patient
+//     without consent — so the patient, once discharged, could never be seen
+//     again as an outpatient. `capture_consent` records it as a consent ROW.
+//
+// Consent is an explicit, unticked checkbox, never implied by saving: it is a
+// statement about what the patient agreed to, and reception is attesting it.
+//
+// ⚠️ Reception's serializer cannot change the name, date of birth or sex
+// (PatientContactUpdateSerializer), so an emergency record keeps the nurse's
+// description as its name after completion. Said on screen rather than
+// hidden — FLAG-048, backend issue for the contract change.
+function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail; onCompleted: () => void }) {
+  const { toast } = useToast();
+  const [phone, setPhone] = useState(detail.phone ?? '');
+  const [email, setEmail] = useState(detail.email ?? '');
+  const [contactName, setContactName] = useState(detail.emergency_contact_name ?? '');
+  const [contactPhone, setContactPhone] = useState(detail.emergency_contact_phone ?? '');
+  const [contactRelationship, setContactRelationship] = useState(detail.emergency_contact_relationship ?? '');
+  const [consent, setConsent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // The rule the backend re-arms on completion — checked here too so the
+  // button says why it is disabled instead of a round trip saying it.
+  const hasContact = !!phone.trim() || !!email.trim();
+  const alreadyConsented = !!detail.consent_given;
+
+  async function complete() {
+    if (saving || !hasContact) return;
+    setSaving(true);
+    setFormError(null);
+    const body: RecordCompletionUpdate = { registration_incomplete: false };
+    // Omit blanks rather than sending '' — email normalises '' to NULL, but
+    // there is no reason to write a field nobody filled in.
+    if (phone.trim()) body.phone = phone.trim();
+    if (email.trim()) body.email = email.trim();
+    if (contactName.trim()) body.emergency_contact_name = contactName.trim();
+    if (contactPhone.trim()) body.emergency_contact_phone = contactPhone.trim();
+    if (contactRelationship.trim()) body.emergency_contact_relationship = contactRelationship.trim();
+    if (consent) body.capture_consent = true;
+    try {
+      await apiAction(ENDPOINTS.PATIENT(detail.id), 'PATCH', body);
+      toast.success(consent || alreadyConsented
+        ? 'Record completed'
+        : 'Record completed — consent still not recorded');
+      onCompleted();
+    } catch (e) {
+      setFormError(readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not complete the record'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="complete-record-heading" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-3 space-y-3">
+      <div>
+        <h3 id="complete-record-heading" className="text-xs font-semibold text-warning-strong">
+          Complete this record — created during an emergency admission
+        </h3>
+        <p className="text-[11.5px] text-text-soft mt-1">
+          Recorded as <span className="font-medium text-ink">{detail.first_name} {detail.last_name}</span>.
+          Reception can&apos;t change a patient&apos;s name, date of birth or sex — ask an organisation
+          administrator to correct those.
+        </p>
+        {detail.stated_hcl_id && (
+          <p className="text-[11.5px] text-text-soft mt-1">
+            HealthClouda ID given at admission: <span className="font-mono">{detail.stated_hcl_id}</span> — a note
+            only; it is not linked to any record.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Patient phone">
+          <input value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Patient email">
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      {!hasContact && (
+        <p className="text-[11px] text-text-soft">A phone number is required when there is no email.</p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Emergency contact name">
+          <input value={contactName} onChange={e => setContactName(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Emergency contact phone">
+          <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      <Field label="Relationship to patient">
+        <input value={contactRelationship} onChange={e => setContactRelationship(e.target.value)} className={inputCls} />
+      </Field>
+
+      {alreadyConsented ? (
+        <p className="text-[11.5px] text-text-soft">Consent to data access is already recorded.</p>
+      ) : (
+        <div className="space-y-1">
+          <label className="flex items-start gap-2 text-[12.5px] text-ink">
+            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
+            <span>The patient (or their representative) has consented to their records being held and accessed here.</span>
+          </label>
+          {!consent && (
+            <p className="text-[11px] text-text-soft">
+              Without consent this patient can&apos;t be booked for an ordinary visit after discharge.
+            </p>
+          )}
+        </div>
+      )}
+
+      {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+
+      <button
+        onClick={() => void complete()}
+        disabled={saving || !hasContact}
+        className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+      >
+        {saving ? 'Saving…' : 'Complete record'}
+      </button>
+    </section>
+  );
+}
+
 function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResult | null; onClose: () => void }) {
   const { toast } = useToast();
   const { data: detail, loading, error, refetch } =
@@ -943,6 +1076,11 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
         <ErrorState message={error} onRetry={refetch} />
       ) : detail ? (
         <div className="space-y-5">
+          {detail.registration_incomplete && (
+            // Keyed on the id so a different patient never inherits this
+            // one's half-typed contact details or ticked consent.
+            <CompleteRecordSection key={detail.id} detail={detail} onCompleted={refetch} />
+          )}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <div className="text-xs text-text-soft">HealthClouda ID</div>

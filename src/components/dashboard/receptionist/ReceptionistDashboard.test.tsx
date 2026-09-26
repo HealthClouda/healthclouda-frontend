@@ -701,6 +701,112 @@ describe('D4 — portal invite and contact edit', () => {
   });
 });
 
+/**
+ * Completing an emergency-created record (backend FLAG-602/603, #221).
+ *
+ * PATCH /patients/{id}/ as RECEPTIONIST → PatientContactUpdateSerializer +
+ * RecordCompletionMixin: `registration_incomplete` is clear-only,
+ * `capture_consent: true` writes the DATA_ACCESS consent row, and clearing
+ * the flag re-arms the phone-when-no-email rule (400 `details.phone`).
+ * Read from backend `develop` 2026-09-26.
+ */
+describe('FLAG-602 — reception completes a record created during an emergency admission', () => {
+  const found = {
+    count: 1, next: null, previous: null,
+    results: [{
+      id: 'p-em', healthclouda_id: 'HCL-EM0001', first_name: 'man, ~40, brought in by police', last_name: '',
+      masked_phone: '', has_visited_org: true, has_pending_access_request: false, has_approved_access: true,
+    }],
+  };
+  // What emergency_admit() leaves behind: the description as the name, no
+  // contact details, no consent, the flag set.
+  const incomplete = {
+    id: 'p-em', healthclouda_id: 'HCL-EM0001', first_name: 'man, ~40, brought in by police', last_name: '',
+    email: null, phone: '', has_portal_account: false,
+    registration_incomplete: true, consent_given: false, stated_hcl_id: 'HCL-ABC123',
+  };
+
+  async function openIncomplete(detail: Record<string, unknown> = incomplete) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.PATIENT('p-em'))) return Promise.resolve(detail);
+      if (path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)) return Promise.resolve(found);
+      return Promise.resolve(emptyPage);
+    });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+    fireEvent.change(await screen.findByLabelText(/Search patients/), { target: { value: 'police' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Portal & contact/ }));
+    await screen.findByText('No portal account yet.');
+  }
+
+  it('offers completion only on an incomplete record', async () => {
+    await openIncomplete({ ...incomplete, registration_incomplete: false, consent_given: true, phone: '08031231234' });
+    expect(screen.queryByRole('button', { name: 'Complete record' })).not.toBeInTheDocument();
+  });
+
+  it('says plainly that reception cannot correct the name, and that a stated HCL-ID links nothing', async () => {
+    await openIncomplete();
+    expect(screen.getByText(/can.t change a patient.s name, date of birth or sex/)).toBeInTheDocument();
+    expect(screen.getByText('HCL-ABC123')).toBeInTheDocument();
+    expect(screen.getByText(/not linked to any record/)).toBeInTheDocument();
+  });
+
+  it('will not submit with neither phone nor email — the rule completion re-arms', async () => {
+    await openIncomplete();
+    expect(screen.getByRole('button', { name: 'Complete record' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    expect(screen.getByRole('button', { name: 'Complete record' })).not.toBeDisabled();
+  });
+
+  it('clears the flag and captures consent in ONE PATCH — only when the box is ticked', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.change(screen.getByLabelText('Emergency contact name'), { target: { value: 'Aisha Bello' } });
+    // Unticked by default: consent is attested, never implied by saving.
+    const box = screen.getByRole('checkbox', { name: /has consented/ });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe(ENDPOINTS.PATIENT('p-em'));
+    expect(method).toBe('PATCH');
+    expect(body).toEqual({
+      registration_incomplete: false,
+      phone: '08031234567',
+      emergency_contact_name: 'Aisha Bello',
+      capture_consent: true,
+    });
+  });
+
+  it('completing without ticking consent sends no capture_consent at all', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock.mock.calls[0][2]).toEqual({ registration_incomplete: false, phone: '08031234567' });
+  });
+
+  it('shows the backend\'s field error when it refuses', async () => {
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(
+        400,
+        { error: 'phone: Phone number must be at least 10 digits.', code: 'BAD_REQUEST', details: { phone: ['Phone number must be at least 10 digits.'] } },
+        'phone: Phone number must be at least 10 digits.',
+      ),
+    );
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '0803' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+    expect(await screen.findByText('Phone number must be at least 10 digits.')).toBeInTheDocument();
+  });
+});
+
 // ─── Check-in write path — FLAG gap: REC_CHECK_INS had no POST/PATCH call
 // site anywhere in src/ before this PR. Contract read from backend SOURCE
 // (apps/patients/receptionist_views.py + receptionist_serializers.py), not

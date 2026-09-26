@@ -2077,6 +2077,43 @@ assigned @Ericmoore207, with a 📥 Cross-Lane row) and
 `DuplicateRecordsPage` sends `?status=` again, verified against the live schema, with the page-only
 note removed.
 
+### FLAG-048 — An emergency patient keeps the nurse's description as their name: nobody can correct it from the frontend
+**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh (frontend) + backend · **Status:** OPEN
+**Raised:** 2026-09-26, building the record-completion screen (FLAG-602/603 frontend half)
+
+A walk-in admitted with no record is created with the nurse's free-text description in `first_name`
+("man, ~40, brought in by police"). Completing the record clears `registration_incomplete` and
+captures consent — **but reception's serializer cannot change the name, date of birth or sex**
+(`PatientContactUpdateSerializer`, backend `apps/patients/serializers.py`). Only ORG_ADMIN/SUPERADMIN
+(`PatientFullUpdateSerializer`) can, and **no frontend screen lets an org admin edit a patient** at all.
+So today the description is the patient's name for ever, including on every clinical screen and in
+search.
+
+The completion section says so on screen ("ask an organisation administrator") rather than implying
+completion fixes it — which is currently advice nobody can follow from the UI.
+
+**Done when** either (a) the backend lets reception set name/DOB/sex **while `registration_incomplete`
+is still set** (the same record-state keying `require_contact_key` already uses), and the completion
+section sends them; or (b) an org-admin patient edit screen exists and the on-screen advice points to
+it. Backend ask: **[#226](https://github.com/HealthClouda/healthclouda-backend/issues/226)** (assigned @Ericmoore207).
+
+---
+
+### FLAG-049 — Incomplete emergency records cannot be listed, only searched for
+**Severity:** P3 · **Area:** Reception · **Owner:** @Bastoh (frontend) + backend · **Status:** OPEN (logged shortcut)
+**Raised:** 2026-09-26, same build
+
+`PatientListSerializer` carries `registration_incomplete` ("so incomplete records can be listed and
+worked through" — FLAG-594), but `GET /patients/` declares no filter on it and its `get_queryset`
+reads no params. Listing them would mean paging the org's entire patient list into the browser —
+a PHI over-fetch this repo refuses elsewhere. So the completion screen is reached by **searching for
+the patient** (the nurse's description is searchable as a name) and opening their record; there is no
+"records to complete" queue. The nurse's admission toast already says reception completes it later,
+but nothing tells reception which records are waiting.
+
+**Done when** `?registration_incomplete=true` is a real, schema-published filter on `/patients/` (same
+backend issue as FLAG-048, **#226**) and reception has a queue built on it.
+
 ---
 
 ## Resolved flags

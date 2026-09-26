@@ -525,6 +525,38 @@ export interface PatientDetail {
   // `EmergencyAdmissionSerializer.stated_hcl_id`: it grants nothing and links
   // nothing, so never render it as though it resolved to a real record.
   stated_hcl_id?: string;
+  // Derived from the DATA_ACCESS PatientConsent row (sync_patient_consent_flag),
+  // never written directly. False on every emergency-created record until
+  // someone captures consent — and EpisodeCreateSerializer refuses an ordinary
+  // episode for any patient without it (backend FLAG-602).
+  consent_given?: boolean;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+}
+
+/**
+ * PATCH /patients/{id}/ as a RECEPTIONIST completing an emergency-created
+ * record — PatientContactUpdateSerializer + RecordCompletionMixin (backend
+ * #221, FLAG-602/603), read from `develop` 2026-09-26.
+ *
+ * - `registration_incomplete` is clear-only: send `false`. Clearing it
+ *   re-arms the phone-when-no-email rule (`require_contact_key`), which
+ *   answers 400 `details.phone` if neither is present.
+ * - `capture_consent: true` writes the DATA_ACCESS consent ROW; the backend's
+ *   signal derives `consent_given` from it. There is no `false` case —
+ *   withdrawal is a different act (FLAG-374).
+ * - Name, date of birth and sex are NOT on this serializer — reception
+ *   cannot correct them (FLAG-048).
+ */
+export interface RecordCompletionUpdate {
+  phone?: string;
+  email?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  registration_incomplete: false;
+  capture_consent?: boolean;
 }
 
 /**
