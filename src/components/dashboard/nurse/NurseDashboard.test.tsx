@@ -800,7 +800,8 @@ describe('WARD-1 — admit patient', () => {
     // shape the flat gender-mismatch error used to have pre-#194. Her input
     // was valid when she picked the bed; someone else just took it.
     dataActionMock.mockRejectedValueOnce(
-      new ClientApiError(409, { error: 'Bed GW-09 was just assigned to another patient.' }, 'Conflict'),
+      // BedNotAvailable's own sentence (apps/ward/services.py).
+      new ClientApiError(409, { error: 'Bed GW-09 is no longer available (status: OCCUPIED). Please choose another bed.' }, 'Conflict'),
     );
     await openAdmitPage();
 
@@ -809,7 +810,7 @@ describe('WARD-1 — admit patient', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
 
     // A non-blocking notice, not a field-level validation error.
-    expect(await screen.findByText(/taken by another patient/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Bed GW-09 is no longer available/)).length).toBeGreaterThan(0);
     // The bed list is refetched (GET fires again) rather than the form
     // being left stuck on a bed that no longer exists.
     await waitFor(() => {
@@ -819,6 +820,23 @@ describe('WARD-1 — admit patient', () => {
     // "Admit" button is still there, ready for a different bed.
     expect(screen.getByLabelText('Bed')).toHaveValue('');
     expect(screen.getAllByRole('button', { name: 'Admit' }).length).toBeGreaterThan(0);
+  });
+
+  // FLAG-604 (backend #221): "already admitted" is a 409 on this route now,
+  // in the same flat {error} as the bed race. Calling it a bed race sends the
+  // nurse round a loop picking beds for a patient who is already in one.
+  it('a 409 for a patient who is already admitted is not reported as a bed race', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    const already = 'This patient already has an active admission in your organization.';
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(409, { error: already }, already));
+    await openAdmitPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    expect((await screen.findAllByText(already)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/That bed was just taken/)).not.toBeInTheDocument();
   });
 });
 
@@ -980,6 +998,7 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
           patient_id: foundPatient.id,
           presenting_complaint: 'Collapsed at reception',
           override: false,
+          attending_doctor_override: false,
         },
       );
     });
@@ -1025,6 +1044,7 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
           description: 'man, ~40, brought in by police',
           presenting_complaint: 'Unresponsive at the door',
           override: false,
+          attending_doctor_override: false,
         },
       );
     });
@@ -1085,7 +1105,7 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
     });
   });
 
-  it('an off-duty doctor is selectable, and "Admit anyway" resends the ONE override flag this endpoint actually reads', async () => {
+  it('an off-duty doctor is selectable, and "Admit anyway" resends attending_doctor_override — not the gender override (FLAG-601)', async () => {
     dataActionMock.mockImplementation(() =>
       reject(
         400,
@@ -1122,16 +1142,46 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
       expect(dataActionMock).toHaveBeenLastCalledWith(
         ENDPOINTS.WARD_EMERGENCY_ADMISSIONS,
         'POST',
-        expect.objectContaining({ attending_doctor_id: offDutyDoctor.id, override: true }),
+        expect.objectContaining({
+          attending_doctor_id: offDutyDoctor.id,
+          attending_doctor_override: true,
+          // 🔴 One answer must not waive the other warning (backend #221).
+          override: false,
+        }),
       );
     });
-    // 🔴 The field the backend's own message tells her to send does NOT exist
-    // on this endpoint — DRF drops unknown keys, so sending it would loop for
-    // ever (backend FLAG-601, reproduced against real Postgres 2026-09-18).
-    // Asserting its ABSENCE is what stops a well-meaning "follow the error
-    // message" change from silently breaking the only override that works.
-    const lastBody = dataActionMock.mock.calls.at(-1)?.[2] as Record<string, unknown>;
-    expect('attending_doctor_override' in lastBody).toBe(false);
+  });
+
+  it('answering the doctor warning and then the gender warning sends BOTH overrides', async () => {
+    const onDuty = {
+      error: 'attending_doctor: Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.',
+      code: 'BAD_REQUEST',
+      details: { attending_doctor: ['Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.'] },
+    };
+    const gender = {
+      error: 'gender: Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.',
+      code: 'BAD_REQUEST',
+      details: { gender: 'Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.' },
+    };
+    dataActionMock
+      .mockImplementationOnce(() => reject(400, onDuty, onDuty.error))
+      .mockImplementationOnce(() => reject(400, gender, gender.error))
+      .mockImplementationOnce(() => Promise.resolve(admitted({ admission: { id: 'adm-7' } })));
+
+    await openEmergencyPanel();
+    await selectPatient();
+    await fillBedAndReason('Chest pain');
+    fireEvent.change(screen.getByLabelText('Attending doctor'), { target: { value: offDutyDoctor.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Admit now' }));
+
+    await screen.findByText(/is not currently on duty/);
+    fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
+    await screen.findByText(/this is a Female ward/);
+    expect(dataActionMock.mock.calls[1][2]).toEqual(expect.objectContaining({ attending_doctor_override: true, override: false }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledTimes(3));
+    expect(dataActionMock.mock.calls[2][2]).toEqual(expect.objectContaining({ attending_doctor_override: true, override: true }));
   });
 
   it('keeps the backend’s "Resend with …=true" instruction off the nurse’s screen', async () => {
@@ -1432,6 +1482,22 @@ describe('WARD-PART2 — nurse admission-request queue (accept/decline)', () => 
         { bed: requestBed.id, override: true },
       );
     });
+  });
+
+  // FLAG-604 (backend #221): accept now answers "already admitted" with the
+  // same flat 409 as the bed race.
+  it('a 409 on Accept says what the server said — "already admitted" is not a bed race', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    const already = 'This patient already has an active admission in your organization.';
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(409, { error: already }, already));
+    await openQueue();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: requestBed.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Accept & admit' }));
+
+    expect((await screen.findAllByText(already)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/That bed was just taken/)).not.toBeInTheDocument();
   });
 
   it('is a first-class refusal: declining requires a non-blank reason and posts it', async () => {

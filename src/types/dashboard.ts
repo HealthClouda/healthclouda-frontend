@@ -1118,11 +1118,12 @@ export interface EmergencyAdmissionRequest {
   // A note only — see `PatientDetail.stated_hcl_id`. Never used to resolve
   // or link a record.
   stated_hcl_id?: string;
-  // Resend =true to proceed past a warning (ward gender policy, or an
-  // off-duty attending doctor) — ONE flag covers both; there is no separate
-  // `attending_doctor_override` on this endpoint (unlike the ordered-admit
-  // and Part-2-accept paths).
+  // Resend =true to proceed past the ward gender policy warning ONLY.
   override?: boolean;
+  // Resend =true to name an off-duty attending doctor anyway. Separate from
+  // `override` since backend #221 (FLAG-601) — one answer must not waive the
+  // other warning — and audited, like the three sibling routes.
+  attending_doctor_override?: boolean;
 }
 
 // {message, admission, patient} — `patient` is PatientDetailSerializer, so
