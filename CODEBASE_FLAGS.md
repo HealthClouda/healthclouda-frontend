@@ -2072,7 +2072,8 @@ Acceptable for beta: one hospital's duplicate queue is expected to fit on a page
 it doesn't.
 
 **Done when** the backend declares `filterset_fields = ['status']` on the viewset (needs an
-`api-request` issue on the backend repo, **not yet filed** — this session had no access to it) and
+`api-request` issue: **backend [#225](https://github.com/HealthClouda/healthclouda-backend/issues/225)**,
+assigned @Ericmoore207, with a 📥 Cross-Lane row) and
 `DuplicateRecordsPage` sends `?status=` again, verified against the live schema, with the page-only
 note removed.
 
