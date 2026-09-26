@@ -896,6 +896,114 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
     expect(await screen.findByText('Ngozi Eze')).toBeInTheDocument();
   });
 
+  /**
+   * G-A2's handover half — POST /ward/admissions/{id}/reassign-doctor/
+   * {attending_doctor, attending_doctor_override} (AdmissionViewSet.
+   * reassign_doctor + ReassignDoctorSerializer, backend develop 2026-09-26).
+   * DOCTOR-only; the off-duty check is the shared soft two-step, 400 under
+   * `details.attending_doctor`.
+   */
+  describe('hand over from the doctor side', () => {
+    // GET /ward/attending-doctors/ — a BARE ARRAY (AttendingDoctorListView),
+    // on-duty first. 'd1' is the signed-in doctor; 'd2' already holds this
+    // admission.
+    const doctors = [
+      { id: 'd1', full_name: 'Dr. Emeka Okafor', staff_id: 'DOC-1', is_on_duty: true },
+      { id: 'd2', full_name: 'Dr. Bola Adeyemi', staff_id: 'DOC-2', is_on_duty: true },
+      { id: 'd3', full_name: 'Dr. Femi Adeyemi', staff_id: 'DOC-3', is_on_duty: false },
+    ];
+    const offDutyMessage = 'Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.';
+
+    async function openHandOver(admission: DoctorAdmission = doctorAdmission) {
+      dataGetMock.mockImplementation((path: string) => {
+        if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) return Promise.resolve(doctors);
+        if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
+          return Promise.resolve({ count: 0, results: [] });
+        }
+        if (path.startsWith(ENDPOINTS.ADMISSIONS)) return Promise.resolve({ count: 1, results: [admission] });
+        return Promise.resolve({ count: 0, results: [] });
+      });
+      render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+      await screen.findByText('Ngozi Eze');
+    }
+
+    it('hands over to a named doctor — POST .../reassign-doctor/ with no override', async () => {
+      dataActionMock.mockResolvedValue({ message: 'Attending doctor reassigned', admission: {} });
+      await openHandOver();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over Ngozi Eze' }));
+      const picker = await screen.findByLabelText('New attending doctor');
+      // The doctor who already holds it is not offered; the signed-in doctor is marked.
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Dr. Emeka Okafor (you)' })).toBeInTheDocument());
+      expect(screen.queryByRole('option', { name: 'Dr. Bola Adeyemi' })).not.toBeInTheDocument();
+
+      fireEvent.change(picker, { target: { value: 'd1' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Hand over' }).slice(-1)[0]);
+
+      await waitFor(() => {
+        expect(dataActionMock).toHaveBeenCalledWith(
+          ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(doctorAdmission.id),
+          'POST',
+          { attending_doctor: 'd1', attending_doctor_override: false },
+        );
+      });
+    });
+
+    it('offers "Assign doctor" on an unassigned admission', async () => {
+      await openHandOver({ ...doctorAdmission, attending_doctor: null, attending_doctor_name: null, needs_attending_doctor: true });
+      expect(screen.getByRole('button', { name: 'Assign a doctor for Ngozi Eze' })).toHaveTextContent('Assign doctor');
+    });
+
+    it('an off-duty doctor warns first, then resends with attending_doctor_override=true', async () => {
+      dataActionMock.mockRejectedValueOnce(
+        new ClientApiError(
+          400,
+          { error: `attending_doctor: ${offDutyMessage}`, code: 'BAD_REQUEST', details: { attending_doctor: [offDutyMessage] } },
+          `attending_doctor: ${offDutyMessage}`,
+        ),
+      );
+      await openHandOver();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over Ngozi Eze' }));
+      const picker = await screen.findByLabelText('New attending doctor');
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Dr. Femi Adeyemi' })).not.toBeDisabled());
+      fireEvent.change(picker, { target: { value: 'd3' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Hand over' }).slice(-1)[0]);
+
+      // The warning, without the API instruction.
+      expect(await screen.findByText('Dr. Femi Adeyemi is not currently on duty.')).toBeInTheDocument();
+      expect(dataActionMock).toHaveBeenCalledTimes(1);
+
+      dataActionMock.mockResolvedValueOnce({ message: 'Attending doctor reassigned', admission: {} });
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over anyway' }));
+      await waitFor(() => {
+        expect(dataActionMock).toHaveBeenLastCalledWith(
+          ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(doctorAdmission.id),
+          'POST',
+          { attending_doctor: 'd3', attending_doctor_override: true },
+        );
+      });
+    });
+
+    it('shows any other refusal as an error, not as the off-duty two-step', async () => {
+      const bad = 'attending_doctor must be a user with role DOCTOR.';
+      dataActionMock.mockRejectedValueOnce(
+        new ClientApiError(400, { error: `attending_doctor: ${bad}`, code: 'BAD_REQUEST', details: { attending_doctor: [bad] } }, bad),
+      );
+      await openHandOver();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over Ngozi Eze' }));
+      const picker = await screen.findByLabelText('New attending doctor');
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Dr. Femi Adeyemi' })).toBeInTheDocument());
+      fireEvent.change(picker, { target: { value: 'd3' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Hand over' }).slice(-1)[0]);
+
+      expect(await screen.findByText(bad)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Hand over anyway' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('discharge from the doctor side', () => {
     async function openDischarge() {
       mockAdmissionsBackend();

@@ -15,8 +15,9 @@ import { useToast } from '@/store/toast';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ShimmerRows } from '@/components/ui/Shimmer';
+import { DoctorPicker } from '@/components/dashboard/shared/DoctorPicker';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatDate, timeAgo } from '@/lib/utils';
+import { formatDate, timeAgo, withoutResendInstruction } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import { ClientApiError, dataGet } from '@/lib/client-api';
 import type { User } from '@/types/auth';
@@ -571,21 +572,6 @@ function readFieldError(
   return { field: null, message: err instanceof Error ? err.message : fallback };
 }
 
-/**
- * Strips the backend's trailing "Resend with <field>=true …" sentence before
- * a warning reaches a nurse. It is an API instruction: she has a button, she
- * is not composing a request by hand, and reading her a parameter name is
- * noise mid-emergency.
- *
- * (It was also *wrong* on the emergency route until backend #221 — FLAG-601:
- * the on-duty refusal named `attending_doctor_override`, a field that route
- * did not declare. It declares it now, and the form sends it; see
- * EmergencyAdmitForm.) Display-only — the branch logic reads `details`, never
- * this text.
- */
-function withoutResendInstruction(message: string): string {
-  return message.replace(/\s*Resend with \S+=true[^.]*\.\s*$/, '').trim() || message;
-}
 
 function admissionFieldError(err: unknown): { field: string | null; message: string } {
   return readFieldError(
@@ -1039,92 +1025,6 @@ function EmergencyPatientSearch({ onSelect, onNewPatient }: {
   );
 }
 
-// Optional, and deliberately framed that way (Q2 — attending_doctor is
-// PROMPTED, NEVER BLOCKS): the default option reads as a normal outcome,
-// not an error state, because for an emergency admission it often is one.
-//
-// ⚠️ CORRECTED — `restrictToOnDuty` disabling the off-duty `<option>`s was
-// itself wrong, not just stale. `_check_attending_doctor_on_duty`
-// (apps/ward/serializers.py) is the advisor's real Q2 answer: SOFT,
-// warn-and-allow, the same shape as the ward gender rule (FLAG-301) —
-// "a night with no on-duty doctor must never refuse an admission outright."
-// Disabling the option made the backend's own override unreachable from the
-// UI. `restrictToOnDuty` now defaults to `true` only because no caller
-// currently needs the old hard-disable behaviour; every real call site
-// (`EmergencyAdmitForm`) passes `restrictToOnDuty={false}` and handles the
-// resulting 400 with the same select → warn → "Admit anyway" two-step used
-// for the gender check.
-function DoctorPicker({
-  id = 'emergency-attending-doctor',
-  label = 'Attending doctor',
-  helperText,
-  restrictToOnDuty = true,
-  doctors, loading, error, value, onChange, required = false,
-}: {
-  id?: string;
-  label?: string;
-  helperText?: string;
-  doctors: AttendingDoctor[] | null;
-  loading: boolean;
-  error: string | null;
-  value: string;
-  onChange: (id: string) => void;
-  // A-2b's picker (emergency admission) is never-blocks/optional — the only
-  // live caller. No caller currently sets this true (the reassign-doctor
-  // panel that would have is gone — it belongs on a doctor-side admissions
-  // surface, FLAG-042, not built here), but kept as a prop rather than
-  // deleted: a future required use of the same doctor list shouldn't need a
-  // second component.
-  required?: boolean;
-  restrictToOnDuty?: boolean;
-}) {
-  const onDuty = (doctors ?? []).filter(d => d.is_on_duty);
-  const offDuty = (doctors ?? []).filter(d => !d.is_on_duty);
-  const defaultHelperText = restrictToOnDuty
-    ? (required
-        ? 'Choose the doctor taking over this patient. Only doctors on duty can be selected.'
-        : 'Optional — naming one never blocks this admission. Only doctors on duty can be selected; leave it as-is if none is available.')
-    : (required ? 'Choose the doctor.' : 'Optional — naming one never blocks this admission.');
-  return (
-    <div>
-      <label htmlFor={id} className="block text-xs font-medium text-text-soft mb-1">
-        {label}
-      </label>
-      <p className="text-[11px] text-text-soft mb-1">
-        {helperText ?? defaultHelperText}
-      </p>
-      {loading ? <ShimmerRows count={1} /> : error ? (
-        <p className="text-xs text-danger">{error}</p>
-      ) : (
-        <>
-          <select
-            id={id}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            className={formInputClass}
-          >
-            <option value="">{required ? 'Select a doctor…' : 'No doctor available right now'}</option>
-            {onDuty.length > 0 && (
-              <optgroup label="On duty">
-                {onDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-              </optgroup>
-            )}
-            {offDuty.length > 0 && (
-              <optgroup label={restrictToOnDuty ? 'Not on duty — cannot be selected' : 'Not on duty'}>
-                {offDuty.map(d => (
-                  <option key={d.id} value={d.id} disabled={restrictToOnDuty}>{d.full_name}</option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-          {restrictToOnDuty && !loading && onDuty.length === 0 && (
-            <p className="text-[11px] text-text-soft mt-1">No doctors are currently on duty.</p>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
   open: boolean;
