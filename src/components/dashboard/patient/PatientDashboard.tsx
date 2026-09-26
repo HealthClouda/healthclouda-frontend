@@ -14,7 +14,7 @@ import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  PatientDashboardData, Episode, PatientAppointment, AccessRequest, Referral, Notification, Paginated,
+  PatientDashboardData, EpisodeListItem, PatientAppointment, AccessRequest, Referral, Notification, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -157,7 +157,8 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
 
 function HealthPage() {
   const { items: episodes, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<Episode>(ENDPOINTS.EPISODES + '?my=true');
+    // FLAG-247: /episodes/ is `EpisodeList`, not the doctor shape (`Episode`).
+    usePaginatedList<EpisodeListItem>(ENDPOINTS.EPISODES + '?my=true');
 
   return (
     <div className="space-y-6">
@@ -181,10 +182,10 @@ function HealthPage() {
               {episodes.map(ep => (
                 <tr key={ep.id} className="hover:bg-gray-50/60 transition-colors">
                   <Td><span className="font-mono text-xs text-gray-500">#{ep.id.slice(0, 8)}</span></Td>
-                  <Td className="font-medium text-gray-900 max-w-xs">{truncate(ep.chief_complaint ?? '—', 50)}</Td>
+                  <Td className="font-medium text-gray-900 max-w-xs">{truncate(ep.chief_complaint_summary || '—', 50)}</Td>
                   <Td><StatusBadge status={ep.status} /></Td>
-                  <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.episode_start ?? ep.created_at)}</Td>
-                  <Td className="text-xs text-gray-400 whitespace-nowrap">{ep.closed_at ? formatDate(ep.closed_at) : '—'}</Td>
+                  <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.episode_start)}</Td>
+                  <Td className="text-xs text-gray-400 whitespace-nowrap">{ep.episode_end ? formatDate(ep.episode_end) : '—'}</Td>
                 </tr>
               ))}
             </tbody>
