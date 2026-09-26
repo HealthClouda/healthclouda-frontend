@@ -96,8 +96,12 @@ params (`ordering, page, page_size, search`; still no `my`, see FLAG-226) were r
 **Left undone / next:**
 - [ ] 🔴 **A human still has to run the three commands in
       `Desktop/healthclouda-reviews/POST-THESE.md`**, #159 first. It has been ready since 19 Sep.
-- [ ] Fix FLAG-247 on `fix/flag-247-patient-episode-shape` (claim In Flight first), then capture
-      and commit the five Patient baselines in the same PR.
+- [x] ✅ **FLAG-247 fixed the same session: #163** (reviewer @Bastoh). Both columns were wrong, not
+      one: `closed_at` is not sent either, the field is `episode_end`. Test written RED first, 378/378,
+      tsc, lint and build clean. The five Patient baselines are committed there, captured after the
+      fix. ⚠️ `--grep patient` also regenerates the doctor/nurse/org-admin "Patients" baselines.
+      I restored those, and they must not be committed by accident.
+- [ ] Once #162 and #163 are both merged, mark FLAG-247 **resolved → #163** in `CODEBASE_FLAGS.md`.
 
 ### 2026-09-19 — #160 reviewed, and three verdicts that exist but are not posted (branch: docs/flags-244-246-review-161-2026-09-18)
 
