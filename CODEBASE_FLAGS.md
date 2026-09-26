@@ -2057,6 +2057,27 @@ went*.
 
 ---
 
+### FLAG-047 — The duplicate-records status filter only sees the page in hand
+**Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** OPEN (logged shortcut)
+**Raised:** 2026-09-26, fixing FLAG-245 on #161 (review 5325820800 by @Qeeyat)
+
+`GET /patients/merge-requests/` ignores `?status=` — `PatientMergeRequestViewSet` declares no
+`filterset_fields`/`filterset_class` and `get_queryset` reads no query params; the live schema lists
+only `ordering`, `page`, `page_size`, `search` (FLAG-245). #161 no longer sends the param. The
+dropdown now filters **client-side over the current page** (`page_size=20`) and, when the queue spans
+more than one page, says so on screen ("Showing matches on page N of M only"). A matching row on
+another page is not found by the filter.
+
+Acceptable for beta: one hospital's duplicate queue is expected to fit on a page. Not acceptable once
+it doesn't.
+
+**Done when** the backend declares `filterset_fields = ['status']` on the viewset (needs an
+`api-request` issue on the backend repo, **not yet filed** — this session had no access to it) and
+`DuplicateRecordsPage` sends `?status=` again, verified against the live schema, with the page-only
+note removed.
+
+---
+
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is

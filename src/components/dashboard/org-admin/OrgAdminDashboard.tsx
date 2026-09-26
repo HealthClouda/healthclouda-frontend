@@ -662,6 +662,16 @@ function ReferralsPage() {
  *     moved to ESCALATED server-side and a superadmin has been notified.
  *     Treating it as a generic failure would tell the admin nothing happened
  *     when in fact the queue changed under them.
+ *
+ *     ⚠️ **But not every 409 on confirm is that one** (FLAG-244). `confirm`
+ *     answers 409 for three refusals (`merge_views.py:186-204`):
+ *     `MergeHistoryElsewhere` (escalated, superadmin notified, body is the
+ *     serialized record with `status: 'ESCALATED'`), `MergeAlreadyResolved`
+ *     (a colleague got there first; nothing happened) and
+ *     `MergeClinicalConflict` (refused; a clinician has to settle it). Only
+ *     the first may be called an escalation, and the body's `status` is the
+ *     discriminator. The other two are shown as a plain refusal in the
+ *     backend's own words, never under the escalation heading.
  */
 
 // Only a FLAGGED row can be confirmed by this dashboard's audience; only a
@@ -680,22 +690,29 @@ function rowsMovedSummary(rowsMoved: Record<string, number> | undefined): string
 }
 
 function DuplicateRecordsPage() {
+  // 🪤 FLAG-245 / FLAG-047: the status filter is applied HERE, over the page
+  // already fetched. `/patients/merge-requests/` declares no filterset and its
+  // `get_queryset` reads no query params, so `?status=` was dropped silently
+  // and every option returned the identical queue. Client-side filtering only
+  // sees the current page, which the screen says out loud when it matters.
   const [status, setStatus] = useState('');
-  const endpoint = ENDPOINTS.PATIENT_MERGE_REQUESTS + (status ? `?status=${status}` : '');
-  const { items: merges, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<PatientMergeRequest>(endpoint);
+  const { items, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<PatientMergeRequest>(ENDPOINTS.PATIENT_MERGE_REQUESTS);
+  const merges = status ? items.filter((m) => m.status === status) : items;
   const { toast } = useToast();
 
   const [acting, setActing] = useState<{ merge: PatientMergeRequest; action: 'confirm' | 'reject' | 'undo' } | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
-  // An escalation is an OUTCOME, not a failure — see the docstring. Held
-  // separately from a plain error so it can be shown in its own words.
-  const [escalation, setEscalation] = useState<string | null>(null);
+  // What a 409 on confirm turned out to mean — see the docstring. An
+  // escalation is an OUTCOME (the flag moved, a superadmin was told); a
+  // refusal is the backend declining with nothing moved. Both end the
+  // action, but only one may be called an escalation.
+  const [outcome, setOutcome] = useState<{ kind: 'escalated' | 'refused'; message: string } | null>(null);
 
   function open(merge: PatientMergeRequest, action: 'confirm' | 'reject' | 'undo') {
     setNote('');
-    setEscalation(null);
+    setOutcome(null);
     setActing({ merge, action });
   }
 
@@ -705,7 +722,7 @@ function DuplicateRecordsPage() {
     const { merge, action } = acting;
     if (action === 'reject' && !note.trim()) return;
     setSaving(true);
-    setEscalation(null);
+    setOutcome(null);
     try {
       if (action === 'confirm') {
         const res = (await apiAction(ENDPOINTS.PATIENT_MERGE_CONFIRM(merge.id), 'POST')) as PatientMergeRequest;
@@ -720,16 +737,18 @@ function DuplicateRecordsPage() {
       setActing(null);
       refetch();
     } catch (err) {
-      // 409 on a confirm is the cross-hospital boundary, and the body carries
-      // the backend's own explanation plus the row in its new ESCALATED state.
-      // The queue HAS changed, so refetch and explain rather than reporting a
-      // dead end.
-      const escalated = err instanceof ClientApiError
-        && err.status === 409
-        && action === 'confirm';
-      if (escalated) {
+      // A 409 on confirm is one of three refusals (FLAG-244). Only the body
+      // of `MergeHistoryElsewhere` is the serialized record, now ESCALATED —
+      // that is the discriminator, not the status code. Either way the row
+      // this admin was looking at is stale (escalated, or already resolved by
+      // someone else), so refetch.
+      if (err instanceof ClientApiError && err.status === 409 && action === 'confirm') {
         const body = err.data as { error?: string; resolution_note?: string; status?: string } | null;
-        setEscalation(body?.resolution_note || body?.error || err.message);
+        if (body?.status === 'ESCALATED') {
+          setOutcome({ kind: 'escalated', message: body.resolution_note || body.error || err.message });
+        } else {
+          setOutcome({ kind: 'refused', message: body?.error || err.message });
+        }
         refetch();
       } else {
         toast.error(err instanceof Error ? err.message : 'Could not complete that');
@@ -810,6 +829,14 @@ function DuplicateRecordsPage() {
         those out — you can still close one as &quot;not a duplicate&quot;.
       </p>
 
+      {/* FLAG-047: the filter can only see the page in hand. Silent on a
+          one-page queue, where it is exact. */}
+      {status && totalPages > 1 && (
+        <p role="note" className="text-xs text-text-soft">
+          Showing matches on page {page} of {totalPages} only — the other pages are not filtered.
+        </p>
+      )}
+
       <DataTable
         columns={columns}
         data={merges}
@@ -817,8 +844,10 @@ function DuplicateRecordsPage() {
         loading={loading}
         error={error}
         onRetry={refetch}
-        emptyTitle="No duplicate records flagged"
-        emptyDescription="When the front desk flags two records as the same person, they appear here."
+        emptyTitle={status ? 'No records with this status' : 'No duplicate records flagged'}
+        emptyDescription={status
+          ? (totalPages > 1 ? 'None on this page — the filter only covers the page shown.' : 'Choose "All statuses" to see the whole queue.')
+          : 'When the front desk flags two records as the same person, they appear here.'}
         toolbar={
           <select aria-label="Filter by merge status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
@@ -848,9 +877,9 @@ function DuplicateRecordsPage() {
         footer={
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setActing(null)} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">
-              {escalation ? 'Close' : 'Cancel'}
+              {outcome ? 'Close' : 'Cancel'}
             </button>
-            {!escalation && (
+            {!outcome && (
               <Button type="submit" form="merge-action" disabled={saving || (action === 'reject' && !note.trim())}>
                 {saving ? 'Working…'
                   : action === 'confirm' ? 'Merge records'
@@ -862,12 +891,19 @@ function DuplicateRecordsPage() {
         }
       >
         <form id="merge-action" onSubmit={submit} className="space-y-4">
-          {escalation ? (
+          {outcome?.kind === 'escalated' ? (
             // Not an error state: the flag HAS moved to ESCALATED and a
             // superadmin has been told. Said plainly, in the backend's words.
             <div role="status" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-1.5">
               <p className="text-xs font-semibold text-warning-strong">Escalated to a superadmin</p>
-              <p className="text-[11.5px] text-text-soft">{escalation}</p>
+              <p className="text-[11.5px] text-text-soft">{outcome.message}</p>
+            </div>
+          ) : outcome?.kind === 'refused' ? (
+            // Already resolved by a colleague, or a clinical conflict. Nothing
+            // moved and nobody else was told — so no escalation heading.
+            <div role="alert" className="rounded-lg border border-danger/30 bg-danger-bg px-3 py-2.5 space-y-1.5">
+              <p className="text-xs font-semibold text-danger">Not merged</p>
+              <p className="text-[11.5px] text-text-soft">{outcome.message}</p>
             </div>
           ) : (
             <>

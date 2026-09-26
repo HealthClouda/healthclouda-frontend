@@ -594,6 +594,44 @@ describe('FLAG-373 — org admin works the duplicate-records queue', () => {
     expect(screen.queryByRole('button', { name: 'Merge records' })).not.toBeInTheDocument();
   });
 
+  // FLAG-244 — `confirm` answers 409 for THREE refusals, one status code apart.
+  // Only MergeHistoryElsewhere is an escalation; the other two bodies are a
+  // bare `{error}` and must never appear under the escalation heading.
+  it.each([
+    ['MergeAlreadyResolved', 'This merge is already merged.'],
+    ['MergeClinicalConflict', 'Both records have an active admission; a clinician must resolve this first.'],
+  ])('reports a %s 409 as a refusal, not an escalation', async (_name, message) => {
+    await openQueue();
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(409, { error: message }, message));
+
+    fireEvent.click(screen.getByRole('button', { name: /Confirm merging Amina Yusuf into Aminat Yusuf/ }));
+    await screen.findByRole('dialog', { name: 'Merge these records' });
+    dataGetMock.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Merge records' }));
+
+    expect(await screen.findByText('Not merged')).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText('Escalated to a superadmin')).not.toBeInTheDocument();
+    // The row is stale either way — re-read the queue.
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+  });
+
+  // FLAG-245 — the backend ignores `?status=` on this path (no filterset, and
+  // `get_queryset` reads no params), so the filter must never be sent and
+  // must actually narrow what is shown.
+  it('filters by status on the client and never sends the ignored ?status= param', async () => {
+    await openQueue();
+    fireEvent.change(screen.getByLabelText('Filter by merge status'), { target: { value: 'MERGED' } });
+
+    await waitFor(() => expect(screen.queryByText('Aminat Yusuf')).not.toBeInTheDocument());
+    expect(screen.getByText('Chidinma Okeke')).toBeInTheDocument();
+    expect(screen.queryByText('Bolanle Ade')).not.toBeInTheDocument();
+    for (const [path] of dataGetMock.mock.calls) {
+      if (String(path).includes('merge-requests')) expect(String(path)).not.toContain('status=');
+    }
+  });
+
   it('will not close a flag as "not a duplicate" without saying why', async () => {
     await openQueue();
     fireEvent.click(screen.getByRole('button', { name: /Reject the merge of Amina Yusuf into Aminat Yusuf/ }));
