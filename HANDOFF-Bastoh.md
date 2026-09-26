@@ -103,6 +103,17 @@ tests red. Contract read from backend source, **not run against api-dev**.
 - [ ] Backend **#226** (name correction + incomplete-records filter) and **#225** (merge-queue filter)
       are with Eric. When they land, FLAG-048/049/047 each have a frontend half.
 - [ ] #160 is a claim row only; close it when #161 merges.
+- [ ] 🔴 **When #161 merges: one-commit docs PR from `develop` marking FLAG-244/245/246 RESOLVED by
+      #161.** Their entries arrived OPEN via #162 (merged 26 Sep) after #161 had already fixed them.
+      Not done on #161 itself because it would have needed a rebase and a force push of both #161 and
+      the stacked #164 (option 1, chosen 26 Sep). Resolution wording for all three was drafted in-session:
+      244 = `status === 'ESCALATED'` discriminator, plus the already-ESCALATED `MergeAlreadyResolved` path;
+      245 = client-side filter + FLAG-047 + backend #225; 246 = all three items, item 3's "loops for
+      ever" outdated since backend #221.
+- [ ] Later in the day: **reviewed and approved @Qeeyat's #162 and #163**, merged #162. Took
+      **FLAG-050** for the `discharge_outcome` gap (the backend half was closed by backend #215; a frontend
+      remainder is logged). Backend: closed #220, #158 and #223, posted the reconciled #142 decision,
+      and merged #227 (the Railway Hobby-plan deploy-approval correction).
 
 ---
 
