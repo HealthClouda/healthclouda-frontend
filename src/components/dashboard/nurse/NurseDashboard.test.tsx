@@ -52,7 +52,7 @@ vi.mock('@/lib/client-api', () => ({
   },
 }));
 
-import { dataGet, dataAction } from '@/lib/client-api';
+import { dataGet, dataAction, ClientApiError } from '@/lib/client-api';
 const dataGetMock = vi.mocked(dataGet);
 const dataActionMock = vi.mocked(dataAction);
 
@@ -1513,4 +1513,194 @@ describe('WARD-PART2 — no doctor-reassign control on the nurse dashboard', () 
     expect(screen.getByRole('button', { name: 'Discharge' })).toBeInTheDocument();
   });
 
+});
+
+// ─── Build 6 (frontend half) — the ward rota (FLAG-046) ───────────
+//
+// Contract fixed 2026-09-17 ahead of the backend PR: GET/POST/PATCH/DELETE
+// /ward/shifts/, `?ward_id=`/`?current=true`/`?date=`, `POST .../hand-over/`.
+describe('Build 6 — ward rota: who is on this ward now + handover (FLAG-046)', () => {
+  const wardFixture = {
+    count: 1,
+    results: [{ id: 'ward-1', name: 'General Ward', category: 'MEDICAL', total_beds: 2, occupied_beds: 1 }],
+  };
+
+  const shiftSelf = {
+    id: 'shift-1', ward: 'ward-1', ward_name: 'General Ward',
+    nurse: user.id, nurse_name: 'Chidinma Uzo',
+    starts_at: '2026-09-17T07:00:00Z', ends_at: '2026-09-17T19:00:00Z',
+    is_in_charge: true, created_at: '2026-09-17T06:00:00Z',
+  };
+
+  const shiftOther = {
+    id: 'shift-2', ward: 'ward-1', ward_name: 'General Ward',
+    nurse: 'other-nurse', nurse_name: 'Bisi Aro',
+    starts_at: '2026-09-17T07:00:00Z', ends_at: '2026-09-17T19:00:00Z',
+    is_in_charge: false, created_at: '2026-09-17T06:00:00Z',
+  };
+
+  function mockRota(shiftResults: unknown[]) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.NURSE_WARDS_OVERVIEW)) return Promise.resolve(wardFixture);
+      if (path.startsWith(ENDPOINTS.WARD_BEDS)) return Promise.resolve({ count: 0, results: [] });
+      if (path.startsWith(ENDPOINTS.SHIFTS)) {
+        return Promise.resolve({ count: shiftResults.length, next: null, previous: null, results: shiftResults });
+      }
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  async function openWardOverview() {
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ward Overview' }));
+    await waitFor(() => expect(screen.getByText('General Ward')).toBeInTheDocument());
+  }
+
+  it('queries /ward/shifts/ with ?ward_id= AND ?current=true — a server filter, not a client-side scan of the whole rota', async () => {
+    mockRota([shiftSelf]);
+    await openWardOverview();
+
+    await waitFor(() => {
+      const call = dataGetMock.mock.calls.map(([p]) => p as string).find((p) => p.startsWith(ENDPOINTS.SHIFTS));
+      expect(call).toBeDefined();
+      expect(call).toContain('ward_id=ward-1');
+      expect(call).toContain('current=true');
+    });
+  });
+
+  it('shows who is rostered on the ward now, with the in-charge nurse marked', async () => {
+    mockRota([shiftSelf, shiftOther]);
+    await openWardOverview();
+
+    expect(await screen.findByText('Chidinma Uzo')).toBeInTheDocument();
+    expect(screen.getByText('Bisi Aro')).toBeInTheDocument();
+    expect(screen.getByText('In charge')).toBeInTheDocument();
+  });
+
+  it('offers "Hand over" ONLY to the nurse who is currently in charge', async () => {
+    mockRota([shiftSelf, shiftOther]); // shiftSelf (the signed-in user) is in charge
+    await openWardOverview();
+    await screen.findByText('Chidinma Uzo');
+
+    expect(screen.getByRole('button', { name: 'Hand over' })).toBeInTheDocument();
+  });
+
+  it('does NOT offer "Hand over" to a nurse who is merely rostered, not in charge', async () => {
+    mockRota([
+      { ...shiftSelf, is_in_charge: false },
+      { ...shiftOther, is_in_charge: true }, // the OTHER nurse is in charge
+    ]);
+    await openWardOverview();
+    await screen.findByText('Chidinma Uzo');
+
+    expect(screen.queryByRole('button', { name: 'Hand over' })).not.toBeInTheDocument();
+  });
+
+  it('renders a readable message on the 400 (incoming nurse not rostered), not a blank failure', async () => {
+    mockRota([shiftSelf, shiftOther]);
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(
+        400,
+        { error: 'That nurse is not currently rostered on this ward — add her to the rota first.' },
+        'That nurse is not currently rostered on this ward — add her to the rota first.',
+      ),
+    );
+    await openWardOverview();
+    await screen.findByText('Chidinma Uzo');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hand over' }));
+    fireEvent.change(await screen.findByLabelText('Hand in charge to'), { target: { value: 'other-nurse' } });
+    const submitButtons = screen.getAllByRole('button', { name: 'Hand over' });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
+
+    expect(await screen.findByText(/not currently rostered on this ward/i)).toBeInTheDocument();
+  });
+
+  it('renders a readable message on a 403 (not the in-charge nurse, not an admin)', async () => {
+    mockRota([shiftSelf, shiftOther]);
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(403, { detail: 'You are not in charge of this ward.' }, 'You are not in charge of this ward.'),
+    );
+    await openWardOverview();
+    await screen.findByText('Chidinma Uzo');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hand over' }));
+    fireEvent.change(await screen.findByLabelText('Hand in charge to'), { target: { value: 'other-nurse' } });
+    const submitButtons = screen.getAllByRole('button', { name: 'Hand over' });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
+
+    expect(await screen.findByText(/not in charge of this ward/i)).toBeInTheDocument();
+  });
+});
+
+// 🎯 Positive control (per the build brief): the rota must NEVER become a
+// gate. A nurse who is rostered NOWHERE (the SHIFTS endpoint returns nothing
+// for her at all — the worst case, not merely "not in charge") must still be
+// able to do every normal nurse action: admit, discharge, accept an
+// admission request. This is the failure this build is most likely to
+// introduce by accident, so it gets its own test rather than being implied
+// by the others.
+describe('Build 6 — positive control: a non-rostered nurse still sees every normal action', () => {
+  const wardFixture = {
+    count: 1,
+    results: [{ id: 'ward-1', name: 'General Ward', category: 'MEDICAL', total_beds: 2, occupied_beds: 1 }],
+  };
+
+  const pendingRequest = {
+    id: 'req-pc-1',
+    patient: { id: 'patient-pc', healthclouda_id: 'HCL-PC001', first_name: 'Amina', last_name: 'Bello' },
+    episode: 'ep-pc-1',
+    requested_by: { id: 'doc-pc-1', first_name: 'Femi', last_name: 'Adio' },
+    requested_ward: null,
+    level_of_care: 'ICU',
+    urgency: 'URGENT',
+    clinical_reason: 'Observation',
+    status: 'REQUESTED',
+    decline_reason: '',
+    resulting_admission: null,
+    created_at: '2026-09-17T09:00:00Z',
+  };
+
+  function mockNotRostered() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.NURSE_WARDS_OVERVIEW)) return Promise.resolve(wardFixture);
+      if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) return Promise.resolve({ count: 1, results: [admission] });
+      if (path.startsWith(ENDPOINTS.ADMISSION_REQUESTS)) return Promise.resolve({ count: 1, results: [pendingRequest] });
+      // The rota has NO row for this nurse, on this ward or any other —
+      // the worst-case "not rostered" state.
+      if (path.startsWith(ENDPOINTS.SHIFTS)) return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+      return Promise.resolve({ count: 0, results: [] });
+    });
+  }
+
+  it('confirms the fixture actually puts the nurse in the not-rostered state', async () => {
+    mockNotRostered();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ward Overview' }));
+    await screen.findByText('General Ward');
+    expect(await screen.findByText('No nurse currently rostered on this ward.')).toBeInTheDocument();
+  });
+
+  it('still shows the Discharge control on My Patients', async () => {
+    mockNotRostered();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+    await screen.findByText(/Chidi Nwosu/);
+    expect(screen.getByRole('button', { name: 'Discharge' })).toBeInTheDocument();
+  });
+
+  it('still shows the Accept control on Admission Requests', async () => {
+    mockNotRostered();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admission Requests' }));
+    await screen.findByText('Amina Bello');
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+  });
+
+  it('still shows Admit Patient and Emergency admission, unblocked', async () => {
+    mockNotRostered();
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admit Patient' }));
+    expect(await screen.findByRole('button', { name: 'Emergency admission' })).toBeInTheDocument();
+  });
 });

@@ -10,6 +10,7 @@ import { formInputClass } from '@/components/ui/FormField';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
+import { WardOnDutyList } from '@/components/dashboard/shared/WardOnDutyList';
 import { useApi, useAllPages, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useToast } from '@/store/toast';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -1666,7 +1667,7 @@ const BED_STATUS_LABEL: Record<string, string> = {
   RESERVED: 'Reserved',
 };
 
-function WardsPage() {
+function WardsPage({ currentUserId }: { currentUserId: string }) {
   // A ward board must show EVERY ward and EVERY bed, so both of these read all
   // pages rather than the first. `useApi` + `.results` capped the board at the
   // first 20 beds: invisible against 7 seeded beds, and at a real hospital a
@@ -1747,6 +1748,12 @@ function WardsPage() {
                       ))}
                   </ul>
                 )}
+
+                {/* Build 6 / FLAG-046 — who is rostered on this ward right
+                    now, and who is in charge. Never blocks anything above:
+                    admit/discharge/accept stay reachable regardless of what
+                    this section shows or whether it errors. */}
+                <WardOnDutyList wardId={ward.id} currentUserId={currentUserId} />
               </div>
             );
           })}
@@ -1812,7 +1819,7 @@ export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'vitals'   && <VitalsPage selected={vitalsFor} onSelect={setVitalsFor} />}
       {page === 'admit'    && <AdmitPatientPage />}
       {page === 'requests' && <AdmissionRequestsPage />}
-      {page === 'wards'    && <WardsPage />}
+      {page === 'wards'    && <WardsPage currentUserId={user.id} />}
     </DashboardShell>
   );
 }

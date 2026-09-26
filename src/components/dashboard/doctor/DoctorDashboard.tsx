@@ -1470,7 +1470,7 @@ function readDischargeError(err: unknown, fallback: string): string {
 // left ACTIVE status by the time a nurse could record it.
 //
 // `discharge_outcome` on `DoctorAdmission` is an OPTIONAL, tolerant read —
-// see the type's own comment (FLAG-046): the fixed contract for THIS
+// see the type's own comment (FLAG-045): the fixed contract for THIS
 // endpoint only guarantees `needs_doctor_review` / `doctor_reviewed_by_name`
 // / `doctor_reviewed_at`, not the outcome itself, so the button falls back
 // to a safe generic label rather than guessing "Confirm death" wrong.

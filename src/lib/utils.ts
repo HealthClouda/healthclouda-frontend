@@ -19,6 +19,23 @@ export function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
+// FLAG-046 (ward rota, build 6) — the same lesson FLAG-242 already paid for in
+// `DischargePanel.tsx`'s `toDischargePayloadValue`: a `datetime-local` input's
+// value ("2026-09-17T19:00") carries no timezone. The backend runs
+// `TIME_ZONE='UTC'`, `USE_TZ=True`, so sending that raw string lets DRF assume
+// the SERVER's zone, not the browser's — a shift typed as 19:00 in Lagos
+// (WAT, UTC+1) would be stored as 19:00 UTC, i.e. 20:00 local, and shifts are
+// kept as HISTORY, so a wrong instant here never self-corrects.
+//
+// `new Date(value)` parses a zone-less "YYYY-MM-DDTHH:mm" string as LOCAL
+// time (standard JS date-string parsing, not a browser quirk), so
+// `.toISOString()` converts it to the correct UTC instant with an explicit
+// `Z` offset — exactly what DRF's `DateTimeField` needs to stop guessing.
+export function localDateTimeToISOString(value: string): string {
+  const asDate = new Date(value);
+  return Number.isNaN(asDate.getTime()) ? value : asDate.toISOString();
+}
+
 export function formatTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleTimeString('en-GB', {
