@@ -2114,6 +2114,33 @@ but nothing tells reception which records are waiting.
 **Done when** `?registration_incomplete=true` is a real, schema-published filter on `/patients/` (same
 backend issue as FLAG-048, **#226**) and reception has a queue built on it.
 
+### FLAG-050 — The doctor's pending-review button could not label itself by outcome (`discharge_outcome` not on the list)
+**Severity:** P3 · **Area:** Doctor / Discharge review · **Owner:** @Bastoh · **Status:** 🟡 **Backend half RESOLVED** (backend #215, 2026-09-17) · frontend remainder OPEN
+**Raised:** 2026-09-17 inside the FLAG-045 entry as "FLAG-046"; numbered 2026-09-26
+
+**Why this number.** The gap was first written into FLAG-045's entry as "FLAG-046", and #159 then
+used FLAG-046 for the ward rota, so the file used one number for two things (@Qeeyat, #159 review,
+26 Sep). She suggested 047, then 048; both were taken on 26 Sep (with 049), so it is 050. FLAG-045's
+entry now points here.
+
+**The gap.** The pending-review list labels its button "Confirm death" or "Mark reviewed" by outcome,
+but the build-4 contract did not put `discharge_outcome` on `AdmissionListSerializer`. The frontend
+read it as optional and fell back to "Mark reviewed" rather than guess.
+
+**Backend half: resolved.** Backend **#215** (`f96ea9d`, 17 Sep, FLAG-592) added both
+`discharge_outcome` and `discharged_by_name` to `AdmissionListSerializer.Meta.fields`, explicitly for
+this list. Verified in source on `develop` @ `24d7429`. So "Confirm death" now appears against a real
+backend.
+
+**Frontend remainder (small, not built):**
+- `DoctorAdmission.discharge_outcome` is still typed optional, and its comment in `types/dashboard.ts`
+  still says neither serializer exposes it. Both are stale.
+- `discharged_by_name` is available and unused. The pending-review row says "recorded 3h ago" but not
+  **who** recorded the death or absconding, which is the context a doctor confirming it needs.
+
+**Done when** the type makes `discharge_outcome` required (checked against the live schema), the
+stale comment is gone, and the pending-review row shows who recorded it.
+
 ---
 
 ## Resolved flags
@@ -3605,7 +3632,7 @@ own, and the whole case (episode) keeps one that shows its stays' summaries insi
 4. `discharge_summary` now sent on `POST /doctor/episodes/{id}/complete/` — the backend already
    accepted it; nothing sent it before this.
 
-**FLAG-046, filed in the same pass — a genuine gap between the fixed contract and this feature's own
+**FLAG-050 (originally written here as "FLAG-046", a number the ward rota took), filed in the same pass — a genuine gap between the fixed contract and this feature's own
 ask.** Section A of the contract (build 4) names exactly three fields gained by
 `AdmissionListSerializer`/`AdmissionDetailSerializer`: `needs_doctor_review`,
 `doctor_reviewed_by_name`, `doctor_reviewed_at`. It does not add `discharge_outcome` or a
@@ -3620,4 +3647,4 @@ a real backend, only in tests that supply the field directly. **Cross-Lane ask:*
 whoever is building the backend PR whether this was an intentional omission or a contract-writing gap.
 
 **Done when:** the backend build-4 PR merges, both halves are verified against each other on `api-dev`,
-and FLAG-046 is either resolved (the field lands) or explicitly decided against (the label stays generic).
+and FLAG-050 is either resolved (the field lands) or explicitly decided against (the label stays generic).
