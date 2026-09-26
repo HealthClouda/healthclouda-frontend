@@ -354,10 +354,9 @@ export interface OnDutyDoctor {
 // `timeAgo(undefined)` and rendered '—' for every episode on the doctor
 // dashboard — found by looking at it, not by any test.
 //
-// `created_at` is kept as an optional fallback ONLY because the patient
-// dashboard reads episodes from a different endpoint whose shape is unverified:
-// patients still cannot sign in (FLAG-210), so nobody has captured it. Verify
-// and remove the fallback once they can.
+// `created_at` survives only as the doctor dashboard's `episode_start ??`
+// fallback, which this endpoint never feeds. The patient dashboard it was kept
+// for reads `/episodes/` and uses `EpisodeListItem` below (FLAG-247).
 export interface Episode {
   id: string;
   patient?: { id: string; first_name: string; last_name: string };
@@ -884,13 +883,15 @@ export interface Paginated<T> {
 }
 
 // GET /episodes/ (the generic, non-doctor-namespaced viewset) list item —
-// apps/patients/serializers.py: EpisodeListSerializer. Used ONLY to find a
+// apps/patients/serializers.py: EpisodeListSerializer. Used to find a
 // patient's ACTIVE episode to admit against (a NURSE has no access to
-// /doctor/episodes/). NOT the same shape as `Episode` above (which is
-// /doctor/episodes/'s serializer): this one nests `organization`, truncates
+// /doctor/episodes/), and by the patient's My Health table (FLAG-247).
+// NOT the same shape as `Episode` above (which is /doctor/episodes/'s
+// serializer): this one nests `organization`, truncates
 // the complaint/diagnosis into `*_summary` fields, and carries no
 // `has_admission` — kept as a separate type so the two are never silently
-// assumed interchangeable. Read from source, not the live schema (WARD-1).
+// assumed interchangeable. Read from source (WARD-1); matches the live
+// schema's `EpisodeList` field for field, checked on api-dev 2026-09-26.
 export interface EpisodeListItem {
   id: string;
   patient: { id: string; healthclouda_id: string; first_name: string; last_name: string };
