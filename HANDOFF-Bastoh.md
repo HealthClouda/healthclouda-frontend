@@ -39,6 +39,73 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-26 — #161 through review, backend #221 caught up with, and the two missing admissions journeys built (branches: `feat/emergency-admission-single-call`, `claude/pr-161-review-7fp39h`)
+
+**Goal:** get #161 through @Qeeyat's CHANGES_REQUESTED, then answer the owner's question: *is the
+admissions workflow we planned complete end to end?* It was not, so build what was missing, in the
+order I asked for: fixes 1 and 3, then 4, then 2. The owner walkthrough of the six builds **never
+happened** (I was sick), so nothing here has had a human clinician's eyes on it yet.
+
+**What I did:**
+- **#161 review round** (`8104eec`, `f88ecd1`). FLAG-244: only a 409 whose body says
+  `status: 'ESCALATED'` is shown as an escalation; "already merged" and "clinical conflict" show as
+  "Not merged". FLAG-245: `?status=` is no longer sent; the merge-queue filter works client-side over
+  the loaded page and says so. That shortcut is **FLAG-047**, with backend
+  **[#225](https://github.com/HealthClouda/healthclouda-backend/issues/225)** (Eric) asking for a real
+  filter.
+- **End-to-end check** against backend `docs/WORKFLOW_REVIEW.md` §1.4 (A-1…A-7) and builds 1–6.
+  **The backend is complete**, each item found in source on `develop` @ `24d7429`. **The frontend was
+  not**: #161 unmerged and stale, and three gaps.
+- **Fixes 1 and 3 onto #161** (`d0f10d0`). Backend **#221** (20 Sep, two days after #161 was written)
+  split the emergency route's overrides. #161 sent `override` for the off-duty doctor, so "Admit
+  anyway" looped for ever, and it had a test asserting the field that now works is never sent. Also
+  FLAG-604: "already admitted" is a 409 on every admit route now, so all three forms show the
+  server's sentence instead of "that bed was just taken". Qeeyat's three FLAG-246 nits rode along.
+- **#164, stacked on #161** (base `feat/emergency-admission-single-call`; retarget to `develop` when
+  #161 merges):
+  - **Item 4, doctor hand-over / assign** (`6b00a78`): `reassign-doctor` had shipped with no caller.
+    DOCTOR-only; same off-duty two-step. `DoctorPicker` is now in `shared/`.
+  - **Item 2, reception completes an emergency record** (`8ae9b41`): clears `registration_incomplete`
+    and, only when an unticked box is ticked, sends `capture_consent`. Without consent the patient
+    could never get an ordinary episode after discharge (FLAG-602), with no screen able to fix it.
+
+**What I found:**
+- 🔴 **"Merged in the backend" is not "consumed by the frontend", and the gap goes stale silently.**
+  #221 changed two contracts #161 depended on, and nothing flagged it; the test suite stayed green
+  because it pinned the old contract. Only re-reading backend source on the day found it. *Before
+  approving a frontend PR that is more than a day old, diff the backend endpoints it calls since it
+  was written.*
+- **An emergency patient keeps the nurse's description as their name for ever** (FLAG-048). Reception's
+  serializer has no identity fields, and no org-admin patient edit screen exists. Also, incomplete
+  records cannot be listed, only searched for (FLAG-049). Both are in backend
+  **[#226](https://github.com/HealthClouda/healthclouda-backend/issues/226)** (Eric) with a Cross-Lane row.
+- `git push` from the cloud session 403'd twice until the GitHub App access was reconnected. That was
+  access, not connectivity: the proxy was healthy and reads worked throughout.
+
+**Decisions:**
+- **Stacked #164 on #161 rather than branching from `develop`.** Both touch `NurseDashboard.tsx` /
+  `ReceptionistDashboard.tsx` / `types/dashboard.ts`, which #161 rewrites; a `develop` branch would
+  conflict on the first merge. The cost is that #164 cannot merge first.
+- **Consent is an explicit, unticked checkbox**, never implied by saving. Completing without it is
+  allowed (the backend allows it) but the screen says what it costs.
+- **Show the backend's 409 sentence rather than matching on its wording**, on all three admit forms.
+  Two refusals share one status code and one envelope, and only the text tells them apart.
+
+**Verified:** tsc clean · lint clean (`--max-warnings=0`) · **413 tests** · build green. The new
+tests on #161 fail against the previous component (8 red). #164's features are new, so they were
+checked by mutation instead: each of five mutations, applied one at a time and restored, turned
+tests red. Contract read from backend source, **not run against api-dev**.
+
+**Left undone / next:**
+- [ ] 🔴 **@Qeeyat's approval on #161, then #164.** Retarget #164 to `develop` after #161 merges.
+- [ ] 🔴 **The owner walkthrough of the six builds**, which still has not happened, now including
+      hand-over and record completion. Do it after #161 lands so it walks the real code.
+- [ ] Backend **#226** (name correction + incomplete-records filter) and **#225** (merge-queue filter)
+      are with Eric. When they land, FLAG-048/049/047 each have a frontend half.
+- [ ] #160 is a claim row only; close it when #161 merges.
+
+---
+
 ### 2026-09-03 — The agent flow finished and used in anger: #161 verified and merged, and the two repos told apart (branches: `chore/claude-agent-definitions`, `feat/parity-d-e`, `docs/clear-161-and-flag-554` (backend))
 
 **Goal:** the session began with no context — a power cut on 2 Sep killed the previous one mid-branch,
