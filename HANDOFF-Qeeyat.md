@@ -60,6 +60,45 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-09-26 — the queue is still frozen, and FLAG-247 found in the Patient baselines (branch: docs/flags-244-246-review-161-2026-09-18)
+
+**Goal:** get the three prepared review verdicts posted, then clean up the working tree.
+
+**What I did:**
+- Re-checked **#159 / #160 / #161** before posting anything. None has had a commit since 18 Sep
+  (heads `02e63b6` / `1c50276` / `e1b7f12`), all are MERGEABLE, so the verdicts in
+  `Desktop/healthclouda-reviews/` still apply unchanged.
+- Tried `gh pr review 159 --approve` once more. **Still permission-denied**, now the fourth
+  session in a row. I stopped there and did not retry it.
+- Reverted a stray trailing-space edit to `.gitignore`.
+- Looked at the five untracked Patient T5 baselines before committing them, because this repo is
+  public. They show only the synthetic seed patient "Chidi Nwosu" from api-dev, so there is no PHI.
+- Logged **FLAG-247** from what they show.
+
+**What I found:**
+- 🔴 **FLAG-247: My Health's "Chief Complaint" column is always "—".** The page reads
+  `chief_complaint`, but `GET /episodes/` sends `chief_complaint_summary` (`EpisodeList`, measured on
+  api-dev today). The Nurse dashboard already reads the same endpoint correctly. The Patient page
+  borrowed the Doctor's `Episode` type, which is shaped for `/doctor/episodes/`. It looks like empty
+  seed data, which is why nobody caught it.
+- ♻️ **Correction to the 13 Sep Cross-Lane note:** those baselines are dated **18 Sep** on disk,
+  not 9 Sep. They were recaptured since, and still never committed.
+
+**Decisions:**
+- **Not committing the Patient baselines yet.** Committing them now would save FLAG-247's "—" as
+  the expected render. Capture them after the fix.
+- **Logged, not fixed, on this branch.** This is a docs branch, and the fix needs its own
+  `fix/*` branch and In Flight claim.
+
+**Verified:** live schema `/api/v1/schema/` on api-dev → 200. `EpisodeList` and `/episodes/` GET
+params (`ordering, page, page_size, search`; still no `my`, see FLAG-226) were read from it.
+
+**Left undone / next:**
+- [ ] 🔴 **A human still has to run the three commands in
+      `Desktop/healthclouda-reviews/POST-THESE.md`**, #159 first. It has been ready since 19 Sep.
+- [ ] Fix FLAG-247 on `fix/flag-247-patient-episode-shape` (claim In Flight first), then capture
+      and commit the five Patient baselines in the same PR.
+
 ### 2026-09-19 — #160 reviewed, and three verdicts that exist but are not posted (branch: docs/flags-244-246-review-161-2026-09-18)
 
 **Goal:** finish the queue — #160 was the only one of @Bastoh's three I had never reviewed.

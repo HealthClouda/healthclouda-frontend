@@ -2107,6 +2107,37 @@ Grouped because each is a couple of lines and they live in one component.
 
 ---
 
+### FLAG-247 — The Patient "My Health" table reads `chief_complaint`, which `GET /episodes/` never sends
+**Severity:** P2 · **Area:** Patient portal / My Health · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-26, looking at the Patient T5 baselines before committing them
+
+`PatientDashboard.tsx:184` renders `ep.chief_complaint ?? '—'` for rows of
+`GET /episodes/?my=true`. The live schema (api-dev, measured 2026-09-26) documents that list as
+`PaginatedEpisodeListList` → **`EpisodeList`**: `id, patient, organization, episode_type,
+chief_complaint_summary, diagnosis_summary, status, episode_start, episode_end`. **There is no
+`chief_complaint` field.** So the column shows "—" on every row for every patient, and it looks like
+empty data, not a bug. You can see it in `patient-my-health-desktop-chromium-win32.png`: both
+episodes show "—".
+
+- **Why:** the page reuses the Doctor's `Episode` type (`types/dashboard.ts:361`), which is
+  shaped for `/doctor/episodes/` (`DoctorEpisodeList`, which *does* send `chief_complaint`). The
+  Nurse dashboard reads the same `/episodes/` endpoint correctly via `chief_complaint_summary`
+  (`NurseDashboard.tsx:647`, type at `types/dashboard.ts:899`), so the right shape already exists
+  in the repo.
+- **Stale comment beside it:** `types/dashboard.ts:359-360` still says patients *"cannot sign in
+  (FLAG-210), so nobody has captured it. Verify and remove the fallback once they can."* Patients
+  can sign in (#100, 3 Sep), and the shape is now captured in the schema.
+- **Don't commit the five untracked Patient baselines until this is fixed.** Otherwise they save
+  the "—" as the expected render, and the fix then shows up as a visual regression.
+- Related, not the same: **FLAG-226** (`?my=true` is still not a documented param on `/episodes/`;
+  the schema lists only `ordering, page, page_size, search`).
+
+**Done when** the My Health table is typed against `EpisodeList` and reads
+`chief_complaint_summary`, with a test whose fixture has the published shape, and the Patient
+baselines are captured after the fix.
+
+---
+
 ### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
 
 **Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
