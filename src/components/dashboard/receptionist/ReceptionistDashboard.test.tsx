@@ -701,6 +701,223 @@ describe('D4 — portal invite and contact edit', () => {
   });
 });
 
+/**
+ * Completing an emergency-created record (backend FLAG-602/603, #221).
+ *
+ * PATCH /patients/{id}/ as RECEPTIONIST → PatientContactUpdateSerializer +
+ * RecordCompletionMixin: `registration_incomplete` is clear-only,
+ * `capture_consent: true` writes the DATA_ACCESS consent row, and clearing
+ * the flag re-arms the phone-when-no-email rule (400 `details.phone`).
+ * Read from backend `develop` 2026-09-26.
+ */
+describe('FLAG-602 — reception completes a record created during an emergency admission', () => {
+  const found = {
+    count: 1, next: null, previous: null,
+    results: [{
+      id: 'p-em', healthclouda_id: 'HCL-EM0001', first_name: 'man, ~40, brought in by police', last_name: '',
+      masked_phone: '', has_visited_org: true, has_pending_access_request: false, has_approved_access: true,
+    }],
+  };
+  // What emergency_admit() leaves behind: the description as the name, no
+  // contact details, no consent, the flag set.
+  const incomplete = {
+    id: 'p-em', healthclouda_id: 'HCL-EM0001', first_name: 'man, ~40, brought in by police', last_name: '',
+    email: null, phone: '', has_portal_account: false,
+    registration_incomplete: true, consent_given: false, stated_hcl_id: 'HCL-ABC123',
+  };
+
+  async function openIncomplete(detail: Record<string, unknown> = incomplete) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.PATIENT('p-em'))) return Promise.resolve(detail);
+      if (path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)) return Promise.resolve(found);
+      return Promise.resolve(emptyPage);
+    });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+    fireEvent.change(await screen.findByLabelText(/Search patients/), { target: { value: 'police' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Portal & contact/ }));
+    await screen.findByText('No portal account yet.');
+  }
+
+  it('offers completion only on an incomplete record', async () => {
+    await openIncomplete({ ...incomplete, registration_incomplete: false, consent_given: true, phone: '08031231234' });
+    expect(screen.queryByRole('button', { name: 'Complete record' })).not.toBeInTheDocument();
+  });
+
+  it('says the name can be set now and only by an admin later, and that a stated HCL-ID links nothing', async () => {
+    await openIncomplete();
+    expect(screen.getByText(/only an\s+organisation administrator can change the name, date of birth or sex/)).toBeInTheDocument();
+    expect(screen.getByText('HCL-ABC123')).toBeInTheDocument();
+    expect(screen.getByText(/not linked to any record/)).toBeInTheDocument();
+  });
+
+  // FLAG-048 — backend #236: reception may set identity while the record is
+  // still incomplete, including in the PATCH that completes it.
+  it('does not prefill the name with the nurse\'s description', async () => {
+    await openIncomplete();
+    expect(screen.getByLabelText(/First name/)).toHaveValue('');
+    expect(screen.getByLabelText('Last name')).toHaveValue('');
+  });
+
+  it('sends the real name, date of birth and sex in the completing PATCH', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: ' Chinedu ' } });
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Eze' } });
+    fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1985-03-02' } });
+    fireEvent.change(screen.getByLabelText('Gender'), { target: { value: 'M' } });
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock.mock.calls[0][2]).toEqual({
+      registration_incomplete: false,
+      first_name: 'Chinedu',
+      last_name: 'Eze',
+      date_of_birth: '1985-03-02',
+      gender: 'M',
+      phone: '08031234567',
+    });
+  });
+
+  it('will not offer a date of birth in the future', async () => {
+    await openIncomplete();
+    const max = screen.getByLabelText('Date of birth').getAttribute('max');
+    expect(max).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(new Date(`${max}T00:00:00`).getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('will not submit with neither phone nor email — the rule completion re-arms', async () => {
+    await openIncomplete();
+    expect(screen.getByRole('button', { name: 'Complete record' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    expect(screen.getByRole('button', { name: 'Complete record' })).not.toBeDisabled();
+  });
+
+  it('clears the flag and captures consent in ONE PATCH — only when the box is ticked', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.change(screen.getByLabelText('Emergency contact name'), { target: { value: 'Aisha Bello' } });
+    // Unticked by default: consent is attested, never implied by saving.
+    const box = screen.getByRole('checkbox', { name: /has consented/ });
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe(ENDPOINTS.PATIENT('p-em'));
+    expect(method).toBe('PATCH');
+    expect(body).toEqual({
+      registration_incomplete: false,
+      phone: '08031234567',
+      emergency_contact_name: 'Aisha Bello',
+      capture_consent: true,
+    });
+  });
+
+  it('completing without ticking consent sends no capture_consent at all', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock.mock.calls[0][2]).toEqual({ registration_incomplete: false, phone: '08031234567' });
+  });
+
+  it('shows the backend\'s field error when it refuses', async () => {
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(
+        400,
+        { error: 'phone: Phone number must be at least 10 digits.', code: 'BAD_REQUEST', details: { phone: ['Phone number must be at least 10 digits.'] } },
+        'phone: Phone number must be at least 10 digits.',
+      ),
+    );
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '0803' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+    expect(await screen.findByText('Phone number must be at least 10 digits.')).toBeInTheDocument();
+  });
+});
+
+/**
+ * FLAG-049 — records to complete. `GET /patients/?registration_incomplete=true`
+ * became a real filter in backend #236; before it the param was ignored and
+ * reception could only reach these records by searching.
+ */
+describe('FLAG-049 — reception sees which emergency records are waiting', () => {
+  const waiting = {
+    id: 'p-em', healthclouda_id: 'HCL-EM0001', first_name: 'man, ~40, brought in by police', last_name: '',
+    email: '', phone: '', date_of_birth: null, age: null, gender: '', blood_type: null, city: '', state: '',
+    is_active: true, registration_incomplete: true,
+  };
+  const detail = {
+    id: 'p-em', healthclouda_id: 'HCL-EM0001', first_name: 'man, ~40, brought in by police', last_name: '',
+    email: null, phone: '', has_portal_account: false,
+    registration_incomplete: true, consent_given: false, stated_hcl_id: '',
+  };
+  const isQueue = (path: string) => path.startsWith(`${ENDPOINTS.PATIENTS}?registration_incomplete=true`);
+
+  function serve(queue: unknown[]) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (isQueue(path)) return Promise.resolve({ count: queue.length, next: null, previous: null, results: queue });
+      if (path.startsWith(ENDPOINTS.PATIENT('p-em'))) return Promise.resolve(detail);
+      return Promise.resolve(emptyPage);
+    });
+  }
+
+  async function openSearch() {
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+  }
+
+  it('asks the server for incomplete records only — never pages the whole patient list', async () => {
+    serve([waiting]);
+    await openSearch();
+    expect(await screen.findByText('Records to complete (1)')).toBeInTheDocument();
+    const listCalls = dataGetMock.mock.calls.map(([p]) => String(p)).filter((p) => p.startsWith(ENDPOINTS.PATIENTS + '?'));
+    expect(listCalls.length).toBeGreaterThan(0);
+    for (const p of listCalls) expect(p).toContain('registration_incomplete=true');
+  });
+
+  it('shows nothing when no record is waiting', async () => {
+    serve([]);
+    await openSearch();
+    await waitFor(() => expect(dataGetMock.mock.calls.some(([p]) => isQueue(String(p)))).toBe(true));
+    expect(screen.queryByText(/Records to complete/)).not.toBeInTheDocument();
+  });
+
+  it('shows nothing if the server ignored the filter and sent complete records', async () => {
+    serve([waiting, { ...waiting, id: 'p-2', first_name: 'Ada', last_name: 'Obi', registration_incomplete: false }]);
+    await openSearch();
+    await waitFor(() => expect(dataGetMock.mock.calls.some(([p]) => isQueue(String(p)))).toBe(true));
+    // Let the list settle before asserting absence.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(/Records to complete/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Ada Obi')).not.toBeInTheDocument();
+  });
+
+  it('opens the record from the list, and re-reads the list once it is completed', async () => {
+    serve([waiting]);
+    dataActionMock.mockResolvedValue({});
+    await openSearch();
+    fireEvent.click(await screen.findByRole('button', { name: /Complete the record for man, ~40/ }));
+    fireEvent.change(await screen.findByLabelText('Patient phone'), { target: { value: '08031234567' } });
+
+    serve([]);
+    const before = dataGetMock.mock.calls.filter(([p]) => isQueue(String(p))).length;
+    fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(dataGetMock.mock.calls.filter(([p]) => isQueue(String(p))).length).toBeGreaterThan(before));
+    await waitFor(() => expect(screen.queryByText(/Records to complete/)).not.toBeInTheDocument());
+  });
+});
+
 // ─── Check-in write path — FLAG gap: REC_CHECK_INS had no POST/PATCH call
 // site anywhere in src/ before this PR. Contract read from backend SOURCE
 // (apps/patients/receptionist_views.py + receptionist_serializers.py), not
@@ -872,5 +1089,154 @@ describe('working the queue — PATCH /receptionist/check-ins/<id>/', () => {
 
     await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
     expect(dataActionMock).toHaveBeenCalledWith(ENDPOINTS.REC_CHECK_IN('ci-1'), 'PATCH', { status: 'COMPLETED' });
+  });
+});
+
+/**
+ * Build 2 PR B (backend FLAG-373) — reception flags a duplicate.
+ *
+ * Reception raises it; an ORG_ADMIN decides. There is deliberately no
+ * "merge it now" here even for a receptionist who is certain: the two-person
+ * rule is the feature.
+ */
+describe('FLAG-373 — reception flags two records as the same person', () => {
+  const found = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu',
+      masked_phone: '080****1234', has_visited_org: true,
+      has_pending_access_request: false, has_approved_access: true,
+    }],
+  };
+  const detail = {
+    id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu',
+    email: 'chidi@example.test', phone: '08031231234', has_portal_account: false,
+  };
+  // GET /patients/search/ — the ORG-scoped search, PatientListSerializer.
+  const orgSearch = {
+    count: 2,
+    next: null,
+    previous: null,
+    results: [
+      { id: 'p-2', healthclouda_id: 'HCL-TW1N', first_name: 'Chidi', last_name: 'Nwoso', email: '', phone: '08031231234', date_of_birth: '1990-04-02', age: 36, gender: 'M', blood_type: null, city: 'Lagos', state: 'Lagos', is_active: true },
+      // The record the panel is already open on — must never be offered as a
+      // duplicate of itself.
+      { id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu', email: '', phone: '08031231234', date_of_birth: '1990-04-02', age: 36, gender: 'M', blood_type: null, city: 'Lagos', state: 'Lagos', is_active: true },
+    ],
+  };
+
+  async function openPanelAndFind() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.PATIENTS_SEARCH)) return Promise.resolve(orgSearch);
+      if (path.startsWith(ENDPOINTS.PATIENT('p-1'))) return Promise.resolve(detail);
+      if (path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)) return Promise.resolve(found);
+      return Promise.resolve(emptyPage);
+    });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+    fireEvent.change(await screen.findByLabelText(/Search patients/), { target: { value: 'Chidi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Portal & contact/ }));
+    await screen.findByText('No portal account yet.');
+
+    fireEvent.change(screen.getByLabelText('Find the other record'), { target: { value: 'Chidi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Find' }));
+    return await screen.findByRole('button', { name: /HCL-TW1N/ });
+  }
+
+  it('searches the ORG-scoped patient list, not reception’s global one', async () => {
+    await openPanelAndFind();
+    // A merge needs BOTH records reachable by this hospital. Offering a
+    // globally-visible patient would earn a deliberately non-disclosing
+    // "Patient not found." (backend FLAG-593) that reception cannot tell from
+    // a typo.
+    const searched = dataGetMock.mock.calls.map(c => String(c[0]));
+    expect(searched.some(p => p.startsWith(ENDPOINTS.PATIENTS_SEARCH))).toBe(true);
+  });
+
+  it('never offers the open record as a duplicate of itself', async () => {
+    await openPanelAndFind();
+    expect(screen.queryByRole('button', { name: /HCL-05CS2Q/ })).not.toBeInTheDocument();
+  });
+
+  it('will not submit until it has been told which record to keep', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    // Reason alone is not enough: the direction decides which record is hidden.
+    expect(screen.getByRole('button', { name: 'Flag as duplicate' })).toBeDisabled();
+  });
+
+  // 🔴 The one that matters. Getting the direction backwards hides the wrong
+  // person, and two names side by side do not say which is which.
+  it('keeps the record the receptionist chose — the OTHER one is the duplicate', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwosu/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    dataActionMock.mockResolvedValueOnce({ id: 'mr-1', status: 'FLAGGED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.PATIENT_MERGE_REQUESTS,
+        'POST',
+        { duplicate_id: 'p-2', survivor_id: 'p-1', reason: 'Same phone and date of birth' },
+      );
+    });
+  });
+
+  it('swaps duplicate and survivor when the OTHER record is the one to keep', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwoso/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Older record has the full history' },
+    });
+    dataActionMock.mockResolvedValueOnce({ id: 'mr-2', status: 'FLAGGED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.PATIENT_MERGE_REQUESTS,
+        'POST',
+        { duplicate_id: 'p-1', survivor_id: 'p-2', reason: 'Older record has the full history' },
+      );
+    });
+  });
+
+  it('says plainly that nothing has been merged yet — reception cannot merge', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwosu/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    dataActionMock.mockResolvedValueOnce({ id: 'mr-1', status: 'FLAGGED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    expect(await screen.findByText(/nothing has been merged yet/i)).toBeInTheDocument();
+    // No merge affordance anywhere on this surface.
+    expect(screen.queryByRole('button', { name: /Merge records/ })).not.toBeInTheDocument();
+  });
+
+  it('surfaces the backend’s refusal when the record is already queued', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwosu/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        400,
+        { error: 'This record is already queued for a merge.' },
+        'This record is already queued for a merge.',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    expect(await screen.findByText(/already queued for a merge/)).toBeInTheDocument();
   });
 });

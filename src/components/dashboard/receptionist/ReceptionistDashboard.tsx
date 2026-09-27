@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   ReceptionistStats, CheckIn, Appointment, Referral, PatientSearchResult, OnDutyDoctor, Paginated,
-  PatientDetail, NewPatient, PatientCreateResponse,
+  PatientDetail, NewPatient, PatientCreateResponse, OrgVisiblePatient, RecordCompletionUpdate,
 } from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -635,7 +635,392 @@ function RegisterPatientPanel({ open, onClose, onRegistered }: {
  * update "contact info only". Offering more would produce a 403 the
  * receptionist cannot act on.
  */
-function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResult | null; onClose: () => void }) {
+/**
+ * Flag two records as the same person (build 2 PR B — backend FLAG-373).
+ *
+ * Reception raises it; an organisation admin decides. This side deliberately
+ * cannot merge anything — the two-person rule is the feature, not a
+ * permissions accident, so there is no "and merge it now" shortcut here even
+ * for a receptionist who is certain.
+ *
+ * 🪤 **Searches the ORG-scoped `/patients/search/`, not reception's global
+ * one.** A merge requires BOTH records to be reachable by this hospital; a
+ * patient id it cannot reach is refused with a plain "Patient not found."
+ * that is deliberately identical to a typo (backend FLAG-593's
+ * non-disclosure rule). Searching globally here would let reception pick a
+ * name, get an unexplainable not-found, and have no way to tell a typo from
+ * "that record belongs to another hospital" — so we only ever offer records
+ * the merge can actually accept.
+ *
+ * 🔴 **Which record survives is asked explicitly and has no default.** The
+ * absorbed record is hidden and its rows move; getting the direction backwards
+ * hides the wrong person. Two names side by side do not tell you which is
+ * which, so the form makes it a choice rather than an ordering convention
+ * nobody will remember at a busy front desk.
+ */
+function FlagDuplicateSection({ patient }: { patient: PatientRef | null }) {
+  const { toast } = useToast();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<OrgVisiblePatient[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [other, setOther] = useState<OrgVisiblePatient | null>(null);
+  // 'this' = the record this panel is open on survives. No default: see above.
+  const [keep, setKeep] = useState<'this' | 'other' | ''>('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  // After the hooks, never before: an early return above them would change
+  // hook order between renders.
+  const targetId = patient?.id;
+
+  async function search() {
+    const q = query.trim();
+    if (!q || !targetId) return;
+    setSearching(true);
+    setError(null);
+    try {
+      const data = await dataGet<Paginated<OrgVisiblePatient>>(
+        ENDPOINTS.PATIENTS_SEARCH + '?query=' + encodeURIComponent(q),
+      );
+      // The patient already open in this panel is not a duplicate of itself —
+      // the backend refuses it, but offering it at all is a trap.
+      setResults((data?.results ?? []).filter(p => p.id !== targetId));
+      setSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not search');
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function submit() {
+    if (!other || !keep || !reason.trim() || saving || !patient) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await apiAction(ENDPOINTS.PATIENT_MERGE_REQUESTS, 'POST', {
+        duplicate_id: keep === 'this' ? other.id : patient.id,
+        survivor_id: keep === 'this' ? patient.id : other.id,
+        reason: reason.trim(),
+      });
+      toast.success('Flagged for an administrator to review');
+      setDone(true);
+      setOther(null);
+      setKeep('');
+      setReason('');
+      setResults([]);
+      setQuery('');
+      setSearched(false);
+    } catch (e) {
+      // Three refusals worth surfacing verbatim rather than flattening: the
+      // record is already queued (a second flag would take no rows, because
+      // the first merge already moved them), a record this hospital cannot
+      // reach, and merging a record into itself.
+      const msg = readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not flag these records');
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!patient) return null;
+
+  const thisName = `${patient.first_name} ${patient.last_name}`.trim();
+  const otherName = other ? `${other.first_name} ${other.last_name}`.trim() : '';
+
+  return (
+    <div className="border-t border-border pt-4">
+      <div className="text-xs font-medium text-text-soft mb-1">Duplicate record</div>
+      <p className="text-[11px] text-text-soft mb-2">
+        Same person registered twice? Flag it — an administrator reviews and merges.
+      </p>
+
+      {done && (
+        <p role="status" className="text-sm text-primary-dark bg-primary-soft border border-primary/20 rounded-lg px-3 py-2 mb-2">
+          Flagged. An administrator will review it; nothing has been merged yet.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-danger bg-danger-bg border border-danger/20 rounded-lg px-3 py-2 mb-2">
+          {error}
+        </p>
+      )}
+
+      {!other ? (
+        <>
+          <div className="flex gap-2">
+            <input
+              aria-label="Find the other record"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void search(); } }}
+              placeholder="Name or HealthClouda ID"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={() => void search()}
+              disabled={searching || !query.trim()}
+              className="px-3 py-1.5 border border-border text-text-soft hover:text-ink disabled:opacity-50 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+            >
+              {searching ? 'Searching…' : 'Find'}
+            </button>
+          </div>
+          {searched && !results.length && !searching && (
+            <p className="text-[11px] text-text-soft mt-2">
+              No other record found at this hospital.
+            </p>
+          )}
+          {results.length > 0 && (
+            <ul className="mt-2 border border-border rounded-lg divide-y divide-row-hairline max-h-48 overflow-auto">
+              {results.map(p => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOther(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-chip transition-colors"
+                  >
+                    <div className="text-[13px] font-semibold text-ink">{p.first_name} {p.last_name}</div>
+                    <div className="text-[11px] text-text-soft font-mono">{p.healthclouda_id}</div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between bg-chip rounded-lg px-3 py-2">
+            <div>
+              <div className="text-[13px] font-semibold text-ink">{otherName}</div>
+              <div className="text-[11px] text-text-soft font-mono">{other.healthclouda_id}</div>
+            </div>
+            <button type="button" onClick={() => { setOther(null); setKeep(''); }} className="text-xs font-semibold text-primary-dark hover:underline">
+              Change
+            </button>
+          </div>
+
+          <fieldset>
+            <legend className="text-xs font-medium text-text-soft mb-1">Which record should be kept?</legend>
+            <p className="text-[11px] text-text-soft mb-1.5">
+              The other one is hidden and its records move across. Nothing is deleted, and an
+              administrator can undo it.
+            </p>
+            <label className="flex items-start gap-2 text-[13px] text-ink py-1">
+              <input type="radio" name="merge-keep" value="this" checked={keep === 'this'} onChange={() => setKeep('this')} className="mt-1" />
+              <span>Keep <span className="font-semibold">{thisName}</span> <span className="font-mono text-[11px] text-text-soft">{patient.healthclouda_id}</span></span>
+            </label>
+            <label className="flex items-start gap-2 text-[13px] text-ink py-1">
+              <input type="radio" name="merge-keep" value="other" checked={keep === 'other'} onChange={() => setKeep('other')} className="mt-1" />
+              <span>Keep <span className="font-semibold">{otherName}</span> <span className="font-mono text-[11px] text-text-soft">{other.healthclouda_id}</span></span>
+            </label>
+          </fieldset>
+
+          <Field label="Why do you believe these are the same person?">
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              rows={2}
+              maxLength={1000}
+              className={inputCls}
+            />
+          </Field>
+
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={saving || !keep || !reason.trim()}
+            className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+          >
+            {saving ? 'Flagging…' : 'Flag as duplicate'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Complete an emergency record (backend FLAG-602/603) ──────────
+//
+// A nurse can admit a walk-in with no record at all (build 2): the record is
+// created with her description as the first name, no contact details, and NO
+// consent. Two things follow, and this section is the only screen that
+// resolves either:
+//  1. The phone-when-no-email rule is waived while `registration_incomplete`
+//     is set. Completing the record clears it, so the rule applies again.
+//  2. `EpisodeCreateSerializer` refuses an ordinary episode for any patient
+//     without consent — so the patient, once discharged, could never be seen
+//     again as an outpatient. `capture_consent` records it as a consent ROW.
+//
+// Consent is an explicit, unticked checkbox, never implied by saving: it is a
+// statement about what the patient agreed to, and reception is attesting it.
+//
+// FLAG-048: reception may set the name, date of birth and sex while the
+// record is still incomplete — including in the PATCH that completes it
+// (backend #236). Once complete, only an organisation admin can change them,
+// so this is the one moment reception can replace the nurse's description.
+// The fields start EMPTY, not prefilled with the description: it is not a
+// name, and saving it back as one is exactly what this screen exists to stop.
+function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail; onCompleted: () => void }) {
+  const { toast } = useToast();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState(detail.date_of_birth ?? '');
+  const [gender, setGender] = useState<'' | 'M' | 'F' | 'O'>(
+    detail.gender === 'M' || detail.gender === 'F' || detail.gender === 'O' ? detail.gender : '',
+  );
+  const [phone, setPhone] = useState(detail.phone ?? '');
+  const [email, setEmail] = useState(detail.email ?? '');
+  const [contactName, setContactName] = useState(detail.emergency_contact_name ?? '');
+  const [contactPhone, setContactPhone] = useState(detail.emergency_contact_phone ?? '');
+  const [contactRelationship, setContactRelationship] = useState(detail.emergency_contact_relationship ?? '');
+  const [consent, setConsent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // The rule the backend re-arms on completion — checked here too so the
+  // button says why it is disabled instead of a round trip saying it.
+  const hasContact = !!phone.trim() || !!email.trim();
+  const alreadyConsented = !!detail.consent_given;
+
+  async function complete() {
+    if (saving || !hasContact) return;
+    setSaving(true);
+    setFormError(null);
+    const body: RecordCompletionUpdate = { registration_incomplete: false };
+    // Omit blanks rather than sending '' — email normalises '' to NULL, but
+    // there is no reason to write a field nobody filled in. A blank name
+    // leaves the description in place: the family may not know it yet.
+    if (firstName.trim()) body.first_name = firstName.trim();
+    if (lastName.trim()) body.last_name = lastName.trim();
+    if (dateOfBirth) body.date_of_birth = dateOfBirth;
+    if (gender) body.gender = gender;
+    if (phone.trim()) body.phone = phone.trim();
+    if (email.trim()) body.email = email.trim();
+    if (contactName.trim()) body.emergency_contact_name = contactName.trim();
+    if (contactPhone.trim()) body.emergency_contact_phone = contactPhone.trim();
+    if (contactRelationship.trim()) body.emergency_contact_relationship = contactRelationship.trim();
+    if (consent) body.capture_consent = true;
+    try {
+      await apiAction(ENDPOINTS.PATIENT(detail.id), 'PATCH', body);
+      toast.success(consent || alreadyConsented
+        ? 'Record completed'
+        : 'Record completed — consent still not recorded');
+      onCompleted();
+    } catch (e) {
+      setFormError(readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not complete the record'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="complete-record-heading" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-3 space-y-3">
+      <div>
+        <h3 id="complete-record-heading" className="text-xs font-semibold text-warning-strong">
+          Complete this record — created during an emergency admission
+        </h3>
+        <p className="text-[11.5px] text-text-soft mt-1">
+          Recorded as <span className="font-medium text-ink">{detail.first_name} {detail.last_name}</span>.
+          Enter the patient&apos;s real name if it is known. Once the record is complete, only an
+          organisation administrator can change the name, date of birth or sex.
+        </p>
+        {detail.stated_hcl_id && (
+          <p className="text-[11.5px] text-text-soft mt-1">
+            HealthClouda ID given at admission: <span className="font-mono">{detail.stated_hcl_id}</span> — a note
+            only; it is not linked to any record.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="First name" hint="Leave blank if not known yet">
+          <input value={firstName} onChange={e => setFirstName(e.target.value)} maxLength={100} className={inputCls} />
+        </Field>
+        <Field label="Last name">
+          <input value={lastName} onChange={e => setLastName(e.target.value)} maxLength={100} className={inputCls} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Date of birth">
+          <input type="date" value={dateOfBirth} max={todayISO()} onChange={e => setDateOfBirth(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Gender">
+          <select value={gender} onChange={e => setGender(e.target.value as '' | 'M' | 'F' | 'O')} className={inputCls}>
+            <option value="">Not specified</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="O">Other</option>
+          </select>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Patient phone">
+          <input value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Patient email">
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      {!hasContact && (
+        <p className="text-[11px] text-text-soft">A phone number is required when there is no email.</p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Emergency contact name">
+          <input value={contactName} onChange={e => setContactName(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Emergency contact phone">
+          <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      <Field label="Relationship to patient">
+        <input value={contactRelationship} onChange={e => setContactRelationship(e.target.value)} className={inputCls} />
+      </Field>
+
+      {alreadyConsented ? (
+        <p className="text-[11.5px] text-text-soft">Consent to data access is already recorded.</p>
+      ) : (
+        <div className="space-y-1">
+          <label className="flex items-start gap-2 text-[12.5px] text-ink">
+            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
+            <span>The patient (or their representative) has consented to their records being held and accessed here.</span>
+          </label>
+          {!consent && (
+            <p className="text-[11px] text-text-soft">
+              Without consent this patient can&apos;t be booked for an ordinary visit after discharge.
+            </p>
+          )}
+        </div>
+      )}
+
+      {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+
+      <button
+        onClick={() => void complete()}
+        disabled={saving || !hasContact}
+        className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+      >
+        {saving ? 'Saving…' : 'Complete record'}
+      </button>
+    </section>
+  );
+}
+
+// What the panel needs to open a patient: a search row or a row from the
+// records-to-complete list both carry these.
+type PatientRef = Pick<PatientSearchResult, 'id' | 'healthclouda_id' | 'first_name' | 'last_name'>;
+
+function PatientActionsPanel({ patient, onClose, onRecordCompleted }: {
+  patient: PatientRef | null;
+  onClose: () => void;
+  onRecordCompleted?: () => void;
+}) {
   const { toast } = useToast();
   const { data: detail, loading, error, refetch } =
     useApi<PatientDetail>(patient ? ENDPOINTS.PATIENT(patient.id) : null);
@@ -727,13 +1112,24 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
     <SlidePanel
       open={!!patient}
       onClose={onClose}
-      title={patient ? `${patient.first_name} ${patient.last_name}` : ''}
+      // The loaded record, not the row it was opened from: completing a record
+      // can replace the name, and the header should say who it now is.
+      title={detail ? `${detail.first_name} ${detail.last_name}` : patient ? `${patient.first_name} ${patient.last_name}` : ''}
       subtitle={patient?.healthclouda_id}
     >
       {loading ? <ShimmerRows count={3} /> : error ? (
         <ErrorState message={error} onRetry={refetch} />
       ) : detail ? (
         <div className="space-y-5">
+          {detail.registration_incomplete && (
+            // Keyed on the id so a different patient never inherits this
+            // one's half-typed contact details or ticked consent.
+            <CompleteRecordSection
+              key={detail.id}
+              detail={detail}
+              onCompleted={() => { refetch(); onRecordCompleted?.(); }}
+            />
+          )}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <div className="text-xs text-text-soft">HealthClouda ID</div>
@@ -829,9 +1225,73 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
               <p className="text-[11px] text-text-soft mt-1.5">Add an email address first — the invite is sent by email.</p>
             )}
           </div>
+
+          {/* ─── Flag a duplicate (build 2 PR B — backend FLAG-373) ───── */}
+          <FlagDuplicateSection patient={patient} />
         </div>
       ) : null}
     </SlidePanel>
+  );
+}
+
+// ─── Records to complete (FLAG-049) ───────────────────────────────
+//
+// Emergency admissions create records reception has to finish: a real name,
+// contact details, consent. `GET /patients/?registration_incomplete=true`
+// (backend #236) lists them within this organisation's own patients, so the
+// desk no longer has to know a record exists before it can search for it.
+// Hidden when there are none — an empty queue is the normal state. The
+// parent re-keys it after a completion, which remounts it and re-reads the
+// list, so a finished record drops off without a manual refresh.
+function RecordsToCompleteSection({ onOpen }: { onOpen: (p: PatientRef) => void }) {
+  const { items, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<OrgVisiblePatient>(`${ENDPOINTS.PATIENTS}?registration_incomplete=true`, 10);
+
+  if (loading && !items.length) return null;
+  if (error) {
+    return (
+      <p role="alert" className="text-xs text-danger">
+        Could not load the records waiting to be completed.{' '}
+        <button onClick={refetch} className="underline font-medium">Try again</button>
+      </p>
+    );
+  }
+  if (!count) return null;
+  // A backend without #236 ignores the param and returns EVERY patient. Each
+  // row carries `registration_incomplete`, so a complete one here means the
+  // filter was not applied: show nothing rather than the whole patient list
+  // under a heading that says these are waiting.
+  if (items.some(p => p.registration_incomplete !== true)) return null;
+
+  return (
+    <section aria-labelledby="records-to-complete-heading" className="rounded-xl border border-warning/30 bg-warning-bg px-4 py-3 space-y-2">
+      <div>
+        <h3 id="records-to-complete-heading" className="text-sm font-semibold text-warning-strong">
+          Records to complete ({count})
+        </h3>
+        <p className="text-[11.5px] text-text-soft mt-0.5">
+          Created during an emergency admission. Add the patient&apos;s name, contact details and consent.
+        </p>
+      </div>
+      <ul className="divide-y divide-warning/20">
+        {items.map(p => (
+          <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0">
+              <div className="text-sm text-ink truncate">{p.first_name} {p.last_name}</div>
+              <div className="text-xs text-text-soft font-mono">{p.healthclouda_id}</div>
+            </div>
+            <button
+              onClick={() => onOpen(p)}
+              aria-label={`Complete the record for ${p.first_name} ${p.last_name}`.trim()}
+              className="shrink-0 text-xs font-medium text-primary-dark hover:underline"
+            >
+              Complete record
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={10} />
+    </section>
   );
 }
 
@@ -841,7 +1301,8 @@ function PatientSearchPage() {
   const [patients, setPatients] = useState<PatientSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
-  const [selected, setSelected] = useState<PatientSearchResult | null>(null);
+  const [selected, setSelected] = useState<PatientRef | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
   const [justRegistered, setJustRegistered] = useState<RegisteredPatient | null>(null);
   const { toast } = useToast();
 
@@ -877,6 +1338,8 @@ function PatientSearchPage() {
           Register patient
         </button>
       </div>
+
+      <RecordsToCompleteSection key={completedCount} onOpen={setSelected} />
 
       {/* The HCL-ID handout. `POST /patients/` DOES return the identifiers —
           nested under `patient` (backend #137, closed; see readCreatedPatient).
@@ -1023,7 +1486,12 @@ function PatientSearchPage() {
         one patient's form onto another's, the same class of bug as PR #130's
         referral-form state leak.
       */}
-      <PatientActionsPanel key={selected?.id ?? 'none'} patient={selected} onClose={() => setSelected(null)} />
+      <PatientActionsPanel
+        key={selected?.id ?? 'none'}
+        patient={selected}
+        onClose={() => setSelected(null)}
+        onRecordCompleted={() => setCompletedCount(n => n + 1)}
+      />
     </div>
   );
 }

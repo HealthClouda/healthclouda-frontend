@@ -327,6 +327,9 @@ export interface OrgVisiblePatient {
   city: string;
   state: string;
   is_active: boolean;
+  /** Created by an emergency admission and not yet completed by reception.
+   *  Filterable: `GET /patients/?registration_incomplete=true` (backend #236). */
+  registration_incomplete?: boolean;
 }
 
 // GET /ward/attending-doctors/ — apps/ward/serializers.py
@@ -520,6 +523,55 @@ export interface PatientDetail {
   gender?: string;
   has_portal_account: boolean;
   is_active?: boolean;
+  // Build 2 / FLAG-575 (apps/patients/models.py, apps/patients/serializers.py
+  // PatientDetailSerializer). True whenever this record was created by the
+  // emergency-admission endpoint with no `patient_id` — a description in
+  // `first_name`, no consent, phone-when-no-email waived until reception
+  // completes it. Never set by the nurse; only ever shown to her.
+  registration_incomplete?: boolean;
+  // An HCL-ID the patient/family stated at admission — a note only, per
+  // `EmergencyAdmissionSerializer.stated_hcl_id`: it grants nothing and links
+  // nothing, so never render it as though it resolved to a real record.
+  stated_hcl_id?: string;
+  // Derived from the DATA_ACCESS PatientConsent row (sync_patient_consent_flag),
+  // never written directly. False on every emergency-created record until
+  // someone captures consent — and EpisodeCreateSerializer refuses an ordinary
+  // episode for any patient without it (backend FLAG-602).
+  consent_given?: boolean;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+}
+
+/**
+ * PATCH /patients/{id}/ as a RECEPTIONIST completing an emergency-created
+ * record — PatientContactUpdateSerializer + RecordCompletionMixin (backend
+ * #221, FLAG-602/603), read from `develop` 2026-09-26.
+ *
+ * - `registration_incomplete` is clear-only: send `false`. Clearing it
+ *   re-arms the phone-when-no-email rule (`require_contact_key`), which
+ *   answers 400 `details.phone` if neither is present.
+ * - `capture_consent: true` writes the DATA_ACCESS consent ROW; the backend's
+ *   signal derives `consent_given` from it. There is no `false` case —
+ *   withdrawal is a different act (FLAG-374).
+ * - Name, date of birth and sex are accepted ONLY while the stored record is
+ *   still `registration_incomplete` — including in the PATCH that clears it
+ *   (backend #236, FLAG-612, closing #226). On a complete record a change is
+ *   a 400 under `details.<field>` (FLAG-048).
+ */
+export interface RecordCompletionUpdate {
+  first_name?: string;
+  last_name?: string;
+  /** YYYY-MM-DD; a future date is refused. */
+  date_of_birth?: string;
+  gender?: 'M' | 'F' | 'O';
+  phone?: string;
+  email?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  registration_incomplete: false;
+  capture_consent?: boolean;
 }
 
 /**
@@ -813,6 +865,69 @@ export interface ActivityItem {
   created_at?: string;
 }
 
+// ═══ Duplicate-patient merge queue (build 2 PR B — backend FLAG-373) ═══
+//
+// apps/patients/merge_views.py PatientMergeRequestSerializer, read from
+// backend source on `develop` 2026-09-18 (the live schema documents this
+// viewset thinly — see backend FLAG-591 on untyped responses).
+//
+// 🧭 The owner's model, which the screens have to make legible: reception
+// FLAGS a suspected duplicate, an ORG_ADMIN CONFIRMS it, clinical rows move,
+// **the audit trail is never rewritten** (the merge is logged as its own
+// event instead), it is UNDOABLE, and it is refused and ESCALATED to a
+// superadmin when either record has history at another hospital.
+
+export type PatientMergeStatus =
+  // Raised by reception, waiting on an admin. The only actionable state.
+  | 'FLAGGED'
+  // Carried out. Still undoable — `moved` is the ledger undo replays.
+  | 'MERGED'
+  // Closed without merging: they turned out to be different people.
+  | 'REJECTED'
+  // A merge that was carried out and then reversed.
+  | 'UNDONE'
+  // One of the records has history at another hospital, so this is outside a
+  // single hospital's authority. A superadmin has been notified. ⚠️ An org
+  // admin can no longer act on it — the backend refuses their confirm with a
+  // 409 — so the screens must not offer them a button that cannot work.
+  | 'ESCALATED';
+
+export interface PatientMergeRequest {
+  id: string;
+  status: PatientMergeStatus;
+  reason: string;
+  // Why it was rejected, or why it had to be escalated. On an escalation the
+  // backend writes this sentence itself; it is the only explanation the admin
+  // gets, so show it rather than a status word alone.
+  resolution_note: string;
+  // The record to be absorbed and hidden / the record that keeps its identity.
+  duplicate: string;
+  survivor: string;
+  duplicate_name: string;
+  survivor_name: string;
+  flagged_by: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  undone_by: string | null;
+  undone_at: string | null;
+  // {"app.Model.field": <count>} — the receipt for what actually moved.
+  // Derived server-side from Django's FK graph rather than a hand-written
+  // list, which is why a count can appear for a table nobody would have
+  // thought to name (the live bed pointer, the hospital's own access grant).
+  rows_moved: Record<string, number>;
+  created_at: string;
+}
+
+// POST /patients/merge-requests/ — `duplicate_id`/`survivor_id` are
+// write-only; both must be patients THIS hospital already has, or the create
+// is refused with a plain not-found that is deliberately identical to a typo
+// (backend FLAG-593's non-disclosure rule, reused here).
+export interface PatientMergeCreateInput {
+  duplicate_id: string;
+  survivor_id: string;
+  reason: string;
+}
+
 export interface AccessRequest {
   id: string;
   patient?: { first_name: string; last_name: string };
@@ -994,15 +1109,20 @@ export interface AdmissionDetail {
   needs_doctor_review: boolean;
   doctor_reviewed_by_name: string | null;
   doctor_reviewed_at: string | null;
-  // ⚠️ NOT in the fixed contract's list of what section A adds — that text
-  // names only the three fields above. Read as optional/tolerant: if the
-  // backend build-4 PR does add `discharge_outcome` to
-  // `AdmissionListSerializer`/`AdmissionDetailSerializer` (today, per
-  // `apps/ward/serializers.py` on `origin/develop`, NEITHER exposes it —
-  // it is write-only, on `DischargeSerializer`), the pending-reviews row
-  // below can label itself by outcome; if not, it falls back to a generic
-  // label rather than guessing. Flagged FLAG-045 for the backend lane.
-  discharge_outcome?: string;
+  // FLAG-050: on the list and the detail since backend #215 (FLAG-592) —
+  // `AdmissionListSerializer.Meta.fields`, verified on `develop` 2026-09-27.
+  // '' while the stay is ACTIVE.
+  discharge_outcome: string;
+  /** Who recorded the discharge; null while ACTIVE. */
+  discharged_by_name: string | null;
+  // Backend #233 (FLAG-609): stored since build 4 but write-only until then.
+  // Always present; null / '' when the outcome has no such detail.
+  /** DECEASED: when the death happened, as recorded (not when it was entered). */
+  deceased_at: string | null;
+  /** ABSCONDED: when the patient was found to be missing. */
+  discovered_at: string | null;
+  /** TRANSFERRED_OUT: where the patient went. */
+  destination: string;
 }
 
 // GET /ward/admissions/?mine=true — the doctor admissions page (FLAG-040/042,
@@ -1021,7 +1141,8 @@ export type DoctorAdmission = Pick<
   | 'admission_reason' | 'discharged_at' | 'length_of_stay'
   | 'admission_source' | 'attending_doctor' | 'attending_doctor_name'
   | 'needs_attending_doctor' | 'needs_doctor_review' | 'doctor_reviewed_by_name'
-  | 'doctor_reviewed_at' | 'discharge_outcome'
+  | 'doctor_reviewed_at' | 'discharge_outcome' | 'discharged_by_name'
+  | 'deceased_at' | 'discovered_at' | 'destination'
 >;
 
 // POST /episodes/ response — apps/patients/views.py EpisodeViewSet.create:
@@ -1029,9 +1150,15 @@ export type DoctorAdmission = Pick<
 // NewEpisodePanel (DoctorDashboard.tsx) — which is about a DIFFERENT call
 // signature and predates this read — `id` IS present here (verified against
 // apps/patients/serializers.py EpisodeDetailSerializer.Meta.fields, which
-// lists 'id' first, 2026-09-12). The emergency-admission flow depends on
-// this: it chains episode creation straight into the admission POST using
-// the id from this response, with no intermediate refetch.
+// lists 'id' first, 2026-09-12).
+//
+// ⚠️ No longer used by the emergency-admission flow — build 2 (FLAG-575/
+// FLAG-243) replaced the old chained POST /episodes/ then POST
+// /ward/admissions/ with the single POST /ward/emergency-admissions/ below,
+// specifically because the two-call version could open an ACTIVE episode
+// and then have the admission refuse a deceased patient, leaving the
+// episode orphaned. Still used by the doctor-side "start a new episode"
+// panel (DoctorDashboard.tsx), which is unaffected.
 export interface EpisodeCreateResponse {
   message: string;
   episode: { id: string };
@@ -1041,6 +1168,55 @@ export interface EpisodeCreateResponse {
 export interface AdmissionCreateResponse {
   message: string;
   admission: AdmissionDetail;
+}
+
+// ─── Emergency admission, ONE call (build 2 — FLAG-575, closes FLAG-243) ──
+//
+// POST /ward/emergency-admissions/ — apps/ward/views.py EmergencyAdmissionView
+// / EmergencyAdmissionSerializer, apps/ward/services.py emergency_admit().
+// Finds-or-creates the patient, grants this hospital access, refuses a
+// deceased patient BEFORE anything is written, opens the episode, admits —
+// all inside one `transaction.atomic()`. Replaces the old two-call
+// POST /episodes/ → POST /ward/admissions/ chain: there, the admit's
+// deceased guard ran with no equivalent guard on episode creation, so a
+// refused admit left an open ACTIVE episode with nobody in a bed behind it
+// (FLAG-243). Verified against backend source on `origin/develop`
+// (#210), not the schema.
+export interface EmergencyAdmissionRequest {
+  bed_id: string;
+  // Omit for a genuine first-ever walk-in with no record at this hospital —
+  // give `description` instead. When given, must be a patient THIS hospital
+  // already has (an approved OrgAccessRequest or an existing episode here);
+  // any other id is refused with a plain not-found 400
+  // (`PatientNotAvailableHere`, deliberately indistinguishable from a typo —
+  // see the service's own docstring on why there is no break-glass).
+  patient_id?: string;
+  // Required when `patient_id` is omitted — who the patient is, in the
+  // nurse's own words ("man, ~40, brought in by police"). Goes verbatim into
+  // `first_name` so reception's search can still find them; never send a
+  // placeholder like "Unknown Unknown", which would collide every unnamed
+  // patient together.
+  description?: string;
+  presenting_complaint?: string;
+  attending_doctor_id?: string;
+  // A note only — see `PatientDetail.stated_hcl_id`. Never used to resolve
+  // or link a record.
+  stated_hcl_id?: string;
+  // Resend =true to proceed past the ward gender policy warning ONLY.
+  override?: boolean;
+  // Resend =true to name an off-duty attending doctor anyway. Separate from
+  // `override` since backend #221 (FLAG-601) — one answer must not waive the
+  // other warning — and audited, like the three sibling routes.
+  attending_doctor_override?: boolean;
+}
+
+// {message, admission, patient} — `patient` is PatientDetailSerializer, so
+// `registration_incomplete`/`stated_hcl_id` ride along whenever this call
+// created the record.
+export interface EmergencyAdmissionResponse {
+  message: string;
+  admission: AdmissionDetail;
+  patient: PatientDetail;
 }
 
 // ═══ PART 2 — the full ordered admission workflow (contract addendum, 2026-09-12) ═══
