@@ -2058,7 +2058,7 @@ went*.
 ---
 
 ### FLAG-047 — The duplicate-records status filter only sees the page in hand
-**Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** OPEN (logged shortcut)
+**Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #161 (2026-09-27)**. Backend #237 (FLAG-613) made `?status=` a real filter and closed #225. `DuplicateRecordsPage` sends it again, and the page-only note and the client-side filter are removed. Two tests assert the param is sent for a status and dropped for "All statuses"; both were RED against the client-side version. ⚠️ **Needs backend #237 deployed to the tier this build talks to.** An older backend ignores the param and shows the whole queue under a status heading.
 **Raised:** 2026-09-26, fixing FLAG-245 on #161 (review 5325820800 by @Qeeyat)
 
 `GET /patients/merge-requests/` ignores `?status=` — `PatientMergeRequestViewSet` declares no

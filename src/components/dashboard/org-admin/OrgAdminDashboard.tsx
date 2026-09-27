@@ -690,15 +690,17 @@ function rowsMovedSummary(rowsMoved: Record<string, number> | undefined): string
 }
 
 function DuplicateRecordsPage() {
-  // 🪤 FLAG-245 / FLAG-047: the status filter is applied HERE, over the page
-  // already fetched. `/patients/merge-requests/` declares no filterset and its
-  // `get_queryset` reads no query params, so `?status=` was dropped silently
-  // and every option returned the identical queue. Client-side filtering only
-  // sees the current page, which the screen says out loud when it matters.
+  // FLAG-047: the status filter is the server's. Backend #237 (FLAG-613,
+  // closing #225) made `?status=` a real, published filter — until then it was
+  // dropped silently and this screen filtered only the page in hand. Filtering
+  // server-side means `count` and the pages are the filtered queue's.
   const [status, setStatus] = useState('');
-  const { items, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<PatientMergeRequest>(ENDPOINTS.PATIENT_MERGE_REQUESTS);
-  const merges = status ? items.filter((m) => m.status === status) : items;
+  const { items: merges, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<PatientMergeRequest>(
+      status
+        ? `${ENDPOINTS.PATIENT_MERGE_REQUESTS}?status=${encodeURIComponent(status)}`
+        : ENDPOINTS.PATIENT_MERGE_REQUESTS,
+    );
   const { toast } = useToast();
 
   const [acting, setActing] = useState<{ merge: PatientMergeRequest; action: 'confirm' | 'reject' | 'undo' } | null>(null);
@@ -829,14 +831,6 @@ function DuplicateRecordsPage() {
         those out — you can still close one as &quot;not a duplicate&quot;.
       </p>
 
-      {/* FLAG-047: the filter can only see the page in hand. Silent on a
-          one-page queue, where it is exact. */}
-      {status && totalPages > 1 && (
-        <p role="note" className="text-xs text-text-soft">
-          Showing matches on page {page} of {totalPages} only — the other pages are not filtered.
-        </p>
-      )}
-
       <DataTable
         columns={columns}
         data={merges}
@@ -846,7 +840,7 @@ function DuplicateRecordsPage() {
         onRetry={refetch}
         emptyTitle={status ? 'No records with this status' : 'No duplicate records flagged'}
         emptyDescription={status
-          ? (totalPages > 1 ? 'None on this page — the filter only covers the page shown.' : 'Choose "All statuses" to see the whole queue.')
+          ? 'Choose "All statuses" to see the whole queue.'
           : 'When the front desk flags two records as the same person, they appear here.'}
         toolbar={
           <select aria-label="Filter by merge status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
