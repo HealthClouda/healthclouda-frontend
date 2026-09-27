@@ -2078,7 +2078,7 @@ assigned @Ericmoore207, with a 📥 Cross-Lane row) and
 note removed.
 
 ### FLAG-048 — An emergency patient keeps the nurse's description as their name: nobody can correct it from the frontend
-**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh (frontend) + backend · **Status:** OPEN
+**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**, by route (a). Backend #236 (FLAG-612) lets reception set name, date of birth and sex while the record is incomplete, including in the completing PATCH, and closes #226. The completion section now has those fields. They start **empty**, never prefilled with the description, and are sent only when filled in. The on-screen text now says an admin must correct them after completion. 4 tests, all RED against the previous section. ⚠️ Needs backend #236 on the tier. An older backend drops the fields with a 200, which is the original bug.
 **Raised:** 2026-09-26, building the record-completion screen (FLAG-602/603 frontend half)
 
 A walk-in admitted with no record is created with the nurse's free-text description in `first_name`
@@ -2100,7 +2100,7 @@ it. Backend ask: **[#226](https://github.com/HealthClouda/healthclouda-backend/i
 ---
 
 ### FLAG-049 — Incomplete emergency records cannot be listed, only searched for
-**Severity:** P3 · **Area:** Reception · **Owner:** @Bastoh (frontend) + backend · **Status:** OPEN (logged shortcut)
+**Severity:** P3 · **Area:** Reception · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**. Backend #236 made `?registration_incomplete=true` a real, published filter on `GET /patients/`, scoped to the organisation. Patient Search now shows **"Records to complete (n)"**, which is hidden when there are none, opens each record's completion section, and re-reads itself after a completion. It asks the server for incomplete records only, never the whole patient list. 4 tests. ⚠️ Needs backend #236 on the tier. An older backend ignores the param and returns every patient. The section checks each row's `registration_incomplete` and **renders nothing** if any row is complete, so it never lists the whole patient list under this heading. A mutation test proves that guard.
 **Raised:** 2026-09-26, same build
 
 `PatientListSerializer` carries `registration_incomplete` ("so incomplete records can be listed and

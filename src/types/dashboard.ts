@@ -322,6 +322,9 @@ export interface OrgVisiblePatient {
   city: string;
   state: string;
   is_active: boolean;
+  /** Created by an emergency admission and not yet completed by reception.
+   *  Filterable: `GET /patients/?registration_incomplete=true` (backend #236). */
+  registration_incomplete?: boolean;
 }
 
 // GET /ward/attending-doctors/ — apps/ward/serializers.py
@@ -546,10 +549,17 @@ export interface PatientDetail {
  * - `capture_consent: true` writes the DATA_ACCESS consent ROW; the backend's
  *   signal derives `consent_given` from it. There is no `false` case —
  *   withdrawal is a different act (FLAG-374).
- * - Name, date of birth and sex are NOT on this serializer — reception
- *   cannot correct them (FLAG-048).
+ * - Name, date of birth and sex are accepted ONLY while the stored record is
+ *   still `registration_incomplete` — including in the PATCH that clears it
+ *   (backend #236, FLAG-612, closing #226). On a complete record a change is
+ *   a 400 under `details.<field>` (FLAG-048).
  */
 export interface RecordCompletionUpdate {
+  first_name?: string;
+  last_name?: string;
+  /** YYYY-MM-DD; a future date is refused. */
+  date_of_birth?: string;
+  gender?: 'M' | 'F' | 'O';
   phone?: string;
   email?: string;
   emergency_contact_name?: string;
