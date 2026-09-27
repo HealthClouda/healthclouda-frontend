@@ -20,7 +20,7 @@ import { SlidePanel } from '@/components/ui/SlidePanel';
 import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
 import { DoctorPicker } from '@/components/dashboard/shared/DoctorPicker';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatDate, formatTime, isToday, personName, timeAgo, truncate, withoutResendInstruction } from '@/lib/utils';
+import { formatDate, formatDateTime, formatTime, isToday, personName, timeAgo, truncate, withoutResendInstruction } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
@@ -1484,13 +1484,18 @@ function readDischargeError(err: unknown, fallback: string): string {
 // empty, silently, because every admission it exists to surface has already
 // left ACTIVE status by the time a nurse could record it.
 //
-// `discharge_outcome` on `DoctorAdmission` is an OPTIONAL, tolerant read —
-// see the type's own comment (FLAG-046): the fixed contract for THIS
-// endpoint only guarantees `needs_doctor_review` / `doctor_reviewed_by_name`
-// / `doctor_reviewed_at`, not the outcome itself, so the button falls back
-// to a safe generic label rather than guessing "Confirm death" wrong.
+// FLAG-050: the list carries `discharge_outcome` and `discharged_by_name`
+// (backend #215), and the time of death / time found missing (backend #233).
+// A doctor asked to confirm a death needs who recorded it and when it
+// happened — "recorded 3h ago" is when it was ENTERED, which is not the same.
 function reviewButtonLabel(a: DoctorAdmission): string {
   return a.discharge_outcome === 'DECEASED' ? 'Confirm death' : 'Mark reviewed';
+}
+
+function reviewEventLine(a: DoctorAdmission): string | null {
+  if (a.discharge_outcome === 'DECEASED' && a.deceased_at) return `Time of death: ${formatDateTime(a.deceased_at)}`;
+  if (a.discharge_outcome === 'ABSCONDED' && a.discovered_at) return `Found missing: ${formatDateTime(a.discovered_at)}`;
+  return null;
 }
 
 function PendingReviewsSection() {
@@ -1534,8 +1539,12 @@ function PendingReviewsSection() {
             <div className="min-w-0">
               <div className="font-medium text-ink truncate">{a.patient.first_name} {a.patient.last_name}</div>
               <div className="text-xs text-text-soft truncate">
-                {wardBedLabel(a)} · recorded {a.discharged_at ? timeAgo(a.discharged_at) : '—'}
+                {wardBedLabel(a)} · recorded{a.discharged_by_name ? ` by ${a.discharged_by_name}` : ''}{' '}
+                {a.discharged_at ? timeAgo(a.discharged_at) : '—'}
               </div>
+              {reviewEventLine(a) && (
+                <div className="text-xs text-ink">{reviewEventLine(a)}</div>
+              )}
             </div>
             <button
               onClick={() => review(a)}

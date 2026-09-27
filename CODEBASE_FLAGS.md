@@ -2115,7 +2115,7 @@ but nothing tells reception which records are waiting.
 backend issue as FLAG-048, **#226**) and reception has a queue built on it.
 
 ### FLAG-050 — The doctor's pending-review button could not label itself by outcome (`discharge_outcome` not on the list)
-**Severity:** P3 · **Area:** Doctor / Discharge review · **Owner:** @Bastoh · **Status:** 🟡 **Backend half RESOLVED** (backend #215, 2026-09-17) · frontend remainder OPEN
+**Severity:** P3 · **Area:** Doctor / Discharge review · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**. `discharge_outcome` and `discharged_by_name` are now required on the type, checked against `AdmissionListSerializer.Meta.fields` on backend `develop`, and the stale comment is gone. The pending-review row says **who recorded it**, and it shows **the time of death** (DECEASED) or **when the patient was found missing** (ABSCONDED) from `deceased_at`/`discovered_at`, which backend #233 (FLAG-609) made readable. 2 tests, both RED against the previous row.
 **Raised:** 2026-09-17 inside the FLAG-045 entry as "FLAG-046"; numbered 2026-09-26
 
 **Why this number.** The gap was first written into FLAG-045's entry as "FLAG-046", and #159 then

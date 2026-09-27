@@ -1073,15 +1073,20 @@ export interface AdmissionDetail {
   needs_doctor_review: boolean;
   doctor_reviewed_by_name: string | null;
   doctor_reviewed_at: string | null;
-  // ⚠️ NOT in the fixed contract's list of what section A adds — that text
-  // names only the three fields above. Read as optional/tolerant: if the
-  // backend build-4 PR does add `discharge_outcome` to
-  // `AdmissionListSerializer`/`AdmissionDetailSerializer` (today, per
-  // `apps/ward/serializers.py` on `origin/develop`, NEITHER exposes it —
-  // it is write-only, on `DischargeSerializer`), the pending-reviews row
-  // below can label itself by outcome; if not, it falls back to a generic
-  // label rather than guessing. Flagged FLAG-046 for the backend lane.
-  discharge_outcome?: string;
+  // FLAG-050: on the list and the detail since backend #215 (FLAG-592) —
+  // `AdmissionListSerializer.Meta.fields`, verified on `develop` 2026-09-27.
+  // '' while the stay is ACTIVE.
+  discharge_outcome: string;
+  /** Who recorded the discharge; null while ACTIVE. */
+  discharged_by_name: string | null;
+  // Backend #233 (FLAG-609): stored since build 4 but write-only until then.
+  // Always present; null / '' when the outcome has no such detail.
+  /** DECEASED: when the death happened, as recorded (not when it was entered). */
+  deceased_at: string | null;
+  /** ABSCONDED: when the patient was found to be missing. */
+  discovered_at: string | null;
+  /** TRANSFERRED_OUT: where the patient went. */
+  destination: string;
 }
 
 // GET /ward/admissions/?mine=true — the doctor admissions page (FLAG-040/042,
@@ -1100,7 +1105,8 @@ export type DoctorAdmission = Pick<
   | 'admission_reason' | 'discharged_at' | 'length_of_stay'
   | 'admission_source' | 'attending_doctor' | 'attending_doctor_name'
   | 'needs_attending_doctor' | 'needs_doctor_review' | 'doctor_reviewed_by_name'
-  | 'doctor_reviewed_at' | 'discharge_outcome'
+  | 'doctor_reviewed_at' | 'discharge_outcome' | 'discharged_by_name'
+  | 'deceased_at' | 'discovered_at' | 'destination'
 >;
 
 // POST /episodes/ response — apps/patients/views.py EpisodeViewSet.create:

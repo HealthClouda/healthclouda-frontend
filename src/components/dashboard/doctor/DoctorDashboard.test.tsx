@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DoctorDashboard } from './DoctorDashboard';
 import { ENDPOINTS } from '@/lib/config';
+import { formatDateTime } from '@/lib/utils';
 import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
 import type { DoctorAdmission } from '@/types/dashboard';
@@ -834,6 +835,12 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
     needs_doctor_review: false,
     doctor_reviewed_by_name: null,
     doctor_reviewed_at: null,
+    // An ACTIVE stay: no outcome yet, so the discharge details are empty.
+    discharge_outcome: '',
+    discharged_by_name: null,
+    deceased_at: null,
+    discovered_at: null,
+    destination: '',
   };
 
   // Build 4 (FLAG-045) — the doctor dashboard now fires TWO admission-list
@@ -1150,6 +1157,10 @@ describe('WARD-DOC-ADMISSIONS — pending doctor review (FLAG-045)', () => {
     doctor_reviewed_by_name: null,
     doctor_reviewed_at: null,
     discharge_outcome: 'DECEASED',
+    discharged_by_name: 'Amaka Uche',
+    deceased_at: '2026-09-16T21:40:00Z',
+    discovered_at: null,
+    destination: '',
   };
 
   // Derives "still pending" from `dataActionMock`'s own call history rather
@@ -1203,6 +1214,29 @@ describe('WARD-DOC-ADMISSIONS — pending doctor review (FLAG-045)', () => {
     // The row leaves the list once the mocked backend has recorded the
     // review — the section itself disappears rather than reading "reviewed".
     await waitFor(() => expect(screen.queryByText('Emeka Nnaji')).not.toBeInTheDocument());
+  });
+
+  // FLAG-050 — the doctor confirming a death sees who recorded it and when
+  // it happened, not only when it was entered.
+  it('says who recorded the death and the time of death', async () => {
+    mockPendingBackend();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    expect(await screen.findByText(/recorded by Amaka Uche/)).toBeInTheDocument();
+    expect(screen.getByText(`Time of death: ${formatDateTime('2026-09-16T21:40:00Z')}`)).toBeInTheDocument();
+  });
+
+  it('says when an absconded patient was found missing', async () => {
+    mockPendingBackend([{
+      ...pendingDeceased, id: 'adm-pending-3', discharge_outcome: 'ABSCONDED',
+      deceased_at: null, discovered_at: '2026-09-16T06:15:00Z',
+    }]);
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    expect(await screen.findByText(`Found missing: ${formatDateTime('2026-09-16T06:15:00Z')}`)).toBeInTheDocument();
+    expect(screen.queryByText(/Time of death/)).not.toBeInTheDocument();
   });
 
   it('labels the action "Mark reviewed" for an ABSCONDED row', async () => {
