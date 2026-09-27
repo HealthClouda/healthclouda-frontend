@@ -955,6 +955,26 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
     expect(screen.getByText('No doctor has seen this patient yet')).toBeInTheDocument();
   });
 
+  // FLAG-053 — found walking dev.healthclouda.com on 27 Sep: the search was
+  // a <form> nested inside the admission <form>, and pressing Search in a
+  // real browser submitted natively and reloaded the page. jsdom does not do
+  // native submission, so assert the structure that caused it instead.
+  it('never nests the patient search form inside the admission form', async () => {
+    await openEmergencyPanel();
+    const dialog = screen.getByRole('dialog', { name: 'Emergency admission' });
+    expect(dialog.querySelectorAll('form form')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Search' })).toHaveAttribute('type', 'button');
+  });
+
+  it('searches on Enter without submitting the admission', async () => {
+    await openEmergencyPanel();
+    fireEvent.change(screen.getByLabelText('Find the patient'), { target: { value: 'Emeka' } });
+    fireEvent.keyDown(screen.getByLabelText('Find the patient'), { key: 'Enter' });
+
+    expect(await screen.findByRole('button', { name: /Emeka Uche/ })).toBeInTheDocument();
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+
   it('searches org-visible patients and lets the nurse pick one', async () => {
     await openEmergencyPanel();
     await selectPatient();

@@ -948,8 +948,13 @@ function EmergencyPatientSearch({ onSelect, onNewPatient }: {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
+  // FLAG-053: this search sits INSIDE the emergency admission <form>, so it
+  // must not be a <form> of its own. Nested forms are invalid HTML: on
+  // dev.healthclouda.com pressing Search submitted natively and reloaded the
+  // page (to `/nurse?`), closing the panel — unit tests never saw it, because
+  // jsdom does not perform native form submission. A plain group, a
+  // type="button", and Enter handled here instead.
+  async function search() {
     const q = query.trim();
     if (!q) return;
     setSearching(true);
@@ -974,21 +979,26 @@ function EmergencyPatientSearch({ onSelect, onNewPatient }: {
         <label htmlFor="emergency-patient-search" className="block text-xs font-medium text-text-soft mb-1">
           Find the patient
         </label>
-        <form onSubmit={search} className="flex gap-2">
+        <div role="search" className="flex gap-2">
           <input
             id="emergency-patient-search"
             value={query}
             onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => {
+              // Enter searches; it must never submit the admission form around it.
+              if (e.key === 'Enter') { e.preventDefault(); void search(); }
+            }}
             placeholder="Name, phone or HealthClouda ID…"
             className={formInputClass}
           />
           <button
-            type="submit"
+            type="button"
+            onClick={() => void search()}
             className="px-3 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
           >
             Search
           </button>
-        </form>
+        </div>
       </div>
       {error && <p role="alert" className="text-xs font-semibold text-danger">{error}</p>}
       {searching ? <ShimmerRows count={2} /> : searched && !results.length && !error ? (
