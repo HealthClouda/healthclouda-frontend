@@ -39,6 +39,73 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-27 — Every issue from the dev-tier walkthrough fixed: eight backend PRs merged, five frontend items built (branches: `claude/pr-161-review-7fp39h`, `feat/emergency-admission-single-call`, `fix/restore-stat-tiles`)
+
+**Goal:** fix everything the 26 Sep dev-tier walkthrough found, backend first (B1–B8), then frontend
+(F1–F9). The backend went first so the frontend would consume shipped contracts rather than guessed
+ones. The backend half is in my backend session log. This entry is the frontend half and the overall
+state.
+
+**What I did (frontend):**
+- **F8 → #161** (`9bf5038`, FLAG-047): the duplicate-records filter sends `?status=` again now that
+  backend #237 made it a real filter. The client-side, page-only filter and its note are gone. The
+  Cross-Lane row for backend #225 is cleared.
+- **F7 → #164** (`e671f3f`, FLAG-048/049): reception's completion section takes first/last name,
+  date of birth (no future dates) and sex, per backend #236. The fields start **empty**, not
+  prefilled with the nurse's description. Patient Search shows **"Records to complete (n)"** from
+  `?registration_incomplete=true`. It is hidden when empty and re-reads itself after a completion.
+  The Cross-Lane row for #226 is cleared.
+- **F5 → #164** (`c532cc8`, FLAG-050): the doctor's pending-review row says who recorded it and
+  shows the **time of death** or **time found missing** (backend #233). `discharge_outcome` and
+  `discharged_by_name` are now required on the type.
+- **F9 → new PR #166** (`b2ce801`, FLAG-051): Superadmin *Active Organisations* and *Total
+  Patients*, and Doctor *Active Prescriptions*, are back. They were removed under FLAG-222 when
+  their fields didn't exist, and backend issue #158 added them. Reviewer: @Qeeyat.
+- **F4, no change needed:** all three admit screens already refresh the bed list on any 409. B2
+  makes an occupied bed a 409 on every route, so the red form error can't happen. There is no
+  transfer screen.
+
+**What I found:**
+- 🔴 **A frontend that sends a new filter trusts that the backend it talks to has it.** An older
+  backend ignores an unknown param and answers 200. For "Records to complete" that would have meant
+  **every patient** listed under that heading. The section now checks each row's
+  `registration_incomplete` and renders nothing if any row is complete, and a mutation test proves
+  it. The merge-queue filter has no such guard; its worst case is the whole queue under a status
+  heading.
+- My local copy of #161's branch was an **unpushed rebase** from 26 Sep (the force-push that was
+  refused). I saved it as `local/rebased-161-with-docs` and reset to origin, so nothing was
+  force-pushed. That saved branch holds the FLAG-244/245/246 "resolved" docs commit, which is owed
+  as F3 once #161 merges.
+- **#161 is blocked only on @Qeeyat.** Her 26 Sep CHANGES_REQUESTED still stands
+  (`dismiss_stale_reviews_on_push = false`), although both findings were fixed that day and CI is
+  green.
+
+**Verified:**
+- #164: tsc clean · lint clean · **422/422** · build green.
+- #166 on `develop`: **398/398** · build green · CI green.
+- #161: CI green on `9bf5038`.
+- Every new test was run against the previous code and went RED (F8 2, F7 7 plus the guard's
+  mutation, F5 2, F9 2).
+- **Dev tier confirmed live**, read from `api-dev`'s schema:
+  - the `registration_incomplete` filter on `/patients/`
+  - the `status` filter on `/patients/merge-requests/`
+  - `deceased_at` on `AdmissionList`
+  - no gendered pronoun anywhere
+
+**Left undone / next:**
+1. **Waiting on @Qeeyat:** re-approve #161, review #164 (stacked, so no CI yet) and #166.
+2. **After #161 merges:** retarget #164 to `develop`; F3, the docs PR marking FLAG-244/245/246
+   resolved (from `local/rebased-161-with-docs`).
+3. **Then redo the checklist on dev**, including F6 (the doctor's Admissions, Episodes and pending
+   review, end to end), and update it where needed.
+4. **Open, needing me as owner:**
+   - B8 (Cloudflare 1010 on `api-dev`).
+   - FLAG-607's two decisions: who reviews an admission with no doctor, and a doctor on the episode
+     when a referral is accepted.
+   - Whether a signed-in password change should sign out other devices (FLAG-611 note).
+
+---
+
 ### 2026-09-26 — #161 through review, backend #221 caught up with, and the two missing admissions journeys built (branches: `feat/emergency-admission-single-call`, `claude/pr-161-review-7fp39h`)
 
 **Goal:** get #161 through @Qeeyat's CHANGES_REQUESTED, then answer the owner's question: *is the
