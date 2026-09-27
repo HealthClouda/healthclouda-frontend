@@ -30,6 +30,8 @@
 
 | @Qeeyat | **FLAG-244 + FLAG-245 + FLAG-246** logged from the 18 Sep review of #161, plus **FLAG-247** (26 Sep, Patient My Health reads a field `/episodes/` never sends) | `docs/flags-244-246-review-161-2026-09-18` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-18 | 🟡 **Docs only.** Claimed in this PR’s own commit (FLAG-240 option (a)). Replaces the 15 Sep row, whose **#152 merged 2026-09-17**. #161 itself has **CHANGES_REQUESTED** from me on FLAG-244/245 |
 
+| @Bastoh | **DASH-6 brought back to spec** — patient welcome banner on the brand primary gradient (was teal) with the patient's **HealthClouda ID** chip (was missing); every remaining teal class on the patient dashboard moved to system blue tokens. Taken from the `[DESIGN]` lane on the founder's call, claimed loudly | `feat/patient-hcl-id-brand-blue` | `src/components/dashboard/patient/PatientDashboard.tsx` (+ test), `src/app/patient/page.tsx`, `src/types/dashboard.ts` | 2026-09-27 | 🟡 **PR open, @Qeeyat to review.** Claimed in this PR's own commit (FLAG-240 option (a)). Reads `healthclouda_id` from `GET /patients/me/`, verified against backend source only — live schema unreachable from the session |
+
 | @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
 
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at

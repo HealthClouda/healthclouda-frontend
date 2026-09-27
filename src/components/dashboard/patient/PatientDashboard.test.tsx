@@ -242,3 +242,75 @@ describe('FLAG-231 — overview stat tiles read fields the endpoint actually pub
     }
   });
 });
+
+/**
+ * DASH-6 spec — the welcome banner carries the patient's HealthClouda ID, on a
+ * primary → primary-dark gradient.
+ *
+ * 🔴 RED against the pre-change component: it rendered a teal gradient and no
+ * ID at all, so the lifetime identifier the product exists to give a patient
+ * appeared nowhere on their own dashboard. The ID comes from
+ * `GET /patients/me/` → `healthclouda_id` (PatientDetailSerializer).
+ */
+describe('DASH-6 — HealthClouda ID in the welcome banner', () => {
+  const profile = { id: 'p1', healthclouda_id: 'HCL-7Q2K9D', first_name: 'Chidi', last_name: 'Nwosu' };
+
+  it('shows the HCL ID from the server-fetched profile without a client request for it', async () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+
+    expect(screen.getByTestId('patient-hcl-id')).toHaveTextContent('HCL-7Q2K9D');
+    expect(screen.getByText('HealthClouda ID')).toBeInTheDocument();
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+    const meCalls = dataGetMock.mock.calls.filter((c) => String(c[0]) === ENDPOINTS.PATIENT_ME);
+    expect(meCalls).toHaveLength(0);
+  });
+
+  it('falls back to a client fetch of /patients/me/ when the server render had no profile', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path === ENDPOINTS.PATIENT_ME ? Promise.resolve(profile) : Promise.resolve(emptyPage),
+    );
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={null} />);
+
+    expect(await screen.findByTestId('patient-hcl-id')).toHaveTextContent('HCL-7Q2K9D');
+    expect(dataGetMock).toHaveBeenCalledWith(ENDPOINTS.PATIENT_ME);
+  });
+
+  it('renders no ID chip, and nothing that could be mistaken for one, when the profile cannot be read', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path === ENDPOINTS.PATIENT_ME ? Promise.reject(new Error('boom')) : Promise.resolve(emptyPage),
+    );
+    render(<PatientDashboard user={user} initialStats={stats} />);
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(ENDPOINTS.PATIENT_ME));
+    await waitFor(() => expect(screen.queryByText('HealthClouda ID')).toBeNull());
+    expect(screen.queryByTestId('patient-hcl-id')).toBeNull();
+  });
+
+  it('uses the brand primary gradient, not teal', () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+    const banner = screen.getByText('Welcome back,').closest('div.rounded-2xl') as HTMLElement;
+    expect(banner.className).toContain('from-primary');
+    expect(banner.className).not.toMatch(/teal/);
+  });
+
+  // #165 review (@Qeeyat): faded white (/70, /80) and a banner starting at
+  // `primary` (#0075ff) measured 2.7–4.2:1 — below WCAG AA. The fix is a
+  // darker gradient (>= 5.98:1 for white) and solid white text throughout.
+  it('keeps banner text at AA contrast: darker gradient, no faded text, no chip fill', () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+    const banner = screen.getByText('Welcome back,').closest('div.rounded-2xl') as HTMLElement;
+
+    expect(banner.className).toContain('from-primary-dark');
+    const textClasses = Array.from(banner.querySelectorAll('p, h2')).map((el) => el.className).join(' ');
+    expect(textClasses).not.toMatch(/text-white\/\d+/);
+    const chip = screen.getByTestId('patient-hcl-id').parentElement as HTMLElement;
+    expect(chip.className).not.toMatch(/bg-white\/\d+/);
+  });
+
+  it('keeps the empty-appointments hint readable on the chip background', async () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+    const hint = await screen.findByText('Your next appointment will appear here');
+    expect(hint.className).toContain('text-primary-dark');
+    expect(hint.className).not.toMatch(/text-primary\/\d+/);
+  });
+});
