@@ -2020,7 +2020,7 @@ None of those is in `apps/patients`.
 ---
 
 ### FLAG-244 — Every 409 on a merge confirm is reported to the admin as "Escalated to a superadmin"
-**Severity:** P2 · **Area:** Org Admin / Duplicate records · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Org Admin / Duplicate records · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #161, merged 2026-09-27.** Verified by @Qeeyat's re-review of `8104eec..9bf5038` (review 5331904389, approved), on a trial merge onto `develop`. Only `body.status === 'ESCALATED'` is called an escalation; "already merged" and "clinical conflict" show as "Not merged" in the backend's words.
 **Found:** 2026-09-18, reviewing #161 against backend `origin/develop` source
 
 `DuplicateRecordsPage` (`OrgAdminDashboard.tsx`) decides it is looking at an escalation from the
@@ -2060,7 +2060,7 @@ bodies, since all three are one status code apart from each other.
 ---
 
 ### FLAG-245 — The org admin's "Filter by merge status" dropdown sends a query param the backend ignores
-**Severity:** P2 · **Area:** Org Admin / Contract · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Org Admin / Contract · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #161, merged 2026-09-27.** Verified by @Qeeyat's re-review of `8104eec..9bf5038` (review 5331904389, approved), on a trial merge onto `develop`. Backend #237 made `?status=` real; she checked the live `api-dev` schema (27 Sep): its enum matches the dropdown's five values. See FLAG-047.
 **Found:** 2026-09-18, reviewing #161 against the live schema and backend source
 
 `DuplicateRecordsPage` builds `ENDPOINTS.PATIENT_MERGE_REQUESTS + '?status=' + status`. Nothing on
@@ -2090,7 +2090,7 @@ in 📥 Cross-Lane Asks and the issue is opened before the dropdown ships.
 ---
 
 ### FLAG-246 — Three smaller ones from #161's emergency-admission form
-**Severity:** P3 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P3 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #161, merged 2026-09-27.** Verified by @Qeeyat's re-review of `8104eec..9bf5038` (review 5331904389, approved), on a trial merge onto `develop`. All three: `resetPatientSelection` clears `patientBlocked`; `maxLength={1000}` on the reason; `withoutResendInstruction` on the generic error path.
 **Found:** 2026-09-18, reviewing #161
 
 Grouped because each is a couple of lines and they live in one component.
@@ -2203,21 +2203,12 @@ went*.
 **Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #161 (2026-09-27)**. Backend #237 (FLAG-613) made `?status=` a real filter and closed #225. `DuplicateRecordsPage` sends it again, and the page-only note and the client-side filter are removed. Two tests assert the param is sent for a status and dropped for "All statuses"; both were RED against the client-side version. ⚠️ **Needs backend #237 deployed to the tier this build talks to.** An older backend ignores the param and shows the whole queue under a status heading.
 **Raised:** 2026-09-26, fixing FLAG-245 on #161 (review 5325820800 by @Qeeyat)
 
-`GET /patients/merge-requests/` ignores `?status=` — `PatientMergeRequestViewSet` declares no
-`filterset_fields`/`filterset_class` and `get_queryset` reads no query params; the live schema lists
-only `ordering`, `page`, `page_size`, `search` (FLAG-245). #161 no longer sends the param. The
-dropdown now filters **client-side over the current page** (`page_size=20`) and, when the queue spans
-more than one page, says so on screen ("Showing matches on page N of M only"). A matching row on
-another page is not found by the filter.
-
-Acceptable for beta: one hospital's duplicate queue is expected to fit on a page. Not acceptable once
-it doesn't.
-
-**Done when** the backend declares `filterset_fields = ['status']` on the viewset (needs an
-`api-request` issue: **backend [#225](https://github.com/HealthClouda/healthclouda-backend/issues/225)**,
-assigned @Ericmoore207, with a 📥 Cross-Lane row) and
-`DuplicateRecordsPage` sends `?status=` again, verified against the live schema, with the page-only
-note removed.
+**History, in one paragraph.** `GET /patients/merge-requests/` used to ignore `?status=` (no filterset,
+FLAG-245). So from 26 Sep #161 stopped sending it and filtered client-side over the page in hand,
+saying so when the queue ran past one page. Backend #237 (FLAG-613, closing #225) made the filter
+real on 27 Sep. The shortcut is gone: the dropdown asks the server, and `count` and the pages are the
+filtered queue's. Trimmed 27 Sep at @Qeeyat's suggestion, because the old body described the
+shortcut as current.
 
 ### FLAG-048 — An emergency patient keeps the nurse's description as their name: nobody can correct it from the frontend
 **Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**, by route (a). Backend #236 (FLAG-612) lets reception set name, date of birth and sex while the record is incomplete, including in the completing PATCH, and closes #226. The completion section now has those fields. They start **empty**, never prefilled with the description, and are sent only when filled in. The on-screen text now says an admin must correct them after completion. 4 tests, all RED against the previous section. ⚠️ Needs backend #236 on the tier. An older backend drops the fields with a 200, which is the original bug.

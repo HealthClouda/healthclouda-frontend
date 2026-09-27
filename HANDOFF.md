@@ -25,7 +25,6 @@
 | @Qeeyat | **FLAG-239 + FLAG-240** logged from the 14 Sep review of @Bastoh's 11 PRs, plus the backend #192 Cross-Lane row | `docs/flags-239-240-review-2026-09-14` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-14 | 🟡 **Docs only.** Claimed in this PR's own commit rather than a separate claim PR, which is FLAG-240's option (a), done deliberately |
 
 | @Bastoh | **Build 4 (frontend)** — who may discharge (nurse restricted to ABSCONDED/DECEASED), doctor pending-review queue, readable discharge summaries. **FLAG-045** reserved | `feat/discharge-outcome-review-and-summaries` | `src/components/dashboard/shared/DischargePanel.tsx`, `src/components/dashboard/doctor/DoctorDashboard.tsx`, doctor episode detail view, doctor complete-episode form | 2026-09-17 | 🟡 **Must not merge before the backend build-4 PR** (backend FLAG-592/FLAG-574 — `needs_doctor_review` fields, `doctor-review/` endpoint, `admission_summaries` not live until then) |
-| @Bastoh | **Build 2 (frontend), Part A + Part B** — emergency admission collapsed into one `emergency-admissions/` call (closes FLAG-243); duplicate-patient merge tool screens (flag/confirm/reject/undo). **FLAG-047** reserved | `feat/emergency-admission-single-call` | nurse ward-admission form, new emergency-admission path, new patient-merge-request screens (receptionist flag, org-admin queue) | 2026-09-18 | 🟡 In progress — Part A first (doctor UAT Monday) |
 
 | @Bastoh | **Apex landing copy** — em-dashes out of all visitor-facing wording, `hello@healthclouda.ng` → `info@healthclouda.com` (**sprint plan B6**) | `fix/landing-copy-email-contact` | `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/ContactForm.tsx`, the landing design source, `docs/FRONTEND_SPRINT_PLAN.md` | 2026-09-16 | 🟡 **Copy only — no component, route or contract change.** Claimed in this PR's own commit (FLAG-240 option (a)), as @Qeeyat did above. Paired with backend `feat/contact-form-email-notification`, which emails form submissions to the same address 
 
@@ -42,6 +41,8 @@
 
 > ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
 > 🔴 **2026-09-04 — this stacking guidance has a cost nobody had measured: a stacked child gets NO CI.** `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`, and a base change on retarget fires an event type the workflow does not listen for. **#100, #117 and #119 all merged into `develop` without a single CI job ever running on them** — verified 2026-09-04. Keep stacking; it is still the right pattern. But see **FLAG-230**, and do not read "no checks reported" as "not yet".
+
+*Cleared on merge — **2026-09-27**: **#161** Build 2 frontend (emergency admission in one call, FLAG-243; duplicate-record merge screens, FLAG-373) — approved by @Qeeyat on re-review, merged. FLAG-244/245/246 and FLAG-047 resolved by it.*
 
 *Cleared on merge — **2026-09-16/17**: **#155** Build 5 (idle sign-out, 12h session cap, duty-switch-as-off-only, FLAG-044) — merged, row above replaced with Build 4's claim.*
 
