@@ -3821,3 +3821,27 @@ change, not a frontend one — nothing in this build's contract exposes an alert
 change), and a doctor-facing view of who is in charge (out of scope per the brief: "wherever a ward is
 displayed and it fits naturally" — today that is the two ward-bearing screens, Org Admin and Nurse;
 the Doctor dashboard has no ward-level screen at all to add this to).
+
+### FLAG-052 — Completing an emergency record without a name locked the nurse's description in as the name
+**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `claude/pr-161-review-7fp39h` (2026-09-27)**
+**Raised:** 2026-09-27, @Qeeyat reviewing #164 (review 5332059212)
+
+The completion section had one button, and it always sent `registration_incomplete: false`. After
+that, reception cannot change the name (backend FLAG-612). The first-name hint said *"Leave blank
+if not known yet"*, which suggested the opposite. There was also a structural problem: reception
+could not record contact details or consent without completing the record. So a desk with the
+family's phone number and consent, but not yet the name, had two choices: leave consent unrecorded,
+or lock "man, ~40, brought in by police" in as the name.
+
+**Fix (owner decision 2026-09-27, options c + a):**
+- **"Save details"** sends what is known **without** `registration_incomplete`. The record stays
+  incomplete and the name stays writable. The backend already allowed this, and backend #240
+  (FLAG-615) pins it with tests.
+- **"Complete record"** needs a real first **and** last name, plus a phone or email. The screen says
+  which is missing.
+- The misleading hint is gone. A name reception already saved is prefilled; the description never
+  is. `emergency_admit()` always leaves `last_name` blank, so a non-blank last name marks a real one.
+
+**Tests:** 3 new, all RED against the previous section. Six existing completion tests now fill in a
+name before completing.
+

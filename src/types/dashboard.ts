@@ -565,7 +565,9 @@ export interface RecordCompletionUpdate {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relationship?: string;
-  registration_incomplete: false;
+  /** Send `false` to COMPLETE the record. Omit it to save without completing
+   *  (backend FLAG-615): the record stays incomplete and identity stays writable. */
+  registration_incomplete?: false;
   capture_consent?: boolean;
 }
 
