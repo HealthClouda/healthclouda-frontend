@@ -78,6 +78,8 @@ const stats = {
   patients_in_queue: 0,
   admissions_under_care: 3,
   completed_episodes_this_week: 0,
+  // FLAG-051: added by backend #197 for issue #158.
+  active_prescriptions: 7,
 };
 
 // Real appointment shape — FLAG-213, captured live 2026-08-19.
@@ -158,6 +160,24 @@ beforeEach(() => {
 function urlsFor(prefix: string) {
   return dataGetMock.mock.calls.map(c => String(c[0])).filter(u => u.startsWith(prefix));
 }
+
+// FLAG-051 — the Prescriptions tile is back, reading `active_prescriptions`
+// from the stats payload (backend #197), never by fetching prescriptions.
+describe('FLAG-051 — the Active Prescriptions tile', () => {
+  it('shows the count from the stats payload and opens the Prescriptions page', async () => {
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+
+    const tile = await screen.findByRole('button', { name: /Active Prescriptions/ });
+    expect(tile.textContent).toContain('7');
+    // The count comes from the stats payload: the overview must not pull
+    // prescription records (PHI) just to count them.
+    expect(urlsFor(ENDPOINTS.DOC_PRESCRIPTIONS)).toHaveLength(0);
+
+    fireEvent.click(tile);
+    expect((await screen.findAllByRole('heading', { name: 'Prescriptions' })).length).toBeGreaterThan(0);
+    await waitFor(() => expect(urlsFor(ENDPOINTS.DOC_PRESCRIPTIONS).length).toBeGreaterThan(0));
+  });
+});
 
 describe('FLAG-004 / E1 — the doctor overview stops sending params the backend ignores', () => {
   it('never requests ?status=OPEN — the enum is ACTIVE | COMPLETED, so OPEN matches nothing', async () => {

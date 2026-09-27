@@ -318,20 +318,18 @@ function OverviewPage({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard loading={!stats} label="Active Episodes"    value={stats?.active_episodes}     icon={<DocIcon />}    color="blue"   onClick={() => onNavigate('episodes')} />
         {/* FLAG-222: the field is `todays_appointments`, not `appointments_today`
             — same two words, other order, and this tile was blank because of it. */}
         <StatCard loading={!stats} label="Appointments Today" value={stats?.todays_appointments}  icon={<CalIcon />}    color="indigo" onClick={() => onNavigate('appointments')} />
         <StatCard loading={!stats} label="Pending Referrals"  value={stats?.pending_referrals}    icon={<ArrowIcon />}  color="amber"  onClick={stats?.pending_referrals ? () => onNavigate('referrals') : undefined} />
-        {/* Was "Prescriptions" reading `active_prescriptions`, which this endpoint
-            has never sent — permanently blank. There is no prescriptions count in
-            the payload; `/doctor/prescriptions/` has one, but reading it would pull
-            ~20 prescription records (PHI) into a page that shows none of them just
-            to render an integer. Asked for upstream. Meanwhile this tile shows a
-            real field, and Prescriptions stays reachable from the sidebar.
-
-            ✅ Clickable again (FLAG-040/042) — an "admissions" page now exists in
+        {/* FLAG-051: the Prescriptions tile is back. It was removed because
+            `active_prescriptions` did not exist and the only other route to the
+            number pulled prescription records (PHI) to count them. The backend
+            now sends it (issue #158). */}
+        <StatCard loading={!stats} label="Active Prescriptions" value={stats?.active_prescriptions} icon={<BeakerIcon />} color="green" onClick={() => onNavigate('prescriptions')} />
+        {/* ✅ Clickable again (FLAG-040/042) — an "admissions" page now exists in
             NAV, so `onNavigate('admissions')` lands where the label promises rather
             than on `episodes` (the earlier bug this comment used to warn against)
             or nowhere at all. Per the contract, the Admissions page's list and

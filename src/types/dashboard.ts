@@ -20,6 +20,11 @@
 export interface SuperadminStats {
   total_users: number;
   total_orgs: number;
+  // FLAG-051: added by the backend for issue #158 — organisations with
+  // is_active=True, and a count of patients (not episodes — `active_records`
+  // is an episode count). Verified in apps/superadmin/views.py on `develop`.
+  active_organizations: number;
+  total_patients: number;
   monthly_revenue?: number;
   active_records?: number;
   // Trend fields are all null on api-dev today; typed so nobody re-invents them.
@@ -95,14 +100,14 @@ export interface NurseStats {
 // `todays_appointments` — same words, other order) and `active_prescriptions`,
 // which does not exist at all. Two of the four tiles were permanently '—'.
 //
-// ⚠️ There is no prescriptions count in this payload. `/doctor/prescriptions/`
-// does carry `count: 10`, but reading it would mean pulling ~20 prescription
-// records — PHI — into a page that displays none of them, purely to render one
-// integer. Asked for upstream instead; see FLAG-222.
+// FLAG-051: `active_prescriptions` now exists (backend #197, for issue #158):
+// this doctor's ACTIVE prescriptions at this org, as a count — so the tile no
+// longer needs `/doctor/prescriptions/` (and its PHI) to render one integer.
 export interface DoctorStats {
   active_episodes: number;
   todays_appointments: number;
   pending_referrals: number;
+  active_prescriptions: number;
   patients_in_queue?: number;
   admissions_under_care?: number;
   completed_episodes_this_week?: number;

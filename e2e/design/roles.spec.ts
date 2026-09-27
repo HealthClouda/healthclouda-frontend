@@ -143,7 +143,8 @@ const ROLES: readonly RoleSpec[] = [
     // "Admissions Under Care" (`admissions_under_care`, genuinely returned).
     // `knownStatBug` is removed per this file's own convention: the test now
     // passes for real instead of being inverted.
-    tiles: ['Active Episodes', 'Appointments Today', 'Pending Referrals', 'Admissions Under Care'],
+    // FLAG-051: `active_prescriptions` exists now (backend #197), so the tile is back.
+    tiles: ['Active Episodes', 'Appointments Today', 'Pending Referrals', 'Active Prescriptions', 'Admissions Under Care'],
     mobile: 'gate',
   },
   {

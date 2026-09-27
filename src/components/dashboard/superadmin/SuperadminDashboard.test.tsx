@@ -40,7 +40,10 @@ const user = {
 // Was `{total_organizations, active_organizations, total_users, total_patients}`:
 // three of those four fields do not exist, so three tiles rendered '—' against
 // real data while this fixture kept the tests green.
-const stats = { total_users: 4382, total_orgs: 27, monthly_revenue: 0, active_records: 900 };
+const stats = {
+  total_users: 4382, total_orgs: 27, active_organizations: 25, total_patients: 3106,
+  monthly_revenue: 0, active_records: 900,
+};
 
 const activeOrg = {
   id: 'org-1', org_id: 'HCL-NG-DEMO-01', name: 'Demo Clinic', slug: 'demo-clinic', org_type: 'CLINIC',
@@ -339,13 +342,17 @@ describe('FLAG-222 — stat tiles must read the fields the API actually sends', 
     expect(screen.queryByText('—')).not.toBeInTheDocument();
   });
 
-  it('does not show tiles the endpoint cannot populate', () => {
-    // "Active Orgs" and "Total Patients" were removed rather than left blank:
-    // there is no active-orgs field (/org/?is_active= is silently ignored) and
-    // active_records is NOT a patient count (18 vs /patients/ count 30).
+  // FLAG-051 — the two tiles removed under FLAG-222 are back: the backend now
+  // sends `active_organizations` and `total_patients` (issue #158). Each tile
+  // must read its own field; in particular Total Patients must not fall back
+  // to `active_records`, which counts episodes.
+  it('shows Active Organisations and Total Patients from their own fields', async () => {
     render(<SuperadminDashboard user={user} initialStats={stats} />);
 
-    expect(screen.queryByText('Active Orgs')).not.toBeInTheDocument();
-    expect(screen.queryByText('Total Patients')).not.toBeInTheDocument();
+    const activeOrgs = await screen.findByText('Active Organisations');
+    expect(activeOrgs.closest('div')?.parentElement?.textContent).toContain('25');
+    const patients = screen.getByText('Total Patients');
+    expect(patients.closest('div')?.parentElement?.textContent).toContain('3106');
+    expect(patients.closest('div')?.parentElement?.textContent).not.toContain('900');
   });
 });
