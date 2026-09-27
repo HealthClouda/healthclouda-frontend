@@ -242,3 +242,43 @@ describe('FLAG-231 — overview stat tiles read fields the endpoint actually pub
     }
   });
 });
+
+/**
+ * FLAG-247 — the My Health table read the Doctor's episode shape.
+ *
+ * `GET /episodes/` is `EpisodeList` in the live schema (api-dev, 2026-09-26):
+ * the complaint arrives as `chief_complaint_summary` and the close date as
+ * `episode_end`. The page read `chief_complaint` and `closed_at`, which exist
+ * only on `/doctor/episodes/`'s shape (and `closed_at` not even there), so both
+ * columns rendered '—' for every patient. That looks like empty data, which is
+ * why only the rendered baseline gave it away.
+ */
+describe('FLAG-247 — My Health renders the published EpisodeList shape', () => {
+  // Published `EpisodeList` item: every field, and only those fields.
+  const episode = {
+    id: 'b0456b0d-1111-4c1c-9d1a-2f6c1b7e0a01',
+    patient: { id: 'p1', healthclouda_id: 'HCL-0001', first_name: 'Chidi', last_name: 'Nwosu' },
+    organization: { id: 'o1', name: 'Demo Clinic', org_id: 'ORG-1' },
+    episode_type: 'OUTPATIENT',
+    chief_complaint_summary: 'Recurring headaches',
+    diagnosis_summary: '',
+    status: 'COMPLETED',
+    episode_start: '2026-08-27T09:00:00Z',
+    episode_end: '2026-08-29T15:00:00Z',
+  };
+
+  it('shows the complaint from chief_complaint_summary and the close date from episode_end', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path.startsWith(ENDPOINTS.EPISODES)
+        ? Promise.resolve({ count: 1, next: null, previous: null, results: [episode] })
+        : Promise.resolve(emptyPage),
+    );
+
+    render(<PatientDashboard user={user} initialStats={stats} />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Health' }));
+
+    expect(await screen.findByText('Recurring headaches')).toBeInTheDocument();
+    expect(screen.getByText(/27 Aug 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/29 Aug 2026/)).toBeInTheDocument();
+  });
+});
