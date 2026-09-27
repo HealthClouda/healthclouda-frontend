@@ -1944,8 +1944,20 @@ change it claims, which is option (a).
 ---
 
 ### FLAG-242 — Discharge times ("Time of death", "Discovered at") are sent with no timezone and stored an hour late
-**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P2 · **Area:** Ward / Discharge · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED** (2026-09-16, @Bastoh, `629c0ef` on #150)
 **Found:** 2026-09-15, reviewing #150 against backend `develop` source
+
+> **Fixed in the shape the flag asked for — one shared module, not two copies.** `629c0ef`
+> (*"rework #150 per Qeeyat’s review"*) extracted `DischargePanel.tsx` and put the offset fix in its
+> `toDischargePayloadValue`, so the nurse and doctor discharge forms are the same component and the
+> conversion happens once. Tests on both sides: `DoctorDashboard.test.tsx:989` and
+> `NurseDashboard.test.tsx:1463`, each asserting the sent value is **not** the raw `datetime-local`
+> string. Verified on `develop` 2026-09-18 — `git grep datetime-local` finds no second copy.
+>
+> ⚠️ **This entry read OPEN for two days after it was fixed.** Logged here because the same review
+> that fixed it (#150) did not come back to close the flag, and #159 then cited FLAG-242 as a live
+> lesson while its fix was already merged. The reviewer who raises a flag is usually the only person
+> watching for the commit that closes it.
 
 ⚠️ **Numbered 242, not 241.** #150 (unmerged) already writes a withdrawn FLAG-241 into this file.
 
@@ -2004,6 +2016,136 @@ None of those is in `apps/patients`.
 - The backend guards episode creation (a Cross-Lane / `api-request` ask).
 - The emergency form checks first, or closes the episode on this refusal.
 - At minimum, the notice tells the nurse an episode was opened and needs closing.
+
+---
+
+### FLAG-244 — Every 409 on a merge confirm is reported to the admin as "Escalated to a superadmin"
+**Severity:** P2 · **Area:** Org Admin / Duplicate records · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-18, reviewing #161 against backend `origin/develop` source
+
+`DuplicateRecordsPage` (`OrgAdminDashboard.tsx`) decides it is looking at an escalation from the
+status code and the action alone:
+
+```ts
+const escalated = err instanceof ClientApiError && err.status === 409 && action === 'confirm';
+```
+
+**`confirm` returns 409 for three different refusals** (`apps/patients/merge_views.py:186-204`, read
+from `origin/develop` 2026-09-18):
+
+| Exception | Body | What actually happened |
+|---|---|---|
+| `MergeHistoryElsewhere` | the **full serialized record** (now `ESCALATED`) + `error` | a superadmin really has been notified |
+| `MergeAlreadyResolved` | `{error: "This merge is already merged."}` | nothing happened; the queue is stale |
+| `MergeClinicalConflict` | `{error: …}` | refused; a clinician has to settle it |
+
+The last two are shown under the heading **"Escalated to a superadmin"**, with the backend's
+sentence as the explanation, and the queue is refetched as though it had changed. So an admin
+confirming a row a colleague merged a minute ago is told a superadmin is now handling it. Nobody was
+told anything.
+
+🎯 **This is the same line PR #161 draws for itself in Part A** — it deliberately refuses to tell a
+nurse an override is audited when it is not (backend FLAG-601). The merge screen tells an admin a
+clinical record has moved to another authority when it has not.
+
+**The discriminator is already present and already typed.** The catch block declares
+`body as { error?, resolution_note?, status? }` and never reads `status`. Only the
+`MergeHistoryElsewhere` body carries it.
+
+**Done when** the escalation branch is entered only for a body whose `status === 'ESCALATED'`, and
+the other two 409s surface as what they are (the row is stale → refetch and say so; a clinical
+conflict → the backend's sentence, without the superadmin claim). A test for each of the three 409
+bodies, since all three are one status code apart from each other.
+
+---
+
+### FLAG-245 — The org admin's "Filter by merge status" dropdown sends a query param the backend ignores
+**Severity:** P2 · **Area:** Org Admin / Contract · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-18, reviewing #161 against the live schema and backend source
+
+`DuplicateRecordsPage` builds `ENDPOINTS.PATIENT_MERGE_REQUESTS + '?status=' + status`. Nothing on
+the backend reads it:
+
+- `PatientMergeRequestViewSet` sets **no `filterset_fields` and no `filterset_class`**
+  (`apps/patients/merge_views.py:109-131`). `DjangoFilterBackend` is a project-wide default
+  (`healthclouda/settings/base.py:297`), so with no filterset it filters nothing.
+- `get_queryset` org-scopes and does nothing else — it does **not** read `request.query_params`,
+  which is what makes this different from `?status=ACTIVE` on `/ward/admissions/` (#150), where
+  `get_queryset` really does read it by hand.
+- The live schema documents exactly four params on `GET /patients/merge-requests/` — `ordering`,
+  `page`, `page_size`, `search` (fetched 2026-09-18, HTTP 200).
+
+DRF drops the unknown param silently, so **every option in the dropdown returns the identical
+queue** and the admin has no way to tell. No test covers the dropdown, so the suite is green on a
+control that does nothing.
+
+⚠️ **`CLAUDE.md` names this exact bug class** — *"Invented query params are a recurring bug class
+here… the UI shows wrong data with no error."* Logging it as its own flag rather than folding it
+into FLAG-244 because the fix is a choice, not a correction: either filter client-side over the page
+we already hold, or ask the backend for `filterset_fields = ['status']` via an `api-request` issue.
+
+**Done when** the filter either filters, or is removed. If the backend route is taken, the row goes
+in 📥 Cross-Lane Asks and the issue is opened before the dropdown ships.
+
+---
+
+### FLAG-246 — Three smaller ones from #161's emergency-admission form
+**Severity:** P3 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** OPEN
+**Found:** 2026-09-18, reviewing #161
+
+Grouped because each is a couple of lines and they live in one component.
+
+1. **The deceased hard stop is never cleared when the patient changes.** `resetPatientSelection()`
+   clears `patient`, `newPatient`, `description`, `statedHclId`, `genderWarning` and `doctorWarning`
+   — but **not `patientBlocked`**, which replaces the entire rest of the form. So after a deceased
+   refusal, "Change patient" visibly does nothing: the nurse picks a different patient and still
+   faces the previous patient's stop. The only way out is to close and reopen the panel (the
+   `emergencyKey` remount). Pre-existing behaviour, but the new helper clears its two siblings and
+   not this one, which reads as deliberate. **Done when** `resetPatientSelection` clears it too.
+
+2. **`reason` has no `maxLength` while the schema caps `presenting_complaint` at 1000.**
+   `description` (100) and `stated_hcl_id` (64) both match their caps; this one does not, so a long
+   reason is only refused after submit. **Done when** the textarea carries the cap, like its
+   siblings.
+
+3. **`withoutResendInstruction` is applied only inside `GenderOverrideWarning`.** If a gender or
+   on-duty refusal recurs when `override` was already sent, the branch falls through to
+   `setFormError(message)` and the nurse is shown the backend's raw *"Resend with
+   `attending_doctor_override=true`"* — the instruction that is wrong on this route and loops for
+   ever (backend FLAG-601), which is precisely what the helper exists to hide. **Done when** the
+   generic `formError` path strips it too.
+
+
+---
+
+### FLAG-247 — The Patient "My Health" table reads `chief_complaint`, which `GET /episodes/` never sends
+**Severity:** P2 · **Area:** Patient portal / My Health · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-26, looking at the Patient T5 baselines before committing them
+
+`PatientDashboard.tsx:184` renders `ep.chief_complaint ?? '—'` for rows of
+`GET /episodes/?my=true`. The live schema (api-dev, measured 2026-09-26) documents that list as
+`PaginatedEpisodeListList` → **`EpisodeList`**: `id, patient, organization, episode_type,
+chief_complaint_summary, diagnosis_summary, status, episode_start, episode_end`. **There is no
+`chief_complaint` field.** So the column shows "—" on every row for every patient, and it looks like
+empty data, not a bug. You can see it in `patient-my-health-desktop-chromium-win32.png`: both
+episodes show "—".
+
+- **Why:** the page reuses the Doctor's `Episode` type (`types/dashboard.ts:361`), which is
+  shaped for `/doctor/episodes/` (`DoctorEpisodeList`, which *does* send `chief_complaint`). The
+  Nurse dashboard reads the same `/episodes/` endpoint correctly via `chief_complaint_summary`
+  (`NurseDashboard.tsx:647`, type at `types/dashboard.ts:899`), so the right shape already exists
+  in the repo.
+- **Stale comment beside it:** `types/dashboard.ts:359-360` still says patients *"cannot sign in
+  (FLAG-210), so nobody has captured it. Verify and remove the fallback once they can."* Patients
+  can sign in (#100, 3 Sep), and the shape is now captured in the schema.
+- **Don't commit the five untracked Patient baselines until this is fixed.** Otherwise they save
+  the "—" as the expected render, and the fix then shows up as a visual regression.
+- Related, not the same: **FLAG-226** (`?my=true` is still not a documented param on `/episodes/`;
+  the schema lists only `ordering, page, page_size, search`).
+
+**Done when** the My Health table is typed against `EpisodeList` and reads
+`chief_complaint_summary`, with a test whose fixture has the published shape, and the Patient
+baselines are captured after the fix.
 
 ---
 
@@ -3648,3 +3790,43 @@ whoever is building the backend PR whether this was an intentional omission or a
 
 **Done when:** the backend build-4 PR merges, both halves are verified against each other on `api-dev`,
 and FLAG-050 is either resolved (the field lands) or explicitly decided against (the label stays generic).
+
+### FLAG-046 — the ward rota: who is on which ward, and who is in charge (build 6, frontend half)
+**Severity:** P1 · **Area:** Ward · **Owner:** @Bastoh · **Status:** 🔨 **IN FLIGHT** — branch `feat/ward-rota`
+**Raised:** 2026-09-17, owner's build-6 assignment. Backend counterpart built in parallel (contract fixed
+2026-09-17, `ward.Shift`; not on `develop` at time of writing).
+
+**On the ward.** There is no nurse-to-ward assignment and no rota anywhere (grep-verified, backend
+FLAG-567): nobody can see who is responsible for a ward on a given shift, then or months later, and
+ward alerts go to every active nurse in the whole hospital rather than the nurses actually on that ward.
+
+**Owner's decisions (2026-09-17):** the rota NAMES and ROUTES; it never BLOCKS care — any nurse can
+still admit, discharge or accept a request, rostered or not. The org admin plans shifts; the nurse
+currently in charge can hand over to another nurse on that ward. Shifts carry times and are kept as
+HISTORY (ward, nurse, start, end, in-charge), never deleted by the passage of time. "Rostered" means
+on the ward — alerts reach rostered nurses regardless of session idle state (build 5's 15-minute rule
+governs sessions, not ward alerts).
+
+**Built this half:**
+- `WardRotaPanel` (org admin, `src/components/dashboard/org-admin/WardRotaPanel.tsx`) — a ward's full
+  shift history (upcoming AND past) with add/edit/remove, wired from a "Manage rota" control on each
+  ward card in `OrgAdminDashboard`'s Wards & Beds page.
+- `WardOnDutyList` (nurse, `src/components/dashboard/shared/WardOnDutyList.tsx`) — "who's on this ward
+  now", queried with `?ward_id=&current=true` (server-side, not a client-side scan of the whole rota),
+  the in-charge nurse marked, and a "Hand over" control visible ONLY to the in-charge nurse herself.
+- `localDateTimeToISOString` (`src/lib/utils.ts`) — the FLAG-242 lesson (a `datetime-local` input
+  carries no timezone) extracted from `DischargePanel`'s `toDischargePayloadValue` into a reusable
+  helper, so the rota's add/edit-shift form gets it without touching the discharge code.
+
+**Positive control, per the brief's own warning that this is the likely failure mode:**
+`NurseDashboard.test.tsx`'s "positive control" describe block puts a nurse rostered NOWHERE (the
+`?current=true` response is empty for her, everywhere) and asserts Discharge, Accept and
+Admit Patient/Emergency admission are all still present and enabled. Confirmed this control actually
+catches a regression: temporarily gated the Discharge button on a fake condition, watched the control
+fail, then reverted.
+
+**Not yet wired:** ward alerts reaching only rostered nurses (that is a backend delivery-routing
+change, not a frontend one — nothing in this build's contract exposes an alerts-recipient endpoint to
+change), and a doctor-facing view of who is in charge (out of scope per the brief: "wherever a ward is
+displayed and it fits naturally" — today that is the two ward-bearing screens, Org Admin and Nurse;
+the Doctor dashboard has no ward-level screen at all to add this to).
