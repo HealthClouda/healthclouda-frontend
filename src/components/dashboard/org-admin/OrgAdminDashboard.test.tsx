@@ -617,16 +617,33 @@ describe('FLAG-373 — org admin works the duplicate-records queue', () => {
     await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
   });
 
-  // FLAG-245 — the backend ignores `?status=` on this path (no filterset, and
-  // `get_queryset` reads no params), so the filter must never be sent and
-  // must actually narrow what is shown.
-  it('filters by status on the client and never sends the ignored ?status= param', async () => {
+  // FLAG-047 — backend #237 made `?status=` a real filter, so the server
+  // filters: the list, the count and the pages are the filtered queue's. The
+  // screen renders what the server returns rather than re-filtering the page.
+  it('asks the server for the chosen status and shows what comes back', async () => {
     await openQueue();
+    dataGetMock.mockClear();
+    dataGetMock.mockResolvedValue(envelopeOf([merged]));
     fireEvent.change(screen.getByLabelText('Filter by merge status'), { target: { value: 'MERGED' } });
 
     await waitFor(() => expect(screen.queryByText('Aminat Yusuf')).not.toBeInTheDocument());
     expect(screen.getByText('Chidinma Okeke')).toBeInTheDocument();
-    expect(screen.queryByText('Bolanle Ade')).not.toBeInTheDocument();
+    const paths = dataGetMock.mock.calls.map(([path]) => String(path)).filter((p) => p.includes('merge-requests'));
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) expect(path).toContain('status=MERGED');
+    // Page 1 of the filtered queue, not the page the unfiltered list was on.
+    for (const path of paths) expect(path).not.toMatch(/[?&]page=/);
+  });
+
+  it('drops the param again for "All statuses"', async () => {
+    await openQueue();
+    fireEvent.change(screen.getByLabelText('Filter by merge status'), { target: { value: 'MERGED' } });
+    await waitFor(() => expect(dataGetMock.mock.calls.some(([p]) => String(p).includes('status=MERGED'))).toBe(true));
+    dataGetMock.mockClear();
+
+    fireEvent.change(screen.getByLabelText('Filter by merge status'), { target: { value: '' } });
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
     for (const [path] of dataGetMock.mock.calls) {
       if (String(path).includes('merge-requests')) expect(String(path)).not.toContain('status=');
     }
