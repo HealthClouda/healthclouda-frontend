@@ -3261,6 +3261,8 @@ Those three tiles now show real fields under the backend's own names (**Active R
 - [x] `total_orgs` wired to the Organisations tile.
 - [ ] An `api-request` filed for a real `active_organizations` and a real patient count — or the two
       tiles are removed rather than shown permanently blank.
+      → **2026-09-27 (@Bastoh):** both fields landed (backend issue #158, closed 26 Sep). The tiles
+      are restored under **FLAG-051**.
 - [ ] A test that fails against the **captured** payload above rather than against our own type.
 
 ---
@@ -4023,6 +4025,27 @@ change, not a frontend one — nothing in this build's contract exposes an alert
 change), and a doctor-facing view of who is in charge (out of scope per the brief: "wherever a ward is
 displayed and it fits naturally" — today that is the two ward-bearing screens, Org Admin and Nurse;
 the Doctor dashboard has no ward-level screen at all to add this to).
+
+### FLAG-051 — Three stat tiles removed under FLAG-222 were never put back after the backend added their fields
+**Severity:** P3 · **Area:** Superadmin + Doctor dashboards · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/restore-stat-tiles` (2026-09-27)**
+**Raised:** 2026-09-26, closing backend issue #158
+
+FLAG-222 removed three tiles rather than show them blank, because their fields did not exist:
+Superadmin *Active Orgs* and *Total Patients*, and Doctor *Prescriptions*. Backend issue #158 asked
+for them. All three landed: `active_organizations` and `total_patients` on `/superadmin/dashboard/`,
+and `active_prescriptions` on `/doctor/dashboard/stats/` (backend #197). The issue was closed on
+26 Sep. The frontend still carried comments saying the fields did not exist, so the tiles never came
+back.
+
+**Fix:** the three fields are typed as required (verified in backend source on `develop`) and the
+three tiles are back. *Total Patients* reads `total_patients`, never `active_records`, which counts
+episodes. *Active Prescriptions* reads the stats payload and opens the Prescriptions page; the
+overview still never fetches prescription records to count them. Both grids are now five columns at
+`lg`, so no row ends in an empty cell. `e2e/design/roles.spec.ts` lists the Doctor tile.
+
+**Tests:** two, both RED against the previous dashboards. The Superadmin tiles show their own field
+values and Total Patients is not `active_records`. The Doctor tile shows the payload's count, makes
+no `/doctor/prescriptions/` call from the overview, and navigates on click.
 
 ### FLAG-053 — Searching for a patient in the nurse's emergency panel reloaded the page
 **Severity:** P1 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/emergency-search-reloads-page` (2026-09-27)**
