@@ -39,6 +39,34 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-27 — Patient dashboard back to DASH-6 spec: brand blue and the HealthClouda ID (branch: `feat/patient-hcl-id-brand-blue`)
+
+**Goal:** product mockups for the QABF pitch showed the patient dashboard off-brand (teal banner and accents, where
+the whole system is blue) and, worse, carrying no HCL ID anywhere. Fix both in the product, not just in the mockup.
+
+**What I did:**
+- Welcome banner: `from-primary to-primary-dark` gradient with an HCL ID chip, which is what the DASH-6 design
+  already specified (`design_handoff_dashboards/README.md`: "gradient welcome banner (primary to primary-dark) with
+  HCL-ID chip"). The avatar is gone from the banner, matching the design.
+- Every other `teal-*` class on the patient dashboard moved to system tokens (`primary`, `primary-dark`, `chip`).
+- `app/patient/page.tsx` fetches `/patients/me/` alongside the stats (`Promise.all`); the component falls back to a
+  client fetch when the server render had none, same AUTH-6 pattern as the stats.
+- New narrow type `PatientMeProfile` (only the four fields read).
+
+**What I found:** `ENDPOINTS.PATIENT_ME` existed and nothing called it. `healthclouda_id` is on
+`PatientDetailSerializer` (backend `apps/patients/serializers.py:56`). The view is throttled `sensitive` (30/min),
+comfortably above one read per page load.
+
+**Decisions:** no placeholder when the ID cannot be read: a chip that says "unavailable" could be read as an ID
+value. Shimmer only while the fetch is in flight.
+
+**Verified:** 4 new tests RED against the old component, then green. Full suite 401/401 · tsc clean · lint clean ·
+build compiled (sandbox cannot reach Google Fonts, so the build was proven with fonts swapped locally, not
+committed; CI builds with the real fonts). Rendered locally with synthetic data at 414px. **Not** checked
+against the live schema (unreachable from the session): recheck with the first real patient capture, alongside FLAG-231.
+
+**Left undone / next:** the rest of DASH-6 (header HCL badge on wide screens, profile page) is still unbuilt.
+
 ### 2026-09-03 — The agent flow finished and used in anger: #161 verified and merged, and the two repos told apart (branches: `chore/claude-agent-definitions`, `feat/parity-d-e`, `docs/clear-161-and-flag-554` (backend))
 
 **Goal:** the session began with no context — a power cut on 2 Sep killed the previous one mid-branch,

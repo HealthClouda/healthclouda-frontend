@@ -2,7 +2,7 @@ import { requireDashboardUser } from '@/lib/auth-server';
 import { serverFetch } from '@/lib/server-fetch';
 import { ENDPOINTS, ROLES } from '@/lib/config';
 import { PatientDashboard } from '@/components/dashboard/patient/PatientDashboard';
-import type { PatientDashboardData } from '@/types/dashboard';
+import type { PatientDashboardData, PatientMeProfile } from '@/types/dashboard';
 
 /**
  * The patient portal — deliberately NOT org-scoped (FLAG-210).
@@ -23,7 +23,13 @@ import type { PatientDashboardData } from '@/types/dashboard';
 export default async function PatientPage() {
   const user = await requireDashboardUser(ROLES.PATIENT);
 
-  const stats = await serverFetch<PatientDashboardData>(ENDPOINTS.PATIENT_DASHBOARD);
+  // In parallel: the profile carries the patient's HealthClouda ID, which the
+  // welcome banner shows on first paint (DASH-6 spec). Both fall back to a
+  // client fetch in the component if the server render cannot get them.
+  const [stats, profile] = await Promise.all([
+    serverFetch<PatientDashboardData>(ENDPOINTS.PATIENT_DASHBOARD),
+    serverFetch<PatientMeProfile>(ENDPOINTS.PATIENT_ME),
+  ]);
 
-  return <PatientDashboard user={user} initialStats={stats} />;
+  return <PatientDashboard user={user} initialStats={stats} initialProfile={profile} />;
 }
