@@ -165,3 +165,19 @@ export function roleLabel(role: string): string {
   const canonical = ROLE_ALIASES[role.toLowerCase()] ?? role;
   return ROLE_LABELS[canonical] ?? role;
 }
+
+/**
+ * Strips the backend's trailing "Resend with <field>=true …" sentence before
+ * a warning reaches a clinician. It is an API instruction: they have a
+ * button, they are not composing a request by hand, and reading them a
+ * parameter name is noise mid-shift.
+ *
+ * (It was also *wrong* on the emergency route until backend #221 — FLAG-601:
+ * the on-duty refusal named `attending_doctor_override`, a field that route
+ * did not declare. It declares it now; see EmergencyAdmitForm and
+ * HandOverPanel.) Display-only — branch logic reads `details`, never this
+ * text.
+ */
+export function withoutResendInstruction(message: string): string {
+  return message.replace(/\s*Resend with \S+=true[^.]*\.\s*$/, '').trim() || message;
+}

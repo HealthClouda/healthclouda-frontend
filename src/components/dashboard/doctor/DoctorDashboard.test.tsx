@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DoctorDashboard } from './DoctorDashboard';
 import { ENDPOINTS } from '@/lib/config';
+import { formatDateTime } from '@/lib/utils';
 import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
 import type { DoctorAdmission } from '@/types/dashboard';
@@ -834,6 +835,12 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
     needs_doctor_review: false,
     doctor_reviewed_by_name: null,
     doctor_reviewed_at: null,
+    // An ACTIVE stay: no outcome yet, so the discharge details are empty.
+    discharge_outcome: '',
+    discharged_by_name: null,
+    deceased_at: null,
+    discovered_at: null,
+    destination: '',
   };
 
   // Build 4 (FLAG-045) — the doctor dashboard now fires TWO admission-list
@@ -894,6 +901,114 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
 
     fireEvent.click(screen.getByText('Admissions Under Care'));
     expect(await screen.findByText('Ngozi Eze')).toBeInTheDocument();
+  });
+
+  /**
+   * G-A2's handover half — POST /ward/admissions/{id}/reassign-doctor/
+   * {attending_doctor, attending_doctor_override} (AdmissionViewSet.
+   * reassign_doctor + ReassignDoctorSerializer, backend develop 2026-09-26).
+   * DOCTOR-only; the off-duty check is the shared soft two-step, 400 under
+   * `details.attending_doctor`.
+   */
+  describe('hand over from the doctor side', () => {
+    // GET /ward/attending-doctors/ — a BARE ARRAY (AttendingDoctorListView),
+    // on-duty first. 'd1' is the signed-in doctor; 'd2' already holds this
+    // admission.
+    const doctors = [
+      { id: 'd1', full_name: 'Dr. Emeka Okafor', staff_id: 'DOC-1', is_on_duty: true },
+      { id: 'd2', full_name: 'Dr. Bola Adeyemi', staff_id: 'DOC-2', is_on_duty: true },
+      { id: 'd3', full_name: 'Dr. Femi Adeyemi', staff_id: 'DOC-3', is_on_duty: false },
+    ];
+    const offDutyMessage = 'Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.';
+
+    async function openHandOver(admission: DoctorAdmission = doctorAdmission) {
+      dataGetMock.mockImplementation((path: string) => {
+        if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) return Promise.resolve(doctors);
+        if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
+          return Promise.resolve({ count: 0, results: [] });
+        }
+        if (path.startsWith(ENDPOINTS.ADMISSIONS)) return Promise.resolve({ count: 1, results: [admission] });
+        return Promise.resolve({ count: 0, results: [] });
+      });
+      render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+      await screen.findByText('Ngozi Eze');
+    }
+
+    it('hands over to a named doctor — POST .../reassign-doctor/ with no override', async () => {
+      dataActionMock.mockResolvedValue({ message: 'Attending doctor reassigned', admission: {} });
+      await openHandOver();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over Ngozi Eze' }));
+      const picker = await screen.findByLabelText('New attending doctor');
+      // The doctor who already holds it is not offered; the signed-in doctor is marked.
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Dr. Emeka Okafor (you)' })).toBeInTheDocument());
+      expect(screen.queryByRole('option', { name: 'Dr. Bola Adeyemi' })).not.toBeInTheDocument();
+
+      fireEvent.change(picker, { target: { value: 'd1' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Hand over' }).slice(-1)[0]);
+
+      await waitFor(() => {
+        expect(dataActionMock).toHaveBeenCalledWith(
+          ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(doctorAdmission.id),
+          'POST',
+          { attending_doctor: 'd1', attending_doctor_override: false },
+        );
+      });
+    });
+
+    it('offers "Assign doctor" on an unassigned admission', async () => {
+      await openHandOver({ ...doctorAdmission, attending_doctor: null, attending_doctor_name: null, needs_attending_doctor: true });
+      expect(screen.getByRole('button', { name: 'Assign a doctor for Ngozi Eze' })).toHaveTextContent('Assign doctor');
+    });
+
+    it('an off-duty doctor warns first, then resends with attending_doctor_override=true', async () => {
+      dataActionMock.mockRejectedValueOnce(
+        new ClientApiError(
+          400,
+          { error: `attending_doctor: ${offDutyMessage}`, code: 'BAD_REQUEST', details: { attending_doctor: [offDutyMessage] } },
+          `attending_doctor: ${offDutyMessage}`,
+        ),
+      );
+      await openHandOver();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over Ngozi Eze' }));
+      const picker = await screen.findByLabelText('New attending doctor');
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Dr. Femi Adeyemi' })).not.toBeDisabled());
+      fireEvent.change(picker, { target: { value: 'd3' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Hand over' }).slice(-1)[0]);
+
+      // The warning, without the API instruction.
+      expect(await screen.findByText('Dr. Femi Adeyemi is not currently on duty.')).toBeInTheDocument();
+      expect(dataActionMock).toHaveBeenCalledTimes(1);
+
+      dataActionMock.mockResolvedValueOnce({ message: 'Attending doctor reassigned', admission: {} });
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over anyway' }));
+      await waitFor(() => {
+        expect(dataActionMock).toHaveBeenLastCalledWith(
+          ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(doctorAdmission.id),
+          'POST',
+          { attending_doctor: 'd3', attending_doctor_override: true },
+        );
+      });
+    });
+
+    it('shows any other refusal as an error, not as the off-duty two-step', async () => {
+      const bad = 'attending_doctor must be a user with role DOCTOR.';
+      dataActionMock.mockRejectedValueOnce(
+        new ClientApiError(400, { error: `attending_doctor: ${bad}`, code: 'BAD_REQUEST', details: { attending_doctor: [bad] } }, bad),
+      );
+      await openHandOver();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hand over Ngozi Eze' }));
+      const picker = await screen.findByLabelText('New attending doctor');
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Dr. Femi Adeyemi' })).toBeInTheDocument());
+      fireEvent.change(picker, { target: { value: 'd3' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Hand over' }).slice(-1)[0]);
+
+      expect(await screen.findByText(bad)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Hand over anyway' })).not.toBeInTheDocument();
+    });
   });
 
   describe('discharge from the doctor side', () => {
@@ -1042,6 +1157,10 @@ describe('WARD-DOC-ADMISSIONS — pending doctor review (FLAG-045)', () => {
     doctor_reviewed_by_name: null,
     doctor_reviewed_at: null,
     discharge_outcome: 'DECEASED',
+    discharged_by_name: 'Amaka Uche',
+    deceased_at: '2026-09-16T21:40:00Z',
+    discovered_at: null,
+    destination: '',
   };
 
   // Derives "still pending" from `dataActionMock`'s own call history rather
@@ -1095,6 +1214,29 @@ describe('WARD-DOC-ADMISSIONS — pending doctor review (FLAG-045)', () => {
     // The row leaves the list once the mocked backend has recorded the
     // review — the section itself disappears rather than reading "reviewed".
     await waitFor(() => expect(screen.queryByText('Emeka Nnaji')).not.toBeInTheDocument());
+  });
+
+  // FLAG-050 — the doctor confirming a death sees who recorded it and when
+  // it happened, not only when it was entered.
+  it('says who recorded the death and the time of death', async () => {
+    mockPendingBackend();
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    expect(await screen.findByText(/recorded by Amaka Uche/)).toBeInTheDocument();
+    expect(screen.getByText(`Time of death: ${formatDateTime('2026-09-16T21:40:00Z')}`)).toBeInTheDocument();
+  });
+
+  it('says when an absconded patient was found missing', async () => {
+    mockPendingBackend([{
+      ...pendingDeceased, id: 'adm-pending-3', discharge_outcome: 'ABSCONDED',
+      deceased_at: null, discovered_at: '2026-09-16T06:15:00Z',
+    }]);
+    render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Admissions' }));
+
+    expect(await screen.findByText(`Found missing: ${formatDateTime('2026-09-16T06:15:00Z')}`)).toBeInTheDocument();
+    expect(screen.queryByText(/Time of death/)).not.toBeInTheDocument();
   });
 
   it('labels the action "Mark reviewed" for an ABSCONDED row', async () => {

@@ -322,6 +322,9 @@ export interface OrgVisiblePatient {
   city: string;
   state: string;
   is_active: boolean;
+  /** Created by an emergency admission and not yet completed by reception.
+   *  Filterable: `GET /patients/?registration_incomplete=true` (backend #236). */
+  registration_incomplete?: boolean;
 }
 
 // GET /ward/attending-doctors/ — apps/ward/serializers.py
@@ -525,6 +528,45 @@ export interface PatientDetail {
   // `EmergencyAdmissionSerializer.stated_hcl_id`: it grants nothing and links
   // nothing, so never render it as though it resolved to a real record.
   stated_hcl_id?: string;
+  // Derived from the DATA_ACCESS PatientConsent row (sync_patient_consent_flag),
+  // never written directly. False on every emergency-created record until
+  // someone captures consent — and EpisodeCreateSerializer refuses an ordinary
+  // episode for any patient without it (backend FLAG-602).
+  consent_given?: boolean;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+}
+
+/**
+ * PATCH /patients/{id}/ as a RECEPTIONIST completing an emergency-created
+ * record — PatientContactUpdateSerializer + RecordCompletionMixin (backend
+ * #221, FLAG-602/603), read from `develop` 2026-09-26.
+ *
+ * - `registration_incomplete` is clear-only: send `false`. Clearing it
+ *   re-arms the phone-when-no-email rule (`require_contact_key`), which
+ *   answers 400 `details.phone` if neither is present.
+ * - `capture_consent: true` writes the DATA_ACCESS consent ROW; the backend's
+ *   signal derives `consent_given` from it. There is no `false` case —
+ *   withdrawal is a different act (FLAG-374).
+ * - Name, date of birth and sex are accepted ONLY while the stored record is
+ *   still `registration_incomplete` — including in the PATCH that clears it
+ *   (backend #236, FLAG-612, closing #226). On a complete record a change is
+ *   a 400 under `details.<field>` (FLAG-048).
+ */
+export interface RecordCompletionUpdate {
+  first_name?: string;
+  last_name?: string;
+  /** YYYY-MM-DD; a future date is refused. */
+  date_of_birth?: string;
+  gender?: 'M' | 'F' | 'O';
+  phone?: string;
+  email?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  registration_incomplete: false;
+  capture_consent?: boolean;
 }
 
 /**
@@ -1062,15 +1104,20 @@ export interface AdmissionDetail {
   needs_doctor_review: boolean;
   doctor_reviewed_by_name: string | null;
   doctor_reviewed_at: string | null;
-  // ⚠️ NOT in the fixed contract's list of what section A adds — that text
-  // names only the three fields above. Read as optional/tolerant: if the
-  // backend build-4 PR does add `discharge_outcome` to
-  // `AdmissionListSerializer`/`AdmissionDetailSerializer` (today, per
-  // `apps/ward/serializers.py` on `origin/develop`, NEITHER exposes it —
-  // it is write-only, on `DischargeSerializer`), the pending-reviews row
-  // below can label itself by outcome; if not, it falls back to a generic
-  // label rather than guessing. Flagged FLAG-045 for the backend lane.
-  discharge_outcome?: string;
+  // FLAG-050: on the list and the detail since backend #215 (FLAG-592) —
+  // `AdmissionListSerializer.Meta.fields`, verified on `develop` 2026-09-27.
+  // '' while the stay is ACTIVE.
+  discharge_outcome: string;
+  /** Who recorded the discharge; null while ACTIVE. */
+  discharged_by_name: string | null;
+  // Backend #233 (FLAG-609): stored since build 4 but write-only until then.
+  // Always present; null / '' when the outcome has no such detail.
+  /** DECEASED: when the death happened, as recorded (not when it was entered). */
+  deceased_at: string | null;
+  /** ABSCONDED: when the patient was found to be missing. */
+  discovered_at: string | null;
+  /** TRANSFERRED_OUT: where the patient went. */
+  destination: string;
 }
 
 // GET /ward/admissions/?mine=true — the doctor admissions page (FLAG-040/042,
@@ -1089,7 +1136,8 @@ export type DoctorAdmission = Pick<
   | 'admission_reason' | 'discharged_at' | 'length_of_stay'
   | 'admission_source' | 'attending_doctor' | 'attending_doctor_name'
   | 'needs_attending_doctor' | 'needs_doctor_review' | 'doctor_reviewed_by_name'
-  | 'doctor_reviewed_at' | 'discharge_outcome'
+  | 'doctor_reviewed_at' | 'discharge_outcome' | 'discharged_by_name'
+  | 'deceased_at' | 'discovered_at' | 'destination'
 >;
 
 // POST /episodes/ response — apps/patients/views.py EpisodeViewSet.create:

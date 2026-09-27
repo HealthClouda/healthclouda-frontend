@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   ReceptionistStats, CheckIn, Appointment, Referral, PatientSearchResult, OnDutyDoctor, Paginated,
-  PatientDetail, NewPatient, PatientCreateResponse, OrgVisiblePatient,
+  PatientDetail, NewPatient, PatientCreateResponse, OrgVisiblePatient, RecordCompletionUpdate,
 } from '@/types/dashboard';
 
 function GridIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>; }
@@ -658,7 +658,7 @@ function RegisterPatientPanel({ open, onClose, onRegistered }: {
  * which, so the form makes it a choice rather than an ordering convention
  * nobody will remember at a busy front desk.
  */
-function FlagDuplicateSection({ patient }: { patient: PatientSearchResult | null }) {
+function FlagDuplicateSection({ patient }: { patient: PatientRef | null }) {
   const { toast } = useToast();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<OrgVisiblePatient[]>([]);
@@ -844,7 +844,183 @@ function FlagDuplicateSection({ patient }: { patient: PatientSearchResult | null
   );
 }
 
-function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResult | null; onClose: () => void }) {
+// ─── Complete an emergency record (backend FLAG-602/603) ──────────
+//
+// A nurse can admit a walk-in with no record at all (build 2): the record is
+// created with her description as the first name, no contact details, and NO
+// consent. Two things follow, and this section is the only screen that
+// resolves either:
+//  1. The phone-when-no-email rule is waived while `registration_incomplete`
+//     is set. Completing the record clears it, so the rule applies again.
+//  2. `EpisodeCreateSerializer` refuses an ordinary episode for any patient
+//     without consent — so the patient, once discharged, could never be seen
+//     again as an outpatient. `capture_consent` records it as a consent ROW.
+//
+// Consent is an explicit, unticked checkbox, never implied by saving: it is a
+// statement about what the patient agreed to, and reception is attesting it.
+//
+// FLAG-048: reception may set the name, date of birth and sex while the
+// record is still incomplete — including in the PATCH that completes it
+// (backend #236). Once complete, only an organisation admin can change them,
+// so this is the one moment reception can replace the nurse's description.
+// The fields start EMPTY, not prefilled with the description: it is not a
+// name, and saving it back as one is exactly what this screen exists to stop.
+function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail; onCompleted: () => void }) {
+  const { toast } = useToast();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState(detail.date_of_birth ?? '');
+  const [gender, setGender] = useState<'' | 'M' | 'F' | 'O'>(
+    detail.gender === 'M' || detail.gender === 'F' || detail.gender === 'O' ? detail.gender : '',
+  );
+  const [phone, setPhone] = useState(detail.phone ?? '');
+  const [email, setEmail] = useState(detail.email ?? '');
+  const [contactName, setContactName] = useState(detail.emergency_contact_name ?? '');
+  const [contactPhone, setContactPhone] = useState(detail.emergency_contact_phone ?? '');
+  const [contactRelationship, setContactRelationship] = useState(detail.emergency_contact_relationship ?? '');
+  const [consent, setConsent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // The rule the backend re-arms on completion — checked here too so the
+  // button says why it is disabled instead of a round trip saying it.
+  const hasContact = !!phone.trim() || !!email.trim();
+  const alreadyConsented = !!detail.consent_given;
+
+  async function complete() {
+    if (saving || !hasContact) return;
+    setSaving(true);
+    setFormError(null);
+    const body: RecordCompletionUpdate = { registration_incomplete: false };
+    // Omit blanks rather than sending '' — email normalises '' to NULL, but
+    // there is no reason to write a field nobody filled in. A blank name
+    // leaves the description in place: the family may not know it yet.
+    if (firstName.trim()) body.first_name = firstName.trim();
+    if (lastName.trim()) body.last_name = lastName.trim();
+    if (dateOfBirth) body.date_of_birth = dateOfBirth;
+    if (gender) body.gender = gender;
+    if (phone.trim()) body.phone = phone.trim();
+    if (email.trim()) body.email = email.trim();
+    if (contactName.trim()) body.emergency_contact_name = contactName.trim();
+    if (contactPhone.trim()) body.emergency_contact_phone = contactPhone.trim();
+    if (contactRelationship.trim()) body.emergency_contact_relationship = contactRelationship.trim();
+    if (consent) body.capture_consent = true;
+    try {
+      await apiAction(ENDPOINTS.PATIENT(detail.id), 'PATCH', body);
+      toast.success(consent || alreadyConsented
+        ? 'Record completed'
+        : 'Record completed — consent still not recorded');
+      onCompleted();
+    } catch (e) {
+      setFormError(readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not complete the record'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="complete-record-heading" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-3 space-y-3">
+      <div>
+        <h3 id="complete-record-heading" className="text-xs font-semibold text-warning-strong">
+          Complete this record — created during an emergency admission
+        </h3>
+        <p className="text-[11.5px] text-text-soft mt-1">
+          Recorded as <span className="font-medium text-ink">{detail.first_name} {detail.last_name}</span>.
+          Enter the patient&apos;s real name if it is known. Once the record is complete, only an
+          organisation administrator can change the name, date of birth or sex.
+        </p>
+        {detail.stated_hcl_id && (
+          <p className="text-[11.5px] text-text-soft mt-1">
+            HealthClouda ID given at admission: <span className="font-mono">{detail.stated_hcl_id}</span> — a note
+            only; it is not linked to any record.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="First name" hint="Leave blank if not known yet">
+          <input value={firstName} onChange={e => setFirstName(e.target.value)} maxLength={100} className={inputCls} />
+        </Field>
+        <Field label="Last name">
+          <input value={lastName} onChange={e => setLastName(e.target.value)} maxLength={100} className={inputCls} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Date of birth">
+          <input type="date" value={dateOfBirth} max={todayISO()} onChange={e => setDateOfBirth(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Gender">
+          <select value={gender} onChange={e => setGender(e.target.value as '' | 'M' | 'F' | 'O')} className={inputCls}>
+            <option value="">Not specified</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="O">Other</option>
+          </select>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Patient phone">
+          <input value={phone} onChange={e => setPhone(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Patient email">
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      {!hasContact && (
+        <p className="text-[11px] text-text-soft">A phone number is required when there is no email.</p>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Emergency contact name">
+          <input value={contactName} onChange={e => setContactName(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Emergency contact phone">
+          <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      <Field label="Relationship to patient">
+        <input value={contactRelationship} onChange={e => setContactRelationship(e.target.value)} className={inputCls} />
+      </Field>
+
+      {alreadyConsented ? (
+        <p className="text-[11.5px] text-text-soft">Consent to data access is already recorded.</p>
+      ) : (
+        <div className="space-y-1">
+          <label className="flex items-start gap-2 text-[12.5px] text-ink">
+            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5" />
+            <span>The patient (or their representative) has consented to their records being held and accessed here.</span>
+          </label>
+          {!consent && (
+            <p className="text-[11px] text-text-soft">
+              Without consent this patient can&apos;t be booked for an ordinary visit after discharge.
+            </p>
+          )}
+        </div>
+      )}
+
+      {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+
+      <button
+        onClick={() => void complete()}
+        disabled={saving || !hasContact}
+        className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+      >
+        {saving ? 'Saving…' : 'Complete record'}
+      </button>
+    </section>
+  );
+}
+
+// What the panel needs to open a patient: a search row or a row from the
+// records-to-complete list both carry these.
+type PatientRef = Pick<PatientSearchResult, 'id' | 'healthclouda_id' | 'first_name' | 'last_name'>;
+
+function PatientActionsPanel({ patient, onClose, onRecordCompleted }: {
+  patient: PatientRef | null;
+  onClose: () => void;
+  onRecordCompleted?: () => void;
+}) {
   const { toast } = useToast();
   const { data: detail, loading, error, refetch } =
     useApi<PatientDetail>(patient ? ENDPOINTS.PATIENT(patient.id) : null);
@@ -936,13 +1112,24 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
     <SlidePanel
       open={!!patient}
       onClose={onClose}
-      title={patient ? `${patient.first_name} ${patient.last_name}` : ''}
+      // The loaded record, not the row it was opened from: completing a record
+      // can replace the name, and the header should say who it now is.
+      title={detail ? `${detail.first_name} ${detail.last_name}` : patient ? `${patient.first_name} ${patient.last_name}` : ''}
       subtitle={patient?.healthclouda_id}
     >
       {loading ? <ShimmerRows count={3} /> : error ? (
         <ErrorState message={error} onRetry={refetch} />
       ) : detail ? (
         <div className="space-y-5">
+          {detail.registration_incomplete && (
+            // Keyed on the id so a different patient never inherits this
+            // one's half-typed contact details or ticked consent.
+            <CompleteRecordSection
+              key={detail.id}
+              detail={detail}
+              onCompleted={() => { refetch(); onRecordCompleted?.(); }}
+            />
+          )}
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <div className="text-xs text-text-soft">HealthClouda ID</div>
@@ -1047,13 +1234,75 @@ function PatientActionsPanel({ patient, onClose }: { patient: PatientSearchResul
   );
 }
 
+// ─── Records to complete (FLAG-049) ───────────────────────────────
+//
+// Emergency admissions create records reception has to finish: a real name,
+// contact details, consent. `GET /patients/?registration_incomplete=true`
+// (backend #236) lists them within this organisation's own patients, so the
+// desk no longer has to know a record exists before it can search for it.
+// Hidden when there are none — an empty queue is the normal state. The
+// parent re-keys it after a completion, which remounts it and re-reads the
+// list, so a finished record drops off without a manual refresh.
+function RecordsToCompleteSection({ onOpen }: { onOpen: (p: PatientRef) => void }) {
+  const { items, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<OrgVisiblePatient>(`${ENDPOINTS.PATIENTS}?registration_incomplete=true`, 10);
+
+  if (loading && !items.length) return null;
+  if (error) {
+    return (
+      <p role="alert" className="text-xs text-danger">
+        Could not load the records waiting to be completed.{' '}
+        <button onClick={refetch} className="underline font-medium">Try again</button>
+      </p>
+    );
+  }
+  if (!count) return null;
+  // A backend without #236 ignores the param and returns EVERY patient. Each
+  // row carries `registration_incomplete`, so a complete one here means the
+  // filter was not applied: show nothing rather than the whole patient list
+  // under a heading that says these are waiting.
+  if (items.some(p => p.registration_incomplete !== true)) return null;
+
+  return (
+    <section aria-labelledby="records-to-complete-heading" className="rounded-xl border border-warning/30 bg-warning-bg px-4 py-3 space-y-2">
+      <div>
+        <h3 id="records-to-complete-heading" className="text-sm font-semibold text-warning-strong">
+          Records to complete ({count})
+        </h3>
+        <p className="text-[11.5px] text-text-soft mt-0.5">
+          Created during an emergency admission. Add the patient&apos;s name, contact details and consent.
+        </p>
+      </div>
+      <ul className="divide-y divide-warning/20">
+        {items.map(p => (
+          <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0">
+              <div className="text-sm text-ink truncate">{p.first_name} {p.last_name}</div>
+              <div className="text-xs text-text-soft font-mono">{p.healthclouda_id}</div>
+            </div>
+            <button
+              onClick={() => onOpen(p)}
+              aria-label={`Complete the record for ${p.first_name} ${p.last_name}`.trim()}
+              className="shrink-0 text-xs font-medium text-primary-dark hover:underline"
+            >
+              Complete record
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalCount={count} pageSize={10} />
+    </section>
+  );
+}
+
 function PatientSearchPage() {
   const [query, setQuery] = useState('');
   const [searched, setSearched] = useState(false);
   const [patients, setPatients] = useState<PatientSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
-  const [selected, setSelected] = useState<PatientSearchResult | null>(null);
+  const [selected, setSelected] = useState<PatientRef | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
   const [justRegistered, setJustRegistered] = useState<RegisteredPatient | null>(null);
   const { toast } = useToast();
 
@@ -1089,6 +1338,8 @@ function PatientSearchPage() {
           Register patient
         </button>
       </div>
+
+      <RecordsToCompleteSection key={completedCount} onOpen={setSelected} />
 
       {/* The HCL-ID handout. `POST /patients/` DOES return the identifiers —
           nested under `patient` (backend #137, closed; see readCreatedPatient).
@@ -1235,7 +1486,12 @@ function PatientSearchPage() {
         one patient's form onto another's, the same class of bug as PR #130's
         referral-form state leak.
       */}
-      <PatientActionsPanel key={selected?.id ?? 'none'} patient={selected} onClose={() => setSelected(null)} />
+      <PatientActionsPanel
+        key={selected?.id ?? 'none'}
+        patient={selected}
+        onClose={() => setSelected(null)}
+        onRecordCompleted={() => setCompletedCount(n => n + 1)}
+      />
     </div>
   );
 }

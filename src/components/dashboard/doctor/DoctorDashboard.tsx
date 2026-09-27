@@ -18,14 +18,15 @@ import { Button } from '@/components/ui/Button';
 import { formInputClass } from '@/components/ui/FormField';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { DischargePanel } from '@/components/dashboard/shared/DischargePanel';
+import { DoctorPicker } from '@/components/dashboard/shared/DoctorPicker';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatDate, formatTime, isToday, personName, timeAgo, truncate } from '@/lib/utils';
+import { formatDate, formatDateTime, formatTime, isToday, personName, timeAgo, truncate, withoutResendInstruction } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
   ReferralCreateInput, ReferralCreateResponse, ReferralTargetOrganization, RegenerateLetterResponse,
-  DoctorAdmission,
+  DoctorAdmission, AttendingDoctor,
 } from '@/types/dashboard';
 import { URGENCY_OPTIONS, LEVEL_OF_CARE_OPTIONS } from '@/types/dashboard';
 import { ClientApiError } from '@/lib/client-api';
@@ -1397,7 +1398,10 @@ function wardBedLabel(a: DoctorAdmission): string {
   return parts.length ? parts.join(' · ') : '—';
 }
 
-function admissionColumns(onDischarge: (a: DoctorAdmission) => void): DataTableColumn<DoctorAdmission>[] {
+function admissionColumns(
+  onDischarge: (a: DoctorAdmission) => void,
+  onHandOver: (a: DoctorAdmission) => void,
+): DataTableColumn<DoctorAdmission>[] {
   return [
     {
       key: 'patient', header: 'Patient', render: a => (
@@ -1425,9 +1429,20 @@ function admissionColumns(onDischarge: (a: DoctorAdmission) => void): DataTableC
     {
       key: 'actions', header: '', className: 'text-right',
       render: a => a.status === 'ACTIVE' ? (
-        <button onClick={() => onDischarge(a)} className="text-xs font-semibold text-primary-dark hover:underline">
-          Discharge
-        </button>
+        <div className="flex gap-3 justify-end">
+          {/* Unassigned is the case this matters most for — an emergency
+              admission with nobody named — so the label says what it does. */}
+          <button
+            onClick={() => onHandOver(a)}
+            aria-label={`${a.attending_doctor ? 'Hand over' : 'Assign a doctor for'} ${a.patient.first_name} ${a.patient.last_name}`}
+            className="text-xs font-semibold text-primary-dark hover:underline"
+          >
+            {a.attending_doctor ? 'Hand over' : 'Assign doctor'}
+          </button>
+          <button onClick={() => onDischarge(a)} className="text-xs font-semibold text-primary-dark hover:underline">
+            Discharge
+          </button>
+        </div>
       ) : null,
     },
   ];
@@ -1469,13 +1484,18 @@ function readDischargeError(err: unknown, fallback: string): string {
 // empty, silently, because every admission it exists to surface has already
 // left ACTIVE status by the time a nurse could record it.
 //
-// `discharge_outcome` on `DoctorAdmission` is an OPTIONAL, tolerant read —
-// see the type's own comment (FLAG-045): the fixed contract for THIS
-// endpoint only guarantees `needs_doctor_review` / `doctor_reviewed_by_name`
-// / `doctor_reviewed_at`, not the outcome itself, so the button falls back
-// to a safe generic label rather than guessing "Confirm death" wrong.
+// FLAG-050: the list carries `discharge_outcome` and `discharged_by_name`
+// (backend #215), and the time of death / time found missing (backend #233).
+// A doctor asked to confirm a death needs who recorded it and when it
+// happened — "recorded 3h ago" is when it was ENTERED, which is not the same.
 function reviewButtonLabel(a: DoctorAdmission): string {
   return a.discharge_outcome === 'DECEASED' ? 'Confirm death' : 'Mark reviewed';
+}
+
+function reviewEventLine(a: DoctorAdmission): string | null {
+  if (a.discharge_outcome === 'DECEASED' && a.deceased_at) return `Time of death: ${formatDateTime(a.deceased_at)}`;
+  if (a.discharge_outcome === 'ABSCONDED' && a.discovered_at) return `Found missing: ${formatDateTime(a.discovered_at)}`;
+  return null;
 }
 
 function PendingReviewsSection() {
@@ -1519,8 +1539,12 @@ function PendingReviewsSection() {
             <div className="min-w-0">
               <div className="font-medium text-ink truncate">{a.patient.first_name} {a.patient.last_name}</div>
               <div className="text-xs text-text-soft truncate">
-                {wardBedLabel(a)} · recorded {a.discharged_at ? timeAgo(a.discharged_at) : '—'}
+                {wardBedLabel(a)} · recorded{a.discharged_by_name ? ` by ${a.discharged_by_name}` : ''}{' '}
+                {a.discharged_at ? timeAgo(a.discharged_at) : '—'}
               </div>
+              {reviewEventLine(a) && (
+                <div className="text-xs text-ink">{reviewEventLine(a)}</div>
+              )}
             </div>
             <button
               onClick={() => review(a)}
@@ -1536,17 +1560,152 @@ function PendingReviewsSection() {
   );
 }
 
-function AdmissionsPage() {
+// ─── Hand over (G-A2's handover half) ────────────────────────────────
+//
+// POST /ward/admissions/{id}/reassign-doctor/ {attending_doctor,
+// attending_doctor_override} — AdmissionViewSet.reassign_doctor +
+// ReassignDoctorSerializer (apps/ward/views.py, serializers.py), verified
+// against backend `develop` 2026-09-26. Medical advisor's Q2: ANY doctor at
+// the org may take over or hand over; the change is recorded (the audit
+// signal diffs `attending_doctor`, and an off-duty choice writes its own
+// row). DOCTOR only — 403 for every other role, which is why this lives here
+// and deliberately not on the nurse dashboard (see its negative control).
+//
+// The endpoint does not check the admission's status, so the UI only offers
+// it on ACTIVE rows. The off-duty check is the same soft warn-and-allow as
+// the admit routes: `details.attending_doctor` → confirm → resend with
+// `attending_doctor_override`.
+function HandOverPanel({ admission, currentUserId, onClose, onReassigned }: {
+  admission: DoctorAdmission | null;
+  currentUserId: string;
+  onClose: () => void;
+  onReassigned: () => void;
+}) {
+  const { toast } = useToast();
+  const open = !!admission;
+  const { data: doctors, loading, error } =
+    useApi<AttendingDoctor[]>(open ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
+  const [doctorId, setDoctorId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [offDutyWarning, setOffDutyWarning] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Naming the doctor who already holds it is not a hand-over. "(you)" marks
+  // the signed-in doctor so taking a patient over is one obvious choice.
+  const choices = (doctors ?? [])
+    .filter(d => d.id !== admission?.attending_doctor)
+    .map(d => (d.id === currentUserId ? { ...d, full_name: `${d.full_name} (you)` } : d));
+
+  async function submit(e: React.FormEvent | React.MouseEvent, override = false) {
+    e.preventDefault();
+    if (!admission || saving || !doctorId) return;
+    setSaving(true);
+    setFormError(null);
+    try {
+      await apiAction(ENDPOINTS.ADMISSION_REASSIGN_DOCTOR(admission.id), 'POST', {
+        attending_doctor: doctorId,
+        attending_doctor_override: override,
+      });
+      const name = (doctors ?? []).find(d => d.id === doctorId)?.full_name ?? 'The new doctor';
+      toast.success(
+        doctorId === currentUserId
+          ? `You are now the attending doctor for ${admission.patient.first_name} ${admission.patient.last_name}`
+          : `${name} is now the attending doctor for ${admission.patient.first_name} ${admission.patient.last_name}`,
+      );
+      onReassigned();
+      onClose();
+    } catch (err) {
+      const details = err instanceof ClientApiError
+        ? (err.data as { details?: Record<string, unknown> } | null)?.details
+        : undefined;
+      const onDuty = details?.attending_doctor;
+      const message = onDuty != null
+        ? (Array.isArray(onDuty) ? String(onDuty[0]) : String(onDuty))
+        : (err instanceof Error ? err.message : 'Could not hand over');
+      if (onDuty != null && !override && /not currently on duty/i.test(message)) {
+        setOffDutyWarning(message);
+      } else {
+        setFormError(withoutResendInstruction(message));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SlidePanel
+      open={open}
+      onClose={onClose}
+      title={admission?.attending_doctor ? 'Hand over this patient' : 'Assign an attending doctor'}
+      subtitle={admission ? `${admission.patient.first_name} ${admission.patient.last_name} · ${wardBedLabel(admission)}` : undefined}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
+          {!offDutyWarning && (
+            <Button type="submit" form="hand-over" disabled={saving || !doctorId}>
+              {saving ? 'Saving…' : admission?.attending_doctor ? 'Hand over' : 'Assign'}
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <form id="hand-over" onSubmit={(e) => void submit(e)} className="space-y-4">
+        <div className="rounded-lg bg-chip px-3 py-2.5 space-y-1">
+          <p className="text-[11px] text-text-soft">Attending now</p>
+          <p className="text-[13px] text-ink">{admission?.attending_doctor_name || 'Nobody — unassigned'}</p>
+        </div>
+
+        <DoctorPicker
+          id="hand-over-doctor"
+          label="New attending doctor"
+          helperText="Takes clinical responsibility for this admission from now on. The change is recorded."
+          doctors={choices}
+          loading={loading}
+          error={error}
+          value={doctorId}
+          onChange={(v) => { setDoctorId(v); setOffDutyWarning(null); setFormError(null); }}
+          required
+          restrictToOnDuty={false}
+        />
+
+        {offDutyWarning && (
+          <div role="alert" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-2">
+            <p className="text-xs font-semibold text-warning-strong">{withoutResendInstruction(offDutyWarning)}</p>
+            <p className="text-[11px] text-text-soft">Naming an off-duty doctor is recorded in this patient’s audit trail.</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={(e) => { setOffDutyWarning(null); void submit(e, true); }}
+                disabled={saving}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-warning-strong hover:opacity-90 disabled:opacity-50 rounded-md transition-colors"
+              >
+                Hand over anyway
+              </button>
+              <button type="button" onClick={() => setOffDutyWarning(null)} className="px-3 py-1.5 text-xs font-semibold text-text-soft hover:text-ink">
+                Choose another doctor
+              </button>
+            </div>
+          </div>
+        )}
+
+        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+      </form>
+    </SlidePanel>
+  );
+}
+
+function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
   const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&status=ACTIVE');
   const [discharging, setDischarging] = useState<DoctorAdmission | null>(null);
+  const [handingOver, setHandingOver] = useState<DoctorAdmission | null>(null);
 
   return (
     <div className="space-y-4">
       <PageHeading title="Admissions" count={count} unit="active" />
       <PendingReviewsSection />
       <DataTable
-        columns={admissionColumns(setDischarging)}
+        columns={admissionColumns(setDischarging, setHandingOver)}
         data={admissions}
         getRowKey={a => a.id}
         loading={loading}
@@ -1568,6 +1727,15 @@ function AdmissionsPage() {
         role="DOCTOR"
         idPrefix="doctor-discharge"
         readError={readDischargeError}
+      />
+      <HandOverPanel
+        key={`hand-over-${handingOver?.id ?? 'none'}`}
+        admission={handingOver}
+        currentUserId={currentUserId}
+        onClose={() => setHandingOver(null)}
+        // Handing over can take a patient off this list (if this doctor is
+        // not also the episode's doctor) — refetch rather than patch locally.
+        onReassigned={refetch}
       />
     </div>
   );
@@ -1619,7 +1787,7 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       {page === 'appointments'  && <AppointmentsPage />}
       {page === 'referrals'     && <ReferralsPage />}
       {page === 'prescriptions' && <PrescriptionsPage />}
-      {page === 'admissions'    && <AdmissionsPage />}
+      {page === 'admissions'    && <AdmissionsPage currentUserId={user.id} />}
     </DashboardShell>
   );
 }
