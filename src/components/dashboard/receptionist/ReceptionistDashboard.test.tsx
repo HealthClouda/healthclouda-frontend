@@ -874,3 +874,152 @@ describe('working the queue — PATCH /receptionist/check-ins/<id>/', () => {
     expect(dataActionMock).toHaveBeenCalledWith(ENDPOINTS.REC_CHECK_IN('ci-1'), 'PATCH', { status: 'COMPLETED' });
   });
 });
+
+/**
+ * Build 2 PR B (backend FLAG-373) — reception flags a duplicate.
+ *
+ * Reception raises it; an ORG_ADMIN decides. There is deliberately no
+ * "merge it now" here even for a receptionist who is certain: the two-person
+ * rule is the feature.
+ */
+describe('FLAG-373 — reception flags two records as the same person', () => {
+  const found = {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [{
+      id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu',
+      masked_phone: '080****1234', has_visited_org: true,
+      has_pending_access_request: false, has_approved_access: true,
+    }],
+  };
+  const detail = {
+    id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu',
+    email: 'chidi@example.test', phone: '08031231234', has_portal_account: false,
+  };
+  // GET /patients/search/ — the ORG-scoped search, PatientListSerializer.
+  const orgSearch = {
+    count: 2,
+    next: null,
+    previous: null,
+    results: [
+      { id: 'p-2', healthclouda_id: 'HCL-TW1N', first_name: 'Chidi', last_name: 'Nwoso', email: '', phone: '08031231234', date_of_birth: '1990-04-02', age: 36, gender: 'M', blood_type: null, city: 'Lagos', state: 'Lagos', is_active: true },
+      // The record the panel is already open on — must never be offered as a
+      // duplicate of itself.
+      { id: 'p-1', healthclouda_id: 'HCL-05CS2Q', first_name: 'Chidi', last_name: 'Nwosu', email: '', phone: '08031231234', date_of_birth: '1990-04-02', age: 36, gender: 'M', blood_type: null, city: 'Lagos', state: 'Lagos', is_active: true },
+    ],
+  };
+
+  async function openPanelAndFind() {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.PATIENTS_SEARCH)) return Promise.resolve(orgSearch);
+      if (path.startsWith(ENDPOINTS.PATIENT('p-1'))) return Promise.resolve(detail);
+      if (path.startsWith(ENDPOINTS.REC_PATIENT_SEARCH)) return Promise.resolve(found);
+      return Promise.resolve(emptyPage);
+    });
+    render(<ReceptionistDashboard user={user} initialStats={stats} slug="acme" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patient Search' }));
+    fireEvent.change(await screen.findByLabelText(/Search patients/), { target: { value: 'Chidi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Portal & contact/ }));
+    await screen.findByText('No portal account yet.');
+
+    fireEvent.change(screen.getByLabelText('Find the other record'), { target: { value: 'Chidi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Find' }));
+    return await screen.findByRole('button', { name: /HCL-TW1N/ });
+  }
+
+  it('searches the ORG-scoped patient list, not reception’s global one', async () => {
+    await openPanelAndFind();
+    // A merge needs BOTH records reachable by this hospital. Offering a
+    // globally-visible patient would earn a deliberately non-disclosing
+    // "Patient not found." (backend FLAG-593) that reception cannot tell from
+    // a typo.
+    const searched = dataGetMock.mock.calls.map(c => String(c[0]));
+    expect(searched.some(p => p.startsWith(ENDPOINTS.PATIENTS_SEARCH))).toBe(true);
+  });
+
+  it('never offers the open record as a duplicate of itself', async () => {
+    await openPanelAndFind();
+    expect(screen.queryByRole('button', { name: /HCL-05CS2Q/ })).not.toBeInTheDocument();
+  });
+
+  it('will not submit until it has been told which record to keep', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    // Reason alone is not enough: the direction decides which record is hidden.
+    expect(screen.getByRole('button', { name: 'Flag as duplicate' })).toBeDisabled();
+  });
+
+  // 🔴 The one that matters. Getting the direction backwards hides the wrong
+  // person, and two names side by side do not say which is which.
+  it('keeps the record the receptionist chose — the OTHER one is the duplicate', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwosu/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    dataActionMock.mockResolvedValueOnce({ id: 'mr-1', status: 'FLAGGED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.PATIENT_MERGE_REQUESTS,
+        'POST',
+        { duplicate_id: 'p-2', survivor_id: 'p-1', reason: 'Same phone and date of birth' },
+      );
+    });
+  });
+
+  it('swaps duplicate and survivor when the OTHER record is the one to keep', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwoso/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Older record has the full history' },
+    });
+    dataActionMock.mockResolvedValueOnce({ id: 'mr-2', status: 'FLAGGED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    await waitFor(() => {
+      expect(dataActionMock).toHaveBeenCalledWith(
+        ENDPOINTS.PATIENT_MERGE_REQUESTS,
+        'POST',
+        { duplicate_id: 'p-1', survivor_id: 'p-2', reason: 'Older record has the full history' },
+      );
+    });
+  });
+
+  it('says plainly that nothing has been merged yet — reception cannot merge', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwosu/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    dataActionMock.mockResolvedValueOnce({ id: 'mr-1', status: 'FLAGGED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    expect(await screen.findByText(/nothing has been merged yet/i)).toBeInTheDocument();
+    // No merge affordance anywhere on this surface.
+    expect(screen.queryByRole('button', { name: /Merge records/ })).not.toBeInTheDocument();
+  });
+
+  it('surfaces the backend’s refusal when the record is already queued', async () => {
+    fireEvent.click(await openPanelAndFind());
+    fireEvent.click(screen.getByRole('radio', { name: /Keep Chidi Nwosu/ }));
+    fireEvent.change(screen.getByLabelText(/Why do you believe these are the same person/), {
+      target: { value: 'Same phone and date of birth' },
+    });
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(
+        400,
+        { error: 'This record is already queued for a merge.' },
+        'This record is already queued for a merge.',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Flag as duplicate' }));
+
+    expect(await screen.findByText(/already queued for a merge/)).toBeInTheDocument();
+  });
+});

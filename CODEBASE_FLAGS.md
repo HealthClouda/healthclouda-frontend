@@ -1981,8 +1981,19 @@ present, and ideally the two copies share one module so the fix happens once.
 ---
 
 ### FLAG-243 — The emergency admit creates an ACTIVE episode before the deceased check, and #148's hard stop leaves it orphaned
-**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED** (2026-09-18, @Bastoh, `feat/emergency-admission-single-call`)
 **Found:** 2026-09-15, reviewing #148 against backend `develop` (#199 merged)
+
+> **Resolved by the first "Done when" option, on the backend side.** Build 2 replaced the two
+> calls with a single `POST /ward/emergency-admissions/` (backend FLAG-575, #213) that does
+> find-or-create patient → access grant → deceased check → episode → admission inside one
+> `transaction.atomic()`. There is no longer a client-side window in which an episode exists
+> without the admission behind it — the form does not create episodes at all.
+>
+> **Pinned by a control that was watched failing first:** `sends exactly ONE request and never
+> creates an episode of its own — FLAG-243 closed` asserts one call and no `/episodes/` POST.
+> Run against the pre-change component it fails, along with 9 of its 14 siblings — checked by
+> reverting the component and re-running, not assumed.
 
 `EmergencyAdmitForm` calls `POST /episodes/` first, then `POST /ward/admissions/`. After backend #199,
 the admission refuses a deceased patient with `details.patient`. **The episode call has no such
@@ -2185,6 +2196,28 @@ wrong.
 **And regardless of which:** when a PR is closed unmerged, say so in the same places a merge would be
 recorded — the In Flight table, and one line in the session log naming *why* and *where the content
 went*.
+
+---
+
+### FLAG-047 — The duplicate-records status filter only sees the page in hand
+**Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #161 (2026-09-27)**. Backend #237 (FLAG-613) made `?status=` a real filter and closed #225. `DuplicateRecordsPage` sends it again, and the page-only note and the client-side filter are removed. Two tests assert the param is sent for a status and dropped for "All statuses"; both were RED against the client-side version. ⚠️ **Needs backend #237 deployed to the tier this build talks to.** An older backend ignores the param and shows the whole queue under a status heading.
+**Raised:** 2026-09-26, fixing FLAG-245 on #161 (review 5325820800 by @Qeeyat)
+
+`GET /patients/merge-requests/` ignores `?status=` — `PatientMergeRequestViewSet` declares no
+`filterset_fields`/`filterset_class` and `get_queryset` reads no query params; the live schema lists
+only `ordering`, `page`, `page_size`, `search` (FLAG-245). #161 no longer sends the param. The
+dropdown now filters **client-side over the current page** (`page_size=20`) and, when the queue spans
+more than one page, says so on screen ("Showing matches on page N of M only"). A matching row on
+another page is not found by the filter.
+
+Acceptable for beta: one hospital's duplicate queue is expected to fit on a page. Not acceptable once
+it doesn't.
+
+**Done when** the backend declares `filterset_fields = ['status']` on the viewset (needs an
+`api-request` issue: **backend [#225](https://github.com/HealthClouda/healthclouda-backend/issues/225)**,
+assigned @Ericmoore207, with a 📥 Cross-Lane row) and
+`DuplicateRecordsPage` sends `?status=` again, verified against the live schema, with the page-only
+note removed.
 
 ---
 
