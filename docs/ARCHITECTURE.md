@@ -163,6 +163,7 @@ cookie. A Server Component cannot set cookies, so the gate could not repair this
 [FLAG-020](../CODEBASE_FLAGS.md).
 
 Patients reach `/patient` with no slug (#100) and can sign in for the first time.
+The server render fetches `/patients/me/dashboard/` and `/patients/me/` in parallel; the second carries `healthclouda_id`, shown in the welcome banner per the DASH-6 spec. Both fall back to a client fetch (AUTH-6) if the server render cannot read them.
 ---
 
 ## 6. UI composition

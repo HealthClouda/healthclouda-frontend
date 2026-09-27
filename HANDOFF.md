@@ -38,6 +38,8 @@
 
 | @Bastoh | **FLAG-056 + FLAG-062** — doctor picker blank option reads "No attending doctor yet"; toasts move clear of an open slide panel; the bed-taken 409 no longer also toasts | `fix/flag-056-062-ui-nits` | `DoctorPicker.tsx`, `ui/SlidePanel.tsx`, `ui/Toaster.tsx`, `app/globals.css`, `NurseDashboard.tsx` (+ tests) | 2026-09-30 | 🟡 Claimed in this branch's own commit (FLAG-240 option (a)). The merge-dialog IDs wait on backend #242 |
 
+| @Bastoh | **DASH-6 brought back to spec** — patient welcome banner on the brand primary gradient (was teal) with the patient's **HealthClouda ID** chip (was missing); every remaining teal class on the patient dashboard moved to system blue tokens. Taken from the `[DESIGN]` lane on the founder's call, claimed loudly | `feat/patient-hcl-id-brand-blue` | `src/components/dashboard/patient/PatientDashboard.tsx` (+ test), `src/app/patient/page.tsx`, `src/types/dashboard.ts` | 2026-09-27 | 🟡 **PR open, @Qeeyat to review.** Claimed in this PR's own commit (FLAG-240 option (a)). Reads `healthclouda_id` from `GET /patients/me/`, verified against backend source only — live schema unreachable from the session |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked

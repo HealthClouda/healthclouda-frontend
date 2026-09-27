@@ -282,3 +282,54 @@ describe('FLAG-247 — My Health renders the published EpisodeList shape', () =>
     expect(screen.getByText(/29 Aug 2026/)).toBeInTheDocument();
   });
 });
+
+/**
+ * DASH-6 spec — the welcome banner carries the patient's HealthClouda ID, on a
+ * primary → primary-dark gradient.
+ *
+ * 🔴 RED against the pre-change component: it rendered a teal gradient and no
+ * ID at all, so the lifetime identifier the product exists to give a patient
+ * appeared nowhere on their own dashboard. The ID comes from
+ * `GET /patients/me/` → `healthclouda_id` (PatientDetailSerializer).
+ */
+describe('DASH-6 — HealthClouda ID in the welcome banner', () => {
+  const profile = { id: 'p1', healthclouda_id: 'HCL-7Q2K9D', first_name: 'Chidi', last_name: 'Nwosu' };
+
+  it('shows the HCL ID from the server-fetched profile without a client request for it', async () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+
+    expect(screen.getByTestId('patient-hcl-id')).toHaveTextContent('HCL-7Q2K9D');
+    expect(screen.getByText('HealthClouda ID')).toBeInTheDocument();
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+    const meCalls = dataGetMock.mock.calls.filter((c) => String(c[0]) === ENDPOINTS.PATIENT_ME);
+    expect(meCalls).toHaveLength(0);
+  });
+
+  it('falls back to a client fetch of /patients/me/ when the server render had no profile', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path === ENDPOINTS.PATIENT_ME ? Promise.resolve(profile) : Promise.resolve(emptyPage),
+    );
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={null} />);
+
+    expect(await screen.findByTestId('patient-hcl-id')).toHaveTextContent('HCL-7Q2K9D');
+    expect(dataGetMock).toHaveBeenCalledWith(ENDPOINTS.PATIENT_ME);
+  });
+
+  it('renders no ID chip, and nothing that could be mistaken for one, when the profile cannot be read', async () => {
+    dataGetMock.mockImplementation((path: string) =>
+      path === ENDPOINTS.PATIENT_ME ? Promise.reject(new Error('boom')) : Promise.resolve(emptyPage),
+    );
+    render(<PatientDashboard user={user} initialStats={stats} />);
+
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(ENDPOINTS.PATIENT_ME));
+    await waitFor(() => expect(screen.queryByText('HealthClouda ID')).toBeNull());
+    expect(screen.queryByTestId('patient-hcl-id')).toBeNull();
+  });
+
+  it('uses the brand primary gradient, not teal', () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+    const banner = screen.getByText('Welcome back,').closest('div.rounded-2xl') as HTMLElement;
+    expect(banner.className).toContain('from-primary');
+    expect(banner.className).not.toMatch(/teal/);
+  });
+});
