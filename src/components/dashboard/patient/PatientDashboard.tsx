@@ -57,8 +57,10 @@ function HclIdChip({ hclId, loading }: { hclId: string | null; loading: boolean 
   }
   if (!hclId) return null;
   return (
-    <div className="rounded-xl border border-white/35 bg-white/15 px-4 py-2">
-      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-white/80">HealthClouda ID</p>
+    // No translucent fill: the text sits straight on the banner, so its
+    // contrast is the banner's (>= 5.98:1), wherever the chip wraps to.
+    <div className="rounded-xl border border-white/60 px-4 py-2">
+      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-white">HealthClouda ID</p>
       <p className="font-mono text-base font-bold" data-testid="patient-hcl-id">{hclId}</p>
     </div>
   );
@@ -84,15 +86,21 @@ function OverviewPage({ stats, user, hclId, profileLoading, onNavigate }: {
 
   return (
     <div className="space-y-6">
-      {/* Welcome banner — DASH-6 spec: primary → primary-dark gradient with the
-          patient's HealthClouda ID in a chip. It had drifted to a teal gradient
-          and dropped the ID entirely, so the one identifier this product exists
-          to give a patient was nowhere on their own dashboard. */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl px-6 py-5">
+      {/* Welcome banner — DASH-6 spec: a brand-blue gradient with the patient's
+          HealthClouda ID in a chip. It had drifted to a teal gradient and dropped
+          the ID entirely, so the one identifier this product exists to give a
+          patient was nowhere on their own dashboard.
+
+          Contrast (WCAG AA, measured against globals.css): the gradient runs
+          primary-dark → #004fa8, so plain white is >= 5.98:1 at its lightest
+          point. Starting at `primary` (#0075ff) gave only 4.21, and the /70 and
+          /80 text sat at 2.8–3.2 (@Qeeyat, #165 review). Every piece of banner
+          text is solid white for that reason — do not reintroduce opacity. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-primary-dark to-[#004fa8] text-white rounded-2xl px-6 py-5">
         <div className="min-w-0">
-          <p className="text-white/80 text-sm">Welcome back,</p>
+          <p className="text-white text-sm">Welcome back,</p>
           <h2 className="text-xl font-bold">{user.first_name} {user.last_name}</h2>
-          {user.organization_name && <p className="text-white/70 text-xs mt-0.5">{user.organization_name}</p>}
+          {user.organization_name && <p className="text-white text-xs mt-0.5">{user.organization_name}</p>}
         </div>
         <HclIdChip hclId={hclId} loading={profileLoading} />
       </div>
@@ -118,7 +126,7 @@ function OverviewPage({ stats, user, hclId, profileLoading, onNavigate }: {
           empty cell, which reads as a tile that failed to load. */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard loading={apptLoading} label="Upcoming Appts"  value={apptData?.count}                  icon={<CalIcon />}  color="blue"   onClick={() => onNavigate('appointments')} />
-        <StatCard loading={!stats} label="Active Episodes"      value={stats?.active_episodes}           icon={<DocIcon />}  color="blue"   onClick={() => onNavigate('health')} />
+        <StatCard loading={!stats} label="Active Episodes"      value={stats?.active_episodes}           icon={<DocIcon />}  color="green"  onClick={() => onNavigate('health')} />
         <StatCard loading={!stats} label="Notifications"        value={stats?.unread_notifications ?? 0} icon={<BellIcon />} color="purple" />
       </div>
 
@@ -134,7 +142,7 @@ function OverviewPage({ stats, user, hclId, profileLoading, onNavigate }: {
           ) : !upcoming.length ? (
             <div className="bg-chip border border-primary/15 rounded-xl px-4 py-5 text-center">
               <p className="text-sm font-medium text-primary-dark">No upcoming appointments</p>
-              <p className="text-xs text-primary/80 mt-1">Your next appointment will appear here</p>
+              <p className="text-xs text-primary-dark mt-1">Your next appointment will appear here</p>
             </div>
           ) : (
             <div className="space-y-2">

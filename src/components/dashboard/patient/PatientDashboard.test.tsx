@@ -332,4 +332,25 @@ describe('DASH-6 — HealthClouda ID in the welcome banner', () => {
     expect(banner.className).toContain('from-primary');
     expect(banner.className).not.toMatch(/teal/);
   });
+
+  // #165 review (@Qeeyat): faded white (/70, /80) and a banner starting at
+  // `primary` (#0075ff) measured 2.7–4.2:1 — below WCAG AA. The fix is a
+  // darker gradient (>= 5.98:1 for white) and solid white text throughout.
+  it('keeps banner text at AA contrast: darker gradient, no faded text, no chip fill', () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+    const banner = screen.getByText('Welcome back,').closest('div.rounded-2xl') as HTMLElement;
+
+    expect(banner.className).toContain('from-primary-dark');
+    const textClasses = Array.from(banner.querySelectorAll('p, h2')).map((el) => el.className).join(' ');
+    expect(textClasses).not.toMatch(/text-white\/\d+/);
+    const chip = screen.getByTestId('patient-hcl-id').parentElement as HTMLElement;
+    expect(chip.className).not.toMatch(/bg-white\/\d+/);
+  });
+
+  it('keeps the empty-appointments hint readable on the chip background', async () => {
+    render(<PatientDashboard user={user} initialStats={stats} initialProfile={profile} />);
+    const hint = await screen.findByText('Your next appointment will appear here');
+    expect(hint.className).toContain('text-primary-dark');
+    expect(hint.className).not.toMatch(/text-primary\/\d+/);
+  });
 });
