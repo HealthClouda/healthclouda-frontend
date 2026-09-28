@@ -2276,6 +2276,66 @@ stale comment is gone, and the pending-review row shows who recorded it.
 
 ---
 
+### FLAG-054 — `api-dev` serves Django's DEBUG 404 page, which lists the whole URL map
+**Severity:** P3 (dev) · P1 if it is ever true on beta/production · **Area:** Infra / Backend config · **Owner:** @Bastoh (`[INFRA]`) · **Status:** 🟡 **OPEN — cross-lane; the fix is a backend/Railway setting**
+**Found:** 2026-09-28, dev-tier re-walk (HCL/CHK/2026-002)
+
+**What.** `GET https://api-dev.healthclouda.com/api/v1/no-such-path/` returns Django's technical 404:
+*"Using the URLconf defined in …"*, the text `DEBUG = True`, and all **20** top-level URL patterns.
+On dev the admin mount is the default `admin/`, so no hidden path leaks today. But any
+`DJANGO_ADMIN_PATH` set on a DEBUG tier would be printed on every 404, and a 500 shows a traceback.
+
+**Already known in part.** The checklist records "debugging deliberately on" for dev. What was
+**not** written anywhere is the URL-map disclosure, or any check that beta and production are *off*.
+
+**Not measured:** `api-beta` and `api` could not be probed from the session (the agent proxy
+refuses those hosts), so their state is unknown.
+
+**Done when** someone who can reach them confirms `api-beta` and `api` answer a 404 with a plain
+body (no `DEBUG = True`, no URLconf), and either dev is switched off too or its DEBUG is recorded
+as deliberate in the backend's own flags.
+
+---
+
+### FLAG-055 — A deceased patient can be given a new episode, and then appears on the nurse's Admit list
+**Severity:** P3 · **Area:** Episodes / Admissions (backend rule, frontend symptom) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a backend call; raise as backend FLAG-617 if confirmed there**
+**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
+
+**What happened.** Probe `HCL-KK4CKY` was discharged **DECEASED** during B4 (`deceased_at`
+2026-09-27T21:25Z). As `nurse@demo.test`, `POST /episodes/` for it returned **201** (episode
+`a1d35048`). The nurse's **Admit Patient** list then offered it with an **Admit** button. Admitting
+is correctly refused ("This patient cannot be admitted at this time. Please escalate to an
+administrator."), so no care decision is wrong. But the screen invites an action that can only
+fail, and the deceased guard exists for admissions and referrals while episode creation has none.
+
+**Question for the backend:** should `POST /episodes/` refuse a patient `patient_is_deceased()`
+says has died (same non-disclosing wording), or is a post-mortem episode legitimate (e.g.
+certification paperwork)? If the latter, the Admit list should exclude them.
+
+**Tidy-up owed:** episode `a1d35048` on `HCL-KK4CKY` is still open (synthetic).
+
+**Done when** the backend decides, and either the episode route refuses or the Admit list hides a
+deceased patient.
+
+---
+
+### FLAG-056 — The optional doctor picker's empty option says "No doctor available right now" while a doctor is on duty
+**Severity:** P4 (copy) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
+
+`DoctorPicker` renders its blank option as `required ? 'Select a doctor…' : 'No doctor available
+right now'`. In the emergency panel (not required) that line sits directly above the **"On duty:
+Emeka Okafor"** group, so it reads as a false statement. The blank choice means "admit without
+naming a doctor". Suggested wording: **"No attending doctor yet"**.
+
+**Also noticed, not a defect claim:** the episode-based **Admit patient** panel has no
+attending-doctor picker at all (bed and reason only), so the off-duty warning (FLAG-601) can only be
+met from the emergency panel. Worth a design decision alongside backend FLAG-607's open half.
+
+**Done when** the optional placeholder no longer claims no doctor is available.
+
+---
+
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is

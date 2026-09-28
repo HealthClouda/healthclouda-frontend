@@ -39,6 +39,71 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-28 — Dev-tier re-walk, B5 steps 3–4 and B6; backend #241 merged (branch: `docs/bastoh-session-2026-09-28`)
+
+**Goal:** finish the admissions-workflow re-walk on the dev tier (HCL/CHK/2026-002) after B1–B4 and
+B5 steps 1–2 passed last night. Then merge backend #241, check #165–#168, and update the checklist
+artifact. An overnight session; nobody watching live.
+
+**What I did:**
+- **Backend #241 merged** (FLAG-616, merge then undo loses `consent_given`). CI green on
+  `c57e4b13`, no reviews requested (standing instruction), merged as `c53ab32` at 01:02Z. It carries
+  data migration `patients/0031`. **Dev picked it up within a minute:** probe A (`HCL-RNWDM1`),
+  which had lost its consent through FLAG-616, read `consent_given=true` with `consent_given_at`
+  01:02:22Z. **Beta/production still need the Railway deploy.**
+- **B5 step 3: PASS, on screen.** As the nurse, Emergency admission → "Admit as a new emergency
+  patient" → attending doctor Yemi Adewale (the picker groups him under "Not on duty"). The first
+  submit got 400 "Yemi Adewale is not currently on duty". The panel showed that with **Admit
+  anyway** / **Choose another doctor** and the audit note. Admit anyway re-sent with
+  `attending_doctor_override: true` and got 201 (`HCL-CUBIMK`). **Audit, via the API as superadmin:**
+  `CREATE Admission`, reason "Off-duty doctor named as attending on admission", metadata
+  `{route: emergency, attending_doctor_on_duty_override: true}`. The same on the API for probe A,
+  plus a re-admit → **409** "already has an active admission".
+- **B5 step 4: PASS (API).** Two doctor sign-ins, X and Y. Y heartbeated every 2 min (9 × 204),
+  X untouched. At +19 min, X `GET /auth/me/` → 401 `SESSION_IDLE_EXPIRED`, X refresh → 401
+  `SESSION_IDLE_EXPIRED`, Y → 200, Y refresh → 200. A third doctor session used meanwhile for
+  discharges did not keep X alive either. **On screen:** reception signed in at 01:16:13Z and was left untouched for 16.5 min. The first click (Overview, 01:32:44Z) landed on `/demo-clinic/signin?reason=idle`, "You were signed out after 15 minutes of inactivity."
+- **doctor2 back on duty:** `POST /auth/me/toggle-duty/ {"is_on_duty": true}` (an empty body is a
+  400; the field is required). `off_duty_override=false`, and the picker shows both doctors on duty.
+- **B6: PASS.** With no current shift, the nurse admitted onto General Ward (201), so the rota
+  doesn't block care. The nurse creating a shift gets 403 "Only an organisation admin can plan the
+  rota." The org admin created two shifts (201). `?current=true` → exactly those 2 of 7. **Hand-over
+  on screen:** Ward Overview → Hand over → the dialog offers only the rostered second nurse → 200
+  "Charge of the ward handed over.", and "In charge" moves to her.
+- **#165–#168:** no new reviews or comments since 27 Sep, CI green on all four heads, Qeeyat
+  requested on each. #165's CHANGES_REQUESTED (contrast) predates its fix commit. Nothing to push;
+  none merged, so the #167/#168 re-checks on dev are still owed.
+- **Stale In Flight rows cleared:** Build 4 (#157) and Build 6 (#159), both long merged.
+- **Checklist artifact** republished (v2): builds 2 and 6 on screen, the changed steps, and the known
+  gaps. Per-step results are in its db.
+
+**What I found:**
+- 🔴 **FLAG-053 is still live on dev, as expected.** Pressing Search in the emergency panel dropped the
+  nurse on Overview. An existing patient cannot be emergency-admitted on screen until #168 is served.
+- **FLAG-054:** `api-dev` serves Django's DEBUG 404, which lists all 20 URL patterns. The admin path
+  on dev is the default, so nothing secret leaks. `api-beta`/`api` could not be probed (the agent
+  proxy refuses them).
+- **FLAG-055:** deceased probe B (`HCL-KK4CKY`) was given a new episode by the nurse (201), then
+  appeared on Admit Patient; admitting is correctly refused. Needs a backend decision (candidate
+  backend FLAG-617).
+- **FLAG-056:** the optional doctor picker's blank line reads "No doctor available right now" above an
+  on-duty doctor. The episode-based **Admit patient** panel has no doctor picker at all.
+- Probe C (`HCL-A2XLXC`) was still admitted from 27 Sep 23:01Z with Yemi Adewale as attending.
+  Discharged tonight.
+- **Permission denials in this session (auto-mode classifier), both reported, not retried:** (1) a
+  read of `NurseDashboard.tsx` lines (labels were taken from the live DOM instead); (2) a batch
+  labelled "Merge Without Review" that held three non-merge actions: the ex-in-charge nurse's second
+  hand-over (a refusal probe), discharging probe A's rota admission `aab24577`, and viewing the org
+  admin's rota screen. **All three were left undone.**
+
+**Left undone / next:**
+- **Discharge `aab24577`** (probe A, GW-06, admitted 01:17Z for the B6 no-rota check). Close the
+  stray episode `a1d35048` on deceased probe B.
+- The two probe shifts end on their own at 09:17Z (kept as history).
+- Re-check B2 steps on dev once #167 and #168 are merged and deployed.
+- The Railway deploy of #241 beyond dev; B8 Cloudflare 1010; the FLAG-607 decisions; FLAG-611's
+  question (should a signed-in password change end other sessions?); CLAUDE.md §3 merge vs rebase.
+
 ### 2026-09-27 — Every issue from the dev-tier walkthrough fixed: eight backend PRs merged, five frontend items built (branches: `claude/pr-161-review-7fp39h`, `feat/emergency-admission-single-call`, `fix/restore-stat-tiles`)
 
 **Goal:** fix everything the 26 Sep dev-tier walkthrough found, backend first (B1–B8), then frontend
