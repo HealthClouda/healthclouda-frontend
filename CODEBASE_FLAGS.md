@@ -2418,6 +2418,10 @@ browser. Needs a design decision on where the doctor's queue lives.
 doctor, each with "Start episode". A patient search is a possible later addition. If no endpoint lets a
 doctor read their check-ins, that is a backend `api-request` for @Ericmoore207 first.
 
+**Fix: #175** (doctor Queue page), on backend **#243** (`GET`/`PATCH /doctor/queue/`, backend FLAG-617, merged
+30 Sep). There was no such endpoint; @Bastoh chose to write it rather than raise an `api-request`. ⚠️ The
+page errors on any tier until #243 is deployed there by Railway.
+
 ---
 
 ### FLAG-061 — Superadmin Audit Logs show every entry as "System", with no reason
