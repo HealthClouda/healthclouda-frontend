@@ -280,6 +280,36 @@ export interface PatientSummary {
   created_at?: string;
 }
 
+// ─── GET /doctor/my-patients/ (FLAG-059) ─────────────────────────────────
+// Verified against the live schema 2026-09-30 (MyPatientsPaginatedResponse).
+// This endpoint is NOT a patient list: it returns one row PER EPISODE that has
+// this doctor on it, with the patient nested. The row `id` is the EPISODE's.
+// It was typed as `PatientSummary` (a flat shape this endpoint never sends),
+// so every column read `undefined` and "New episode" posted the episode id as
+// the patient. Only the fields the page reads are declared; the required ones
+// (per the schema's `required`) are non-optional.
+export interface DoctorPatientMinimal {
+  id: string;
+  healthclouda_id: string;
+  first_name: string;
+  last_name: string;
+  /** `GenderEnum` (M/F/O) or blank. */
+  gender?: 'M' | 'F' | 'O' | '';
+  date_of_birth?: string | null;
+  age: number | null;
+}
+
+export interface MyPatientEpisode {
+  /** The EPISODE id — never pass this where a patient id is expected. */
+  id: string;
+  patient: DoctorPatientMinimal;
+  episode_type?: string;
+  episode_type_display?: string;
+  chief_complaint?: string;
+  status?: 'ACTIVE' | 'COMPLETED';
+  episode_start?: string;
+}
+
 // Minimised receptionist search result (REC-2) — GET /receptionist/patients/search/?query=
 // Deliberately has NO email/DOB/blood_type; full detail requires granted access.
 export interface PatientSearchResult {
