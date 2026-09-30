@@ -11,7 +11,23 @@ interface SlidePanelProps {
   footer?: React.ReactNode;
 }
 
+// FLAG-062 — how many panels are open right now. While any is, <body> carries
+// `data-panel-open` and the toaster moves clear of the panel (globals.css):
+// toasts sit bottom-right, where a panel's footer buttons are, and warning /
+// error toasts stay until dismissed, so one covered "Record outcome" on dev.
+let openPanels = 0;
+
 export function SlidePanel({ open, onClose, title, subtitle, children, footer }: SlidePanelProps) {
+  useEffect(() => {
+    if (!open) return;
+    openPanels += 1;
+    document.body.setAttribute('data-panel-open', '');
+    return () => {
+      openPanels = Math.max(0, openPanels - 1);
+      if (openPanels === 0) document.body.removeAttribute('data-panel-open');
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }

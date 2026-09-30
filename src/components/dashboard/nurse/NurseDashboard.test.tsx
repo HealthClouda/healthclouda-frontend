@@ -822,6 +822,24 @@ describe('WARD-1 — admit patient', () => {
     expect(screen.getAllByRole('button', { name: 'Admit' }).length).toBeGreaterThan(0);
   });
 
+  // FLAG-062 — the notice in the panel already says it; the same sentence as
+  // a toast at the bottom-right made the message appear twice (28 Sep walk).
+  it('a 409 on admit shows the bed-taken message once, in the panel, not also as a toast', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    useToastStore.setState({ toasts: [] });
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(409, { error: 'Bed GW-09 is no longer available (status: OCCUPIED). Please choose another bed.' }, 'Conflict'),
+    );
+    await openAdmitPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+    fireEvent.change(await screen.findByLabelText('Bed'), { target: { value: availableBed.id } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Admit' }).slice(-1)[0]);
+
+    expect(await screen.findByText(/Bed GW-09 is no longer available/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Bed GW-09 is no longer available/)).toHaveLength(1);
+    expect(useToastStore.getState().toasts.map(t => t.message).join(' ')).not.toMatch(/no longer available/);
+  });
+
   // FLAG-604 (backend #221): "already admitted" is a 409 on this route now,
   // in the same flat {error} as the bed race. Calling it a bed race sends the
   // nurse round a loop picking beds for a patient who is already in one.

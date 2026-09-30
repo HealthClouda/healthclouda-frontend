@@ -823,7 +823,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
         setBedId('');
         setBedConflict(conflict);
         void refetchBeds();
-        toast.warning(conflict);
+        // FLAG-062: no toast — the panel's own notice already says it.
         return;
       }
       const { field, message } = admissionFieldError(err);
@@ -1149,7 +1149,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
         setBedId('');
         setBedConflict(conflict);
         void refetchBeds();
-        toast.warning(conflict);
+        // FLAG-062: no toast — the panel's own notice already says it.
         return;
       }
       const { field, message } = emergencyAdmissionFieldError(err);
@@ -1461,7 +1461,7 @@ function AcceptRequestPanel({ request, onClose, onAccepted }: {
         setBedId('');
         setBedConflict(conflict);
         void refetchBeds();
-        toast.warning(conflict);
+        // FLAG-062: no toast — the panel's own notice already says it.
         return;
       }
       // Reuses the same gender two-step as the other two admit paths
