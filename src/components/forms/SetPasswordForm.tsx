@@ -12,6 +12,7 @@ import { PasswordInput } from './PasswordInput';
 import { PasswordStrengthMeter, passwordIsValid } from './PasswordStrengthMeter';
 import { ShieldIcon, MailIcon, CircleXIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
 import type { SetupTokenInfo } from '@/types/auth';
 import type { Role } from '@/lib/config';
@@ -62,6 +63,8 @@ function Inner() {
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
+  // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
+  const hydrated = useHydrated();
 
   const password = watch('password', '');
   const password2 = watch('password2', '');
@@ -195,7 +198,7 @@ function Inner() {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
+      <form method="post" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
         <TextField
           label="Email"
           icon={<MailIcon />}
@@ -237,7 +240,7 @@ function Inner() {
           </div>
         )}
 
-        <button type="submit" disabled={isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
+        <button type="submit" disabled={!hydrated || isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
           {isSubmitting ? 'Setting password…' : 'Set Password'}
         </button>
       </form>

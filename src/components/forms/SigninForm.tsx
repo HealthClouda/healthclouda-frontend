@@ -11,6 +11,7 @@ import { TextField } from './TextField';
 import { AuthCard } from './AuthCard';
 import { MailIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { roleDashboardPath, passwordFlowPath } from '@/lib/router';
 import { formatApiError } from '@/lib/api';
 import { sessionExpiryMessageFor } from '@/lib/session-expiry-code';
@@ -46,6 +47,8 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+  // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
+  const hydrated = useHydrated();
 
   async function onSubmit(data: FormData) {
     setServerError('');
@@ -133,7 +136,7 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
       orgLogo={isOrg ? orgLogo : undefined}
       backHref={isOrg && orgSlug ? `/${orgSlug}` : '/'}
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
+      <form method="post" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
         <TextField
           label={emailLabel}
           icon={<MailIcon />}
@@ -187,7 +190,7 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
           </div>
         )}
 
-        <button type="submit" disabled={isSubmitting} className={`${authPrimaryBtn} !mt-6`}>
+        <button type="submit" disabled={!hydrated || isSubmitting} className={`${authPrimaryBtn} !mt-6`}>
           {isSubmitting ? 'Signing in…' : 'Sign In'}
         </button>
       </form>
