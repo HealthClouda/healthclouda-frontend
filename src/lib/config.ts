@@ -216,6 +216,12 @@ export const ENDPOINTS = {
   DOC_APPOINTMENT: (id: string) => `/doctor/appointments/${id}/`,
   DOC_VITALS: (id: string) => `/doctor/patients/${id}/vitals/`,
   DOC_VITALS_HISTORY: (id: string) => `/doctor/patients/${id}/vitals/history/`,
+  // FLAG-060 / backend FLAG-617 (#243): the signed-in doctor's own reception
+  // check-ins for a day (?date=, default today; ?status=), `{count, results}`
+  // of the same row shape as REC_CHECK_INS. PATCH takes only `status`:
+  // IN_PROGRESS | COMPLETED | NO_SHOW. Another doctor's check-in is 404.
+  DOC_QUEUE: '/doctor/queue/',
+  DOC_QUEUE_ITEM: (id: string) => `/doctor/queue/${id}/`,
 
   // ── Ward / Bed / Admissions (shared) ───────────────────────
   // Read access verified live for a NURSE token 2026-08-19: GET /ward/beds/
