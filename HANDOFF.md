@@ -32,6 +32,8 @@
 
 | @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
 
+| @Bastoh | **FLAG-057** — auth forms must never put the password in the URL (`method="post"` + submit disabled until hydrated) | `fix/flag-057-auth-forms-post` | `src/components/forms/{Signin,SetPassword,ResetPassword,ForgotPassword,CheckEmail}Form.tsx`, new `src/hooks/use-hydrated.ts` | 2026-09-30 | 🟡 **In review.** Claimed in this PR's own commit (FLAG-240 option (a)). FLAG-057 itself is logged in #169 |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
