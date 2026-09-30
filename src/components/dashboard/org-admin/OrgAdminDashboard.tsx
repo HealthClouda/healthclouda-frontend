@@ -20,7 +20,7 @@ import { formatDate, roleLabel, splitName, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  OrgAdminStats, OrgStaffMember, StaffInviteInput, OrgPatientSummary, Ward, AccessRequest, Paginated,
+  OrgAdminStats, OrgStaffMember, StaffInviteInput, OrgPatientSummary, PatientIdentity, Ward, AccessRequest, Paginated,
   OrgReferral, ReferralResponseInput, PatientMergeRequest,
 } from '@/types/dashboard';
 import { ClientApiError } from '@/lib/client-api';
@@ -240,6 +240,7 @@ function StaffPage() {
 
 function PatientsPage() {
   const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<OrgPatientSummary | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const endpoint = ENDPOINTS.ORG_ADMIN_PATIENTS + (debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '');
   const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
@@ -267,6 +268,15 @@ function PatientsPage() {
     { key: 'phone', header: 'Phone', render: (p) => <span className="text-xs text-text-soft">{p.phone ?? '—'}</span> },
     { key: 'last_visit', header: 'Last Visit', className: 'whitespace-nowrap', render: (p) => <span className="text-xs text-text-soft">{p.last_visit ? formatDate(p.last_visit) : '—'}</span> },
     { key: 'status', header: 'Status', render: (p) => (p.status ? <StatusBadge status={p.status} /> : <span className="text-xs text-text-soft">—</span>) },
+    { key: 'actions', header: '', className: 'text-right', render: (p) => (
+      <button
+        onClick={() => setEditing(p)}
+        aria-label={`Edit details for ${p.full_name}`}
+        className="text-xs font-semibold text-primary-dark hover:underline"
+      >
+        Edit
+      </button>
+    ) },
   ];
 
   return (
@@ -291,7 +301,121 @@ function PatientsPage() {
         totalCount={count}
         pageSize={20}
       />
+      {/* `key` remounts per patient so no half-edited form carries over. */}
+      <EditPatientPanel
+        key={editing?.id ?? 'none'}
+        patient={editing}
+        onClose={() => setEditing(null)}
+        onSaved={refetch}
+      />
     </div>
+  );
+}
+
+// ─── Edit a patient's identity (FLAG-058) ─────────────────────────
+//
+// Reception's completion form tells staff that once a record is complete only
+// an organisation administrator can change the name, date of birth or sex;
+// this is where they do it. PATCH /patients/{id}/ as ORG_ADMIN uses
+// PatientFullUpdateSerializer (backend source 2026-09-30 — the live schema
+// documents no request body for it). Only changed fields are sent.
+//
+// ⚠️ The backend does not check whether another hospital also holds this
+// patient, so an edit here changes the record everywhere (logged in
+// CODEBASE_FLAGS). Built now on @Bastoh's call (30 Sep); the panel says so.
+
+const SEX_OPTIONS: Array<{ value: PatientIdentity['gender']; label: string }> = [
+  { value: '', label: 'Not recorded' }, { value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }, { value: 'O', label: 'Other' },
+];
+
+interface IdentityForm { first_name: string; last_name: string; date_of_birth: string; gender: PatientIdentity['gender'] }
+
+function EditPatientPanel({ patient, onClose, onSaved }: {
+  patient: OrgPatientSummary | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const { data: detail, loading, error } =
+    useApi<PatientIdentity>(patient ? `${ENDPOINTS.PATIENTS}${patient.id}/` : null);
+  const original: IdentityForm | null = detail
+    ? { first_name: detail.first_name, last_name: detail.last_name, date_of_birth: detail.date_of_birth ?? '', gender: detail.gender ?? '' }
+    : null;
+  const [form, setForm] = useState<IdentityForm | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  // Prefill once the record arrives (during render, not in an effect).
+  if (original && !form) setForm(original);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const changes: Partial<Record<keyof IdentityForm, string | null>> = {};
+  if (form && original) {
+    if (form.first_name.trim() !== original.first_name) changes.first_name = form.first_name.trim();
+    if (form.last_name.trim() !== original.last_name) changes.last_name = form.last_name.trim();
+    if (form.date_of_birth !== original.date_of_birth) changes.date_of_birth = form.date_of_birth || null;
+    if (form.gender !== original.gender) changes.gender = form.gender;
+  }
+  const valid = !!form && form.first_name.trim() !== '' && form.last_name.trim() !== ''
+    && (!form.date_of_birth || form.date_of_birth <= today);
+  const canSave = valid && Object.keys(changes).length > 0 && !saving;
+
+  async function save() {
+    if (!patient || !canSave) return;
+    setSaving(true);
+    setFormError(null);
+    try {
+      await apiAction(`${ENDPOINTS.PATIENTS}${patient.id}/`, 'PATCH', changes);
+      toast.success(`Details updated for ${form!.first_name.trim()} ${form!.last_name.trim()}`);
+      onSaved();
+      onClose();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Could not save the changes');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SlidePanel
+      open={!!patient}
+      onClose={onClose}
+      title="Edit patient details"
+      subtitle={patient ? `${patient.full_name} · ${patient.healthclouda_id}` : undefined}
+      footer={
+        <>
+          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1" onClick={save} loading={saving} disabled={!canSave}>Save changes</Button>
+        </>
+      }
+    >
+      <div className="flex gap-2.5 items-start bg-warning-bg border-[1.5px] border-warning/30 rounded-lg p-3.5 mb-5">
+        <p className="text-xs text-warning-strong leading-relaxed">
+          These details follow the patient: a change here applies at every hospital that holds this patient, not only
+          this clinic. Correct them only when you are sure, for example a walk-in whose real name is now known.
+        </p>
+      </div>
+      {loading && !form && <p className="text-sm text-text-soft">Loading the patient record…</p>}
+      {error && !form && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {form && (
+        <>
+          <FormField label="First name *">
+            <input className={formInputClass} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+          </FormField>
+          <FormField label="Last name *">
+            <input className={formInputClass} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+          </FormField>
+          <FormField label="Date of birth">
+            <input type="date" max={today} className={formInputClass} value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
+          </FormField>
+          <FormField label="Sex">
+            <select className={formInputClass} value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as PatientIdentity['gender'] })}>
+              {SEX_OPTIONS.map((o) => <option key={o.value || 'none'} value={o.value}>{o.label}</option>)}
+            </select>
+          </FormField>
+          {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
+        </>
+      )}
+    </SlidePanel>
   );
 }
 

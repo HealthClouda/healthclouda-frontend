@@ -305,6 +305,77 @@ describe('OrgAdmin — Patients list', () => {
   });
 });
 
+/**
+ * FLAG-058 — reception's completion form tells staff that once a record is
+ * complete "only an organisation administrator can change the name, date of
+ * birth or sex", but the Patients page had no way to do it. PATCH
+ * /patients/{id}/ as ORG_ADMIN uses PatientFullUpdateSerializer (backend
+ * source, 2026-09-30 — the live schema documents no request body for it).
+ * GET /patients/{id}/ prefills: the list row only carries `full_name`.
+ */
+describe('FLAG-058 — org admin corrects a patient\'s name, date of birth and sex', () => {
+  const row = {
+    id: 'p-9', full_name: 'EM-27SEP walk-in, man ~40 Probe', healthclouda_id: 'HCL-WALK09',
+    gender: 'Other', phone: '08020000009', last_visit: '2026-09-28', status: 'ACTIVE',
+  };
+  const detail = {
+    id: 'p-9', healthclouda_id: 'HCL-WALK09', first_name: 'EM-27SEP walk-in, man ~40', last_name: 'Probe',
+    date_of_birth: '1986-01-01', gender: '',
+  };
+
+  async function openEdit() {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org-admin/patients/')) return { count: 1, next: null, previous: null, results: [row] };
+      if (path.startsWith('/patients/p-9/')) return detail;
+      return envelope;
+    });
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: `Edit details for ${row.full_name}` }));
+    await waitFor(() => expect(screen.getByLabelText(/First name/)).toHaveValue(detail.first_name));
+  }
+
+  it('opens a form prefilled from the patient record', async () => {
+    await openEdit();
+    expect(screen.getByLabelText(/Last name/)).toHaveValue('Probe');
+    expect(screen.getByLabelText(/Date of birth/)).toHaveValue('1986-01-01');
+    expect(screen.getByLabelText(/^Sex/)).toHaveValue('');
+  });
+
+  it('sends only what changed, to the patient endpoint', async () => {
+    dataActionMock.mockResolvedValue({ message: 'Patient updated successfully' });
+    await openEdit();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: 'Musa' } });
+    fireEvent.change(screen.getByLabelText(/^Sex/), { target: { value: 'M' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const [path, method, body] = dataActionMock.mock.calls[0];
+    expect(path).toBe('/patients/p-9/');
+    expect(method).toBe('PATCH');
+    expect(body).toEqual({ first_name: 'Musa', gender: 'M' });
+  });
+
+  it('will not save a blank name', async () => {
+    await openEdit();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: '  ' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  });
+
+  it('shows the server\'s refusal in the panel', async () => {
+    const { ClientApiError } = await import('@/lib/client-api');
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, { error: 'date_of_birth: Date of birth cannot be in the future.' }, 'date_of_birth: Date of birth cannot be in the future.'));
+    await openEdit();
+    fireEvent.change(screen.getByLabelText(/Last name/), { target: { value: 'Okoro' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/cannot be in the future/);
+  });
+
+  it('says the change applies wherever the record is held', async () => {
+    await openEdit();
+    expect(screen.getByText(/every hospital that holds this patient/)).toBeInTheDocument();
+  });
+});
+
 describe('OrgAdmin — Overview stat cards', () => {
   it('renders every stat card from the real payload, with no empty placeholders', async () => {
     dataGetMock.mockResolvedValue(envelope);
