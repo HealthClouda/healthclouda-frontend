@@ -253,6 +253,17 @@ export interface OrgPatientSummary {
   status?: string;
 }
 
+// GET /patients/{id}/ as ORG_ADMIN — only the identity fields the FLAG-058
+// edit panel reads (verified on api-dev 2026-09-30; gender is '' when unset).
+export interface PatientIdentity {
+  id: string;
+  healthclouda_id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string | null;
+  gender: 'M' | 'F' | 'O' | '';
+}
+
 export interface StaffMember {
   id: string;
   first_name: string;
