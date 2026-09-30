@@ -13,12 +13,12 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
-import { formatDate, timeAgo, truncate } from '@/lib/utils';
+import { formatDate, formatDateTime, timeAgo, truncate, roleLabel } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   SuperadminStats, OrgSummary, OrganizationDetail, OrganizationInput, StaffMember,
-  UserCreateInput, ActivityItem, Paginated,
+  UserCreateInput, AuditLogEntry, AuditAction, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -121,24 +121,22 @@ function SearchInput({ value, onChange, placeholder, label }: { value: string; o
 function OverviewPage({
   stats, onNavigate,
 }: { stats: SuperadminStats | null; onNavigate: (p: string) => void }) {
+  // FLAG-061: "Recent Activity" is the newest page of the audit log.
+  // /superadmin/activity/ answers {period, limit, activity: {recent_users, …}}
+  // (undocumented — the schema says "No response body"), which is neither a
+  // list nor {results}, so this box could only ever say "No recent activity".
   const { data: activity, loading: actLoading, error: actError, refetch: actRefetch } =
-    useApi<{ results?: ActivityItem[] } | ActivityItem[]>(ENDPOINTS.SA_ACTIVITY);
+    useApi<Paginated<AuditLogEntry>>(ENDPOINTS.SA_AUDIT);
   // No `?page_size=5`: the server ignores the param and returns its own page of
   // 20 regardless (measured against api-dev 2026-08-17 — FLAG-013), so the cap
   // has to be applied here, the same way activityList does it below.
   const { data: orgsData, loading: orgsLoading, error: orgsError, refetch: orgsRefetch } =
     useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS);
 
-  const activityList = Array.isArray(activity)
-    ? activity.slice(0, 8)
-    : (activity as { results?: ActivityItem[] } | null)?.results?.slice(0, 8) ?? [];
+  const activityList = (activity?.results ?? []).slice(0, 8);
   const recentOrgs = (orgsData?.results ?? []).slice(0, 5);
 
-  const activityColumns: DataTableColumn<ActivityItem>[] = [
-    { key: 'event', header: 'Event', render: (r) => <span className="text-[12.5px] text-text-mid">{truncate(r.description ?? r.action ?? 'System event', 70)}</span> },
-    { key: 'by', header: 'Performed By', render: (r) => r.performed_by ?? r.user ?? 'System' },
-    { key: 'time', header: 'Time', className: 'whitespace-nowrap', render: (r) => timeAgo(r.created_at ?? r.timestamp) },
-  ];
+  const activityColumns = auditColumns({ compact: true });
 
   return (
     <div className="space-y-4">
@@ -735,33 +733,126 @@ function UsersPage() {
   );
 }
 
-// ─── Audit Logs page ──────────────────────────────────────────────
+// ─── Audit Logs page (FLAG-061) ───────────────────────────────────
+
+const ACTION_LABELS: Record<AuditAction, string> = {
+  CREATE: 'Created', READ: 'Viewed', UPDATE: 'Updated', DELETE: 'Deleted',
+  LOGIN: 'Signed in', LOGIN_FAILURE: 'Failed sign-in', LOGOUT: 'Signed out',
+  PERMISSION_DENIED: 'Access denied', PRINT: 'Printed', RATE_LIMITED: 'Rate-limited',
+  EXPORT: 'Exported', SHARE: 'Shared',
+};
+
+function actionLabel(action: string): string {
+  return ACTION_LABELS[action as AuditAction] ?? action;
+}
+
+/** Who did it. `user_email` is '' only for entries with no signed-in user. */
+function Performer({ log }: { log: AuditLogEntry }) {
+  if (!log.user_email) return <span className="text-xs text-text-soft">System</span>;
+  return (
+    <div>
+      <div className="text-[12.5px] text-ink">{log.user_email}</div>
+      {log.user_role && <div className="text-[11px] text-text-soft">{roleLabel(log.user_role)}</div>}
+    </div>
+  );
+}
+
+/** Columns shared by the Audit Logs page and the Overview's Recent Activity. */
+function auditColumns({ compact = false } = {}): DataTableColumn<AuditLogEntry>[] {
+  const when: DataTableColumn<AuditLogEntry> = {
+    key: 'time', header: 'When', className: 'whitespace-nowrap',
+    render: (log) => <span className="text-xs text-text-soft" title={formatDateTime(log.created_at)}>{timeAgo(log.created_at)}</span>,
+  };
+  const by: DataTableColumn<AuditLogEntry> = { key: 'by', header: 'Performed By', render: (log) => <Performer log={log} /> };
+  const what: DataTableColumn<AuditLogEntry> = {
+    key: 'what', header: compact ? 'Event' : 'Action', className: 'max-w-sm',
+    render: (log) => (
+      <div>
+        <div className="text-[12.5px] font-semibold text-ink">{actionLabel(log.action)}{log.resource_type ? ` · ${log.resource_type}` : ''}</div>
+        {log.resource_repr && <div className="text-[11.5px] text-text-soft">{truncate(log.resource_repr, compact ? 60 : 90)}</div>}
+      </div>
+    ),
+  };
+  if (compact) return [what, by, when];
+  const why: DataTableColumn<AuditLogEntry> = {
+    key: 'reason', header: 'Reason', className: 'max-w-xs',
+    render: (log) => <span className="text-[12.5px] text-text-mid">{log.reason ? truncate(log.reason, 120) : '—'}</span>,
+  };
+  return [when, by, what, why];
+}
 
 function AuditPage() {
-  const { items: logs, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<ActivityItem>(ENDPOINTS.SA_AUDIT);
+  const [action, setAction] = useState('');
+  const [email, setEmail] = useState('');
+  const [resourceType, setResourceType] = useState('');
+  const [patient, setPatient] = useState('');
+  const debouncedEmail = useDebouncedValue(email.trim(), 350);
+  const debouncedType = useDebouncedValue(resourceType.trim(), 350);
+  const debouncedPatient = useDebouncedValue(patient.trim(), 350);
 
-  const columns: DataTableColumn<ActivityItem>[] = [
-    { key: 'event', header: 'Event', className: 'max-w-sm', render: (log) => <span className="text-[12.5px] text-text-mid">{truncate(log.description ?? log.action ?? '—', 80)}</span> },
-    { key: 'by', header: 'Performed By', render: (log) => <span className="text-xs text-text-soft">{log.performed_by ?? log.user ?? 'System'}</span> },
-    { key: 'time', header: 'Time', className: 'whitespace-nowrap', render: (log) => <span className="text-xs text-text-soft">{timeAgo(log.created_at ?? log.timestamp)}</span> },
-  ];
+  // Every filter here is a documented query param of GET /audit/logs/ (live
+  // schema 2026-09-30) — an invented one would be silently ignored by DRF.
+  const params = new URLSearchParams();
+  if (action) params.set('action', action);
+  if (debouncedEmail) params.set('user_email', debouncedEmail);
+  if (debouncedType) params.set('resource_type', debouncedType);
+  if (debouncedPatient) params.set('patient', debouncedPatient);
+  const qs = params.toString();
+  const endpoint = ENDPOINTS.SA_AUDIT + (qs ? `?${qs}` : '');
+
+  const { items: logs, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<AuditLogEntry>(endpoint);
+  const filtered = qs !== '';
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="font-body font-black text-[22px] text-ink">Audit Logs</h2>
-        <p className="text-[13px] text-text-soft mt-0.5">{count > 0 ? `${count} entries` : 'System activity log'}</p>
+        <p className="text-[13px] text-text-soft mt-0.5">{count > 0 ? `${count} entries${filtered ? ' match' : ''}` : 'System activity log'}</p>
       </div>
       <DataTable
-        columns={columns}
+        columns={auditColumns()}
         data={logs}
         getRowKey={(log) => log.id}
         loading={loading}
         error={error}
         onRetry={refetch}
-        emptyTitle="No audit logs"
-        emptyDescription="System activity will be logged here."
+        emptyTitle={filtered ? 'No matching entries' : 'No audit logs'}
+        emptyDescription={filtered ? 'Try removing a filter.' : 'System activity will be logged here.'}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <select
+              aria-label="Action"
+              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+            >
+              <option value="">All actions</option>
+              {(Object.keys(ACTION_LABELS) as AuditAction[]).map((a) => <option key={a} value={a}>{ACTION_LABELS[a]}</option>)}
+            </select>
+            <input
+              aria-label="Performed by (email)"
+              placeholder="Performed by (email)"
+              className={`${inputClass} h-9 w-56 text-[12.5px]`}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              aria-label="Record type"
+              placeholder="Record type, e.g. Admission"
+              className={`${inputClass} h-9 w-52 text-[12.5px]`}
+              value={resourceType}
+              onChange={(e) => setResourceType(e.target.value)}
+            />
+            <input
+              aria-label="Patient record ID"
+              placeholder="Patient record ID"
+              className={`${inputClass} h-9 w-72 text-[12.5px] font-mono`}
+              value={patient}
+              onChange={(e) => setPatient(e.target.value)}
+            />
+          </div>
+        }
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
