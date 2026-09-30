@@ -308,20 +308,74 @@ describe('FLAG-213 (doctor half) — appointments render the real payload', () =
  *  - The 201 returns no `id` (FLAG-219), so this refetches rather than
  *    navigating to the episode it just created.
  */
+// ─── /doctor/my-patients/ fixtures (FLAG-059) ─────────────────────────────
+// Shape read from the live schema 2026-09-30: MyPatientsPaginatedResponse →
+// results: MyPatientEpisode[] { id (EPISODE id), patient: DoctorPatientMinimal,
+// episode_type, chief_complaint, status, episode_start, ... }. There is no
+// phone or email on this endpoint.
+const chidi = {
+  id: 'pat-1', healthclouda_id: 'HCL-CHIDI1', first_name: 'Chidi', last_name: 'Nwosu',
+  gender: 'M', date_of_birth: '1990-04-02', age: 36,
+};
+const ngozi = {
+  id: 'pat-2', healthclouda_id: 'HCL-NGOZI2', first_name: 'Ngozi', last_name: 'Eze',
+  gender: 'F', date_of_birth: null, age: null,
+};
+function myPatientEpisode(id: string, patient: typeof chidi | typeof ngozi, over: Record<string, unknown> = {}) {
+  return {
+    id, patient, episode_type: 'OUTPATIENT', episode_type_display: 'Outpatient',
+    chief_complaint: 'Headache', diagnosis: '', status: 'ACTIVE',
+    episode_start: '2026-07-01T10:00:00Z', episode_end: null, latest_vitals: null, admission: null,
+    ...over,
+  };
+}
+
+describe('FLAG-059 — My Patients reads the episode-shaped list', () => {
+  function show(results: unknown[]) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) {
+        return Promise.resolve({ count: results.length, next: null, previous: null, results });
+      }
+      return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
+    });
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
+  }
+
+  it('shows each patient\'s name and HealthClouda ID from the nested patient', async () => {
+    show([myPatientEpisode('ep-1', chidi)]);
+    expect(await screen.findByText('Chidi Nwosu')).toBeInTheDocument();
+    expect(screen.getByText('HCL-CHIDI1')).toBeInTheDocument();
+  });
+
+  it('lists a patient with two cases once, not once per case', async () => {
+    show([
+      myPatientEpisode('ep-1', chidi),
+      myPatientEpisode('ep-2', chidi, { chief_complaint: 'Follow-up', episode_start: '2026-08-01T10:00:00Z' }),
+      myPatientEpisode('ep-3', ngozi),
+    ]);
+    expect(await screen.findByText('Chidi Nwosu')).toBeInTheDocument();
+    expect(screen.getAllByText('Chidi Nwosu')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'New episode' })).toHaveLength(2);
+  });
+
+  it('opens New episode with the patient\'s name, never "undefined"', async () => {
+    show([myPatientEpisode('ep-1', chidi)]);
+    fireEvent.click(await screen.findByRole('button', { name: 'New episode' }));
+    await screen.findByLabelText(/Episode type/);
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Chidi Nwosu/).length).toBeGreaterThan(1);
+  });
+});
+
 describe('D5 — starting an episode', () => {
   const patientsPage = {
     count: 1,
     next: null,
     previous: null,
-    results: [{
-      id: 'pat-1',
-      first_name: 'Chidi',
-      last_name: 'Nwosu',
-      email: 'chidi@example.test',
-      phone_number: '08031231234',
-      date_of_birth: '1990-04-02',
-      created_at: '2026-07-01T10:00:00Z',
-    }],
+    // FLAG-059: /doctor/my-patients/ is one row PER EPISODE with the patient
+    // nested (MyPatientsPaginatedResponse). The row id is the EPISODE's.
+    results: [myPatientEpisode('ep-1', chidi)],
   };
 
   async function openPanel() {
@@ -391,15 +445,9 @@ describe('doctor referral creation', () => {
     count: 1,
     next: null,
     previous: null,
-    results: [{
-      id: 'pat-1',
-      first_name: 'Chidi',
-      last_name: 'Nwosu',
-      email: 'chidi@example.test',
-      phone_number: '08031231234',
-      date_of_birth: '1990-04-02',
-      created_at: '2026-07-01T10:00:00Z',
-    }],
+    // FLAG-059: /doctor/my-patients/ is one row PER EPISODE with the patient
+    // nested (MyPatientsPaginatedResponse). The row id is the EPISODE's.
+    results: [myPatientEpisode('ep-1', chidi)],
   };
 
   const luth = {
@@ -486,10 +534,7 @@ describe('doctor referral creation', () => {
       count: 2,
       next: null,
       previous: null,
-      results: [
-        { id: 'pat-1', first_name: 'Chidi', last_name: 'Nwosu', created_at: '2026-07-01T10:00:00Z' },
-        { id: 'pat-2', first_name: 'Ngozi', last_name: 'Eze', created_at: '2026-07-02T10:00:00Z' },
-      ],
+      results: [myPatientEpisode('ep-1', chidi), myPatientEpisode('ep-2', ngozi)],
     };
     dataGetMock.mockImplementation((path: string) => {
       if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) return Promise.resolve(twoPatients);

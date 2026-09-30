@@ -51,6 +51,8 @@
 
 | @Bastoh | **FLAG-611 (frontend)** — Change password from the sidebar on every dashboard (says how many other devices were signed out), and the forced-change page `/change-password` for a user the backend flags `force_password_change` (they used to loop through signin). Backend #249 (FLAG-620) | `feat/flag-611-change-password` | new `src/components/account/`, `Sidebar.tsx`, `auth-server.ts`, `server-fetch.ts`, `client-api.ts`, `middleware.ts`, `router.ts`, `config.ts` (`RESERVED_PATHS`), new `src/app/change-password/`, both dashboard-gate test mocks, `docs/ARCHITECTURE.md` | 2026-10-03 | 🟡 PR open — claimed in the PR's own commit |
 
+| @Bastoh | **FLAG-059** — doctor's My Patients reads the episode-shaped `/doctor/my-patients/`: one row per patient, New episode / Refer send the patient id | `fix/flag-059-doctor-my-patients` | `src/components/dashboard/doctor/DoctorDashboard.tsx` (+ test), `src/types/dashboard.ts` | 2026-09-30 | 🟡 Claimed in this branch's own commit (FLAG-240 option (a)). FLAG-059 itself is logged in #169 |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
