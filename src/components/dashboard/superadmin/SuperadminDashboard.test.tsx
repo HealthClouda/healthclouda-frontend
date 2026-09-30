@@ -356,3 +356,77 @@ describe('FLAG-222 — stat tiles must read the fields the API actually sends', 
     expect(patients.closest('div')?.parentElement?.textContent).not.toContain('900');
   });
 });
+
+// ─── FLAG-061 — Audit Logs read the AuditLog shape ─────────────────────────
+// Shape read from the live schema 2026-09-30 (PaginatedAuditLogList →
+// AuditLog). This row is a real one from api-dev (28 Sep, FLAG-601's audit of
+// an off-duty doctor named as attending). The page read `performed_by` /
+// `user` / `description`, none of which exist, so every row said "System".
+const overrideEntry = {
+  id: 'log-1', user_email: 'nurse@demo.test', user_role: 'NURSE', action: 'CREATE',
+  resource_type: 'Admission', resource_id: 'a161c35d-7d41-4b16-8076-1bebc2d56e21',
+  resource_repr: 'CREATE Admission', reason: 'Off-duty doctor named as attending on admission',
+  ip_address: '13.223.229.170', created_at: '2026-09-28T01:13:32.954039Z', changes: {},
+  metadata: { route: 'emergency', attending_doctor_on_duty_override: true },
+};
+const systemEntry = {
+  ...overrideEntry, id: 'log-2', user_email: '', user_role: '', action: 'READ', resource_type: 'Patient',
+  resource_repr: 'Patient HCL-A2XLXC', reason: '', metadata: {},
+};
+
+describe('FLAG-061 — Audit Logs show who, what and why', () => {
+  const auditCalls = () => dataGetMock.mock.calls.map(c => c[0] as string).filter(p => p.startsWith('/audit/logs/'));
+
+  beforeEach(() => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/audit/logs/')) return { count: 2, next: null, previous: null, results: [overrideEntry, systemEntry] };
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+  });
+
+  it('names the person who did it, with their role, instead of "System"', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    expect(screen.getByText('Nurse')).toBeInTheDocument();
+  });
+
+  it('shows the reason and the record that was touched', async () => {
+    await openPage('Audit Logs', 'Off-duty doctor named as attending on admission');
+    expect(screen.getAllByText(/Admission/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Patient HCL-A2XLXC')).toBeInTheDocument();
+  });
+
+  it('says "System" only when the entry really has no user', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    // Scoped to the table: the sidebar also has a "System" section heading.
+    expect(within(screen.getByRole('table')).getAllByText('System')).toHaveLength(1);
+  });
+
+  it('filters by action on the server', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'LOGIN_FAILURE' } });
+    await waitFor(() => expect(auditCalls().some(p => p.includes('action=LOGIN_FAILURE'))).toBe(true));
+  });
+
+  it('filters by patient record ID on the server', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    fireEvent.change(screen.getByLabelText(/Patient record ID/), { target: { value: '421839bb-3f00-4c93-9379-137bc3862939' } });
+    await waitFor(() => expect(auditCalls().some(p => p.includes('patient=421839bb-3f00-4c93-9379-137bc3862939'))).toBe(true), { timeout: 3000 });
+  });
+});
+
+describe('FLAG-061 — Overview "Recent Activity" shows real entries', () => {
+  it('lists the latest audit entries with the person who did them', async () => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/audit/logs/')) return { count: 2, next: null, previous: null, results: [overrideEntry, systemEntry] };
+      // The real /superadmin/activity/ body — neither a list nor {results} —
+      // which is why this box always said "No recent activity".
+      if (path.startsWith('/superadmin/activity/')) return { period: { days: 7 }, limit: 50, activity: { recent_users: [], recent_patients: [] } };
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+    expect(await screen.findByText('nurse@demo.test')).toBeInTheDocument();
+    expect(screen.queryByText('No recent activity')).not.toBeInTheDocument();
+  });
+});

@@ -902,14 +902,27 @@ export interface Prescription {
   prescribed_at: string;
 }
 
-export interface ActivityItem {
+// GET /audit/logs/ (FLAG-061) — `AuditLog`, verified against the live schema
+// 2026-09-30. Replaces `ActivityItem`, whose `performed_by` / `user` /
+// `description` / `timestamp` exist on no endpoint, so every row rendered
+// "System". `user_email` is '' for entries with no signed-in user.
+export type AuditAction =
+  | 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGIN_FAILURE' | 'LOGOUT'
+  | 'PERMISSION_DENIED' | 'PRINT' | 'RATE_LIMITED' | 'EXPORT' | 'SHARE';
+
+export interface AuditLogEntry {
   id: string;
-  action?: string;
-  description?: string;
-  user?: string;
-  performed_by?: string;
-  timestamp?: string;
-  created_at?: string;
+  user_email: string;
+  user_role: string;
+  action: AuditAction;
+  /** Model name, e.g. 'Patient', 'Admission'. */
+  resource_type: string;
+  resource_id: string;
+  resource_repr: string;
+  /** Why it was done, e.g. 'Off-duty doctor named as attending on admission'. Often ''. */
+  reason: string;
+  ip_address: string | null;
+  created_at: string;
 }
 
 // ═══ Duplicate-patient merge queue (build 2 PR B — backend FLAG-373) ═══
