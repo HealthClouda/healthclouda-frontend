@@ -2375,6 +2375,8 @@ points at a screen that doesn't exist.
 **Done when** an org admin can edit name, date of birth and sex from the browser, or the advice text
 stops promising it.
 
+**Fix: #174** (Patients → Edit). ⚠️ It exposes FLAG-063 below; built on @Bastoh's call, 30 Sep.
+
 ---
 
 ### FLAG-059 — The doctor's My Patients page shows no names, and "New episode" / "Refer" send an episode id as the patient
@@ -2443,6 +2445,28 @@ filtered by patient.
 - **The bed-taken notice appears twice**, once in the panel and once as a toast.
 - **The merge, undo and reject dialogs show names only.** "Tolu Probe-CL28SEP → Tolu Probe-CL28SEP" gives
   no way to tell which record survives. Show the HealthClouda IDs.
+
+---
+
+### FLAG-063 — An org admin's patient edit changes the record at every hospital that holds it
+**Severity:** P1 (multi-tenancy) · **Area:** Patients / Org admin · **Owner:** @Bastoh · **Status:** 🟠 **OPEN — accepted knowingly**
+**Found:** 2026-09-30, building FLAG-058's edit screen (#174)
+
+`PATCH /patients/{id}/` as ORG_ADMIN uses `PatientFullUpdateSerializer`: name, date of birth, sex,
+email, phone and `is_active` — on **any** patient visible to the org (`PatientViewSet.update`, backend
+`apps/patients/views.py`). Nothing checks whether another hospital also holds the record, so one
+clinic's admin can rename a shared patient (e.g. `HCL-Z5DU8H`) for every hospital. The merge tool
+already refuses this case and escalates to a superadmin ("one hospital does not rewrite a record
+another hospital also holds"); a plain edit skips that rule.
+
+**Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
+backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
+The frontend deliberately does not try to decide which records are shared: that would be a
+client-side trust decision (CLAUDE.md §6 lens 1).
+
+**Done when** identity edits by an org admin are refused or escalated on the server for a record
+another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
+cross-hospital edits are intended.
 
 ---
 
