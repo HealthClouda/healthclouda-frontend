@@ -26,7 +26,7 @@ import type { User } from '@/types/auth';
 import type {
   DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
   ReferralCreateInput, ReferralCreateResponse, ReferralTargetOrganization, RegenerateLetterResponse,
-  DoctorAdmission, AttendingDoctor,
+  DoctorAdmission, AttendingDoctor, CheckIn,
 } from '@/types/dashboard';
 import { URGENCY_OPTIONS, LEVEL_OF_CARE_OPTIONS } from '@/types/dashboard';
 import { ClientApiError } from '@/lib/client-api';
@@ -44,8 +44,13 @@ function BeakerIcon()  { return <svg viewBox="0 0 24 24" fill="none" stroke="cur
 // tile was repurposed, which read as the leftover it was.
 function BedIcon()     { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>; }
 
+// FLAG-060 — the doctor's reception queue. A clock, not the CalIcon: the queue
+// is who is here now, appointments are who is booked.
+function ClockIcon()   { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>; }
+
 const NAV: NavItem[] = [
   { id: 'overview',      label: 'Overview',      icon: <GridIcon /> },
+  { id: 'queue',         label: 'Queue',         icon: <ClockIcon /> },
   { id: 'patients',      label: 'My Patients',   icon: <UserIcon /> },
   { id: 'episodes',      label: 'Episodes',      icon: <DocIcon /> },
   { id: 'appointments',  label: 'Appointments',  icon: <CalIcon /> },
@@ -417,8 +422,11 @@ function OverviewPage({
  * second endpoint, which is why FLAG-219 records it as a pattern rather than
  * one endpoint's oversight.
  */
+/** The patient identity the New episode panel needs — My Patients and Queue both open it. */
+type PatientRef = Pick<PatientSummary, 'id' | 'first_name' | 'last_name'>;
+
 function NewEpisodePanel({ patient, onClose, onCreated }: {
-  patient: PatientSummary | null;
+  patient: PatientRef | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -1058,6 +1066,158 @@ function MyPatientsPage() {
         key={referFor?.id ?? 'no-referral-patient'}
         patient={referFor}
         onClose={() => setReferFor(null)}
+        onCreated={refetch}
+      />
+    </div>
+  );
+}
+
+// ─── Queue (FLAG-060) ───────────────────────────────────────────────────
+//
+// Reception's "Check in patient" assigns a doctor, but until backend #243 no
+// doctor screen could read check-ins, so a newly registered patient never
+// reached a doctor and could not be given an episode. This reads the doctor's
+// own queue and opens the same NewEpisodePanel My Patients uses. Starting an
+// episode does not change the check-in: calling in and finishing stay explicit,
+// so the queue never claims a patient was seen because a form was opened.
+
+function localTodayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function QueuePage() {
+  // Same visible date control as reception's queue, for the same reason: an
+  // empty list should say which day it is empty for.
+  const [date, setDate] = useState(localTodayISO());
+  const { items: queue, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<CheckIn>(`${ENDPOINTS.DOC_QUEUE}?date=${encodeURIComponent(date)}`);
+  const { toast } = useToast();
+  const [startFor, setStartFor] = useState<PatientRef | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const isToday = date === localTodayISO();
+
+  async function setStatus(ci: CheckIn, next: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW') {
+    setUpdating(ci.id);
+    try {
+      await apiAction(ENDPOINTS.DOC_QUEUE_ITEM(ci.id), 'PATCH', { status: next });
+      refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update the queue');
+    } finally {
+      setUpdating(null);
+    }
+  }
+
+  const link = 'text-xs font-medium hover:underline disabled:opacity-50';
+  const columns: DataTableColumn<CheckIn>[] = [
+    {
+      key: 'queue', header: '#', className: 'w-12',
+      render: ci => <span className="text-xs font-mono text-text-soft">{ci.queue_number ?? '—'}</span>,
+    },
+    {
+      key: 'patient', header: 'Patient',
+      render: ci => (
+        <div>
+          <div className="font-medium text-ink">{personName(ci.patient)}</div>
+          {ci.patient?.healthclouda_id && (
+            <div className="text-xs text-text-soft font-mono">{ci.patient.healthclouda_id}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'reason', header: 'Reason',
+      render: ci => <span className="text-xs text-text-soft">{truncate(ci.reason_for_visit || '—', 40)}</span>,
+    },
+    {
+      key: 'checked_in', header: 'Checked In',
+      render: ci => (
+        <span className="text-xs text-text-soft whitespace-nowrap" title={formatDateTime(ci.checked_in_at)}>
+          {isToday ? timeAgo(ci.checked_in_at) : formatTime(ci.checked_in_at)}
+        </span>
+      ),
+    },
+    { key: 'status', header: 'Status', render: ci => <StatusBadge status={ci.status} /> },
+    {
+      key: 'actions', header: '', className: 'text-right',
+      render: ci => {
+        const name = personName(ci.patient);
+        const busy = updating === ci.id;
+        const open = ci.status === 'WAITING' || ci.status === 'IN_PROGRESS';
+        const patient = ci.patient;
+        return (
+          <div className="flex gap-3 justify-end whitespace-nowrap">
+            {open && patient?.id && (
+              <button
+                onClick={() => setStartFor({ id: patient.id!, first_name: patient.first_name, last_name: patient.last_name })}
+                aria-label={`Start episode for ${name}`}
+                className={`${link} text-primary-dark`}
+              >
+                Start episode
+              </button>
+            )}
+            {ci.status === 'WAITING' && (
+              <>
+                <button onClick={() => setStatus(ci, 'IN_PROGRESS')} disabled={busy}
+                  aria-label={`Call in ${name}`} className={`${link} text-primary-dark`}>
+                  Call in
+                </button>
+                <button onClick={() => setStatus(ci, 'NO_SHOW')} disabled={busy}
+                  aria-label={`Mark ${name} as no-show`} className={`${link} text-text-soft`}>
+                  No-show
+                </button>
+              </>
+            )}
+            {ci.status === 'IN_PROGRESS' && (
+              <button onClick={() => setStatus(ci, 'COMPLETED')} disabled={busy}
+                aria-label={`Done with ${name}`} className={`${link} text-primary-dark`}>
+                Done
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <PageHeading title="Queue" count={count} unit="checked in" />
+        <label className="text-xs font-medium text-text-soft">
+          Date
+          <input
+            type="date"
+            value={date}
+            onChange={e => e.target.value && setDate(e.target.value)}
+            className="ml-2 text-xs border border-border rounded-lg px-2 py-1 bg-white text-ink focus:ring-2 focus:ring-primary/30 outline-none"
+          />
+        </label>
+      </div>
+      <DataTable
+        columns={columns}
+        data={queue}
+        getRowKey={ci => ci.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No patients checked in"
+        emptyDescription={isToday
+          ? 'Patients reception checks in for you today will appear here.'
+          : 'Nobody was checked in for you on this day.'}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
+      {/* Keyed on the patient for the same reason as on My Patients: a full
+          remount per patient, so no form text carries over between them. */}
+      <NewEpisodePanel
+        key={startFor?.id ?? 'no-queue-patient'}
+        patient={startFor}
+        onClose={() => setStartFor(null)}
         onCreated={refetch}
       />
     </div>
@@ -1745,6 +1905,7 @@ function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
 
 const PAGE_TITLES: Record<string, string> = {
   overview:      'Overview',
+  queue:         'Queue',
   patients:      'My Patients',
   episodes:      'Episodes',
   appointments:  'Appointments',
@@ -1782,6 +1943,7 @@ export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
       smallScreenGateFor="Doctor"
     >
       {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} duty={duty} />}
+      {page === 'queue'         && <QueuePage />}
       {page === 'patients'      && <MyPatientsPage />}
       {page === 'episodes'      && <EpisodesPage />}
       {page === 'appointments'  && <AppointmentsPage />}
