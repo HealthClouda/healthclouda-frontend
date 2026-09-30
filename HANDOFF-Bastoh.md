@@ -104,6 +104,26 @@ artifact. An overnight session; nobody watching live.
 - The Railway deploy of #241 beyond dev; B8 Cloudflare 1010; the FLAG-607 decisions; FLAG-611's
   question (should a signed-in password change end other sessions?); CLAUDE.md §3 merge vs rebase.
 
+**Addendum (28 Sep, afternoon) — the whole checklist walked in the browser only.** Bastoh asked for every
+step to be done through the screens, like a real user, not the API. The checklist artifact was rewritten
+as a plain-language, step-by-step version (who to sign in as, what to click, what you should see) so
+@Ericmoore207 can follow it, and all 44 steps were walked in the browser: **41 pass, 0 fail, 3 blocked.**
+- Blocked: Build 2 step 4 (FLAG-053, waits for #168); Build 5 step 5 (Audit Logs can't show the entry,
+  FLAG-061); Build 6 step 7 (the test patient had no doctor, so nobody could discharge her, FLAG-607).
+- Six steps were walked with existing test patients rather than exactly as written, and one record was
+  completed without a first name by my script's mistake (now stuck, FLAG-058). Each is noted in the
+  checklist; they are to be re-walked as written.
+- **Walking in the browser found six problems the API passes never could:** FLAG-057 (password can land in
+  the address bar if Sign In is clicked before the page loads), FLAG-059 (doctor's My Patients shows no
+  names and New episode fails), FLAG-060 (no way for a doctor to start a case for a newly registered
+  patient), FLAG-061 (Audit Logs show every entry as "System"), FLAG-058, FLAG-062.
+- **Decisions by Bastoh (28 Sep):** FLAG-060 → a doctor Queue page for today's check-ins; FLAG-607 → an
+  Unassigned admissions list every doctor sees; FLAG-055 → the backend refuses a new case for a deceased
+  patient; FLAG-611 → a signed-in password change ends the person's other sessions.
+- Still admitted on dev with no doctor: HCL-RNWDM1 (GW-06) and HCL-O23MK2 (MW-01).
+- A scheduled follow-up session (28 Sep, 16:28 UTC) hit the account's usage limit after ~54 minutes and
+  saved nothing; the work is being done step by step instead.
+
 ### 2026-09-27 — Every issue from the dev-tier walkthrough fixed: eight backend PRs merged, five frontend items built (branches: `claude/pr-161-review-7fp39h`, `feat/emergency-admission-single-call`, `fix/restore-stat-tiles`)
 
 **Goal:** fix everything the 26 Sep dev-tier walkthrough found, backend first (B1–B8), then frontend

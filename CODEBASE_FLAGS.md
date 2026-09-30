@@ -2317,6 +2317,10 @@ certification paperwork)? If the latter, the Admit list should exclude them.
 **Done when** the backend decides, and either the episode route refuses or the Admit list hides a
 deceased patient.
 
+**Decision (@Bastoh, 28 Sep): the backend refuses.** `POST /episodes/` must refuse a patient
+`patient_is_deceased()` says has died, with the admission refusal's non-disclosing wording. Backend ask
+for @Ericmoore207 (suggested backend FLAG-617); the frontend only needs to show the server's refusal.
+
 ---
 
 ### FLAG-056 — The optional doctor picker's empty option says "No doctor available right now" while a doctor is on duty
@@ -2333,6 +2337,111 @@ attending-doctor picker at all (bed and reason only), so the off-duty warning (F
 met from the emergency panel. Worth a design decision alongside backend FLAG-607's open half.
 
 **Done when** the optional placeholder no longer claims no doctor is available.
+
+---
+
+### FLAG-057 — Clicking Sign In before the page has loaded sends the email and password in the URL
+**Severity:** P1 (security, before PHI) · **Area:** Auth / Sign-in forms · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk of HCL/CHK/2026-002
+
+**What happened.** Twice, a sign-in in the automated browser landed on
+`/demo-clinic/signin?email=doctor%40demo.test&password=Demo%23Pass1`. `SigninForm.tsx:136`,
+`SetPasswordForm.tsx:198` and `ResetPasswordForm.tsx:79` are plain `<form onSubmit=…>` with no `method`,
+and react-hook-form gives the inputs `name`s. If the page's JavaScript hasn't loaded (a slow or dropped
+chunk), the browser submits the form natively as a **GET**, and the credentials go into the address bar,
+browser history, and the Vercel/Cloudflare request logs. In the walk the trigger was a JS chunk that
+failed to fetch, which is exactly what happens to a real user on a weak connection.
+
+**Fix (small):** `method="post"` on all three forms (a native POST puts nothing in the URL), and
+disable the submit button until hydration, or set `action` to a harmless same-page target.
+
+**Done when** a native submit of each form with JavaScript disabled puts no field value in the URL.
+
+---
+
+### FLAG-058 — Once a record is completed, nobody can correct the patient's name on screen
+**Severity:** P2 · **Area:** Reception / Org admin · **Owner:** @Bastoh · **Status:** 🟡 **OPEN** (half addressed by #167)
+**Found:** 2026-09-28, browser walk, build 2
+
+Reception's completion form says *"Once the record is complete, only an organisation administrator can
+change the name, date of birth or sex."* But the org admin's **Patients** page is read-only: rows have
+no actions and clicking one opens nothing (`OrgAdminDashboard.tsx` `PatientsPage`). FLAG-048 was closed
+by route (a); its route (b), an org-admin edit screen, was never built. In the walk, `HCL-JM3BPU` was
+completed without a first name, so the nurse's description is now its first name for good.
+
+#167 prevents the common case (Complete record will require first and last name). The advice text still
+points at a screen that doesn't exist.
+
+**Done when** an org admin can edit name, date of birth and sex from the browser, or the advice text
+stops promising it.
+
+---
+
+### FLAG-059 — The doctor's My Patients page shows no names, and "New episode" / "Refer" send an episode id as the patient
+**Severity:** P1 · **Area:** Doctor / My Patients · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk
+
+`MyPatientsPage` (`DoctorDashboard.tsx:1013`) reads `/doctor/my-patients/` as a list of flat
+`PatientSummary` rows. The endpoint returns **one row per episode**, with the patient nested under
+`patient` (`MyPatientsPaginatedResponse`, backend `apps/patients/doctor_views.py:184`). So:
+- all 15 rows render as "? — — — —" (no name, phone, date of birth);
+- **New episode** opens "Start episode undefined undefined" and posts `patient: <episode id>`, which the
+  server refuses with 400 "Invalid pk … object does not exist". **The panel shows no error.**
+- **Refer** starts from the same row, so it carries the wrong id too (not submitted in the walk).
+
+A doctor cannot start a case from My Patients at all today.
+
+**Done when** the page maps the episode-shaped rows (patient from `row.patient`, one row per patient),
+New episode and Refer send the patient's id, and a failed save shows its error. Verify against the live
+schema's `MyPatientsPaginatedResponse`.
+
+---
+
+### FLAG-060 — A doctor has no browser path to open a case for a newly registered patient
+**Severity:** P1 (workflow) · **Area:** Doctor / Reception hand-off · **Owner:** @Bastoh (frontend) + product call · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk, build 2
+
+Even with FLAG-059 fixed, **My Patients lists only patients who already have an episode with that
+doctor**, so a patient registered at reception can never appear there. Reception's **Check in patient**
+with an assigned doctor creates a check-in (`POST /receptionist/check-ins/` → 201, "Queue number: 1"),
+but no episode, and no doctor screen shows check-ins or a queue. So the only way in the browser to give a
+new patient an episode is the nurse's emergency admission, and that can't find an existing patient
+until #168 (FLAG-053).
+
+**Done when** a doctor can go from a reception check-in (or a patient search) to "Start episode" in the
+browser. Needs a design decision on where the doctor's queue lives.
+
+**Decision (@Bastoh, 28 Sep): a doctor "Queue" page** listing today's check-ins assigned to that
+doctor, each with "Start episode". A patient search is a possible later addition. If no endpoint lets a
+doctor read their check-ins, that is a backend `api-request` for @Ericmoore207 first.
+
+---
+
+### FLAG-061 — Superadmin Audit Logs show every entry as "System", with no reason
+**Severity:** P2 · **Area:** Superadmin / Audit · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk, build 5
+
+`SuperadminDashboard.tsx:746` renders `log.performed_by ?? log.user ?? 'System'`. `/audit/logs/` sends
+`user_email` (and `user_role`), so every one of the 4,343 rows reads "System". The Event column shows only
+the action word (CREATE/READ) and never `reason`, `resource_type` or the patient, so an audited decision
+such as FLAG-601's off-duty override can't be found or checked in the browser. There is no filter either,
+although the API supports `?patient=`, `?action=` and `?user_email=`.
+
+**Done when** the page shows who (from `user_email`), what (action + resource + reason), and can be
+filtered by patient.
+
+---
+
+### FLAG-062 — Small UI nits from the browser walk
+**Severity:** P4 · **Area:** Toasts / Merge dialog · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28
+
+- **A toast covers the slide panel's primary button.** At 1400×900 the bottom-right toast sits over the
+  panel footer. After one discharge is recorded, its toast blocked the next panel's **Record outcome**
+  for 45 s+ while the pointer rested on it (hover pauses the dismiss timer). It can be closed with ×.
+- **The bed-taken notice appears twice**, once in the panel and once as a toast.
+- **The merge, undo and reject dialogs show names only.** "Tolu Probe-CL28SEP → Tolu Probe-CL28SEP" gives
+  no way to tell which record survives. Show the HealthClouda IDs.
 
 ---
 
