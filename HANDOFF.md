@@ -32,6 +32,8 @@
 
 | @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
 
+| @Bastoh | **FLAG-061** — superadmin Audit Logs show who / what / why and filter by action, person, record type and patient; Overview "Recent Activity" reads the audit log | `fix/flag-061-audit-logs` | `src/components/dashboard/superadmin/SuperadminDashboard.tsx` (+ test), `src/types/dashboard.ts` | 2026-09-30 | 🟡 Claimed in this branch's own commit (FLAG-240 option (a)). FLAG-061 itself is logged in #169 |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
