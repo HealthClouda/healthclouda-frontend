@@ -2386,13 +2386,14 @@ stops promising it.
 `patient` (`MyPatientsPaginatedResponse`, backend `apps/patients/doctor_views.py:184`). So:
 - all 15 rows render as "? — — — —" (no name, phone, date of birth);
 - **New episode** opens "Start episode undefined undefined" and posts `patient: <episode id>`, which the
-  server refuses with 400 "Invalid pk … object does not exist". **The panel shows no error.**
+  server refuses with 400 "Invalid pk … object does not exist" (shown only as a toast; an earlier
+  version of this entry said no error was shown, which was wrong: the 28 Sep script missed the toast).
 - **Refer** starts from the same row, so it carries the wrong id too (not submitted in the walk).
 
 A doctor cannot start a case from My Patients at all today.
 
-**Done when** the page maps the episode-shaped rows (patient from `row.patient`, one row per patient),
-New episode and Refer send the patient's id, and a failed save shows its error. Verify against the live
+**Done when** the page maps the episode-shaped rows (patient from `row.patient`, one row per patient)
+and New episode and Refer send the patient's id. **Fix: #171.** Verify against the live
 schema's `MyPatientsPaginatedResponse`.
 
 ---
