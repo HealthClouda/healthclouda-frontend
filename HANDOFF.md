@@ -32,6 +32,8 @@
 
 | @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
 
+| @Bastoh | **FLAG-059** — doctor's My Patients reads the episode-shaped `/doctor/my-patients/`: one row per patient, New episode / Refer send the patient id | `fix/flag-059-doctor-my-patients` | `src/components/dashboard/doctor/DoctorDashboard.tsx` (+ test), `src/types/dashboard.ts` | 2026-09-30 | 🟡 Claimed in this branch's own commit (FLAG-240 option (a)). FLAG-059 itself is logged in #169 |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
