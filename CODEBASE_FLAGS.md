@@ -2276,6 +2276,208 @@ stale comment is gone, and the pending-review row shows who recorded it.
 
 ---
 
+### FLAG-054 — `api-dev` serves Django's DEBUG 404 page, which lists the whole URL map
+**Severity:** P3 (dev) · P1 if it is ever true on beta/production · **Area:** Infra / Backend config · **Owner:** @Bastoh (`[INFRA]`) · **Status:** 🟡 **OPEN — cross-lane; the fix is a backend/Railway setting**
+**Found:** 2026-09-28, dev-tier re-walk (HCL/CHK/2026-002)
+
+**What.** `GET https://api-dev.healthclouda.com/api/v1/no-such-path/` returns Django's technical 404:
+*"Using the URLconf defined in …"*, the text `DEBUG = True`, and all **20** top-level URL patterns.
+On dev the admin mount is the default `admin/`, so no hidden path leaks today. But any
+`DJANGO_ADMIN_PATH` set on a DEBUG tier would be printed on every 404, and a 500 shows a traceback.
+
+**Already known in part.** The checklist records "debugging deliberately on" for dev. What was
+**not** written anywhere is the URL-map disclosure, or any check that beta and production are *off*.
+
+**Not measured:** `api-beta` and `api` could not be probed from the session (the agent proxy
+refuses those hosts), so their state is unknown.
+
+**Done when** someone who can reach them confirms `api-beta` and `api` answer a 404 with a plain
+body (no `DEBUG = True`, no URLconf), and either dev is switched off too or its DEBUG is recorded
+as deliberate in the backend's own flags.
+
+---
+
+### FLAG-055 — A deceased patient can be given a new episode, and then appears on the nurse's Admit list
+**Severity:** P3 · **Area:** Episodes / Admissions (backend rule, frontend symptom) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a backend call; raise as backend FLAG-617 if confirmed there**
+**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
+
+**What happened.** Probe `HCL-KK4CKY` was discharged **DECEASED** during B4 (`deceased_at`
+2026-09-27T21:25Z). As `nurse@demo.test`, `POST /episodes/` for it returned **201** (episode
+`a1d35048`). The nurse's **Admit Patient** list then offered it with an **Admit** button. Admitting
+is correctly refused ("This patient cannot be admitted at this time. Please escalate to an
+administrator."), so no care decision is wrong. But the screen invites an action that can only
+fail, and the deceased guard exists for admissions and referrals while episode creation has none.
+
+**Question for the backend:** should `POST /episodes/` refuse a patient `patient_is_deceased()`
+says has died (same non-disclosing wording), or is a post-mortem episode legitimate (e.g.
+certification paperwork)? If the latter, the Admit list should exclude them.
+
+**Tidy-up owed:** episode `a1d35048` on `HCL-KK4CKY` is still open (synthetic).
+
+**Done when** the backend decides, and either the episode route refuses or the Admit list hides a
+deceased patient.
+
+**Decision (@Bastoh, 28 Sep): the backend refuses.** `POST /episodes/` must refuse a patient
+`patient_is_deceased()` says has died, with the admission refusal's non-disclosing wording. Backend ask
+for @Ericmoore207 (suggested backend FLAG-617); the frontend only needs to show the server's refusal.
+
+**Fix:** backend **#247** (backend FLAG-619, merged 1 Oct; @Bastoh wrote it rather than raise an ask) refuses
+on both episode routes. Frontend **#177** shows the refusal inside the Start episode panel. The stray
+episode `a1d35048` on dev still needs closing (tidy-up).
+
+---
+
+### FLAG-056 — The optional doctor picker's empty option says "No doctor available right now" while a doctor is on duty
+**Severity:** P4 (copy) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
+
+`DoctorPicker` renders its blank option as `required ? 'Select a doctor…' : 'No doctor available
+right now'`. In the emergency panel (not required) that line sits directly above the **"On duty:
+Emeka Okafor"** group, so it reads as a false statement. The blank choice means "admit without
+naming a doctor". Suggested wording: **"No attending doctor yet"**.
+
+**Also noticed, not a defect claim:** the episode-based **Admit patient** panel has no
+attending-doctor picker at all (bed and reason only), so the off-duty warning (FLAG-601) can only be
+met from the emergency panel. Worth a design decision alongside backend FLAG-607's open half.
+
+**Done when** the optional placeholder no longer claims no doctor is available.
+
+---
+
+### FLAG-057 — Clicking Sign In before the page has loaded sends the email and password in the URL
+**Severity:** P1 (security, before PHI) · **Area:** Auth / Sign-in forms · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk of HCL/CHK/2026-002
+
+**What happened.** Twice, a sign-in in the automated browser landed on
+`/demo-clinic/signin?email=doctor%40demo.test&password=Demo%23Pass1`. `SigninForm.tsx:136`,
+`SetPasswordForm.tsx:198` and `ResetPasswordForm.tsx:79` are plain `<form onSubmit=…>` with no `method`,
+and react-hook-form gives the inputs `name`s. If the page's JavaScript hasn't loaded (a slow or dropped
+chunk), the browser submits the form natively as a **GET**, and the credentials go into the address bar,
+browser history, and the Vercel/Cloudflare request logs. In the walk the trigger was a JS chunk that
+failed to fetch, which is exactly what happens to a real user on a weak connection.
+
+**Fix (small):** `method="post"` on all three forms (a native POST puts nothing in the URL), and
+disable the submit button until hydration, or set `action` to a harmless same-page target.
+
+**Done when** a native submit of each form with JavaScript disabled puts no field value in the URL.
+
+---
+
+### FLAG-058 — Once a record is completed, nobody can correct the patient's name on screen
+**Severity:** P2 · **Area:** Reception / Org admin · **Owner:** @Bastoh · **Status:** 🟡 **OPEN** (half addressed by #167)
+**Found:** 2026-09-28, browser walk, build 2
+
+Reception's completion form says *"Once the record is complete, only an organisation administrator can
+change the name, date of birth or sex."* But the org admin's **Patients** page is read-only: rows have
+no actions and clicking one opens nothing (`OrgAdminDashboard.tsx` `PatientsPage`). FLAG-048 was closed
+by route (a); its route (b), an org-admin edit screen, was never built. In the walk, `HCL-JM3BPU` was
+completed without a first name, so the nurse's description is now its first name for good.
+
+#167 prevents the common case (Complete record will require first and last name). The advice text still
+points at a screen that doesn't exist.
+
+**Done when** an org admin can edit name, date of birth and sex from the browser, or the advice text
+stops promising it.
+
+**Fix: #174** (Patients → Edit). ⚠️ It exposes FLAG-063 below; built on @Bastoh's call, 30 Sep.
+
+---
+
+### FLAG-059 — The doctor's My Patients page shows no names, and "New episode" / "Refer" send an episode id as the patient
+**Severity:** P1 · **Area:** Doctor / My Patients · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk
+
+`MyPatientsPage` (`DoctorDashboard.tsx:1013`) reads `/doctor/my-patients/` as a list of flat
+`PatientSummary` rows. The endpoint returns **one row per episode**, with the patient nested under
+`patient` (`MyPatientsPaginatedResponse`, backend `apps/patients/doctor_views.py:184`). So:
+- all 15 rows render as "? — — — —" (no name, phone, date of birth);
+- **New episode** opens "Start episode undefined undefined" and posts `patient: <episode id>`, which the
+  server refuses with 400 "Invalid pk … object does not exist" (shown only as a toast; an earlier
+  version of this entry said no error was shown, which was wrong: the 28 Sep script missed the toast).
+- **Refer** starts from the same row, so it carries the wrong id too (not submitted in the walk).
+
+A doctor cannot start a case from My Patients at all today.
+
+**Done when** the page maps the episode-shaped rows (patient from `row.patient`, one row per patient)
+and New episode and Refer send the patient's id. **Fix: #171.** Verify against the live
+schema's `MyPatientsPaginatedResponse`.
+
+---
+
+### FLAG-060 — A doctor has no browser path to open a case for a newly registered patient
+**Severity:** P1 (workflow) · **Area:** Doctor / Reception hand-off · **Owner:** @Bastoh (frontend) + product call · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk, build 2
+
+Even with FLAG-059 fixed, **My Patients lists only patients who already have an episode with that
+doctor**, so a patient registered at reception can never appear there. Reception's **Check in patient**
+with an assigned doctor creates a check-in (`POST /receptionist/check-ins/` → 201, "Queue number: 1"),
+but no episode, and no doctor screen shows check-ins or a queue. So the only way in the browser to give a
+new patient an episode is the nurse's emergency admission, and that can't find an existing patient
+until #168 (FLAG-053).
+
+**Done when** a doctor can go from a reception check-in (or a patient search) to "Start episode" in the
+browser. Needs a design decision on where the doctor's queue lives.
+
+**Decision (@Bastoh, 28 Sep): a doctor "Queue" page** listing today's check-ins assigned to that
+doctor, each with "Start episode". A patient search is a possible later addition. If no endpoint lets a
+doctor read their check-ins, that is a backend `api-request` for @Ericmoore207 first.
+
+**Fix: #175** (doctor Queue page), on backend **#243** (`GET`/`PATCH /doctor/queue/`, backend FLAG-617, merged
+30 Sep). There was no such endpoint; @Bastoh chose to write it rather than raise an `api-request`. ⚠️ The
+page errors on any tier until #243 is deployed there by Railway.
+
+---
+
+### FLAG-061 — Superadmin Audit Logs show every entry as "System", with no reason
+**Severity:** P2 · **Area:** Superadmin / Audit · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28, browser walk, build 5
+
+`SuperadminDashboard.tsx:746` renders `log.performed_by ?? log.user ?? 'System'`. `/audit/logs/` sends
+`user_email` (and `user_role`), so every one of the 4,343 rows reads "System". The Event column shows only
+the action word (CREATE/READ) and never `reason`, `resource_type` or the patient, so an audited decision
+such as FLAG-601's off-duty override can't be found or checked in the browser. There is no filter either,
+although the API supports `?patient=`, `?action=` and `?user_email=`.
+
+**Done when** the page shows who (from `user_email`), what (action + resource + reason), and can be
+filtered by patient.
+
+---
+
+### FLAG-062 — Small UI nits from the browser walk
+**Severity:** P4 · **Area:** Toasts / Merge dialog · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-09-28
+
+- **A toast covers the slide panel's primary button.** At 1400×900 the bottom-right toast sits over the
+  panel footer. After one discharge is recorded, its toast blocked the next panel's **Record outcome**
+  for 45 s+ while the pointer rested on it (hover pauses the dismiss timer). It can be closed with ×.
+- **The bed-taken notice appears twice**, once in the panel and once as a toast.
+- **The merge, undo and reject dialogs show names only.** "Tolu Probe-CL28SEP → Tolu Probe-CL28SEP" gives
+  no way to tell which record survives. Show the HealthClouda IDs.
+
+---
+
+### FLAG-063 — An org admin's patient edit changes the record at every hospital that holds it
+**Severity:** P1 (multi-tenancy) · **Area:** Patients / Org admin · **Owner:** @Bastoh · **Status:** 🟠 **OPEN — accepted knowingly**
+**Found:** 2026-09-30, building FLAG-058's edit screen (#174)
+
+`PATCH /patients/{id}/` as ORG_ADMIN uses `PatientFullUpdateSerializer`: name, date of birth, sex,
+email, phone and `is_active` — on **any** patient visible to the org (`PatientViewSet.update`, backend
+`apps/patients/views.py`). Nothing checks whether another hospital also holds the record, so one
+clinic's admin can rename a shared patient (e.g. `HCL-Z5DU8H`) for every hospital. The merge tool
+already refuses this case and escalates to a superadmin ("one hospital does not rewrite a record
+another hospital also holds"); a plain edit skips that rule.
+
+**Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
+backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
+The frontend deliberately does not try to decide which records are shared: that would be a
+client-side trust decision (CLAUDE.md §6 lens 1).
+
+**Done when** identity edits by an org admin are refused or escalated on the server for a record
+another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
+cross-hospital edits are intended.
+
+---
+
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
