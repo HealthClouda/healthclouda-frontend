@@ -2321,6 +2321,10 @@ deceased patient.
 `patient_is_deceased()` says has died, with the admission refusal's non-disclosing wording. Backend ask
 for @Ericmoore207 (suggested backend FLAG-617); the frontend only needs to show the server's refusal.
 
+**Fix:** backend **#247** (backend FLAG-619, merged 1 Oct; @Bastoh wrote it rather than raise an ask) refuses
+on both episode routes. Frontend **#177** shows the refusal inside the Start episode panel. The stray
+episode `a1d35048` on dev still needs closing (tidy-up).
+
 ---
 
 ### FLAG-056 — The optional doctor picker's empty option says "No doctor available right now" while a doctor is on duty
