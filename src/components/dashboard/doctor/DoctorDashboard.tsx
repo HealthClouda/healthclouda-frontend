@@ -1498,9 +1498,16 @@ function reviewEventLine(a: DoctorAdmission): string | null {
   return null;
 }
 
-function PendingReviewsSection() {
+// FLAG-607 (owner decision 2b): the same section runs twice — the doctor's
+// own reviews, and the reviews NO doctor owns (`?unassigned=true`, backend
+// FLAG-618), which any doctor at the hospital may confirm. A death recorded
+// on an unowned admission used to reach nobody.
+function PendingReviewsSection({
+  query = '?mine=true&needs_doctor_review=true',
+  title = 'Pending your review',
+}: { query?: string; title?: string } = {}) {
   const { items, count, loading, error, refetch } =
-    usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&needs_doctor_review=true');
+    usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + query);
   const { toast } = useToast();
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
@@ -1531,7 +1538,7 @@ function PendingReviewsSection() {
   return (
     <div className="rounded-xl border border-warning/30 bg-warning-bg/60 p-4 space-y-3">
       <h3 className="text-sm font-semibold text-warning-strong">
-        Pending your review ({count})
+        {title} ({count})
       </h3>
       <ul className="space-y-2">
         {items.map(a => (
@@ -1575,17 +1582,19 @@ function PendingReviewsSection() {
 // it on ACTIVE rows. The off-duty check is the same soft warn-and-allow as
 // the admit routes: `details.attending_doctor` → confirm → resend with
 // `attending_doctor_override`.
-function HandOverPanel({ admission, currentUserId, onClose, onReassigned }: {
+function HandOverPanel({ admission, currentUserId, onClose, onReassigned, preselectSelf = false }: {
   admission: DoctorAdmission | null;
   currentUserId: string;
   onClose: () => void;
   onReassigned: () => void;
+  /** No attending yet: the signed-in doctor is the likely choice, so start there (FLAG-607). */
+  preselectSelf?: boolean;
 }) {
   const { toast } = useToast();
   const open = !!admission;
   const { data: doctors, loading, error } =
     useApi<AttendingDoctor[]>(open ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
-  const [doctorId, setDoctorId] = useState('');
+  const [doctorId, setDoctorId] = useState(preselectSelf ? currentUserId : '');
   const [saving, setSaving] = useState(false);
   const [offDutyWarning, setOffDutyWarning] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -1694,9 +1703,76 @@ function HandOverPanel({ admission, currentUserId, onClose, onReassigned }: {
   );
 }
 
+// ─── Unassigned (FLAG-607, owner decision 2b) ─────────────────────────
+//
+// Admissions with no attending doctor AND no case doctor are on nobody's
+// `?mine=true` list. `?unassigned=true` (backend FLAG-618) finds them
+// server-side — never by paging the whole organisation's admissions into the
+// browser. Any doctor may take one over (`reassign-doctor`), so "Take over"
+// opens the existing hand-over panel with the signed-in doctor preselected.
+// Like PendingReviewsSection, it is absent rather than empty when there is
+// nothing to show.
+function UnassignedSection({ list, onTakeOver }: {
+  list: ReturnType<typeof usePaginatedList<DoctorAdmission>>;
+  onTakeOver: (a: DoctorAdmission) => void;
+}) {
+  const { items, count, page, setPage, totalPages, loading, error, refetch } = list;
+  if (loading) return null;
+  if (error) return <ErrorState message={error} onRetry={refetch} />;
+  if (count === 0) return null;
+
+  return (
+    <section aria-labelledby="unassigned-heading" className="rounded-xl border border-border bg-surface p-4 space-y-3">
+      <div>
+        <h3 id="unassigned-heading" className="text-sm font-semibold text-ink">
+          Unassigned — no doctor yet ({count})
+        </h3>
+        <p className="text-xs text-text-soft mt-0.5">
+          Admitted with no attending doctor and no case doctor. Any doctor can take them over.
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {items.map(a => {
+          const name = `${a.patient.first_name} ${a.patient.last_name}`;
+          return (
+            <li key={a.id} className="flex items-center justify-between gap-3 rounded-lg bg-chip px-3 py-2">
+              <div className="min-w-0">
+                <div className="font-medium text-ink truncate">{name}</div>
+                <div className="text-xs text-text-soft truncate">
+                  {wardBedLabel(a)} · admitted {timeAgo(a.admitted_at)}
+                  {a.admission_reason ? ` · ${truncate(a.admission_reason, 40)}` : ''}
+                </div>
+              </div>
+              <button
+                onClick={() => onTakeOver(a)}
+                aria-label={`Take over ${name}`}
+                className="shrink-0 px-3 py-1.5 text-xs font-semibold text-white bg-primary-dark rounded-lg hover:opacity-90"
+              >
+                Take over
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-3 text-xs text-text-soft">
+          <button onClick={() => setPage(page - 1)} disabled={page <= 1} className="font-medium hover:text-ink disabled:opacity-40">
+            Previous
+          </button>
+          <span>Page {page} of {totalPages}</span>
+          <button onClick={() => setPage(page + 1)} disabled={page >= totalPages} className="font-medium hover:text-ink disabled:opacity-40">
+            Next
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
   const { items: admissions, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?mine=true&status=ACTIVE');
+  const unassigned = usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + '?unassigned=true&status=ACTIVE');
   const [discharging, setDischarging] = useState<DoctorAdmission | null>(null);
   const [handingOver, setHandingOver] = useState<DoctorAdmission | null>(null);
 
@@ -1704,6 +1780,11 @@ function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
     <div className="space-y-4">
       <PageHeading title="Admissions" count={count} unit="active" />
       <PendingReviewsSection />
+      <PendingReviewsSection
+        query="?unassigned=true&needs_doctor_review=true"
+        title="Awaiting review — no doctor assigned"
+      />
+      <UnassignedSection list={unassigned} onTakeOver={setHandingOver} />
       <DataTable
         columns={admissionColumns(setDischarging, setHandingOver)}
         data={admissions}
@@ -1735,7 +1816,9 @@ function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
         onClose={() => setHandingOver(null)}
         // Handing over can take a patient off this list (if this doctor is
         // not also the episode's doctor) — refetch rather than patch locally.
-        onReassigned={refetch}
+        // Taking over an unassigned patient moves them between both lists.
+        onReassigned={() => { refetch(); unassigned.refetch(); }}
+        preselectSelf={!handingOver?.attending_doctor}
       />
     </div>
   );
