@@ -431,6 +431,7 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
   // materially less bad, but it is the same missing-reset defect.
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     episode_type: 'OUTPATIENT',
     chief_complaint: '',
@@ -449,6 +450,7 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
     e.preventDefault();
     if (!patient || saving) return;
     setSaving(true);
+    setFormError(null);
     try {
       const payload: Record<string, unknown> = { patient: patient.id };
       for (const [k, v] of Object.entries(form)) if (v !== '') payload[k] = v;
@@ -457,7 +459,18 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
       onCreated();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not start episode');
+      // FLAG-055: a refusal (e.g. backend FLAG-619, a patient who has died)
+      // is shown once, inside the panel, in the server's own words — the
+      // flat `error` carries a "patient: " prefix, `details.patient` does not.
+      const details = err instanceof ClientApiError
+        ? (err.data as { details?: Record<string, unknown> } | null)?.details
+        : undefined;
+      const onPatient = details?.patient;
+      setFormError(
+        onPatient != null
+          ? (Array.isArray(onPatient) ? String(onPatient[0]) : String(onPatient))
+          : (err instanceof Error ? err.message : 'Could not start episode'),
+      );
     } finally {
       setSaving(false);
     }
@@ -529,6 +542,8 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
           Only the patient is required. Clinical notes and treatment plan are not shown to the patient
           in their portal; chief complaint, diagnosis and instructions are.
         </p>
+
+        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
       </form>
     </SlidePanel>
   );

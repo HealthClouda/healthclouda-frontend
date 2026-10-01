@@ -32,6 +32,8 @@
 
 | @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
 
+| @Bastoh | **FLAG-055** — Start episode shows a refusal inside the panel, in the server's words (backend FLAG-619, HealthClouda/healthclouda-backend#247: a deceased patient is refused a new episode) | `fix/flag-055-episode-refusal` | `DoctorDashboard.tsx` (`NewEpisodePanel` error), new `DoctorEpisodeRefusal.test.tsx` | 2026-10-01 | 🟡 PR open — claimed in the PR's own commit |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
