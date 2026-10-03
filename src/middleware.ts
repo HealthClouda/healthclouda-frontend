@@ -36,6 +36,9 @@ function isDashboardRoute(pathname: string): boolean {
   if (parts.length === 0) return false;
   // /superadmin or /superadmin/*
   if (parts[0] === 'superadmin') return true;
+  // FLAG-611: the change-password page needs a live session (and the same
+  // expired-access-token resume) exactly like a dashboard.
+  if (parts[0] === 'change-password') return true;
   // /patient or /patient/* — slug-less, like superadmin (FLAG-210). Without
   // this, `patient` was read as an ORG SLUG and a logged-out visitor was sent
   // to `/patient/signin`, a portal for an organisation that does not exist.

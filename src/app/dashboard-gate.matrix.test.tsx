@@ -47,7 +47,15 @@ vi.mock('next/headers', () => ({
 }));
 
 const serverFetchMock = vi.fn();
-vi.mock('@/lib/server-fetch', () => ({ serverFetch: (p: string) => serverFetchMock(p) }));
+vi.mock('@/lib/server-fetch', () => ({
+  serverFetch: (p: string) => serverFetchMock(p),
+  // FLAG-611: the gate now reads WHY /auth/me/ failed. `null` from the shared
+  // mock is any failure; FLAG-611's own tests cover the coded 403.
+  serverFetchResult: async (p: string) => {
+    const data = await serverFetchMock(p);
+    return data == null ? { ok: false, status: 401, reason: 'unauthorized' } : { ok: true, data };
+  },
+}));
 
 // ── The six dashboards, and what each one's gate is supposed to assert ───────
 

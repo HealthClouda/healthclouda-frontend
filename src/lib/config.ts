@@ -346,6 +346,8 @@ export const RESERVED_PATHS = new Set([
   'reset-password',
   'password-success',
   'set-password',
+  // FLAG-611: the forced (and only) password-change page.
+  'change-password',
   'access-request',
   '404',
   'api',

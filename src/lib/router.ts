@@ -25,6 +25,15 @@ export function roleDashboardPath(role: Role, orgSlug?: string): string {
   }
 }
 
+/**
+ * FLAG-611 — the one page a user flagged `force_password_change` can reach
+ * (backend 403 `FORCE_PASSWORD_CHANGE` everywhere else). Top-level and
+ * slug-less: staff, patients and the superadmin all use it.
+ */
+export function changePasswordPath(): string {
+  return '/change-password';
+}
+
 export function signinPath(orgSlug?: string, role?: Role): string {
   if (role === ROLES.SUPERADMIN) return '/superadmin/signin';
   if (orgSlug) return `/${orgSlug}/signin`;

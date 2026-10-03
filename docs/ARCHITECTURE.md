@@ -42,6 +42,7 @@ and why the dashboard gates check the organisation as well as the role.
 | `/[slug]/doctor` · `nurse` · `receptionist` · `org-admin` | The four org-scoped staff dashboards |
 | `/patient` | **The patient dashboard — slug-less on purpose (FLAG-210).** A patient belongs to no organisation (`/auth/me/` returns `organization: null`, correctly: records move *with* the patient), so there is no slug to scope them to. `patient` is in `RESERVED_PATHS` so no org can shadow it |
 | `/[slug]/forgot-password` · `reset-password` · `check-email` · `password-success` | Org-scoped password flows |
+| `/change-password` | **Forced password change (FLAG-611).** Slug-less, for every role. Where a user the backend flags `force_password_change` is sent; guarded by middleware like a dashboard. After the change, `/auth/me/` decides which dashboard they go to. A signed-in user changes their password from the sidebar's key icon instead (a panel, same form) |
 
 ⚠️ **`RESERVED_PATHS` (`src/lib/config.ts`) must stay in sync with `src/app/`.** `[slug]` is a
 catch-all at the root, so any new top-level route that is not reserved can be shadowed by an
@@ -163,6 +164,12 @@ cookie. A Server Component cannot set cookies, so the gate could not repair this
 [FLAG-020](../CODEBASE_FLAGS.md).
 
 Patients reach `/patient` with no slug (#100) and can sign in for the first time.
+
+**One failure is not a deny (FLAG-611).** A user flagged `force_password_change` gets 403
+`FORCE_PASSWORD_CHANGE` from every endpoint except change-password, `/auth/me/` included. Read as a
+deny, it looped them through signin for ever. The gate now uses `serverFetchResult`, which carries the
+backend's error `code` (never the body), and sends exactly that 403 to `/change-password`. Everything
+else still fails closed. `client-api` does the same in the browser for a user flagged mid-session.
 ---
 
 ## 6. UI composition
