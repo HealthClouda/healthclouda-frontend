@@ -36,7 +36,15 @@ vi.mock('next/headers', () => ({
 
 // What the SERVER says, via /auth/me/ — the source of truth.
 const serverFetchMock = vi.fn();
-vi.mock('@/lib/server-fetch', () => ({ serverFetch: (p: string) => serverFetchMock(p) }));
+vi.mock('@/lib/server-fetch', () => ({
+  serverFetch: (p: string) => serverFetchMock(p),
+  // FLAG-611: the gate now reads WHY /auth/me/ failed. `null` from the shared
+  // mock is any failure; FLAG-611's own tests cover the coded 403.
+  serverFetchResult: async (p: string) => {
+    const data = await serverFetchMock(p);
+    return data == null ? { ok: false, status: 401, reason: 'unauthorized' } : { ok: true, data };
+  },
+}));
 
 const ME = (role: string, slug: string | null) => ({
   id: 'u-1', email: 'nurse@demo.test', first_name: 'Ngozi', last_name: 'Eze',
