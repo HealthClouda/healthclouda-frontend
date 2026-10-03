@@ -16,7 +16,7 @@
  * must never call fetch() directly.
  */
 
-import { getOrgSlugFromPathname } from './router';
+import { changePasswordPath, getOrgSlugFromPathname } from './router';
 import { sessionExpiryCodeFrom, SESSION_EXPIRY_REASON, type SessionExpiryCode } from './session-expiry-code';
 
 // ── Single-flight session refresh ──────────────────────────────
@@ -78,6 +78,14 @@ export async function endSessionAndRedirect(code: SessionExpiryCode): Promise<vo
 // ── Core fetch with 401 → refresh → retry ──────────────────────
 async function proxyFetch(input: string, init?: RequestInit): Promise<Response> {
   let res = await fetch(input, init);
+  // FLAG-611: flagged `force_password_change` mid-session (an administrator
+  // set a temporary password). Every call but change-password now 403s with
+  // this code; send the user to the one page that clears it.
+  if (res.status === 403) {
+    const body = (await res.clone().json().catch(() => null)) as { code?: unknown } | null;
+    if (body?.code === 'FORCE_PASSWORD_CHANGE') window.location.href = changePasswordPath();
+    return res;
+  }
   if (res.status !== 401) return res;
 
   // The proxy routes (`/api/data`, `/api/action`) forward the backend's body

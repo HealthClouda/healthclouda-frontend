@@ -55,3 +55,25 @@ describe('FLAG-210 — the patient dashboard is not org-scoped', () => {
     expect(roleDashboardPath(ROLES.PATIENT, undefined)).not.toContain('undefined');
   });
 });
+
+describe('FLAG-611 — the change-password page', () => {
+  it('has one path, built here', async () => {
+    const { changePasswordPath } = await import('./router');
+    expect(changePasswordPath()).toBe('/change-password');
+  });
+
+  it('is reserved, so no organisation slug can shadow it', async () => {
+    const { isReservedPath } = await import('./router');
+    expect(isReservedPath('change-password')).toBe(true);
+  });
+
+  it('every top-level app route is reserved (RESERVED_PATHS stays in sync with src/app)', async () => {
+    const { readdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { isReservedPath } = await import('./router');
+    const dirs = readdirSync(join(process.cwd(), 'src/app'), { withFileTypes: true })
+      .filter(d => d.isDirectory() && !d.name.startsWith('[') && !d.name.startsWith('('))
+      .map(d => d.name);
+    expect(dirs.filter(d => !isReservedPath(d))).toEqual([]);
+  });
+});

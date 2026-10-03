@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { serverFetch } from './server-fetch';
+import { serverFetchResult } from './server-fetch';
+import { changePasswordPath } from './router';
 import { ENDPOINTS, ROLES, type Role } from './config';
 import type { User } from '@/types/auth';
 
@@ -26,16 +27,25 @@ import type { User } from '@/types/auth';
  * price of a server-trusted decision, and `cache()` keeps it to one per render
  * no matter how many components ask.
  */
+/** Backend `ForcePasswordChangeMiddleware`'s 403 code (FLAG-538/611). */
+export const FORCE_PASSWORD_CHANGE_CODE = 'FORCE_PASSWORD_CHANGE';
+
 type MeResponse = Omit<User, 'organization_slug' | 'organization_name'> & {
   organization?: { slug: string; name: string } | null;
 };
 
 export const getAuthorizedUser = cache(async (): Promise<User | null> => {
-  const me = await serverFetch<MeResponse>(ENDPOINTS.ME);
-  // `serverFetch` returns null on ANY failure (FLAG-005) — no token, 401, 500,
-  // or a network blip. For an authorization gate every one of those must mean
-  // DENY. Failing closed here is deliberate: the cost is a redirect to signin
-  // during a backend wobble, and the alternative is trusting the cookie again.
+  const res = await serverFetchResult<MeResponse>(ENDPOINTS.ME);
+  // FLAG-611: a user the backend has flagged `force_password_change` gets
+  // this 403 from /auth/me/ too. Treated as "signed out" it looped them:
+  // signin (exempt) → dashboard → 403 → signin. Send them to the one page
+  // that can clear the flag instead.
+  if (!res.ok && res.code === FORCE_PASSWORD_CHANGE_CODE) redirect(changePasswordPath());
+  // Any other failure (FLAG-005) — no token, 401, 500, or a network blip —
+  // must mean DENY for an authorization gate. Failing closed here is
+  // deliberate: the cost is a redirect to signin during a backend wobble, and
+  // the alternative is trusting the cookie again.
+  const me = res.ok ? res.data : null;
   if (!me?.role) return null;
   return {
     ...me,

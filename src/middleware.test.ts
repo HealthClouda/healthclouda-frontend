@@ -340,3 +340,16 @@ describe('FLAG-210 — /patient is a first-class dashboard route', () => {
     expect(location(res)).toBe('https://app.test/patient');
   });
 });
+
+describe('FLAG-611 — /change-password is a guarded page', () => {
+  it('sends a visitor with no session to sign in', async () => {
+    const res = await middleware(makeReq('/change-password'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.test/signin');
+  });
+
+  it('lets a signed-in user through', async () => {
+    const res = await middleware(makeReq('/change-password', { [AUTH_COOKIES.ACCESS]: 'a-token' }));
+    expect(res.headers.get('location')).toBeNull();
+  });
+});
