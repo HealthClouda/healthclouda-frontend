@@ -60,6 +60,67 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-10-03 — back after a week: #163 merged, 14-PR review queue cleared, beta promotion gate found (branch: docs/qeeyat-session-2026-10-03)
+
+**Goal:** catch up after the 27 Sep – 3 Oct gap, merge my own #163, then work through @Bastoh's review
+queue (#165–#178). All 14 listed me as reviewer, and nothing of his could merge without me.
+
+**What I did:**
+- **#163 (FLAG-247):** rebased onto `develop`. The only conflict was `HANDOFF.md` In Flight, where both
+  rows were kept. tsc clean · 444/444 · build green. Merged. FLAG-247 marked resolved here.
+- **Reviewed all 14 PRs.** For each one I trial-merged against current `develop`, ran its tests, then
+  **swapped `develop`'s source back in to confirm the new tests really fail without the change**, and
+  checked every API claim against the live schema (and backend source on `origin/develop` where the
+  schema is silent).
+  - ✅ **Approved:** #165 (re-review: the contrast fix measured at 5.98 / 7.82 / 5.36), #166, #168, #169,
+    #170, #171, #173. **#178** verdict is approve, with the review drafted, but it was **not yet posted** when this was committed.
+  - 🔁 **Changes requested:**
+    - **#167:** a surname-only Save makes the nurse's description get prefilled as First name, and
+      Complete then unlocks. I proved it with a throwaway probe test.
+    - **#172:** the audit filters are exact-match free text, so they report a false "No matching entries".
+    - **#175:** a pager on an unpaginated endpoint, so with more than 20 rows page 2 repeats page 1.
+    - **#176:** no row guard if `?unassigned` is ignored, which would give every admission a "Take over" button.
+    - **#177:** its fixture breaks once #171 lands. A trial merge of both showed all 3 tests crash, silently.
+  - ⏸ **#174 posted as a comment, not a verdict.** It's tied to FLAG-063 (below).
+- **Filed backend #251** (`api-request`): the `SuperadminDashboardStats` schema omits two fields the view
+  already sends. Cross-Lane row added.
+
+**What I found:**
+- 🔴 **FLAG-249, the beta promotion gate.** `api-beta` documents only `ordering, page, search` on
+  `/ward/admissions/`, and `/doctor/queue/` is 404 there (401 on dev). `develop` already relies on
+  `mine` / `needs_doctor_review`. Nothing is exposed today (`staging` = 13 Sep, `beta.` NXDOMAIN), but
+  the next promotion must wait for beta backend parity. Cross-Lane row for @Bastoh.
+- 🔴 **FLAG-063 is wider than its entry says.** I traced it in backend source and **wrote the detail
+  privately, not here, because this repo is public.** I'm talking it through with @Bastoh before
+  anything is filed, since the entry records his call not to raise it yet. **Until that's settled,
+  #174 stays unapproved.**
+- **FLAG-054 measured:** `api-beta` gives a clean JSON 404, and `api.healthclouda.com` doesn't exist yet.
+  On #169.
+- **FLAG-248:** the two public landing forms have FLAG-057's bug class (PII, lower severity). Found
+  reviewing #170.
+- **Merge-order hazard, again:** #171 and #177 each pass alone, and together they break `develop` with
+  no textual conflict. CI only runs per-PR and isn't a required check, so nothing catches it. That's
+  another instance of the open Cross-Lane rows for required checks (FLAG-230).
+
+**Dead ends / confusion:**
+- **Vitest sometimes reports "no tests" or "failed to find the runner"** when the session's working
+  directory flips between `c:\` and `C:\`. One full run showed 8 file-level FAILs that a clean rerun
+  turned into 464/464. **Before believing a failure, rerun it.** A pattern filter (`vitest run Foo.test`)
+  was more reliable than a full path.
+- Some `gh pr review` / `gh pr merge` calls were blocked by local permissions, so I posted those reviews
+  by hand from drafted text.
+
+**Verified:** #163 rebase: tsc clean · 444/444 · build green. Each review lists its own measurements on
+the PR. Live schemas for `api-dev` and `api-beta` were read 2026-10-03.
+
+**Left undone / next:**
+- [ ] **FLAG-063:** talk to @Bastoh. Then either file the private backend issue (draft is ready) or record
+      the agreed decision. After that, give #174 a verdict.
+- [ ] Re-review #167, #172, #175, #176 and #177 when their fixes are pushed. `dismiss_stale_reviews = false`,
+      so each one needs me.
+- [ ] FLAG-248 is mine to fix: small, once #170 lands (it provides `useHydrated`).
+- [ ] Still open from before: #96 / FLAG-234 decision. The required-checks and `ci.yml` rows for @Bastoh.
+
 ### 2026-09-26 — the queue is still frozen, and FLAG-247 found in the Patient baselines (branch: docs/flags-244-246-review-161-2026-09-18)
 
 **Goal:** get the three prepared review verdicts posted, then clean up the working tree.

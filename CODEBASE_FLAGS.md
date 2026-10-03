@@ -2119,7 +2119,7 @@ Grouped because each is a couple of lines and they live in one component.
 ---
 
 ### FLAG-247 — The Patient "My Health" table reads `chief_complaint`, which `GET /episodes/` never sends
-**Severity:** P2 · **Area:** Patient portal / My Health · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P2 · **Area:** Patient portal / My Health · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-10-03 — #163 merged** (`b366bac`): typed against `EpisodeList`, reads `chief_complaint_summary` / `episode_end`, a test on the published shape, and the five Patient baselines captured after the fix. All three "Done when" parts landed.
 **Found:** 2026-09-26, looking at the Patient T5 baselines before committing them
 
 `PatientDashboard.tsx:184` renders `ep.chief_complaint ?? '—'` for rows of
@@ -2146,6 +2146,65 @@ episodes show "—".
 **Done when** the My Health table is typed against `EpisodeList` and reads
 `chief_complaint_summary`, with a test whose fixture has the published shape, and the Patient
 baselines are captured after the fix.
+
+---
+
+### FLAG-248 — The two public landing forms can put a visitor's name, email and phone in the URL
+**Severity:** P3 (PII, not credentials or PHI) · **Area:** Landing / public forms · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-10-03, reviewing #170 (FLAG-057)
+
+FLAG-057 (#170) gives the five auth forms two guards against a **pre-hydration native submit**:
+`method="post"`, and a submit button disabled until React is running (`useHydrated`). The same
+bug class exists on the two forms that are server-rendered on public pages:
+
+- `src/components/landing/ContactForm.tsx`: `full_name`, `email`, `organisation`, `phone_number`, `message`
+- `src/components/landing/OrgContactForm.tsx`: `name`, `email`, `phone`, `message`
+
+Both are `<form onSubmit>` with no `method`. Their inputs get a `name` from react-hook-form's
+`register()`, and the submit button is only disabled while `status === 'loading'`. A click (or
+Enter) before the JS has loaded submits as **GET**, so a prospect's contact details land in the
+address bar, the browser history and any proxy/CDN log. That's lower severity than FLAG-057
+(no password, no patient data), so it was kept out of #170's scope.
+
+Related, also from this review: `/change-password` (#178) server-renders a password form with
+neither guard. It doesn't leak today, because its inputs are controlled with **no `name`**, so a
+native submit sends no fields. But it's one `register()` refactor away. Noted on #178.
+
+**Done when** both landing forms declare `method="post"` and keep the submit disabled until
+hydrated (`useHydrated()` from #170), with the server-HTML test pattern from
+`auth-forms-no-get.test.tsx` covering them.
+
+---
+
+### FLAG-249 — 🔴 Promotion gate: `api-beta` lacks the admission filters and endpoints `develop` already relies on
+**Severity:** P1 at the next `develop` → `staging` promotion (nothing exposed today) · **Area:** Infra / tier parity · **Owner:** @Bastoh (`[INFRA]`, promotions) · **Status:** 🟠 **OPEN — a precondition, not a bug in code**
+**Found:** 2026-10-03, reviewing #176
+
+Measured 2026-10-03 against both live schemas and by probe:
+
+| | `api-dev` | `api-beta` |
+|---|---|---|
+| `GET /ward/admissions/` documented params | `mine, needs_doctor_review, ordering, page, page_size, patient_id, search, status, unassigned, ward_id` | **`ordering, page, search`** only |
+| `GET /doctor/queue/` (backend #243) | **401**: exists, needs auth | **404**: does not exist |
+
+`develop` already scopes doctor views with `?mine=true` and `?needs_doctor_review=true`, and #175
+and #176 add `/doctor/queue/` and `?unassigned=true`. **DRF silently ignores a filter it doesn't
+have**, so on today's `api-beta` a doctor's "my admissions" lists **every admission in the
+organisation**, and #176's "Unassigned" section would list them all with a **Take over** button.
+
+**Why nothing is exposed today:** `staging` is still `develop` as of 13 Sep (#98, `7eeeea0`), and it
+has no `?mine=true` code. `beta.healthclouda.com` doesn't resolve (NXDOMAIN, 3 Oct).
+
+**The precondition:** before the next `develop` → `staging` promotion, the `api-beta` backend must
+be at or past backend #245, i.e. `api-beta`'s live schema documents `mine`, `needs_doctor_review`,
+`status` and `unassigned` on `/ward/admissions/`, and `/doctor/queue/` answers 401, not 404.
+Re-measure at promotion time; don't take it from this entry.
+
+Defence in depth, requested on #176: frontend sections that depend on a new filter check each
+row against it and render nothing if the filter evidently wasn't applied (the #164 pattern).
+
+**Done when** the `api-beta` schema shows those params and `/doctor/queue/` exists, measured at the
+promotion, and recorded on the promotion PR.
 
 ---
 
