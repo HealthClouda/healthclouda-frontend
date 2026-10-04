@@ -29,6 +29,7 @@
 | @Qeeyat | **FLAG-244 + FLAG-245 + FLAG-246** logged from the 18 Sep review of #161, plus **FLAG-247** (26 Sep, Patient My Health reads a field `/episodes/` never sends) | `docs/flags-244-246-review-161-2026-09-18` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-18 | 🟡 **Docs only.** Claimed in this PR’s own commit (FLAG-240 option (a)). Replaces the 15 Sep row, whose **#152 merged 2026-09-17**. #161 itself has **CHANGES_REQUESTED** from me on FLAG-244/245 |
 
 
+| @Qeeyat | **FLAG-248** — the two public landing contact forms (`ContactForm`, `OrgContactForm`) get FLAG-057's guards: `method="post"` + submit disabled until hydrated | `fix/flag-248-landing-forms-post` | `src/components/landing/ContactForm.tsx`, `src/components/landing/OrgContactForm.tsx`, new test | 2026-10-04 | 🟡 **In progress.** Claimed in this branch's first commit (FLAG-240 option (a)). The FLAG-248 entry itself lives on my open #179, so its status is updated there |
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
