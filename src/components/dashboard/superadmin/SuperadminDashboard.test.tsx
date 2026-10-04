@@ -387,7 +387,8 @@ describe('FLAG-061 — Audit Logs show who, what and why', () => {
 
   it('names the person who did it, with their role, instead of "System"', async () => {
     await openPage('Audit Logs', 'nurse@demo.test');
-    expect(screen.getByText('Nurse')).toBeInTheDocument();
+    // Scoped to the table: the record-type filter also offers "Nurse" (API requests).
+    expect(within(screen.getByRole('table')).getByText('Nurse')).toBeInTheDocument();
   });
 
   it('shows the reason and the record that was touched', async () => {
@@ -416,7 +417,22 @@ describe('FLAG-061 — Audit Logs show who, what and why', () => {
     const select = screen.getByLabelText('Record type');
     expect(select.tagName).toBe('SELECT');
     const values = Array.from((select as HTMLSelectElement).options).map(o => o.value);
-    for (const v of ['Admission', 'Patient', 'Patients', 'PatientMerge', 'VitalsRecord']) expect(values).toContain(v);
+    // Re-review of #172: all 28 values the three backend writers produce
+    // (AuditMiddleware's URL prefixes, the save signals + coverage table,
+    // and log_action callers), read from backend develop 4 Oct.
+    const ALL = [
+      'Admission', 'AdmissionRequest', 'Appointment', 'Bed', 'BillingRecord', 'Episode', 'OrgAccessRequest',
+      'Organization', 'Patient', 'PatientCheckIn', 'PatientConsent', 'Prescription', 'Referral', 'User', 'VitalsRecord',
+      'Auth', 'Doctor', 'Episodes', 'Nurse', 'Organizations', 'Patients', 'Receptionist', 'Referrals', 'Superadmin', 'Ward',
+      'Action', 'PatientMerge', 'PatientMergeUndo',
+    ];
+    for (const v of ALL) expect(values).toContain(v);
+    expect(values.filter(v => v !== '')).toHaveLength(ALL.length);
+    // The look-alike pairs are told apart: a save vs an API request (reads included).
+    const groups = Array.from(select.querySelectorAll('optgroup')).map(g => g.getAttribute('label'));
+    expect(groups).toEqual(['Record changes', 'API requests (including reads)', 'Other actions']);
+    const episodes = (select as HTMLSelectElement).querySelector('option[value="Episodes"]');
+    expect(episodes?.closest('optgroup')?.getAttribute('label')).toBe('API requests (including reads)');
     fireEvent.change(select, { target: { value: 'Admission' } });
     await waitFor(() => expect(auditCalls().some(p => p.includes('resource_type=Admission'))).toBe(true));
   });
@@ -425,13 +441,13 @@ describe('FLAG-061 — Audit Logs show who, what and why', () => {
     await openPage('Audit Logs', 'nurse@demo.test');
     const box = screen.getByLabelText('Full email address');
     fireEvent.change(box, { target: { value: 'doctor@' } });
-    expect(await screen.findByText('Enter the full email address')).toBeInTheDocument();
+    expect(await screen.findByText(/Enter the full email address, exactly as registered/)).toBeInTheDocument();
     await new Promise(r => setTimeout(r, 500));
     expect(auditCalls().some(p => p.includes('user_email='))).toBe(false);
 
     fireEvent.change(box, { target: { value: 'doctor@demo.test' } });
     await waitFor(() => expect(auditCalls().some(p => p.includes('user_email=doctor%40demo.test'))).toBe(true), { timeout: 3000 });
-    expect(screen.queryByText('Enter the full email address')).toBeNull();
+    expect(screen.queryByText(/Enter the full email address/)).toBeNull();
   });
 
   it('never sends a partial patient record ID (the backend 400s on a non-UUID)', async () => {

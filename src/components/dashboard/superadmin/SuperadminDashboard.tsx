@@ -776,12 +776,33 @@ function auditColumns({ compact = false } = {}): DataTableColumn<AuditLogEntry>[
 // so every one is an EXACT match. A free-text box that sends partial text
 // gets "No matching entries" while entries exist — on an audit screen, a
 // false "it didn't happen". So: record type is a list of the exact values
-// the backend writes (case-sensitive; `Patient` AND `Patients` are both in
-// use, as measured 3 Oct), and email / patient ID are sent only when whole.
-const AUDIT_RESOURCE_TYPES = [
-  'Admission', 'Auth', 'Episode', 'Organization', 'Patient', 'Patients',
-  'PatientMerge', 'PatientMergeUndo', 'Prescription', 'Referral', 'User', 'VitalsRecord',
-] as const;
+// the backend writes, and email / patient ID are sent only when whole.
+//
+// The 28 values come from the backend's three writers of
+// AuditLog.resource_type (read on backend develop, 4 Oct):
+//  - the save signals + coverage table: one value per audited MODEL;
+//  - AuditMiddleware: the URL prefix, capitalised, for EVERY request to a
+//    sensitive endpoint, reads included — the bulk of the log;
+//  - log_action callers, whose default is 'Action' (overrides use it).
+// So `Episode` (a saved change) and `Episodes` (API requests, including who
+// READ it) are different rows, and the groups say so.
+// ⚠️ FLAG-064: this is a hand-kept mirror of backend code. It will drift when
+// a model joins the coverage table or a prefix joins SENSITIVE_ENDPOINTS,
+// and nothing fails when it does. The lasting fix is backend-side.
+const AUDIT_RESOURCE_GROUPS: { label: string; values: readonly string[] }[] = [
+  {
+    label: 'Record changes',
+    values: [
+      'Admission', 'AdmissionRequest', 'Appointment', 'Bed', 'BillingRecord', 'Episode', 'OrgAccessRequest',
+      'Organization', 'Patient', 'PatientCheckIn', 'PatientConsent', 'Prescription', 'Referral', 'User', 'VitalsRecord',
+    ],
+  },
+  {
+    label: 'API requests (including reads)',
+    values: ['Auth', 'Doctor', 'Episodes', 'Nurse', 'Organizations', 'Patients', 'Receptionist', 'Referrals', 'Superadmin', 'Ward'],
+  },
+  { label: 'Other actions', values: ['Action', 'PatientMerge', 'PatientMergeUndo'] },
+];
 const FULL_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FULL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -851,7 +872,11 @@ function AuditPage() {
               onChange={(e) => setResourceType(e.target.value)}
             >
               <option value="">All record types</option>
-              {AUDIT_RESOURCE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              {AUDIT_RESOURCE_GROUPS.map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.values.map((t) => <option key={t} value={t}>{t}</option>)}
+                </optgroup>
+              ))}
             </select>
             <input
               aria-label="Patient record ID"
@@ -863,7 +888,7 @@ function AuditPage() {
             />
             {(emailIncomplete || patientIncomplete) && (
               <div aria-live="polite" className="w-full text-[11.5px] text-text-soft space-y-0.5">
-                {emailIncomplete && <p id="audit-email-hint">Enter the full email address</p>}
+                {emailIncomplete && <p id="audit-email-hint">Enter the full email address, exactly as registered (capitals matter)</p>}
                 {patientIncomplete && <p id="audit-patient-hint">Enter the full record ID</p>}
               </div>
             )}
