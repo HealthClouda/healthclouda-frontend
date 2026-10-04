@@ -25,13 +25,13 @@
 
 | @Qeeyat | **FLAG-239 + FLAG-240** logged from the 14 Sep review of @Bastoh's 11 PRs, plus the backend #192 Cross-Lane row | `docs/flags-239-240-review-2026-09-14` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-14 | 🟡 **Docs only.** Claimed in this PR's own commit rather than a separate claim PR, which is FLAG-240's option (a), done deliberately |
 
-| @Bastoh | **Build 4 (frontend)** — who may discharge (nurse restricted to ABSCONDED/DECEASED), doctor pending-review queue, readable discharge summaries. **FLAG-045** reserved | `feat/discharge-outcome-review-and-summaries` | `src/components/dashboard/shared/DischargePanel.tsx`, `src/components/dashboard/doctor/DoctorDashboard.tsx`, doctor episode detail view, doctor complete-episode form | 2026-09-17 | 🟡 **Must not merge before the backend build-4 PR** (backend FLAG-592/FLAG-574 — `needs_doctor_review` fields, `doctor-review/` endpoint, `admission_summaries` not live until then) |
 
 | @Bastoh | **Apex landing copy** — em-dashes out of all visitor-facing wording, `hello@healthclouda.ng` → `info@healthclouda.com` (**sprint plan B6**) | `fix/landing-copy-email-contact` | `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/ContactForm.tsx`, the landing design source, `docs/FRONTEND_SPRINT_PLAN.md` | 2026-09-16 | 🟡 **Copy only — no component, route or contract change.** Claimed in this PR's own commit (FLAG-240 option (a)), as @Qeeyat did above. Paired with backend `feat/contact-form-email-notification`, which emails form submissions to the same address 
 
 | @Qeeyat | **FLAG-244 + FLAG-245 + FLAG-246** logged from the 18 Sep review of #161, plus **FLAG-247** (26 Sep, Patient My Health reads a field `/episodes/` never sends) | `docs/flags-244-246-review-161-2026-09-18` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-18 | 🟡 **Docs only.** Claimed in this PR’s own commit (FLAG-240 option (a)). Replaces the 15 Sep row, whose **#152 merged 2026-09-17**. #161 itself has **CHANGES_REQUESTED** from me on FLAG-244/245 |
 
-| @Bastoh | **Build 6 (frontend)** — the ward rota: nurse-to-ward shifts, in-charge, handover. **FLAG-046** reserved | `feat/ward-rota` | `src/lib/client-api.ts` (or equivalent shifts client), a new rota screen (org admin), nurse dashboard "who's on this ward now" + handover control | 2026-09-17 | 🟡 **Must not merge before the backend build-6 PR** (owner is building `ward/shifts` in parallel; contract fixed but unmerged) |
+
+| @Bastoh | **Session log 28 Sep + FLAG-054/055/056** from the dev-tier re-walk (B5 steps 3–4, B6) | `docs/bastoh-session-2026-09-28` | `HANDOFF-Bastoh.md`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-28 | 🟡 **Docs only.** Claimed in this PR's own commit (FLAG-240 option (a)) |
 
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
@@ -42,6 +42,8 @@
 
 > ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
 > 🔴 **2026-09-04 — this stacking guidance has a cost nobody had measured: a stacked child gets NO CI.** `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`, and a base change on retarget fires an event type the workflow does not listen for. **#100, #117 and #119 all merged into `develop` without a single CI job ever running on them** — verified 2026-09-04. Keep stacking; it is still the right pattern. But see **FLAG-230**, and do not read "no checks reported" as "not yet".
+
+*Cleared on merge — **2026-09-28** (stale claims found by the dev-tier re-walk): **#157** Build 4 frontend (FLAG-045) and **#159** Build 6 ward rota (FLAG-046), both long merged into `develop` and served on dev.*
 
 *Cleared on merge — **2026-09-27**: **#161** Build 2 frontend (emergency admission in one call, FLAG-243; duplicate-record merge screens, FLAG-373) — approved by @Qeeyat on re-review, merged. FLAG-244/245/246 and FLAG-047 resolved by it.*
 
