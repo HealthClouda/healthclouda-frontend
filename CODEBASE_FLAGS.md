@@ -2221,26 +2221,50 @@ promotion, and recorded on the promotion PR.
 
 ---
 
-### FLAG-250 — "Sign out instead" on the forced password-change page doesn't end the session server-side
-**Severity:** P3 (the browser IS signed out; a server session lingers) · **Area:** Auth / backend contract · **Owner:** 🔌 backend · **Status:** OPEN — `api-request` **not yet filed** (offered on #178, awaiting @Qeeyat's call)
-**Found:** 2026-10-04, reviewing #178 (FLAG-611)
+### FLAG-250 — No sign-out from our app ends the session on the server: the logout route never sends the refresh token
+**Severity:** P2 (every sign-out, every user; nothing leaks without a copied token) · **Area:** Auth / sign-out · **Owner:** @Qeeyat (layer 1, ours) + 🔌 backend (layer 2) · **Status:** OPEN
+**Found:** 2026-10-04, reviewing #178 (FLAG-611). ⚠️ **Rewritten the same day.** The first version
+said this affected only users who must change their password, and that it was backend-only with
+*"nothing to change on our side"*. Reading `LogoutView` showed both were wrong.
 
-The backend's `ForcePasswordChangeMiddleware` (`apps/core/middleware.py`, `origin/develop` 4 Oct)
-answers 403 `FORCE_PASSWORD_CHANGE` to a flagged user on every path **not** in `EXEMPT_PATHS`.
-That list has `auth/login`, `forgot-password`, `verify-otp`, `reset-password` and `change-password`,
-**but not `auth/logout`**. So #178's "Sign out instead" (for a shared ward PC) reaches a backend that
-refuses the logout. The refresh token isn't blacklisted, and the `UserSession` isn't ended.
+**Layer 1 — ours, every user.** All four ways out (sidebar, `DashboardPlaceholder`, session expiry
+in `client-api.ts`, and #178's "Sign out instead") go through `src/app/api/auth/logout/route.ts`.
+That route calls `POST /auth/logout/` with the access token in `Authorization` and **no body**.
+The backend's `LogoutView` (`apps/accounts/views.py`, `origin/develop` 4 Oct) reads
+`request.data.get('refresh')`, and without it answers **400 "Refresh token is required"** before
+doing anything. So the refresh token is never blacklisted, and `end_session()` (FLAG-610, which
+exists precisely so that logout kills the session's access tokens at once) never runs. Our route's
+`.catch(() => null)` and "best-effort" comment hide the 400. Unchanged since the June auth
+migration (`d6ff422`).
 
-**Why it's only P3:** our `/api/auth/logout` route deletes all three auth cookies whatever the
-backend answers, so the PC really is signed out, and nobody at that browser can resume. What's
-left is a server session (and refresh token) that stays valid until it idles out or hits its cap,
-usable only by someone who already copied the token.
+**Layer 2 — backend, flagged users only.** `ForcePasswordChangeMiddleware` (`apps/core/middleware.py`)
+answers 403 `FORCE_PASSWORD_CHANGE` on every path not in `EXEMPT_PATHS`, and `auth/logout` isn't
+in it. So once layer 1 is fixed, a user with `force_password_change` still can't log out
+server-side. **Layer 2 alone changes nothing:** the call would then reach `LogoutView` and 400.
 
-**Fix (backend, one line):** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`. Nothing to change on
-our side.
+**What still protects users:** our route deletes all three auth cookies whatever the backend
+answers, so the browser really is signed out and the next person at a shared ward PC can't resume.
+The tokens are httpOnly, so page JavaScript can't read them. **What's left:** a server session that
+stays valid after "sign out", usable by anyone who already holds a copy of the token, until it
+idles out (15 min) or reaches its 12 h cap (`enforce_session_freshness`). Not verified: whether
+the refresh endpoint enforces the same idle rule.
 
-**Done when** a flagged user's `POST /auth/logout/` returns 200 and ends the session, pinned by a
-backend test.
+**Why P2, not P3:** PHI is arriving, shared PCs are the ward norm, and the backend built FLAG-610
+specifically so logout ends the session. Our route quietly cancels that work.
+
+**Verified:** by reading source only (backend `origin/develop` and our `develop`, 4 Oct). **Not
+reproduced live** (no dev credentials in this session). The cleanest live confirmation: the
+backend writes a `LOGOUT` audit row only after a logout succeeds (FLAG-544), so Audit Logs on
+api-dev filtered to Logout should show **no rows** from people who signed out of our app.
+
+**Fix:**
+1. **Ours:** the route sends `{ refresh: await getRefreshToken() }` (helper already in
+   `src/lib/auth.ts`). Test that the backend call carries it. Consider logging a non-2xx answer
+   (status only) so this can't go silent again.
+2. **Backend `api-request`:** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`.
+
+**Done when** signing out of our app produces a `LOGOUT` audit row and the old access token is
+refused at once, for a normal user (layer 1) and for one with `force_password_change` (layer 2).
 
 ---
 

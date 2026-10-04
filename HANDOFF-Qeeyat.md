@@ -83,13 +83,22 @@ fix FLAG-248.
 - **FLAG-248 → #180.** Claimed In Flight in the branch's first commit, then wrote the test first:
   4 of 6 RED. Added `method="post"` and the `useHydrated()` guard to `ContactForm` and
   `OrgContactForm`. Reviewer @Bastoh, confirmed set.
-- **Logged FLAG-250** (backend: logout is refused while `force_password_change` is set). Added
-  today's #176 measurement to FLAG-249. Raised a **Cross-Lane row for #171**.
+- **Logged FLAG-250**, then **rewrote it the same afternoon** (see below). Added today's #176
+  measurement to FLAG-249. Raised a **Cross-Lane row for #171**.
 
 **What I found:**
 - 🟠 **#171 (FLAG-059) was closed at 05:24 with no comment**, the morning after I approved it, and
-  its branch was force-pushed at 05:32. No PR is open for it now. It's the FLAG-234 pattern again:
-  a close leaves no trace. Asked in the Cross-Lane row and in the #177 review.
+  its branch was force-pushed at 05:32. It's the FLAG-234 pattern again: a close leaves no trace.
+  Asked in the Cross-Lane row and in the #177 review. **Answered later the same day: #181 is the
+  replacement.**
+- 🟠 **FLAG-250 is bigger than I first logged it.** I wrote it as "backend refuses logout for a
+  user who must change password; nothing to change on our side". Reading `LogoutView` afterwards:
+  it needs `{refresh}` in the body and 400s without it, and **our logout route has never sent a
+  body**. So no sign-out from our app has ever ended a server session, for anyone. The
+  `EXEMPT_PATHS` one-liner I had offered on #178 would have changed nothing by itself. Rewritten
+  as P2, with our route as layer 1. **Lesson: I sized the flag from the middleware and never read
+  the view the call actually lands in.** Read the endpoint end to end before saying whose side a
+  fix is on.
 - **#175 has two change requests from me (21:36 and 21:58 yesterday).** My log only recorded the
   pager point. Check the 21:58 one before posting the approval.
 
@@ -106,12 +115,15 @@ fix FLAG-248.
 clean. Schemas read 4 Oct from api-dev. Backend source read at `origin/develop` 4 Oct.
 
 **Left undone / next:**
-- [ ] Post the five drafts (#177, #176, #175, #172, #167). Check #175's 21:58 review first.
-- [ ] Decide on two backend `api-request`s: publish audit `resource_type` as an enum (#172), and
-      add `auth/logout` to `EXEMPT_PATHS` (FLAG-250).
+- [x] ~~Post the six verdicts~~: done. #177, #175, #176, #167 and #178 merged by 11:23. #172's
+      change request was answered with all 28 values (`dcc0f1f`) plus his FLAG-064.
+- [ ] **FLAG-250 layer 1:** fix our logout route (`fix/flag-250-logout-sends-refresh`), then file
+      the backend `api-request` for layer 2.
+- [ ] Decide on the backend `api-request` to publish audit `resource_type` as an enum (#172 /
+      FLAG-064).
+- [ ] Re-review #172 (`dcc0f1f`), #181 (FLAG-059's replacement) and #182.
 - [ ] When #180 merges, mark FLAG-248 ✅ resolved and clear its In Flight row.
 - [ ] Still open: FLAG-063 talk with @Bastoh, then a verdict on #174. #96 / FLAG-234.
-- [ ] Re-review #172 when its list is fixed. Re-check #167 and #178 after his rebases.
 
 ### 2026-10-03 — back after a week: #163 merged, 14-PR review queue cleared, beta promotion gate found (branch: docs/qeeyat-session-2026-10-03)
 
