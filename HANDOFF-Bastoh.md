@@ -39,6 +39,49 @@ other's memory.** This file is how my work becomes visible to them.
 
 ## Session Log
 
+### 2026-09-30 → 2026-10-04 — The 16-item list, items 7–14: four builds, a merge day, and the browser re-walk (branches: `feat/flag-060-doctor-queue`, `feat/flag-607-unassigned-admissions`, `fix/flag-055-episode-refusal`, `feat/flag-611-change-password`, `fix/flag-059-doctor-my-patients`; backend `feat/doctor-queue`, `feat/unassigned-admissions`, `fix/episode-refuses-deceased`, `fix/password-change-ends-other-sessions`)
+
+**Goal:** after the failed scheduled run of 28 Sep, work the 16-item list one item at a time, in the
+browser where it matters.
+
+**Built (each backend PR merged by me on green CI; each frontend PR reviewed by @Qeeyat):**
+- **Item 7, FLAG-060 → doctor Queue.** Backend #243 (FLAG-617, `GET/PATCH /doctor/queue/`), frontend #175.
+- **Item 8, FLAG-607 → Unassigned admissions.** Backend #245 (FLAG-618, `?unassigned=true`), frontend #176
+  (Unassigned list with Take over, unowned reviews, optional doctor on the nurse's Admit form).
+- **Item 9, FLAG-055 → no new episode for a deceased patient.** Backend #247 (FLAG-619), frontend #177.
+- **Item 10, FLAG-611 → a signed-in password change ends other sessions.** Backend #249 (FLAG-620), frontend
+  #178 (Change password in the sidebar, and the forced-change page; a flagged user used to loop through sign-in).
+
+**Merge day (4 Oct, at the owner's request):** 13 frontend PRs merged, each approved, green and re-tested on
+current `develop` first (list in `HANDOFF.md`'s *Cleared on merge*), the last two being #181 (FLAG-059) and
+#172 (audit filters, with FLAG-064) once @Qeeyat approved them. #174 waits on the FLAG-063 conversation.
+
+**⚠️ My mistake, and the trap to avoid:** #169's commit `a4cd743` said "point to **fix #171**". GitHub closed
+#171 when #169 merged into `develop` (the default branch). I had then rebased #171's branch, so it could not be
+reopened. It is replaced by #181. **Never write "fix/close/resolve #N" in a commit for a PR that is still
+open.** I checked every other open branch before merging; none had it.
+
+**Browser re-walk on dev (4 Oct), exactly as written, all PASS** (results in the checklist artifact):
+- **Item 14 first:** General Ward was full of old test patients. As the doctor I used the new Unassigned list
+  to take over and discharge the stuck ones (HCL-O23MK2, HCL-RNWDM1, two CL-28SEP walk-ins). It also
+  surfaced an absconded stay from 27 Sep awaiting review that had reached no doctor, which I marked reviewed.
+- **Build 2, all 12 steps**, including step 4, unblocked by #168: Search no longer reloads.
+- **p1-4/5/6** two-window bed race. The repeated toast is gone (#173).
+- **Build 4 steps 1–6.** No toast covers the panel button any more (#173).
+- **p6-6/7.** One deviation: see FLAG-066.
+
+**Found:** FLAG-065 (a full-name search at reception finds nothing; backend cause, small fix) and FLAG-066 (an
+emergency walk-in has no sex field, so a single-sex ward always warns; needs a product call).
+
+**Not done / next:** FLAG-065 backend fix (offered); FLAG-066 decision;
+Qeeyat's non-blocking asks (`/auth/logout` exempt while a password change is pending, the backend pair-name
+rule, a row guard on *Pending your review* before promotion); FLAG-249 promotion gate (beta backend needs
+#245+); Build 4 steps 7–8 and Builds 3, 5 were not part of this re-walk. The open episode `a1d35048` on
+deceased HCL-KK4CKY still keeps that patient on the Admit list.
+
+---
+
+
 ### 2026-09-28 — Dev-tier re-walk, B5 steps 3–4 and B6; backend #241 merged (branch: `docs/bastoh-session-2026-09-28`)
 
 **Goal:** finish the admissions-workflow re-walk on the dev tier (HCL/CHK/2026-002) after B1–B4 and

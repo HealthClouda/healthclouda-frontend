@@ -2495,6 +2495,38 @@ for it.
 **Done when** the backend publishes the set (an enum on the schema, or a distinct-values endpoint)
 and the page reads it from there. That needs an `api-request`; @Qeeyat offered to file it.
 
+### FLAG-065 — Reception search finds nothing when you type a full name
+**Severity:** P2 · **Area:** Reception / Patient Search (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-04, browser re-walk of build 2 step 6 on dev
+
+Searching **"Tolu EM-04OCT"** (first and last name) returns no rows. **"Tolu"** alone finds both records.
+Backend `GET /receptionist/patients/search/?query=` (`receptionist_views.py`) matches the **whole** text
+against each field separately (`first_name__icontains=query | last_name__icontains=query | …`), so no
+single field ever contains both words. A receptionist naturally types the whole name, and the empty
+result reads as "no such patient". That leads to a duplicate registration, which is the problem the
+merge screens exist to clean up.
+
+**Fix (backend, small):** split the query on whitespace and require **every** word to match **some**
+field (an AND of ORs). Keep the minimum length per query, not per word.
+
+**Done when** a full-name search finds the patient, and a test pins it.
+
+### FLAG-066 — An emergency walk-in into a single-sex ward always hits the gender warning
+**Severity:** P3 (product call) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a decision**
+**Found:** 2026-10-04, browser re-walk of build 6 step 6 on dev
+
+The "new emergency patient" form has a free-text description but **no sex field**. So every walk-in
+reaches the backend with sex unrecorded, and a Female or Male ward answers *"Sex not recorded — this
+is a Female ward"* with **Admit anyway** (`override`, audited). In the walk, a woman walk-in into
+Maternity needed that override every time. The step as written expects her admitted with no warning.
+
+**Options:** (a) add an optional Sex field to the walk-in form, sent with the admission (the backend
+would need to accept it on `emergency-admissions/`, so an `api-request`); (b) accept the override as
+correct for unknown sex and reword the checklist step. Option (a) also gives reception one less field
+to complete.
+
+**Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
+
 ---
 
 ## Resolved flags
