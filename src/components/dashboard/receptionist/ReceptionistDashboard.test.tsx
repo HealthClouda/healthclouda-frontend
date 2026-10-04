@@ -875,6 +875,47 @@ describe('FLAG-602 — reception completes a record created during an emergency 
     expect(screen.getByLabelText(/^Last name/)).toHaveValue('Eze');
   });
 
+  // Review of #167 (@Qeeyat): the prefill rule "a saved last name means a
+  // real name was saved" only holds if a name is saved as a PAIR. A
+  // surname-only save left the nurse's description as first_name, and the
+  // next visit prefilled it and enabled Complete record — one click locked
+  // the description in as the name.
+  it('will not save half a name: a surname alone sends nothing and says why', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText(/^Last name/), { target: { value: 'Okafor' } });
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Enter both names to save a name, or leave both blank.')).toBeInTheDocument();
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+
+  it('will not save a first name alone either', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText(/^First name/), { target: { value: 'Chinedu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    expect(await screen.findByText('Enter both names to save a name, or leave both blank.')).toBeInTheDocument();
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+
+  it('saves both names together and leaves the record open', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fillName('Chinedu', 'Okafor');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock.mock.calls[0][2]).toEqual({ first_name: 'Chinedu', last_name: 'Okafor' });
+  });
+
+  it('Save details is disabled while there is nothing to save', async () => {
+    await openIncomplete();
+    expect(screen.getByRole('button', { name: 'Save details' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    expect(screen.getByRole('button', { name: 'Save details' })).not.toBeDisabled();
+  });
+
   it('shows the backend\'s field error when it refuses', async () => {
     dataActionMock.mockRejectedValue(
       new ClientApiError(

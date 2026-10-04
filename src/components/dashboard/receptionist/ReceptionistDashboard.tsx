@@ -903,9 +903,22 @@ function CompleteRecordSection({ detail, onSaved }: {
   const hasName = !!firstName.trim() && !!lastName.trim();
   const canComplete = hasContact && hasName;
   const alreadyConsented = !!detail.consent_given;
+  // Review of #167: a name is saved as a PAIR or not at all. The prefill
+  // above reads "a saved last name ⇒ reception saved a real name"; a
+  // surname-only save broke that, leaving the description as first_name for
+  // the next visit to prefill and Complete to lock in.
+  const halfName = !!firstName.trim() !== !!lastName.trim();
+  const hasSomethingToSave = !!(
+    firstName.trim() || lastName.trim() || dateOfBirth || gender || phone.trim() || email.trim()
+    || contactName.trim() || contactPhone.trim() || contactRelationship.trim() || consent
+  );
 
   async function submit(completing: boolean) {
     if (saving || (completing && !canComplete)) return;
+    if (halfName) {
+      setFormError('Enter both names to save a name, or leave both blank.');
+      return;
+    }
     setSaving(completing ? 'complete' : 'save');
     setFormError(null);
     // No `registration_incomplete` at all on a save: sending it is what
@@ -1023,7 +1036,7 @@ function CompleteRecordSection({ detail, onSaved }: {
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => void submit(false)}
-          disabled={!!saving}
+          disabled={!!saving || !hasSomethingToSave}
           className="px-3 py-1.5 border border-primary text-primary-dark hover:bg-chip disabled:opacity-50 text-xs font-medium rounded-lg transition-colors"
         >
           {saving === 'save' ? 'Saving…' : 'Save details'}
