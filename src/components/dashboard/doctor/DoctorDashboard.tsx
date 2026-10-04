@@ -429,6 +429,7 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
   // materially less bad, but it is the same missing-reset defect.
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     episode_type: 'OUTPATIENT',
     chief_complaint: '',
@@ -447,6 +448,7 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
     e.preventDefault();
     if (!patient || saving) return;
     setSaving(true);
+    setFormError(null);
     try {
       const payload: Record<string, unknown> = { patient: patient.id };
       for (const [k, v] of Object.entries(form)) if (v !== '') payload[k] = v;
@@ -455,7 +457,18 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
       onCreated();
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not start episode');
+      // FLAG-055: a refusal (e.g. backend FLAG-619, a patient who has died)
+      // is shown once, inside the panel, in the server's own words — the
+      // flat `error` carries a "patient: " prefix, `details.patient` does not.
+      const details = err instanceof ClientApiError
+        ? (err.data as { details?: Record<string, unknown> } | null)?.details
+        : undefined;
+      const onPatient = details?.patient;
+      setFormError(
+        onPatient != null
+          ? (Array.isArray(onPatient) ? String(onPatient[0]) : String(onPatient))
+          : (err instanceof Error ? err.message : 'Could not start episode'),
+      );
     } finally {
       setSaving(false);
     }
@@ -482,6 +495,10 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
       }
     >
       <form id="new-episode" onSubmit={submit} className="space-y-4">
+        {/* At the top, not after the clinical fields: the submit button sits in
+            the panel footer, so in a scrolled panel an alert at the bottom of the
+            body could be out of sight (review of #177). */}
+        {formError && <p role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-xs font-semibold text-danger">{formError}</p>}
         <label className={label}>
           Episode type
           {/* A real enum in the schema — free text here would 400. */}

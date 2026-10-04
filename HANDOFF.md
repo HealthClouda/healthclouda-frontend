@@ -41,6 +41,8 @@
 
 | @Bastoh | **DASH-6 brought back to spec** — patient welcome banner on the brand primary gradient (was teal) with the patient's **HealthClouda ID** chip (was missing); every remaining teal class on the patient dashboard moved to system blue tokens. Taken from the `[DESIGN]` lane on the founder's call, claimed loudly | `feat/patient-hcl-id-brand-blue` | `src/components/dashboard/patient/PatientDashboard.tsx` (+ test), `src/app/patient/page.tsx`, `src/types/dashboard.ts` | 2026-09-27 | 🟡 **PR open, @Qeeyat to review.** Claimed in this PR's own commit (FLAG-240 option (a)). Reads `healthclouda_id` from `GET /patients/me/`, verified against backend source only — live schema unreachable from the session |
 
+| @Bastoh | **FLAG-055** — Start episode shows a refusal inside the panel, in the server's words (backend FLAG-619, HealthClouda/healthclouda-backend#247: a deceased patient is refused a new episode) | `fix/flag-055-episode-refusal` | `DoctorDashboard.tsx` (`NewEpisodePanel` error), new `DoctorEpisodeRefusal.test.tsx` | 2026-10-01 | 🟡 PR open — claimed in the PR's own commit |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
