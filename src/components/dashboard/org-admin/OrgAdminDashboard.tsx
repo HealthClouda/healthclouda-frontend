@@ -337,7 +337,7 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
 }) {
   const { toast } = useToast();
   const { data: detail, loading, error } =
-    useApi<PatientIdentity>(patient ? `${ENDPOINTS.PATIENTS}${patient.id}/` : null);
+    useApi<PatientIdentity>(patient ? ENDPOINTS.PATIENT(patient.id) : null);
   const original: IdentityForm | null = detail
     ? { first_name: detail.first_name, last_name: detail.last_name, date_of_birth: detail.date_of_birth ?? '', gender: detail.gender ?? '' }
     : null;
@@ -347,7 +347,10 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
   // Prefill once the record arrives (during render, not in an effect).
   if (original && !form) setForm(original);
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Local date, not UTC (review of #174): in Lagos (UTC+1) toISOString() is
+  // still yesterday between 00:00 and 01:00, which refused a birth today.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const changes: Partial<Record<keyof IdentityForm, string | null>> = {};
   if (form && original) {
     if (form.first_name.trim() !== original.first_name) changes.first_name = form.first_name.trim();
@@ -364,7 +367,7 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
     setSaving(true);
     setFormError(null);
     try {
-      await apiAction(`${ENDPOINTS.PATIENTS}${patient.id}/`, 'PATCH', changes);
+      await apiAction(ENDPOINTS.PATIENT(patient.id), 'PATCH', changes);
       toast.success(`Details updated for ${form!.first_name.trim()} ${form!.last_name.trim()}`);
       onSaved();
       onClose();
