@@ -772,22 +772,36 @@ function auditColumns({ compact = false } = {}): DataTableColumn<AuditLogEntry>[
   return [when, by, what, why];
 }
 
+// Review of #172: GET /audit/logs/ declares its filters as filterset_fields,
+// so every one is an EXACT match. A free-text box that sends partial text
+// gets "No matching entries" while entries exist — on an audit screen, a
+// false "it didn't happen". So: record type is a list of the exact values
+// the backend writes (case-sensitive; `Patient` AND `Patients` are both in
+// use, as measured 3 Oct), and email / patient ID are sent only when whole.
+const AUDIT_RESOURCE_TYPES = [
+  'Admission', 'Auth', 'Episode', 'Organization', 'Patient', 'Patients',
+  'PatientMerge', 'PatientMergeUndo', 'Prescription', 'Referral', 'User', 'VitalsRecord',
+] as const;
+const FULL_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const FULL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function AuditPage() {
   const [action, setAction] = useState('');
   const [email, setEmail] = useState('');
   const [resourceType, setResourceType] = useState('');
   const [patient, setPatient] = useState('');
   const debouncedEmail = useDebouncedValue(email.trim(), 350);
-  const debouncedType = useDebouncedValue(resourceType.trim(), 350);
   const debouncedPatient = useDebouncedValue(patient.trim(), 350);
+  const emailIncomplete = email.trim() !== '' && !FULL_EMAIL.test(email.trim());
+  const patientIncomplete = patient.trim() !== '' && !FULL_UUID.test(patient.trim());
 
   // Every filter here is a documented query param of GET /audit/logs/ (live
   // schema 2026-09-30) — an invented one would be silently ignored by DRF.
   const params = new URLSearchParams();
   if (action) params.set('action', action);
-  if (debouncedEmail) params.set('user_email', debouncedEmail);
-  if (debouncedType) params.set('resource_type', debouncedType);
-  if (debouncedPatient) params.set('patient', debouncedPatient);
+  if (FULL_EMAIL.test(debouncedEmail)) params.set('user_email', debouncedEmail);
+  if (resourceType) params.set('resource_type', resourceType);
+  if (FULL_UUID.test(debouncedPatient)) params.set('patient', debouncedPatient);
   const qs = params.toString();
   const endpoint = ENDPOINTS.SA_AUDIT + (qs ? `?${qs}` : '');
 
@@ -822,26 +836,37 @@ function AuditPage() {
               {(Object.keys(ACTION_LABELS) as AuditAction[]).map((a) => <option key={a} value={a}>{ACTION_LABELS[a]}</option>)}
             </select>
             <input
-              aria-label="Performed by (email)"
-              placeholder="Performed by (email)"
+              type="email"
+              aria-label="Full email address"
+              placeholder="Performed by: full email address"
+              aria-describedby={emailIncomplete ? 'audit-email-hint' : undefined}
               className={`${inputClass} h-9 w-56 text-[12.5px]`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <input
+            <select
               aria-label="Record type"
-              placeholder="Record type, e.g. Admission"
-              className={`${inputClass} h-9 w-52 text-[12.5px]`}
+              className={`${inputClass} h-9 w-auto text-[12.5px]`}
               value={resourceType}
               onChange={(e) => setResourceType(e.target.value)}
-            />
+            >
+              <option value="">All record types</option>
+              {AUDIT_RESOURCE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
             <input
               aria-label="Patient record ID"
-              placeholder="Patient record ID"
+              placeholder="Patient record ID (full)"
+              aria-describedby={patientIncomplete ? 'audit-patient-hint' : undefined}
               className={`${inputClass} h-9 w-72 text-[12.5px] font-mono`}
               value={patient}
               onChange={(e) => setPatient(e.target.value)}
             />
+            {(emailIncomplete || patientIncomplete) && (
+              <div aria-live="polite" className="w-full text-[11.5px] text-text-soft space-y-0.5">
+                {emailIncomplete && <p id="audit-email-hint">Enter the full email address</p>}
+                {patientIncomplete && <p id="audit-patient-hint">Enter the full record ID</p>}
+              </div>
+            )}
           </div>
         }
         page={page}

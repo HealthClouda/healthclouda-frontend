@@ -408,6 +408,40 @@ describe('FLAG-061 — Audit Logs show who, what and why', () => {
     await waitFor(() => expect(auditCalls().some(p => p.includes('action=LOGIN_FAILURE'))).toBe(true));
   });
 
+  // Review of #172: the backend's audit filters are filterset_fields, so all
+  // EXACT. A free-text box that sends partial text reports "No matching
+  // entries" when entries exist, the worst failure on an audit screen.
+  it('offers record types as the exact values the backend writes, not free text', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    const select = screen.getByLabelText('Record type');
+    expect(select.tagName).toBe('SELECT');
+    const values = Array.from((select as HTMLSelectElement).options).map(o => o.value);
+    for (const v of ['Admission', 'Patient', 'Patients', 'PatientMerge', 'VitalsRecord']) expect(values).toContain(v);
+    fireEvent.change(select, { target: { value: 'Admission' } });
+    await waitFor(() => expect(auditCalls().some(p => p.includes('resource_type=Admission'))).toBe(true));
+  });
+
+  it('sends the email only once it is a full address, and says so meanwhile', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    const box = screen.getByLabelText('Full email address');
+    fireEvent.change(box, { target: { value: 'doctor@' } });
+    expect(await screen.findByText('Enter the full email address')).toBeInTheDocument();
+    await new Promise(r => setTimeout(r, 500));
+    expect(auditCalls().some(p => p.includes('user_email='))).toBe(false);
+
+    fireEvent.change(box, { target: { value: 'doctor@demo.test' } });
+    await waitFor(() => expect(auditCalls().some(p => p.includes('user_email=doctor%40demo.test'))).toBe(true), { timeout: 3000 });
+    expect(screen.queryByText('Enter the full email address')).toBeNull();
+  });
+
+  it('never sends a partial patient record ID (the backend 400s on a non-UUID)', async () => {
+    await openPage('Audit Logs', 'nurse@demo.test');
+    fireEvent.change(screen.getByLabelText(/Patient record ID/), { target: { value: '421839bb-3f00' } });
+    expect(await screen.findByText('Enter the full record ID')).toBeInTheDocument();
+    await new Promise(r => setTimeout(r, 500));
+    expect(auditCalls().some(p => p.includes('patient='))).toBe(false);
+  });
+
   it('filters by patient record ID on the server', async () => {
     await openPage('Audit Logs', 'nurse@demo.test');
     fireEvent.change(screen.getByLabelText(/Patient record ID/), { target: { value: '421839bb-3f00-4c93-9379-137bc3862939' } });
