@@ -2476,6 +2476,25 @@ client-side trust decision (CLAUDE.md §6 lens 1).
 another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
 cross-hospital edits are intended.
 
+### FLAG-064 — The audit-log "Record type" list is a hand-kept copy of backend code
+**Severity:** P3 · **Area:** Superadmin / Audit Logs · **Owner:** @Bastoh · **Status:** 🟡 **OPEN (accepted for beta)**
+**Found:** 2026-10-04, @Qeeyat re-reviewing #172
+
+`GET /audit/logs/?resource_type=` is an exact, case-sensitive match, so #172 offers a fixed list
+instead of free text. The list (28 values, `SuperadminDashboard.tsx` `AUDIT_RESOURCE_GROUPS`) is
+copied from the backend's three writers of `AuditLog.resource_type`:
+- the save signals and coverage table, one value per audited model;
+- `AuditMiddleware`, which writes the capitalised URL prefix for every request to a sensitive
+  endpoint, reads included;
+- `log_action` callers, whose default is `Action`.
+
+It drifts as soon as a model joins the coverage table or a prefix joins `SENSITIVE_ENDPOINTS`.
+Nothing fails when that happens: the new value is simply not offered, and a superadmin can't filter
+for it.
+
+**Done when** the backend publishes the set (an enum on the schema, or a distinct-values endpoint)
+and the page reads it from there. That needs an `api-request`; @Qeeyat offered to file it.
+
 ---
 
 ## Resolved flags
