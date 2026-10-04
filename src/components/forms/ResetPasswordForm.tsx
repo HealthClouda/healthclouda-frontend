@@ -11,6 +11,7 @@ import { PasswordInput } from './PasswordInput';
 import { PasswordStrengthMeter, passwordIsValid } from './PasswordStrengthMeter';
 import { ShieldIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
 
 // Enforce the backend rule (≥8, uppercase, digit, special) client-side too.
@@ -42,6 +43,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
+  // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
+  const hydrated = useHydrated();
 
   const password = watch('password', '');
   const password2 = watch('password2', '');
@@ -76,7 +79,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
+      <form method="post" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-[18px]">
         <div>
           <PasswordInput
             label="Password"
@@ -109,7 +112,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
+        <button type="submit" disabled={!hydrated || isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
           {isSubmitting ? 'Saving…' : 'Update Password'}
         </button>
       </form>

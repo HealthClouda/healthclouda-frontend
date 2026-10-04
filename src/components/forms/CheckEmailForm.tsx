@@ -10,6 +10,7 @@ import { AuthCard } from './AuthCard';
 import { OtpInput } from './OtpInput';
 import { MailPlusIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
 
 const schema = z.object({
@@ -34,6 +35,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
 
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { otp: '' } });
+  // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
+  const hydrated = useHydrated();
 
   const otp = watch('otp');
 
@@ -92,7 +95,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+      <form method="post" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
         <Controller
           name="otp"
           control={control}
@@ -107,7 +110,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={isSubmitting || otp.length !== 6} className={authPrimaryBtn}>
+        <button type="submit" disabled={!hydrated || isSubmitting || otp.length !== 6} className={authPrimaryBtn}>
           {isSubmitting ? 'Verifying…' : 'Verify'}
         </button>
       </form>
