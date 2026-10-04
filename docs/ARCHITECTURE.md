@@ -171,6 +171,7 @@ The server render fetches `/patients/me/dashboard/` and `/patients/me/` in paral
 deny, it looped them through signin for ever. The gate now uses `serverFetchResult`, which carries the
 backend's error `code` (never the body), and sends exactly that 403 to `/change-password`. Everything
 else still fails closed. `client-api` does the same in the browser for a user flagged mid-session.
+
 ---
 
 ## 6. UI composition
