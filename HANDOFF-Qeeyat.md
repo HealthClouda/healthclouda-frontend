@@ -88,9 +88,13 @@ fix FLAG-248.
 
 **What I found:**
 - 🟠 **#171 (FLAG-059) was closed at 05:24 with no comment**, the morning after I approved it, and
-  its branch was force-pushed at 05:32. It's the FLAG-234 pattern again: a close leaves no trace.
-  Asked in the Cross-Lane row and in the #177 review. **Answered later the same day: #181 is the
-  replacement.**
+  its branch was force-pushed at 05:32. Asked in the Cross-Lane row and in the #177 review.
+  **Answered later the same day: #181 is the replacement.** ♻️ **And I had the cause wrong.** I
+  called it "the FLAG-234 pattern, a silent manual close". @Bastoh's #182 log explains it: #169's
+  commit `a4cd743` said "point to **fix #171**", and GitHub auto-closed #171 when #169 merged into
+  `develop`. The events API names the merger as the closer, which is why it looked deliberate.
+  **Lesson: a "closed by X" event can be a closing keyword in someone else's merge. Check for one
+  before reading intent into it.**
 - 🟠 **FLAG-250 is bigger than I first logged it.** I wrote it as "backend refuses logout for a
   user who must change password; nothing to change on our side". Reading `LogoutView` afterwards:
   it needs `{refresh}` in the body and 400s without it, and **our logout route has never sent a
