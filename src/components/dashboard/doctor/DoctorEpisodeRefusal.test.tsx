@@ -46,9 +46,18 @@ beforeEach(() => {
   useToastStore.setState({ toasts: [] });
   dataGetMock.mockImplementation((path: string) => {
     if (path.startsWith(ENDPOINTS.DOC_MY_PATIENTS)) {
+      // The published MyPatientsPaginatedResponse shape: one row per EPISODE,
+      // patient nested (the shape #171 reads). Valid on both sides of #171,
+      // since these tests assert only the refusal.
       return Promise.resolve({
         count: 1, next: null, previous: null,
-        results: [{ id: 'pat-1', first_name: 'Bola', last_name: 'Probe', created_at: '2026-07-01T10:00:00Z' }],
+        results: [{
+          id: 'ep-1',
+          patient: { id: 'pat-1', healthclouda_id: 'HCL-BOLA01', first_name: 'Bola', last_name: 'Probe', age: 40 },
+          episode_type: 'OUTPATIENT', episode_type_display: 'Outpatient', chief_complaint: 'Headache',
+          diagnosis: '', status: 'ACTIVE', episode_start: '2026-07-01T10:00:00Z', episode_end: null,
+          latest_vitals: null, admission: null,
+        }],
       });
     }
     return Promise.resolve({ count: 0, next: null, previous: null, results: [] });

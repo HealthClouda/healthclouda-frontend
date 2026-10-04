@@ -497,6 +497,10 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
       }
     >
       <form id="new-episode" onSubmit={submit} className="space-y-4">
+        {/* At the top, not after the clinical fields: the submit button sits in
+            the panel footer, so in a scrolled panel an alert at the bottom of the
+            body could be out of sight (review of #177). */}
+        {formError && <p role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-xs font-semibold text-danger">{formError}</p>}
         <label className={label}>
           Episode type
           {/* A real enum in the schema — free text here would 400. */}
@@ -542,8 +546,6 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
           Only the patient is required. Clinical notes and treatment plan are not shown to the patient
           in their portal; chief complaint, diagnosis and instructions are.
         </p>
-
-        {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
       </form>
     </SlidePanel>
   );
