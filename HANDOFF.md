@@ -26,6 +26,7 @@
 
 | @Qeeyat | **FLAG-239 + FLAG-240** logged from the 14 Sep review of @Bastoh's 11 PRs, plus the backend #192 Cross-Lane row | `docs/flags-239-240-review-2026-09-14` | `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-09-14 | 🟡 **Docs only.** Claimed in this PR's own commit rather than a separate claim PR, which is FLAG-240's option (a), done deliberately |
 
+| @Bastoh | **Restore the three stat tiles** removed under FLAG-222 — Superadmin *Active Organisations* + *Total Patients*, Doctor *Active Prescriptions* — now that backend issue #158 has landed. **FLAG-051** | `fix/restore-stat-tiles` | `SuperadminDashboard.tsx`, `DoctorDashboard.tsx` (overview tiles only), `types/dashboard.ts` (stats types), `e2e/design/roles.spec.ts` | 2026-09-27 | 🟡 Claimed in this PR's own commit (FLAG-240 option a) |
 
 | @Bastoh | **Apex landing copy** — em-dashes out of all visitor-facing wording, `hello@healthclouda.ng` → `info@healthclouda.com` (**sprint plan B6**) | `fix/landing-copy-email-contact` | `src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/ContactForm.tsx`, the landing design source, `docs/FRONTEND_SPRINT_PLAN.md` | 2026-09-16 | 🟡 **Copy only — no component, route or contract change.** Claimed in this PR's own commit (FLAG-240 option (a)), as @Qeeyat did above. Paired with backend `feat/contact-form-email-notification`, which emails form submissions to the same address 
 
