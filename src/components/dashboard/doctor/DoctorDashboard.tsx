@@ -158,7 +158,7 @@ interface MyPatientRow {
   cases: MyPatientEpisode[];
 }
 
-/** The patient identity the New episode / Refer panels need. */
+/** The patient identity the New episode / Refer panels need (My Patients and Queue both open them). */
 type PatientRef = Pick<DoctorPatientMinimal, 'id' | 'first_name' | 'last_name'>;
 
 const SEX_LABEL: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' };
@@ -465,8 +465,6 @@ function OverviewPage({
  * second endpoint, which is why FLAG-219 records it as a pattern rather than
  * one endpoint's oversight.
  */
-/** The patient identity the New episode panel needs — My Patients and Queue both open it. */
-type PatientRef = Pick<PatientSummary, 'id' | 'first_name' | 'last_name'>;
 
 function NewEpisodePanel({ patient, onClose, onCreated }: {
   patient: PatientRef | null;
