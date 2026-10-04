@@ -646,6 +646,9 @@ describe('WARD-1 — admit patient', () => {
       if (path.startsWith(ENDPOINTS.NURSE_MY_PATIENTS)) {
         return Promise.resolve({ count: 1, results: [admission] });
       }
+      // FLAG-607: the Admit form now loads the doctor picker. The real
+      // endpoint returns a bare array, not a paginated envelope.
+      if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) return Promise.resolve([]);
       return Promise.resolve({ count: 0, results: [] });
     });
   }

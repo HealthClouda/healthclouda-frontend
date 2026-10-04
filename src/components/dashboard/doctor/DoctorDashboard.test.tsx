@@ -873,6 +873,8 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
   // match. `pending` defaults to none, matching most tests below.
   function mockAdmissionsBackend(admissions = [doctorAdmission], pending: DoctorAdmission[] = []) {
     dataGetMock.mockImplementation((path: string) => {
+      // FLAG-607: the page also asks for ?unassigned=true; none here.
+      if (/[?&]unassigned=true\b/.test(path)) return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
       if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
         return Promise.resolve({ count: pending.length, results: pending });
       }
@@ -943,6 +945,8 @@ describe('WARD-DOC-ADMISSIONS — the doctor admissions page', () => {
 
     async function openHandOver(admission: DoctorAdmission = doctorAdmission) {
       dataGetMock.mockImplementation((path: string) => {
+        // FLAG-607: the page also asks for ?unassigned=true; none here.
+        if (/[?&]unassigned=true\b/.test(path)) return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
         if (path.startsWith(ENDPOINTS.WARD_ATTENDING_DOCTORS)) return Promise.resolve(doctors);
         if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
           return Promise.resolve({ count: 0, results: [] });
@@ -1190,6 +1194,8 @@ describe('WARD-DOC-ADMISSIONS — pending doctor review (FLAG-045)', () => {
   // resolves sees the update with no race to hand-time.
   function mockPendingBackend(pending: DoctorAdmission[] = [pendingDeceased]) {
     dataGetMock.mockImplementation((path: string) => {
+      // FLAG-607: the page also asks for ?unassigned=true; none here.
+      if (/[?&]unassigned=true\b/.test(path)) return Promise.resolve({ count: 0, next: null, previous: null, results: [] });
       if (path.startsWith(ENDPOINTS.ADMISSIONS) && /[?&]needs_doctor_review=true\b/.test(path)) {
         const reviewedIds = new Set(
           dataActionMock.mock.calls

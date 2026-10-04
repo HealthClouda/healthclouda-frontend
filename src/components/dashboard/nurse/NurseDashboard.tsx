@@ -781,6 +781,16 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
   const { toast } = useToast();
   const { data: beds, loading: bedsLoading, error: bedsError, refetch: refetchBeds } =
     useAllPages<WardBed>(ENDPOINTS.WARD_BEDS + '?status=AVAILABLE');
+  // FLAG-607 (owner decision 2b): naming the attending doctor here is
+  // optional, exactly as on the emergency form — never a block. An admission
+  // left without one appears on every doctor's Unassigned list.
+  const { data: doctors, loading: doctorsLoading, error: doctorsError } =
+    useApi<AttendingDoctor[]>(episode ? ENDPOINTS.WARD_ATTENDING_DOCTORS : null);
+  const [doctorId, setDoctorId] = useState('');
+  // The off-duty two-step, same shape as the emergency form's: its own
+  // warning, and its own override field, never `override` (FLAG-601).
+  const [doctorWarning, setDoctorWarning] = useState<string | null>(null);
+  const [overrides, setOverrides] = useState({ gender: false, doctor: false });
   const [bedId, setBedId] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
@@ -796,21 +806,26 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
   // sentence: bed taken and already-admitted are both 409 (FLAG-604).
   const [bedConflict, setBedConflict] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent | React.MouseEvent, override: boolean) {
+  async function submit(e: React.FormEvent | React.MouseEvent, waive?: 'gender' | 'doctor') {
     e.preventDefault();
     if (!episode || saving || !bedId) return;
     setSaving(true);
     setFormError(null);
+    const sent = waive ? { ...overrides, [waive]: true } : overrides;
+    setOverrides(sent);
     try {
       await apiAction(ENDPOINTS.ADMISSIONS, 'POST', {
         patient: episode.patient.id,
         episode: episode.id,
         bed: bedId,
         admission_reason: reason.trim(),
-        override,
+        override: sent.gender,
+        // Only when a doctor is named: a blank picker sends nothing at all.
+        ...(doctorId ? { attending_doctor: doctorId, attending_doctor_override: sent.doctor } : {}),
       });
       toast.success(`${episode.patient.first_name} ${episode.patient.last_name} admitted`);
       setGenderWarning(null);
+      setDoctorWarning(null);
       onAdmitted();
       onClose();
     } catch (err) {
@@ -827,8 +842,10 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
         return;
       }
       const { field, message } = admissionFieldError(err);
-      if (field === 'gender' && !override) {
+      if (field === 'gender' && !sent.gender) {
         setGenderWarning(message);
+      } else if (field === 'attending_doctor' && doctorId && !sent.doctor) {
+        setDoctorWarning(message);
       } else if (field === 'patient') {
         setPatientBlocked(message);
       } else {
@@ -848,7 +865,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
       footer={
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-text-soft hover:text-ink">Cancel</button>
-          {!genderWarning && !patientBlocked && (
+          {!genderWarning && !doctorWarning && !patientBlocked && (
             <button type="submit" form="admit-patient" disabled={saving || !bedId}
               className="px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
               {saving ? 'Admitting…' : 'Admit'}
@@ -857,7 +874,7 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
         </div>
       }
     >
-      <form id="admit-patient" onSubmit={(e) => void submit(e, false)} className="space-y-4">
+      <form id="admit-patient" onSubmit={(e) => void submit(e)} className="space-y-4">
         {patientBlocked ? (
           <PatientBlockedNotice message={patientBlocked} onClose={onClose} />
         ) : (
@@ -870,7 +887,11 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
           error={bedsError}
           onRetry={refetchBeds}
           value={bedId}
-          onChange={(v) => { setBedId(v); setGenderWarning(null); setBedConflict(null); }}
+          onChange={(v) => {
+            setBedId(v); setGenderWarning(null); setBedConflict(null);
+            // A waiver answers the warning for THIS bed's ward, not the next.
+            setOverrides(o => ({ ...o, gender: false }));
+          }}
         />
 
         <div>
@@ -884,12 +905,37 @@ function AdmitForm({ episode, onClose, onAdmitted }: {
           />
         </div>
 
+        <DoctorPicker
+          id="admit-attending-doctor"
+          doctors={doctors}
+          loading={doctorsLoading}
+          error={doctorsError}
+          value={doctorId}
+          onChange={(v) => {
+            setDoctorId(v); setDoctorWarning(null);
+            // Accepting one off-duty doctor is not accepting another.
+            setOverrides(o => ({ ...o, doctor: false }));
+          }}
+          restrictToOnDuty={false}
+        />
+
         {genderWarning && (
           <GenderOverrideWarning
             message={genderWarning}
             saving={saving}
-            onOverride={(e) => void submit(e, true)}
+            onOverride={(e) => { setGenderWarning(null); void submit(e, 'gender'); }}
             onCancel={() => setGenderWarning(null)}
+          />
+        )}
+
+        {doctorWarning && (
+          <GenderOverrideWarning
+            message={withoutResendInstruction(doctorWarning)}
+            saving={saving}
+            onOverride={(e) => { setDoctorWarning(null); void submit(e, 'doctor'); }}
+            onCancel={() => setDoctorWarning(null)}
+            cancelLabel="Choose another doctor"
+            note="Naming an off-duty doctor is recorded in this patient’s audit trail."
           />
         )}
           </>

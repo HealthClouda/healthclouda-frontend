@@ -45,6 +45,8 @@
 
 | @Bastoh | **FLAG-060** — doctor **Queue** page: reception check-ins assigned to the signed-in doctor, with Call in / Done / No-show and **Start episode** (decision 1a, 28 Sep). Reads backend `GET /doctor/queue/` (backend FLAG-617, HealthClouda/healthclouda-backend#243) — **works on a tier only once #243 is deployed there** | `feat/flag-060-doctor-queue` | `DoctorDashboard.tsx` (new `QueuePage`, `NewEpisodePanel` prop widened), `config.ts` (`DOC_QUEUE`, `DOC_QUEUE_ITEM`), new `DoctorQueue.test.tsx` | 2026-09-30 | 🟡 PR open — claimed in the PR's own commit |
 
+| @Bastoh | **FLAG-607 follow-up** (owner decision 2b, 28 Sep) — doctor Admissions page gains an **Unassigned** list (Take over) and **Awaiting review — no doctor assigned**; the nurse's Admit form gains an optional attending-doctor picker. Reads backend `?unassigned=true` (backend FLAG-618, HealthClouda/healthclouda-backend#245) — **works on a tier only once #245 is deployed there** | `feat/flag-607-unassigned-admissions` | `DoctorDashboard.tsx` (`UnassignedSection`, `PendingReviewsSection` props, `HandOverPanel` `preselectSelf`), `NurseDashboard.tsx` (`AdmitForm`), two new test files, mock fixes in both dashboard test files | 2026-10-01 | 🟡 PR open — claimed in the PR's own commit |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
