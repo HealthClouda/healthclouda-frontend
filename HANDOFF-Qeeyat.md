@@ -129,8 +129,11 @@ clean. Schemas read 4 Oct from api-dev. Backend source read at `origin/develop` 
 - [ ] File the backend `api-request` for FLAG-250 layer 2 (`auth/logout` in `EXEMPT_PATHS`).
 - [ ] FLAG-250's remaining gap (sign-out after the access cookie lapsed) needs refresh-then-logout.
       Decide whether it's worth a PR.
-- [ ] Re-review #172 and #181: drafted (approve) in `healthclouda-reviews/`, waiting for me to post.
-      #182 still to review.
+- [x] ~~#172, #181, #182~~: all three approved by me (each re-verified: 28-value recompute,
+      `range-diff` against the approved #171, FLAG-065/066 against backend source) and **merged 4 Oct**.
+      #180, #183 and this PR rebased onto the result (only `HANDOFF.md` In Flight conflicts).
+- [ ] Two backend `api-request`s drafted in `healthclouda-reviews/backend-issue-*.md`: FLAG-250
+      layer 2 (logout exempt) and FLAG-064 (publish `resource_type`). Not yet filed.
 - [ ] Decide on the backend `api-request` to publish audit `resource_type` as an enum (#172 /
       FLAG-064).
 - [ ] When #180 merges, mark FLAG-248 ✅ resolved and clear its In Flight row.
