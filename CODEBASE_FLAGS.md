@@ -4023,3 +4023,20 @@ change, not a frontend one — nothing in this build's contract exposes an alert
 change), and a doctor-facing view of who is in charge (out of scope per the brief: "wherever a ward is
 displayed and it fits naturally" — today that is the two ward-bearing screens, Org Admin and Nurse;
 the Doctor dashboard has no ward-level screen at all to add this to).
+
+### FLAG-053 — Searching for a patient in the nurse's emergency panel reloaded the page
+**Severity:** P1 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/emergency-search-reloads-page` (2026-09-27)**
+**Found:** 2026-09-27, re-walking build 2 on `dev.healthclouda.com` after #161 merged.
+
+`EmergencyPatientSearch` was a `<form onSubmit>` rendered **inside** the `<form id="emergency-admit">`.
+Nested forms are invalid HTML. In Chromium on the dev tier, pressing Search (or Enter) submitted
+natively and navigated to `/demo-clinic/nurse?`, a full reload: the panel closed and the nurse was
+back on Overview. So admitting an **existing** patient in an emergency did not work in a real
+browser. The walk-in path worked only because it never uses the search. Every unit test passed,
+because jsdom does not perform native form submission.
+
+**Fix:** the search is a `role="search"` group with a `type="button"` Search, and Enter is handled on
+the input with `preventDefault`. A static scan of `src/components` found no other form nested inside
+a form. **Tests:** two, both RED on `develop`: the panel contains no `form form`, and Enter searches
+without submitting the admission.
+
