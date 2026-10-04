@@ -9,12 +9,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Pagination } from '@/components/ui/Pagination';
 import { ShimmerRows } from '@/components/ui/Shimmer';
-import { Avatar } from '@/components/ui/Avatar';
 import { formatDate, formatTime, timeAgo, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  PatientDashboardData, EpisodeListItem, PatientAppointment, AccessRequest, Referral, Notification, Paginated,
+  PatientDashboardData, PatientMeProfile, EpisodeListItem, PatientAppointment, AccessRequest, Referral, Notification, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -42,9 +41,40 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
   return <td className={`px-4 py-3.5 text-gray-700 ${className}`}>{children}</td>;
 }
 
+// ─── HealthClouda ID chip ─────────────────────────────────────────
+
+/**
+ * The patient's lifetime HealthClouda ID (HCL ID), read from
+ * `GET /patients/me/` → `healthclouda_id`.
+ *
+ * Renders nothing when the ID is genuinely unavailable (profile fetch failed)
+ * rather than a placeholder that could be read as an ID. A shimmer holds its
+ * place only while the fetch is in flight.
+ */
+function HclIdChip({ hclId, loading }: { hclId: string | null; loading: boolean }) {
+  if (loading && !hclId) {
+    return <div aria-hidden="true" className="h-[52px] w-40 rounded-xl bg-white/15 animate-pulse" />;
+  }
+  if (!hclId) return null;
+  return (
+    // No translucent fill: the text sits straight on the banner, so its
+    // contrast is the banner's (>= 5.98:1), wherever the chip wraps to.
+    <div className="rounded-xl border border-white/60 px-4 py-2">
+      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-white">HealthClouda ID</p>
+      <p className="font-mono text-base font-bold" data-testid="patient-hcl-id">{hclId}</p>
+    </div>
+  );
+}
+
 // ─── Overview ─────────────────────────────────────────────────────
 
-function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData | null; user: User; onNavigate: (p: string) => void }) {
+function OverviewPage({ stats, user, hclId, profileLoading, onNavigate }: {
+  stats: PatientDashboardData | null;
+  user: User;
+  hclId: string | null;
+  profileLoading: boolean;
+  onNavigate: (p: string) => void;
+}) {
   // PATIENT-1: real endpoint + real filter — `?upcoming=` was never implemented
   // backend-side and silently showed ALL appointments (GLOBAL-2 pattern).
   const { data: apptData, loading: apptLoading, error: apptError, refetch: apptRefetch } =
@@ -56,14 +86,23 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
 
   return (
     <div className="space-y-6">
-      {/* Welcome banner */}
-      <div className="flex items-center gap-4 bg-gradient-to-r from-teal-600 to-teal-500 text-white rounded-2xl px-6 py-5">
-        <Avatar firstName={user.first_name} lastName={user.last_name} size="lg" />
-        <div>
-          <p className="text-teal-100 text-sm">Welcome back,</p>
+      {/* Welcome banner — DASH-6 spec: a brand-blue gradient with the patient's
+          HealthClouda ID in a chip. It had drifted to a teal gradient and dropped
+          the ID entirely, so the one identifier this product exists to give a
+          patient was nowhere on their own dashboard.
+
+          Contrast (WCAG AA, measured against globals.css): the gradient runs
+          primary-dark → #004fa8, so plain white is >= 5.98:1 at its lightest
+          point. Starting at `primary` (#0075ff) gave only 4.21, and the /70 and
+          /80 text sat at 2.8–3.2 (@Qeeyat, #165 review). Every piece of banner
+          text is solid white for that reason — do not reintroduce opacity. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-primary-dark to-[#004fa8] text-white rounded-2xl px-6 py-5">
+        <div className="min-w-0">
+          <p className="text-white text-sm">Welcome back,</p>
           <h2 className="text-xl font-bold">{user.first_name} {user.last_name}</h2>
-          {user.organization_name && <p className="text-teal-200 text-xs mt-0.5">{user.organization_name}</p>}
+          {user.organization_name && <p className="text-white text-xs mt-0.5">{user.organization_name}</p>}
         </div>
+        <HclIdChip hclId={hclId} loading={profileLoading} />
       </div>
 
       {/* Stats — FLAG-231. Two tiles read fields `/patients/me/dashboard/` has
@@ -86,8 +125,8 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
           the three that remain — a four-column row with three children renders an
           empty cell, which reads as a tile that failed to load. */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard loading={apptLoading} label="Upcoming Appts"  value={apptData?.count}                  icon={<CalIcon />}  color="teal"   onClick={() => onNavigate('appointments')} />
-        <StatCard loading={!stats} label="Active Episodes"      value={stats?.active_episodes}           icon={<DocIcon />}  color="blue"   onClick={() => onNavigate('health')} />
+        <StatCard loading={apptLoading} label="Upcoming Appts"  value={apptData?.count}                  icon={<CalIcon />}  color="blue"   onClick={() => onNavigate('appointments')} />
+        <StatCard loading={!stats} label="Active Episodes"      value={stats?.active_episodes}           icon={<DocIcon />}  color="green"  onClick={() => onNavigate('health')} />
         <StatCard loading={!stats} label="Notifications"        value={stats?.unread_notifications ?? 0} icon={<BellIcon />} color="purple" />
       </div>
 
@@ -96,20 +135,20 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-gray-900">Upcoming Appointments</h2>
-            <button onClick={() => onNavigate('appointments')} className="text-xs font-medium text-teal-600 hover:text-teal-800">View all →</button>
+            <button onClick={() => onNavigate('appointments')} className="text-xs font-medium text-primary hover:text-primary-dark">View all →</button>
           </div>
           {apptLoading ? <ShimmerRows count={3} /> : apptError ? (
             <ErrorState message={apptError} onRetry={apptRefetch} />
           ) : !upcoming.length ? (
-            <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-5 text-center">
-              <p className="text-sm font-medium text-teal-700">No upcoming appointments</p>
-              <p className="text-xs text-teal-500 mt-1">Your next appointment will appear here</p>
+            <div className="bg-chip border border-primary/15 rounded-xl px-4 py-5 text-center">
+              <p className="text-sm font-medium text-primary-dark">No upcoming appointments</p>
+              <p className="text-xs text-primary-dark mt-1">Your next appointment will appear here</p>
             </div>
           ) : (
             <div className="space-y-2">
               {upcoming.map(a => (
-                <div key={a.id} className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 hover:border-teal-200 hover:shadow-sm transition-all">
-                  <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center flex-shrink-0 text-teal-600 [&>svg]:w-5 [&>svg]:h-5">
+                <div key={a.id} className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 hover:border-primary/30 hover:shadow-sm transition-all">
+                  <div className="w-10 h-10 bg-chip rounded-xl flex items-center justify-center flex-shrink-0 text-primary [&>svg]:w-5 [&>svg]:h-5">
                     <CalIcon />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -137,8 +176,8 @@ function OverviewPage({ stats, user, onNavigate }: { stats: PatientDashboardData
           ) : (
             <div className="space-y-1">
               {notifs.map(n => (
-                <div key={n.id} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${!n.is_read ? 'bg-teal-50/60 hover:bg-teal-50' : 'hover:bg-gray-50'}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${!n.is_read ? 'bg-teal-500' : 'bg-gray-300'}`} />
+                <div key={n.id} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors ${!n.is_read ? 'bg-chip/60 hover:bg-chip' : 'hover:bg-gray-50'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${!n.is_read ? 'bg-primary' : 'bg-gray-300'}`} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm ${!n.is_read ? 'font-medium text-gray-900' : 'text-gray-600'}`}>{n.message}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{timeAgo(n.created_at)}</p>
@@ -221,7 +260,7 @@ function AppointmentsPage() {
             <button
               key={f}
               onClick={() => { setFilter(f); setPage(1); }}
-              className={`px-3 py-1.5 capitalize transition-colors ${filter === f ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+              className={`px-3 py-1.5 capitalize transition-colors ${filter === f ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               {f === '' ? 'All' : f}
             </button>
@@ -238,9 +277,9 @@ function AppointmentsPage() {
             const isPast = a.status === 'COMPLETED' || a.status === 'CANCELLED';
             return (
               <div key={a.id} className={`flex items-center gap-4 bg-white border rounded-xl px-5 py-4 transition-all hover:shadow-sm
-                ${isPast ? 'border-gray-100 opacity-70' : 'border-teal-100 hover:border-teal-200'}`}>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isPast ? 'bg-gray-50' : 'bg-teal-50'}`}>
-                  <span className={`[&>svg]:w-5 [&>svg]:h-5 ${isPast ? 'text-gray-400' : 'text-teal-600'}`}><CalIcon /></span>
+                ${isPast ? 'border-gray-100 opacity-70' : 'border-primary/15 hover:border-primary/30'}`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isPast ? 'bg-gray-50' : 'bg-chip'}`}>
+                  <span className={`[&>svg]:w-5 [&>svg]:h-5 ${isPast ? 'text-gray-400' : 'text-primary'}`}><CalIcon /></span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900">{a.doctor_name || 'Doctor'}</p>
@@ -282,7 +321,7 @@ function AccessPage() {
         <div className="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
           {(['access', 'referrals'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 capitalize transition-colors ${tab === t ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-3 py-1.5 capitalize transition-colors ${tab === t ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               {t === 'access' ? 'Data Access' : 'Referrals'}
             </button>
           ))}
@@ -353,9 +392,12 @@ const PAGE_TITLES: Record<string, string> = {
 interface Props {
   user: User;
   initialStats: PatientDashboardData | null;
+  /** Server-fetched `GET /patients/me/`, which carries the HCL ID. Optional so
+   *  a caller without it still works; the client fetch below covers it. */
+  initialProfile?: PatientMeProfile | null;
 }
 
-export function PatientDashboard({ user, initialStats }: Props) {
+export function PatientDashboard({ user, initialStats, initialProfile = null }: Props) {
   const [page, setPage] = useState('overview');
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch instead of shimmering forever.
@@ -363,6 +405,12 @@ export function PatientDashboard({ user, initialStats }: Props) {
     initialStats ? null : ENDPOINTS.PATIENT_DASHBOARD,
   );
   const stats = initialStats ?? fetchedStats;
+  // Same AUTH-6 fallback for the profile: if the server render could not read
+  // it, fetch once client-side (client-api refreshes on 401).
+  const { data: fetchedProfile, loading: profileFetching } = useApi<PatientMeProfile>(
+    initialProfile ? null : ENDPOINTS.PATIENT_ME,
+  );
+  const profile = initialProfile ?? fetchedProfile;
 
   return (
     <DashboardShell
@@ -372,7 +420,7 @@ export function PatientDashboard({ user, initialStats }: Props) {
       user={user}
       pageTitle={page === 'overview' ? undefined : PAGE_TITLES[page]}
     >
-      {page === 'overview'     && <OverviewPage stats={stats} user={user} onNavigate={setPage} />}
+      {page === 'overview'     && <OverviewPage stats={stats} user={user} hclId={profile?.healthclouda_id ?? null} profileLoading={profileFetching} onNavigate={setPage} />}
       {page === 'health'       && <HealthPage />}
       {page === 'appointments' && <AppointmentsPage />}
       {page === 'access'       && <AccessPage />}

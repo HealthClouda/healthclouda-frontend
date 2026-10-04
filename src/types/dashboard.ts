@@ -146,6 +146,22 @@ export interface PatientDashboardData {
   organizations_visited?: unknown[];
 }
 
+// GET /patients/me/ — the patient's own profile (`PatientMeView` →
+// `PatientDetailSerializer`, backend `apps/patients/serializers.py:56`).
+//
+// ⚠️ Typed NARROW on purpose: only the fields the portal actually renders.
+// The real payload is the full detail record (contact, allergies, consent…);
+// declaring fields nobody reads is how FLAG-221 happened, so they are added
+// here only when a screen uses them. Verified against backend SOURCE on
+// 2026-09-27, not the live schema (unreachable from that session) — re-check
+// against a live patient capture alongside FLAG-231.
+export interface PatientMeProfile {
+  id: string;
+  healthclouda_id: string;
+  first_name: string;
+  last_name: string;
+}
+
 // ─── Entities ────────────────────────────────────────────────
 
 // GET /org/ list item — shape verified live 2026-08-14 against OrganizationList
