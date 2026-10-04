@@ -18,7 +18,7 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **Session log 30 Sep – 4 Oct**, FLAG-065/066 from the 4 Oct browser re-walk, In Flight cleared for today's 11 merges | `docs/bastoh-session-2026-10-04` | `HANDOFF.md`, `HANDOFF-Bastoh.md`, `CODEBASE_FLAGS.md` | 2026-10-04 | 🟡 PR open — claimed in the PR's own commit |
+| @Bastoh | **Session log 30 Sep – 4 Oct**, FLAG-065/066 from the 4 Oct browser re-walk, In Flight cleared for today's 13 merges | `docs/bastoh-session-2026-10-04` | `HANDOFF.md`, `HANDOFF-Bastoh.md`, `CODEBASE_FLAGS.md` | 2026-10-04 | 🟡 PR open — claimed in the PR's own commit |
 
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |

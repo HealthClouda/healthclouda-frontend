@@ -52,9 +52,9 @@ browser where it matters.
 - **Item 10, FLAG-611 → a signed-in password change ends other sessions.** Backend #249 (FLAG-620), frontend
   #178 (Change password in the sidebar, and the forced-change page; a flagged user used to loop through sign-in).
 
-**Merge day (4 Oct, at the owner's request):** 11 frontend PRs merged, each approved, green and re-tested on
-current `develop` first (list in `HANDOFF.md`'s *Cleared on merge*). #172 (audit filters, FLAG-064 reserved
-there) and #181 are waiting on @Qeeyat; #174 waits on the FLAG-063 conversation.
+**Merge day (4 Oct, at the owner's request):** 13 frontend PRs merged, each approved, green and re-tested on
+current `develop` first (list in `HANDOFF.md`'s *Cleared on merge*), the last two being #181 (FLAG-059) and
+#172 (audit filters, with FLAG-064) once @Qeeyat approved them. #174 waits on the FLAG-063 conversation.
 
 **⚠️ My mistake, and the trap to avoid:** #169's commit `a4cd743` said "point to **fix #171**". GitHub closed
 #171 when #169 merged into `develop` (the default branch). I had then rebased #171's branch, so it could not be
@@ -73,7 +73,7 @@ open.** I checked every other open branch before merging; none had it.
 **Found:** FLAG-065 (a full-name search at reception finds nothing; backend cause, small fix) and FLAG-066 (an
 emergency walk-in has no sex field, so a single-sex ward always warns; needs a product call).
 
-**Not done / next:** #181 and #172 merges once approved; FLAG-065 backend fix (offered); FLAG-066 decision;
+**Not done / next:** FLAG-065 backend fix (offered); FLAG-066 decision;
 Qeeyat's non-blocking asks (`/auth/logout` exempt while a password change is pending, the backend pair-name
 rule, a row guard on *Pending your review* before promotion); FLAG-249 promotion gate (beta backend needs
 #245+); Build 4 steps 7–8 and Builds 3, 5 were not part of this re-walk. The open episode `a1d35048` on
