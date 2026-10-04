@@ -861,14 +861,29 @@ function FlagDuplicateSection({ patient }: { patient: PatientRef | null }) {
 //
 // FLAG-048: reception may set the name, date of birth and sex while the
 // record is still incomplete — including in the PATCH that completes it
-// (backend #236). Once complete, only an organisation admin can change them,
-// so this is the one moment reception can replace the nurse's description.
-// The fields start EMPTY, not prefilled with the description: it is not a
-// name, and saving it back as one is exactly what this screen exists to stop.
-function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail; onCompleted: () => void }) {
+// (backend #236). Once complete, only an organisation admin can change them.
+//
+// FLAG-052 (owner decision 2026-09-27, from @Qeeyat's #164 review): saving and
+// completing are two different acts.
+//  - "Save details" sends what is known and leaves the record INCOMPLETE, so
+//    a desk with the family's phone and consent but not the name can record
+//    them now and add the name later (backend FLAG-615 pins that this works).
+//  - "Complete record" needs a real first AND last name, plus a phone or
+//    email. Completing used to be the only way to save anything, which meant
+//    either leaving consent unrecorded or locking the nurse's description
+//    ("man, ~40, brought in by police") in as the name for good.
+//
+// Name fields start EMPTY rather than holding the description, which is not a
+// name. `emergency_admit()` always leaves `last_name` blank, so a non-blank
+// last name means reception already saved a real name: prefill from it.
+function CompleteRecordSection({ detail, onSaved }: {
+  detail: PatientDetail;
+  onSaved: (completed: boolean) => void;
+}) {
   const { toast } = useToast();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const nameAlreadySaved = !!detail.last_name?.trim();
+  const [firstName, setFirstName] = useState(nameAlreadySaved ? detail.first_name : '');
+  const [lastName, setLastName] = useState(nameAlreadySaved ? detail.last_name : '');
   const [dateOfBirth, setDateOfBirth] = useState(detail.date_of_birth ?? '');
   const [gender, setGender] = useState<'' | 'M' | 'F' | 'O'>(
     detail.gender === 'M' || detail.gender === 'F' || detail.gender === 'O' ? detail.gender : '',
@@ -879,22 +894,37 @@ function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail;
   const [contactPhone, setContactPhone] = useState(detail.emergency_contact_phone ?? '');
   const [contactRelationship, setContactRelationship] = useState(detail.emergency_contact_relationship ?? '');
   const [consent, setConsent] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<'save' | 'complete' | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // The rule the backend re-arms on completion — checked here too so the
+  // The rules the backend applies on completion, checked here too so the
   // button says why it is disabled instead of a round trip saying it.
   const hasContact = !!phone.trim() || !!email.trim();
+  const hasName = !!firstName.trim() && !!lastName.trim();
+  const canComplete = hasContact && hasName;
   const alreadyConsented = !!detail.consent_given;
+  // Review of #167: a name is saved as a PAIR or not at all. The prefill
+  // above reads "a saved last name ⇒ reception saved a real name"; a
+  // surname-only save broke that, leaving the description as first_name for
+  // the next visit to prefill and Complete to lock in.
+  const halfName = !!firstName.trim() !== !!lastName.trim();
+  const hasSomethingToSave = !!(
+    firstName.trim() || lastName.trim() || dateOfBirth || gender || phone.trim() || email.trim()
+    || contactName.trim() || contactPhone.trim() || contactRelationship.trim() || consent
+  );
 
-  async function complete() {
-    if (saving || !hasContact) return;
-    setSaving(true);
+  async function submit(completing: boolean) {
+    if (saving || (completing && !canComplete)) return;
+    if (halfName) {
+      setFormError('Enter both names to save a name, or leave both blank.');
+      return;
+    }
+    setSaving(completing ? 'complete' : 'save');
     setFormError(null);
-    const body: RecordCompletionUpdate = { registration_incomplete: false };
-    // Omit blanks rather than sending '' — email normalises '' to NULL, but
-    // there is no reason to write a field nobody filled in. A blank name
-    // leaves the description in place: the family may not know it yet.
+    // No `registration_incomplete` at all on a save: sending it is what
+    // completes the record. Omit blanks rather than sending '' — there is no
+    // reason to write a field nobody filled in.
+    const body: RecordCompletionUpdate = completing ? { registration_incomplete: false } : {};
     if (firstName.trim()) body.first_name = firstName.trim();
     if (lastName.trim()) body.last_name = lastName.trim();
     if (dateOfBirth) body.date_of_birth = dateOfBirth;
@@ -907,14 +937,18 @@ function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail;
     if (consent) body.capture_consent = true;
     try {
       await apiAction(ENDPOINTS.PATIENT(detail.id), 'PATCH', body);
-      toast.success(consent || alreadyConsented
-        ? 'Record completed'
-        : 'Record completed — consent still not recorded');
-      onCompleted();
+      if (completing) {
+        toast.success(consent || alreadyConsented
+          ? 'Record completed'
+          : 'Record completed — consent still not recorded');
+      } else {
+        toast.success('Details saved — the record stays open until it is completed');
+      }
+      onSaved(completing);
     } catch (e) {
-      setFormError(readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not complete the record'));
+      setFormError(readableFieldError(e) ?? (e instanceof Error ? e.message : 'Could not save the record'));
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   }
 
@@ -926,8 +960,9 @@ function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail;
         </h3>
         <p className="text-[11.5px] text-text-soft mt-1">
           Recorded as <span className="font-medium text-ink">{detail.first_name} {detail.last_name}</span>.
-          Enter the patient&apos;s real name if it is known. Once the record is complete, only an
-          organisation administrator can change the name, date of birth or sex.
+          Save what you know now; the record stays open, so the name can still be added. Completing it
+          needs the patient&apos;s full name, and after that only an organisation administrator can change
+          the name, date of birth or sex.
         </p>
         {detail.stated_hcl_id && (
           <p className="text-[11.5px] text-text-soft mt-1">
@@ -938,10 +973,10 @@ function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail;
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="First name" hint="Leave blank if not known yet">
+        <Field label="First name" hint="Needed to complete the record">
           <input value={firstName} onChange={e => setFirstName(e.target.value)} maxLength={100} className={inputCls} />
         </Field>
-        <Field label="Last name">
+        <Field label="Last name" hint="Needed to complete the record">
           <input value={lastName} onChange={e => setLastName(e.target.value)} maxLength={100} className={inputCls} />
         </Field>
       </div>
@@ -967,9 +1002,6 @@ function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail;
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} />
         </Field>
       </div>
-      {!hasContact && (
-        <p className="text-[11px] text-text-soft">A phone number is required when there is no email.</p>
-      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Emergency contact name">
@@ -1001,13 +1033,31 @@ function CompleteRecordSection({ detail, onCompleted }: { detail: PatientDetail;
 
       {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
 
-      <button
-        onClick={() => void complete()}
-        disabled={saving || !hasContact}
-        className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
-      >
-        {saving ? 'Saving…' : 'Complete record'}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => void submit(false)}
+          disabled={!!saving || !hasSomethingToSave}
+          className="px-3 py-1.5 border border-primary text-primary-dark hover:bg-chip disabled:opacity-50 text-xs font-medium rounded-lg transition-colors"
+        >
+          {saving === 'save' ? 'Saving…' : 'Save details'}
+        </button>
+        <button
+          onClick={() => void submit(true)}
+          disabled={!!saving || !canComplete}
+          aria-describedby="complete-record-requirements"
+          className="px-3 py-1.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors"
+        >
+          {saving === 'complete' ? 'Saving…' : 'Complete record'}
+        </button>
+      </div>
+      {!canComplete && (
+        <p id="complete-record-requirements" className="text-[11px] text-text-soft">
+          To complete the record: {[
+            !hasName && "the patient's first and last name",
+            !hasContact && 'a phone number or email',
+          ].filter(Boolean).join(' and ')}.
+        </p>
+      )}
     </section>
   );
 }
@@ -1127,7 +1177,7 @@ function PatientActionsPanel({ patient, onClose, onRecordCompleted }: {
             <CompleteRecordSection
               key={detail.id}
               detail={detail}
-              onCompleted={() => { refetch(); onRecordCompleted?.(); }}
+              onSaved={(completed) => { refetch(); if (completed) onRecordCompleted?.(); }}
             />
           )}
           <div className="grid grid-cols-2 gap-3 text-sm">

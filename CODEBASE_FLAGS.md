@@ -4047,6 +4047,29 @@ overview still never fetches prescription records to count them. Both grids are 
 values and Total Patients is not `active_records`. The Doctor tile shows the payload's count, makes
 no `/doctor/prescriptions/` call from the overview, and navigates on click.
 
+### FLAG-052 — Completing an emergency record without a name locked the nurse's description in as the name
+**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `claude/pr-161-review-7fp39h` (2026-09-27)**
+**Raised:** 2026-09-27, @Qeeyat reviewing #164 (review 5332059212)
+
+The completion section had one button, and it always sent `registration_incomplete: false`. After
+that, reception cannot change the name (backend FLAG-612). The first-name hint said *"Leave blank
+if not known yet"*, which suggested the opposite. There was also a structural problem: reception
+could not record contact details or consent without completing the record. So a desk with the
+family's phone number and consent, but not yet the name, had two choices: leave consent unrecorded,
+or lock "man, ~40, brought in by police" in as the name.
+
+**Fix (owner decision 2026-09-27, options c + a):**
+- **"Save details"** sends what is known **without** `registration_incomplete`. The record stays
+  incomplete and the name stays writable. The backend already allowed this, and backend #240
+  (FLAG-615) pins it with tests.
+- **"Complete record"** needs a real first **and** last name, plus a phone or email. The screen says
+  which is missing.
+- The misleading hint is gone. A name reception already saved is prefilled; the description never
+  is. `emergency_admit()` always leaves `last_name` blank, so a non-blank last name marks a real one.
+
+**Tests:** 3 new, all RED against the previous section. Six existing completion tests now fill in a
+name before completing.
+
 ### FLAG-053 — Searching for a patient in the nurse's emergency panel reloaded the page
 **Severity:** P1 · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/emergency-search-reloads-page` (2026-09-27)**
 **Found:** 2026-09-27, re-walking build 2 on `dev.healthclouda.com` after #161 merged.

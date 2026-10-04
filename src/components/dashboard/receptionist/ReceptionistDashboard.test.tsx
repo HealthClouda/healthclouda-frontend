@@ -740,6 +740,12 @@ describe('FLAG-602 — reception completes a record created during an emergency 
     await screen.findByText('No portal account yet.');
   }
 
+  // FLAG-052: completing needs a real first and last name.
+  function fillName(first = 'Chinedu', last = 'Eze') {
+    fireEvent.change(screen.getByLabelText(/^First name/), { target: { value: first } });
+    fireEvent.change(screen.getByLabelText(/^Last name/), { target: { value: last } });
+  }
+
   it('offers completion only on an incomplete record', async () => {
     await openIncomplete({ ...incomplete, registration_incomplete: false, consent_given: true, phone: '08031231234' });
     expect(screen.queryByRole('button', { name: 'Complete record' })).not.toBeInTheDocument();
@@ -756,15 +762,15 @@ describe('FLAG-602 — reception completes a record created during an emergency 
   // still incomplete, including in the PATCH that completes it.
   it('does not prefill the name with the nurse\'s description', async () => {
     await openIncomplete();
-    expect(screen.getByLabelText(/First name/)).toHaveValue('');
-    expect(screen.getByLabelText('Last name')).toHaveValue('');
+    expect(screen.getByLabelText(/^First name/)).toHaveValue('');
+    expect(screen.getByLabelText(/^Last name/)).toHaveValue('');
   });
 
   it('sends the real name, date of birth and sex in the completing PATCH', async () => {
     dataActionMock.mockResolvedValue({});
     await openIncomplete();
-    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: ' Chinedu ' } });
-    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Eze' } });
+    fireEvent.change(screen.getByLabelText(/^First name/), { target: { value: ' Chinedu ' } });
+    fireEvent.change(screen.getByLabelText(/^Last name/), { target: { value: 'Eze' } });
     fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1985-03-02' } });
     fireEvent.change(screen.getByLabelText('Gender'), { target: { value: 'M' } });
     fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
@@ -788,8 +794,9 @@ describe('FLAG-602 — reception completes a record created during an emergency 
     expect(new Date(`${max}T00:00:00`).getTime()).toBeLessThanOrEqual(Date.now());
   });
 
-  it('will not submit with neither phone nor email — the rule completion re-arms', async () => {
+  it('will not complete with neither phone nor email — the rule completion re-arms', async () => {
     await openIncomplete();
+    fillName();
     expect(screen.getByRole('button', { name: 'Complete record' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
     expect(screen.getByRole('button', { name: 'Complete record' })).not.toBeDisabled();
@@ -798,6 +805,7 @@ describe('FLAG-602 — reception completes a record created during an emergency 
   it('clears the flag and captures consent in ONE PATCH — only when the box is ticked', async () => {
     dataActionMock.mockResolvedValue({});
     await openIncomplete();
+    fillName();
     fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
     fireEvent.change(screen.getByLabelText('Emergency contact name'), { target: { value: 'Aisha Bello' } });
     // Unticked by default: consent is attested, never implied by saving.
@@ -812,6 +820,8 @@ describe('FLAG-602 — reception completes a record created during an emergency 
     expect(method).toBe('PATCH');
     expect(body).toEqual({
       registration_incomplete: false,
+      first_name: 'Chinedu',
+      last_name: 'Eze',
       phone: '08031234567',
       emergency_contact_name: 'Aisha Bello',
       capture_consent: true,
@@ -821,11 +831,89 @@ describe('FLAG-602 — reception completes a record created during an emergency 
   it('completing without ticking consent sends no capture_consent at all', async () => {
     dataActionMock.mockResolvedValue({});
     await openIncomplete();
+    fillName();
     fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
     fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
 
     await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
-    expect(dataActionMock.mock.calls[0][2]).toEqual({ registration_incomplete: false, phone: '08031234567' });
+    expect(dataActionMock.mock.calls[0][2]).toEqual({
+      registration_incomplete: false, first_name: 'Chinedu', last_name: 'Eze', phone: '08031234567',
+    });
+  });
+
+  // FLAG-052 (owner decision 2026-09-27, @Qeeyat's #164 review): saving and
+  // completing are separate, and completing needs a real name.
+  it('saves contact details and consent WITHOUT completing the record', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /has consented/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    const body = dataActionMock.mock.calls[0][2] as Record<string, unknown>;
+    // No registration_incomplete at all: sending it is what completes the record.
+    expect(body).toEqual({ phone: '08031234567', capture_consent: true });
+    expect('registration_incomplete' in body).toBe(false);
+  });
+
+  it('will not complete without the patient\'s first and last name, and says why', async () => {
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    expect(screen.getByRole('button', { name: 'Complete record' })).toBeDisabled();
+    expect(screen.getByText(/To complete the record: the patient.s first and last name\./)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/^First name/), { target: { value: 'Chinedu' } });
+    expect(screen.getByRole('button', { name: 'Complete record' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/^Last name/), { target: { value: 'Eze' } });
+    expect(screen.getByRole('button', { name: 'Complete record' })).not.toBeDisabled();
+  });
+
+  it('prefills a name reception already saved, never the nurse\'s description', async () => {
+    await openIncomplete({ ...incomplete, first_name: 'Chinedu', last_name: 'Eze' });
+    expect(screen.getByLabelText(/^First name/)).toHaveValue('Chinedu');
+    expect(screen.getByLabelText(/^Last name/)).toHaveValue('Eze');
+  });
+
+  // Review of #167 (@Qeeyat): the prefill rule "a saved last name means a
+  // real name was saved" only holds if a name is saved as a PAIR. A
+  // surname-only save left the nurse's description as first_name, and the
+  // next visit prefilled it and enabled Complete record — one click locked
+  // the description in as the name.
+  it('will not save half a name: a surname alone sends nothing and says why', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText(/^Last name/), { target: { value: 'Okafor' } });
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Enter both names to save a name, or leave both blank.')).toBeInTheDocument();
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+
+  it('will not save a first name alone either', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fireEvent.change(screen.getByLabelText(/^First name/), { target: { value: 'Chinedu' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    expect(await screen.findByText('Enter both names to save a name, or leave both blank.')).toBeInTheDocument();
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+
+  it('saves both names together and leaves the record open', async () => {
+    dataActionMock.mockResolvedValue({});
+    await openIncomplete();
+    fillName('Chinedu', 'Okafor');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
+    expect(dataActionMock.mock.calls[0][2]).toEqual({ first_name: 'Chinedu', last_name: 'Okafor' });
+  });
+
+  it('Save details is disabled while there is nothing to save', async () => {
+    await openIncomplete();
+    expect(screen.getByRole('button', { name: 'Save details' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    expect(screen.getByRole('button', { name: 'Save details' })).not.toBeDisabled();
   });
 
   it('shows the backend\'s field error when it refuses', async () => {
@@ -837,6 +925,7 @@ describe('FLAG-602 — reception completes a record created during an emergency 
       ),
     );
     await openIncomplete();
+    fillName();
     fireEvent.change(screen.getByLabelText('Patient phone'), { target: { value: '0803' } });
     fireEvent.click(screen.getByRole('button', { name: 'Complete record' }));
     expect(await screen.findByText('Phone number must be at least 10 digits.')).toBeInTheDocument();
@@ -906,6 +995,8 @@ describe('FLAG-049 — reception sees which emergency records are waiting', () =
     await openSearch();
     fireEvent.click(await screen.findByRole('button', { name: /Complete the record for man, ~40/ }));
     fireEvent.change(await screen.findByLabelText('Patient phone'), { target: { value: '08031234567' } });
+    fireEvent.change(screen.getByLabelText(/^First name/), { target: { value: 'Chinedu' } });
+    fireEvent.change(screen.getByLabelText(/^Last name/), { target: { value: 'Eze' } });
 
     serve([]);
     const before = dataGetMock.mock.calls.filter(([p]) => isQueue(String(p))).length;
