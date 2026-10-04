@@ -2150,8 +2150,13 @@ baselines are captured after the fix.
 ---
 
 ### FLAG-248 — The two public landing forms can put a visitor's name, email and phone in the URL
-**Severity:** P3 (PII, not credentials or PHI) · **Area:** Landing / public forms · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P3 (PII, not credentials or PHI) · **Area:** Landing / public forms · **Owner:** @Qeeyat · **Status:** 🟡 **FIX IN REVIEW — #180** (`fix/flag-248-landing-forms-post`, 2026-10-04). Mark ✅ resolved when #180 merges
 **Found:** 2026-10-03, reviewing #170 (FLAG-057)
+
+> **2026-10-04, #180:** both forms now declare `method="post"` and keep the submit disabled until
+> `useHydrated()`. `landing-forms-no-get.test.tsx` asserts both guards on each form's server HTML,
+> plus the premise that the inputs are named. 4 of 6 checks were RED before the fix. tsc clean ·
+> 475/475 · build green.
 
 FLAG-057 (#170) gives the five auth forms two guards against a **pre-hydration native submit**:
 `method="post"`, and a submit button disabled until React is running (`useHydrated`). The same
@@ -2203,8 +2208,39 @@ Re-measure at promotion time; don't take it from this entry.
 Defence in depth, requested on #176: frontend sections that depend on a new filter check each
 row against it and render nothing if the filter evidently wasn't applied (the #164 pattern).
 
+> **2026-10-04, re-review of #176 (`d2e1352`):** #176 now has that guard. Its "Unassigned" and
+> "Awaiting review — no doctor assigned" sections render nothing if any row has an
+> `attending_doctor`. A test with a mock that ignores `?unassigned` fails without it. **Still
+> unguarded, and already on `develop`:** the default **Pending your review** section
+> (`?mine=true&needs_doctor_review=true`). On a backend without `mine` it lists every doctor's
+> reviews. #176's new `rowsMatch` prop makes that a one-line fix. It's worth doing before the
+> promotion, but the precondition above still stands either way.
+
 **Done when** the `api-beta` schema shows those params and `/doctor/queue/` exists, measured at the
 promotion, and recorded on the promotion PR.
+
+---
+
+### FLAG-250 — "Sign out instead" on the forced password-change page doesn't end the session server-side
+**Severity:** P3 (the browser IS signed out; a server session lingers) · **Area:** Auth / backend contract · **Owner:** 🔌 backend · **Status:** OPEN — `api-request` **not yet filed** (offered on #178, awaiting @Qeeyat's call)
+**Found:** 2026-10-04, reviewing #178 (FLAG-611)
+
+The backend's `ForcePasswordChangeMiddleware` (`apps/core/middleware.py`, `origin/develop` 4 Oct)
+answers 403 `FORCE_PASSWORD_CHANGE` to a flagged user on every path **not** in `EXEMPT_PATHS`.
+That list has `auth/login`, `forgot-password`, `verify-otp`, `reset-password` and `change-password`,
+**but not `auth/logout`**. So #178's "Sign out instead" (for a shared ward PC) reaches a backend that
+refuses the logout. The refresh token isn't blacklisted, and the `UserSession` isn't ended.
+
+**Why it's only P3:** our `/api/auth/logout` route deletes all three auth cookies whatever the
+backend answers, so the PC really is signed out, and nobody at that browser can resume. What's
+left is a server session (and refresh token) that stays valid until it idles out or hits its cap,
+usable only by someone who already copied the token.
+
+**Fix (backend, one line):** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`. Nothing to change on
+our side.
+
+**Done when** a flagged user's `POST /auth/logout/` returns 200 and ends the session, pinned by a
+backend test.
 
 ---
 

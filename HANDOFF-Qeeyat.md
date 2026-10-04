@@ -60,6 +60,59 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-10-04 — re-review round, #172 still blocked on a new finding, FLAG-248 fixed in #180 (branches: docs/qeeyat-session-2026-10-03, fix/flag-248-landing-forms-post)
+
+**Goal:** re-review the five PRs @Bastoh fixed overnight (all pushed 04:32–04:38), finish #178, then
+fix FLAG-248.
+
+**What I did:**
+- **Re-reviewed six PRs** with the same method as yesterday: trial-merge onto current `develop`,
+  revert the fix commit while keeping its tests (they must go RED), and check every API claim
+  against the live api-dev schema or backend `origin/develop` source. All drafts are in
+  `Desktop/healthclouda-reviews/*-2026-10-04.md`.
+  - ✅ **Approve:** #177 (fixture now uses the published `MyPatientEpisode` shape and is green with
+    FLAG-059 merged too), #176 (row guard on Unassigned), #175 (queue read as one list; the schema
+    confirms `/doctor/queue/` is unpaginated), #167 (names saved as a pair; needs a rebase).
+  - ✅ **#178 approved and posted by me** (re-verified from scratch, because yesterday's draft was
+    never saved). Needs a rebase for `docs/ARCHITECTURE.md`.
+  - 🔁 **#172: changes requested again, for a new reason.** The fix made Record type a dropdown of
+    12 values "the backend writes". Backend source writes **28**, from three writers. The audit
+    middleware logs every request (reads included) as the capitalised URL segment (`Episodes`,
+    `Ward`, `Doctor`…), and only 2 of its 10 values are in the list. Picking "Episode" hides every
+    read of episodes. The full table is in the draft.
+- **FLAG-248 → #180.** Claimed In Flight in the branch's first commit, then wrote the test first:
+  4 of 6 RED. Added `method="post"` and the `useHydrated()` guard to `ContactForm` and
+  `OrgContactForm`. Reviewer @Bastoh, confirmed set.
+- **Logged FLAG-250** (backend: logout is refused while `force_password_change` is set). Added
+  today's #176 measurement to FLAG-249. Raised a **Cross-Lane row for #171**.
+
+**What I found:**
+- 🟠 **#171 (FLAG-059) was closed at 05:24 with no comment**, the morning after I approved it, and
+  its branch was force-pushed at 05:32. No PR is open for it now. It's the FLAG-234 pattern again:
+  a close leaves no trace. Asked in the Cross-Lane row and in the #177 review.
+- **#175 has two change requests from me (21:36 and 21:58 yesterday).** My log only recorded the
+  pager point. Check the 21:58 one before posting the approval.
+
+**Dead ends / confusion:**
+- **Agents can't post reviews in this repo, by design.** `.claude/settings.json` (committed) denies
+  `gh pr review`, `gh pr merge`, `gh pr close` and every writing `gh api` call. That's why it failed
+  four sessions running, and it isn't a glitch to work around. Deny beats any local allow, so
+  changing it means a PR to the shared file. **Reviews are drafted by the agent and posted by me.**
+- Mid-session, the auto-mode classifier also started blocking read-only `gh pr view` calls that
+  read PR conversations. I re-reviewed from my own log plus the branch code instead.
+- The Vitest "no tests" flake hit twice more on targeted runs. A rerun fixed it both times.
+
+**Verified:** each review lists its own runs. #180: tsc clean · 475/475 · build green · eslint
+clean. Schemas read 4 Oct from api-dev. Backend source read at `origin/develop` 4 Oct.
+
+**Left undone / next:**
+- [ ] Post the five drafts (#177, #176, #175, #172, #167). Check #175's 21:58 review first.
+- [ ] Decide on two backend `api-request`s: publish audit `resource_type` as an enum (#172), and
+      add `auth/logout` to `EXEMPT_PATHS` (FLAG-250).
+- [ ] When #180 merges, mark FLAG-248 ✅ resolved and clear its In Flight row.
+- [ ] Still open: FLAG-063 talk with @Bastoh, then a verdict on #174. #96 / FLAG-234.
+- [ ] Re-review #172 when its list is fixed. Re-check #167 and #178 after his rebases.
+
 ### 2026-10-03 — back after a week: #163 merged, 14-PR review queue cleared, beta promotion gate found (branch: docs/qeeyat-session-2026-10-03)
 
 **Goal:** catch up after the 27 Sep – 3 Oct gap, merge my own #163, then work through @Bastoh's review
