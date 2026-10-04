@@ -12,6 +12,12 @@ export type ServerFetchFailure = {
   ok: false;
   status: number | null;
   reason: 'no_token' | 'unauthorized' | 'forbidden' | 'not_found' | 'server' | 'network' | 'malformed';
+  /**
+   * FLAG-611: the backend's machine-readable `code` from the error body, when
+   * there is one (e.g. `FORCE_PASSWORD_CHANGE`). Only this string is kept —
+   * never the body, and it is never logged.
+   */
+  code?: string;
 };
 
 export type ServerFetchResult<T> = { ok: true; data: T } | ServerFetchFailure;
@@ -78,7 +84,9 @@ export async function serverFetchResult<T>(
   }
 
   if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
     const failure: ServerFetchFailure = { ok: false, status: res.status, reason: reasonFor(res.status) };
+    if (typeof body?.code === 'string') failure.code = body.code;
     logFailure(endpoint, failure);
     return failure;
   }

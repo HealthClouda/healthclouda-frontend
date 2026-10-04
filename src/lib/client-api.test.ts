@@ -147,3 +147,27 @@ describe('client-api — session-expiry codes never trigger a refresh', () => {
     expect(dataAttempts).toBe(1);
   });
 });
+
+describe('FLAG-611 — a mid-session forced password change goes to the change-password page', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stubLocation('/acme/doctor');
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sends the browser to /change-password on a 403 FORCE_PASSWORD_CHANGE', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(
+      jsonResponse({ error: 'You must change your password before continuing.', code: 'FORCE_PASSWORD_CHANGE' }, 403),
+    )));
+    await expect(dataGet('/doctor/queue/')).rejects.toThrow();
+    expect(currentLocation.href).toBe('/change-password');
+  });
+
+  it('leaves any other 403 alone', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(jsonResponse({ error: 'Nope', code: 'FORBIDDEN' }, 403))));
+    await expect(dataGet('/x/')).rejects.toThrow();
+    expect(currentLocation.href).toBe('');
+  });
+});

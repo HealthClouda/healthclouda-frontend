@@ -1,7 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { SlidePanel } from '@/components/ui/SlidePanel';
+import { ChangePasswordForm, passwordChangedMessage } from '@/components/account/ChangePasswordForm';
+import { useToast } from '@/store/toast';
 import { Avatar } from '@/components/ui/Avatar';
 import { signinPath } from '@/lib/router';
 import type { User } from '@/types/auth';
@@ -28,6 +32,10 @@ interface SidebarProps {
 
 export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onClose }: SidebarProps) {
   const router = useRouter();
+  const { toast } = useToast();
+  // FLAG-611: every dashboard renders this sidebar, so Change password lives
+  // here once instead of six times.
+  const [changingPassword, setChangingPassword] = useState(false);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -123,6 +131,18 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
           </div>
 
           <button
+            onClick={() => setChangingPassword(true)}
+            aria-label="Change password"
+            title="Change password"
+            className="flex-shrink-0 flex items-center justify-center min-h-11 min-w-11 rounded-md text-text-soft hover:text-ink hover:bg-chip transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+            </svg>
+          </button>
+
+          <button
             onClick={handleLogout}
             className="flex-shrink-0 flex items-center gap-1.5 min-h-11 px-2.5 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
           >
@@ -134,6 +154,17 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
           </button>
         </div>
       </aside>
+
+      <SlidePanel open={changingPassword} onClose={() => setChangingPassword(false)} title="Change password">
+        {/* Mounted only while open (SlidePanel returns null when closed), so
+            no typed password survives a close. */}
+        <ChangePasswordForm
+          onChanged={(n) => {
+            toast.success(passwordChangedMessage(n));
+            setChangingPassword(false);
+          }}
+        />
+      </SlidePanel>
     </>
   );
 }

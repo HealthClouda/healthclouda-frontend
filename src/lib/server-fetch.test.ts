@@ -122,3 +122,29 @@ describe('FLAG-005 — the existing null-returning contract still holds', () => 
     expect(await serverFetch<{ role: string }>('/auth/me/')).toEqual({ role: 'DOCTOR' });
   });
 });
+
+describe('FLAG-611 — a failure carries the backend error code, never the body', () => {
+  it('reports FORCE_PASSWORD_CHANGE as the code of a 403', async () => {
+    mockFetch(async () => new Response(
+      JSON.stringify({ error: 'You must change your password before continuing.', code: 'FORCE_PASSWORD_CHANGE' }),
+      { status: 403, headers: { 'content-type': 'application/json' } },
+    ));
+    const { serverFetchResult } = await import('./server-fetch');
+    const res = await serverFetchResult('/auth/me/');
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.reason).toBe('forbidden');
+      expect(res.code).toBe('FORCE_PASSWORD_CHANGE');
+    }
+    // Still only status and path in the log.
+    expect(String(errorSpy.mock.calls.at(-1))).not.toMatch(/must change/);
+  });
+
+  it('a non-JSON or code-less failure has no code', async () => {
+    mockFetch(async () => new Response('boom', { status: 500 }));
+    const { serverFetchResult } = await import('./server-fetch');
+    const res = await serverFetchResult('/x/');
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBeUndefined();
+  });
+});

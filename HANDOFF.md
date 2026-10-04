@@ -49,6 +49,8 @@
 
 | @Bastoh | **FLAG-607 follow-up** (owner decision 2b, 28 Sep) — doctor Admissions page gains an **Unassigned** list (Take over) and **Awaiting review — no doctor assigned**; the nurse's Admit form gains an optional attending-doctor picker. Reads backend `?unassigned=true` (backend FLAG-618, HealthClouda/healthclouda-backend#245) — **works on a tier only once #245 is deployed there** | `feat/flag-607-unassigned-admissions` | `DoctorDashboard.tsx` (`UnassignedSection`, `PendingReviewsSection` props, `HandOverPanel` `preselectSelf`), `NurseDashboard.tsx` (`AdmitForm`), two new test files, mock fixes in both dashboard test files | 2026-10-01 | 🟡 PR open — claimed in the PR's own commit |
 
+| @Bastoh | **FLAG-611 (frontend)** — Change password from the sidebar on every dashboard (says how many other devices were signed out), and the forced-change page `/change-password` for a user the backend flags `force_password_change` (they used to loop through signin). Backend #249 (FLAG-620) | `feat/flag-611-change-password` | new `src/components/account/`, `Sidebar.tsx`, `auth-server.ts`, `server-fetch.ts`, `client-api.ts`, `middleware.ts`, `router.ts`, `config.ts` (`RESERVED_PATHS`), new `src/app/change-password/`, both dashboard-gate test mocks, `docs/ARCHITECTURE.md` | 2026-10-03 | 🟡 PR open — claimed in the PR's own commit |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
