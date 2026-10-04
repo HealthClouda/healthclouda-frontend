@@ -93,6 +93,16 @@
 @keyframes hc-modal-in { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes hc-toast-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 .hc-panel-in { animation: hc-panel-in 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+/* FLAG-062 — while a slide panel is open, toasts move clear of it. The panel is
+   max 440px wide on the right; its footer buttons sit where the toaster does.
+   Wide screens: shift left of the panel. Narrow ones (panel is full width):
+   move to the top, away from the footer buttons. */
+@media (min-width: 768px) {
+  body[data-panel-open] .hc-toaster { right: calc(440px + 1.5rem); }
+}
+@media (max-width: 767px) {
+  body[data-panel-open] .hc-toaster { top: 1.5rem; bottom: auto; }
+}
 .hc-modal-in { animation: hc-modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .hc-toast-in { animation: hc-toast-in 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
 

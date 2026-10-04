@@ -68,7 +68,8 @@ export function DoctorPicker({
             onChange={e => onChange(e.target.value)}
             className={formInputClass}
           >
-            <option value="">{required ? 'Select a doctor…' : 'No doctor available right now'}</option>
+            <option value="">{/* FLAG-056: the blank choice means "no doctor named", not "none available". */}
+            {required ? 'Select a doctor…' : 'No attending doctor yet'}</option>
             {onDuty.length > 0 && (
               <optgroup label="On duty">
                 {onDuty.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
