@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useHydrated } from '@/hooks/use-hydrated';
 
 // Design: design_handoff_prelogin org landing — "Message the Health Centre"
 // card. Backend contract (verified live 2026-07-13): POST /org/<slug>/contact/
@@ -38,6 +39,8 @@ export function OrgContactForm({ slug }: { slug: string }) {
     reset,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+  // FLAG-248: no native (pre-hydration) submit — see use-hydrated.ts.
+  const hydrated = useHydrated();
 
   async function onSubmit(data: FormData) {
     setStatus('loading');
@@ -67,7 +70,7 @@ export function OrgContactForm({ slug }: { slug: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+    <form method="post" onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
       <div>
         <input {...register('name')} type="text" placeholder="Full Name*" aria-label="Full Name" className={inputClass(!!errors.name)} />
         {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
@@ -107,7 +110,7 @@ export function OrgContactForm({ slug }: { slug: string }) {
 
       <button
         type="submit"
-        disabled={status === 'loading'}
+        disabled={!hydrated || status === 'loading'}
         className="h-12 w-full bg-primary text-white rounded-[11px] font-heading text-[15px] font-semibold shadow-btn-primary hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {status === 'loading' ? 'Sending…' : 'Submit'}
