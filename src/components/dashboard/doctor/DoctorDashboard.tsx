@@ -1090,8 +1090,13 @@ function QueuePage() {
   // Same visible date control as reception's queue, for the same reason: an
   // empty list should say which day it is empty for.
   const [date, setDate] = useState(localTodayISO());
-  const { items: queue, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<CheckIn>(`${ENDPOINTS.DOC_QUEUE}?date=${encodeURIComponent(date)}`);
+  // NOT usePaginatedList: /doctor/queue/ returns {count, results} with every
+  // row for the day and ignores page/page_size, so a pager would claim a
+  // page 2 that is the same list again (review of #175).
+  const { data, loading, error, refetch } =
+    useApi<{ count: number; results: CheckIn[] }>(`${ENDPOINTS.DOC_QUEUE}?date=${encodeURIComponent(date)}`);
+  const queue = data?.results ?? [];
+  const count = data?.count ?? 0;
   const { toast } = useToast();
   const [startFor, setStartFor] = useState<PatientRef | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -1206,11 +1211,6 @@ function QueuePage() {
         emptyDescription={isToday
           ? 'Patients reception checks in for you today will appear here.'
           : 'Nobody was checked in for you on this day.'}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        totalCount={count}
-        pageSize={20}
       />
       {/* Keyed on the patient for the same reason as on My Patients: a full
           remount per patient, so no form text carries over between them. */}

@@ -150,4 +150,20 @@ describe('FLAG-060 — the doctor Queue page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
     expect(await screen.findByText(/No patients checked in/)).toBeInTheDocument();
   });
+
+  it('shows every check-in on one page, with no pager: the endpoint is not paginated', async () => {
+    // Review of #175: /doctor/queue/ returns {count, results} with ALL of the
+    // day's rows. A pager would claim a page 2 that is the same list again.
+    queue = Array.from({ length: 21 }, (_, i) =>
+      checkIn(`ci-${i + 1}`, i + 1, 'WAITING', { id: `p-${i + 1}`, first_name: 'Pat', last_name: `Number${i + 1}`, healthclouda_id: `HCL-${i + 1}` }));
+    render(<DoctorDashboard user={user} initialStats={null} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Queue' }));
+
+    expect(await screen.findByText('Pat Number21')).toBeInTheDocument();
+    expect(screen.getByText('Pat Number1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /next/i })).toBeNull();
+    expect(screen.queryByText(/page 1 of/i)).toBeNull();
+    const urls = dataGetMock.mock.calls.map(c => String(c[0])).filter(u => u.startsWith(ENDPOINTS.DOC_QUEUE));
+    expect(urls.every(u => !/[?&]page(_size)?=/.test(u))).toBe(true);
+  });
 });
