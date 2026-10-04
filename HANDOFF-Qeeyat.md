@@ -117,11 +117,18 @@ clean. Schemas read 4 Oct from api-dev. Backend source read at `origin/develop` 
 **Left undone / next:**
 - [x] ~~Post the six verdicts~~: done. #177, #175, #176, #167 and #178 merged by 11:23. #172's
       change request was answered with all 28 values (`dcc0f1f`) plus his FLAG-064.
-- [ ] **FLAG-250 layer 1:** fix our logout route (`fix/flag-250-logout-sends-refresh`), then file
-      the backend `api-request` for layer 2.
+- [x] **FLAG-250 layer 1 → #183** (`fix/flag-250-logout-sends-refresh`): the logout route sends
+      `{refresh}` and logs a refusal. Test written first: 2 RED, 4 controls. 524/524 · build green.
+      Reviewer @Bastoh, confirmed set.
+- [ ] After #183 merges: sign out on dev and check Audit Logs shows the `LOGOUT` row. That's the
+      live proof I couldn't run today.
+- [ ] File the backend `api-request` for FLAG-250 layer 2 (`auth/logout` in `EXEMPT_PATHS`).
+- [ ] FLAG-250's remaining gap (sign-out after the access cookie lapsed) needs refresh-then-logout.
+      Decide whether it's worth a PR.
+- [ ] Re-review #172 and #181: drafted (approve) in `healthclouda-reviews/`, waiting for me to post.
+      #182 still to review.
 - [ ] Decide on the backend `api-request` to publish audit `resource_type` as an enum (#172 /
       FLAG-064).
-- [ ] Re-review #172 (`dcc0f1f`), #181 (FLAG-059's replacement) and #182.
 - [ ] When #180 merges, mark FLAG-248 ✅ resolved and clear its In Flight row.
 - [ ] Still open: FLAG-063 talk with @Bastoh, then a verdict on #174. #96 / FLAG-234.
 

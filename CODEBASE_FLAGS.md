@@ -2222,7 +2222,7 @@ promotion, and recorded on the promotion PR.
 ---
 
 ### FLAG-250 — No sign-out from our app ends the session on the server: the logout route never sends the refresh token
-**Severity:** P2 (every sign-out, every user; nothing leaks without a copied token) · **Area:** Auth / sign-out · **Owner:** @Qeeyat (layer 1, ours) + 🔌 backend (layer 2) · **Status:** OPEN
+**Severity:** P2 (every sign-out, every user; nothing leaks without a copied token) · **Area:** Auth / sign-out · **Owner:** @Qeeyat (layer 1, ours) + 🔌 backend (layer 2) · **Status:** 🟡 **Layer 1 fix in review — #183** (2026-10-04). Layer 2 `api-request` not yet filed. One remaining gap, below
 **Found:** 2026-10-04, reviewing #178 (FLAG-611). ⚠️ **Rewritten the same day.** The first version
 said this affected only users who must change their password, and that it was backend-only with
 *"nothing to change on our side"*. Reading `LogoutView` showed both were wrong.
@@ -2262,6 +2262,20 @@ api-dev filtered to Logout should show **no rows** from people who signed out of
    `src/lib/auth.ts`). Test that the backend call carries it. Consider logging a non-2xx answer
    (status only) so this can't go silent again.
 2. **Backend `api-request`:** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`.
+
+> **2026-10-04, #183 (layer 1):** the route sends `{refresh}`, skips the call when either token
+> is missing, and logs a refused or unreachable logout as `[logout] … status=… path=…` (never a
+> token or body). New `route.test.ts`: 2 behaviour tests RED before, 4 controls. tsc clean ·
+> 524/524 · build green. **Not exercised live.** Check on dev after merge with the Audit Logs
+> `LOGOUT` row.
+
+**Remaining gap, after #183: a sign-out after the access cookie has lapsed.** The access cookie
+lives 1 h and the refresh cookie 7 d. A user who signs out after the access cookie expired, with
+no API call since that would have refreshed it, has no access token, and `LogoutView` needs one
+(`IsAuthenticated`). The backend has no refresh-only logout. Closing it means refresh-then-logout
+in the route (`POST /auth/refresh/` with the refresh cookie, then logout with the new pair). Left
+out of #183 to keep it small. It's narrow, because any API call in that window refreshes the
+cookie first. #183 doesn't log this case either, since nothing is called.
 
 **Done when** signing out of our app produces a `LOGOUT` audit row and the old access token is
 refused at once, for a normal user (layer 1) and for one with `force_password_change` (layer 2).
