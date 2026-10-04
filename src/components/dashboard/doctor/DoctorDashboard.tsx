@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle, dutyBannerText, type DutyState } from '@/components/dashboard/DutyToggle';
@@ -24,7 +24,7 @@ import { formatDate, formatDateTime, formatTime, isToday, personName, timeAgo, t
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
-  DoctorStats, PatientSummary, Episode, Appointment, Referral, Prescription, Paginated,
+  DoctorStats, DoctorPatientMinimal, MyPatientEpisode, Episode, Appointment, Referral, Prescription, Paginated,
   ReferralCreateInput, ReferralCreateResponse, ReferralTargetOrganization, RegenerateLetterResponse,
   DoctorAdmission, AttendingDoctor, CheckIn,
 } from '@/types/dashboard';
@@ -146,30 +146,75 @@ const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
   { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
 ];
 
+// ─── My Patients (FLAG-059) ──────────────────────────────────────────────
+// `/doctor/my-patients/` returns one row PER EPISODE with the patient nested
+// (`MyPatientEpisode`). A doctor thinks in patients, so rows are grouped by
+// `patient.id`, keeping the API's order. Grouping is per page: the endpoint
+// paginates episodes, so a patient whose cases straddle a page boundary can
+// appear on both pages. Actions always use `patient.id` — the row's own `id`
+// is an EPISODE id, and posting it as a patient was the 400 this flag found.
+interface MyPatientRow {
+  patient: DoctorPatientMinimal;
+  cases: MyPatientEpisode[];
+}
+
+/** The patient identity the New episode / Refer panels need (My Patients and Queue both open them). */
+type PatientRef = Pick<DoctorPatientMinimal, 'id' | 'first_name' | 'last_name'>;
+
+const SEX_LABEL: Record<string, string> = { M: 'Male', F: 'Female', O: 'Other' };
+
+function groupByPatient(episodes: MyPatientEpisode[]): MyPatientRow[] {
+  const rows = new Map<string, MyPatientRow>();
+  for (const ep of episodes) {
+    const row = rows.get(ep.patient.id);
+    if (row) row.cases.push(ep);
+    else rows.set(ep.patient.id, { patient: ep.patient, cases: [ep] });
+  }
+  return [...rows.values()];
+}
+
 function patientColumns(
-  onStartEpisode: (p: PatientSummary) => void,
-  onRefer: (p: PatientSummary) => void,
-): DataTableColumn<PatientSummary>[] {
+  onStartEpisode: (p: PatientRef) => void,
+  onRefer: (p: PatientRef) => void,
+): DataTableColumn<MyPatientRow>[] {
   return [
   {
     key: 'patient',
     header: 'Patient',
-    render: p => (
+    render: ({ patient: p }) => (
       <div className="flex items-center gap-2.5">
         <Avatar firstName={p.first_name} lastName={p.last_name} size="sm" />
         <div>
           <div className="font-medium text-ink">{p.first_name} {p.last_name}</div>
-          <div className="text-xs text-text-soft">{p.email ?? '—'}</div>
+          <div className="text-xs text-text-soft font-mono">{p.healthclouda_id}</div>
         </div>
       </div>
     ),
   },
-  { key: 'phone', header: 'Phone', render: p => p.phone_number ?? '—' },
-  { key: 'dob', header: 'Date of Birth', render: p => (p.date_of_birth ? formatDate(p.date_of_birth) : '—') },
-  { key: 'since', header: 'Since', className: 'whitespace-nowrap', render: p => <span className="text-text-soft">{formatDate(p.created_at)}</span> },
+  {
+    key: 'sex_age', header: 'Sex / Age',
+    render: ({ patient: p }) => {
+      const sex = p.gender ? SEX_LABEL[p.gender] : '';
+      const age = p.age != null ? `${p.age}` : '';
+      return [sex, age].filter(Boolean).join(' · ') || '—';
+    },
+  },
+  { key: 'dob', header: 'Date of Birth', render: ({ patient: p }) => (p.date_of_birth ? formatDate(p.date_of_birth) : '—') },
+  {
+    key: 'case', header: 'Case',
+    render: ({ cases }) => {
+      const latest = cases[0];
+      return (
+        <div>
+          <div className="text-ink">{latest.chief_complaint || latest.episode_type_display || '—'}</div>
+          {cases.length > 1 && <div className="text-xs text-text-soft">+{cases.length - 1} more</div>}
+        </div>
+      );
+    },
+  },
   {
     key: 'actions', header: '', className: 'text-right',
-    render: p => (
+    render: ({ patient: p }) => (
       <div className="flex items-center justify-end gap-3">
         <button
           onClick={() => onStartEpisode(p)}
@@ -420,8 +465,6 @@ function OverviewPage({
  * second endpoint, which is why FLAG-219 records it as a pattern rather than
  * one endpoint's oversight.
  */
-/** The patient identity the New episode panel needs — My Patients and Queue both open it. */
-type PatientRef = Pick<PatientSummary, 'id' | 'first_name' | 'last_name'>;
 
 function NewEpisodePanel({ patient, onClose, onCreated }: {
   patient: PatientRef | null;
@@ -697,7 +740,7 @@ function OrganizationPicker({ value, onChange }: {
  * doctor list colleague doctors for an internal referral.
  */
 function NewReferralPanel({ patient, onClose, onCreated }: {
-  patient: PatientSummary | null;
+  patient: PatientRef | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -1034,23 +1077,25 @@ function RequestAdmissionPanel({ episode, onClose, onRequested }: {
 }
 
 function MyPatientsPage() {
-  const { items: patients, count, page, setPage, totalPages, loading, error, refetch } =
-    usePaginatedList<PatientSummary>(ENDPOINTS.DOC_MY_PATIENTS);
+  const { items: episodes, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<MyPatientEpisode>(ENDPOINTS.DOC_MY_PATIENTS);
+  const rows = useMemo(() => groupByPatient(episodes), [episodes]);
   // Episodes start FROM a patient row rather than from a picker inside the
   // episodes page. A picker would have to list patients, and a client-side one
   // sees only the first page (FLAG-214) — a doctor silently unable to find
   // their own patient is worse than one extra click. Referrals start the same
   // way, for the same reason.
-  const [startFor, setStartFor] = useState<PatientSummary | null>(null);
-  const [referFor, setReferFor] = useState<PatientSummary | null>(null);
+  const [startFor, setStartFor] = useState<PatientRef | null>(null);
+  const [referFor, setReferFor] = useState<PatientRef | null>(null);
 
   return (
     <div className="space-y-4">
-      <PageHeading title="My Patients" count={count} unit="active" />
+      {/* `count` is the number of CASES (episodes) — the endpoint paginates those. */}
+      <PageHeading title="My Patients" count={count} unit={count === 1 ? 'case' : 'cases'} />
       <DataTable
         columns={patientColumns(setStartFor, setReferFor)}
-        data={patients}
-        getRowKey={p => p.id}
+        data={rows}
+        getRowKey={r => r.patient.id}
         loading={loading}
         error={error}
         onRetry={refetch}
