@@ -155,4 +155,23 @@ describe('FLAG-607 — Unassigned admissions on the doctor Admissions page', () 
     await waitFor(() => expect(screen.queryByRole('heading', { name: /Unassigned/ })).toBeNull());
     expect(screen.queryByRole('heading', { name: /no doctor assigned/i })).toBeNull();
   });
+
+  it('on a backend that ignores ?unassigned, shows neither section (review of #176)', async () => {
+    // api-beta (3 Oct) has no `unassigned` filter: it answers with EVERY
+    // admission, including ones a doctor owns. Listing those under
+    // "Unassigned" with Take over would let a doctor take a colleague's patient.
+    const owned = admission('o1', 'Ada', 'Owned', { attending_doctor: 'd2', attending_doctor_name: 'Dr. Two', needs_attending_doctor: false });
+    const ownedDeath = admission('o2', 'Ben', 'Owned', {
+      status: 'DISCHARGED', attending_doctor: 'd2', attending_doctor_name: 'Dr. Two',
+      needs_attending_doctor: false, needs_doctor_review: true, discharge_outcome: 'DECEASED',
+    });
+    unassignedActive = [unowned, owned];
+    unassignedReviews = [unownedDeath, ownedDeath];
+    await openAdmissions();
+    await waitFor(() => expect(admissionUrls().some(u => u.includes('unassigned=true'))).toBe(true));
+    await new Promise(r => setTimeout(r, 50));
+    expect(screen.queryByRole('heading', { name: /Unassigned/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /no doctor assigned/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Take over/ })).toBeNull();
+  });
 });

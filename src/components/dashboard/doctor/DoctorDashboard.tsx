@@ -1505,7 +1505,13 @@ function reviewEventLine(a: DoctorAdmission): string | null {
 function PendingReviewsSection({
   query = '?mine=true&needs_doctor_review=true',
   title = 'Pending your review',
-}: { query?: string; title?: string } = {}) {
+  rowsMatch,
+}: {
+  query?: string;
+  title?: string;
+  /** Every row must pass, or the section renders nothing (see UnassignedSection). */
+  rowsMatch?: (a: DoctorAdmission) => boolean;
+} = {}) {
   const { items, count, loading, error, refetch } =
     usePaginatedList<DoctorAdmission>(ENDPOINTS.ADMISSIONS + query);
   const { toast } = useToast();
@@ -1534,6 +1540,7 @@ function PendingReviewsSection({
   if (loading) return null;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (count === 0) return null;
+  if (rowsMatch && !items.every(rowsMatch)) return null;
 
   return (
     <div className="rounded-xl border border-warning/30 bg-warning-bg/60 p-4 space-y-3">
@@ -1712,6 +1719,10 @@ function HandOverPanel({ admission, currentUserId, onClose, onReassigned, presel
 // opens the existing hand-over panel with the signed-in doctor preselected.
 // Like PendingReviewsSection, it is absent rather than empty when there is
 // nothing to show.
+function isUnassignedRow(a: DoctorAdmission): boolean {
+  return !a.attending_doctor;
+}
+
 function UnassignedSection({ list, onTakeOver }: {
   list: ReturnType<typeof usePaginatedList<DoctorAdmission>>;
   onTakeOver: (a: DoctorAdmission) => void;
@@ -1720,6 +1731,12 @@ function UnassignedSection({ list, onTakeOver }: {
   if (loading) return null;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (count === 0) return null;
+  // A backend without #245 (api-beta, 3 Oct) ignores `unassigned` and returns
+  // EVERY admission. Each row carries `attending_doctor`, so one that has one
+  // means the filter was not applied: show nothing, rather than offer Take
+  // over on a colleague's patient. Same guard as reception's "Records to
+  // complete" (#164).
+  if (!items.every(isUnassignedRow)) return null;
 
   return (
     <section aria-labelledby="unassigned-heading" className="rounded-xl border border-border bg-surface p-4 space-y-3">
@@ -1783,6 +1800,7 @@ function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
       <PendingReviewsSection
         query="?unassigned=true&needs_doctor_review=true"
         title="Awaiting review — no doctor assigned"
+        rowsMatch={a => isUnassignedRow(a) && a.needs_doctor_review === true}
       />
       <UnassignedSection list={unassigned} onTakeOver={setHandingOver} />
       <DataTable
