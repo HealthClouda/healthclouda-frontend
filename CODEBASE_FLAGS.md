@@ -2690,7 +2690,7 @@ second row below them, as text buttons (owner's choice, 5 Oct). A menu under the
 pattern once there are more account settings.
 
 ### FLAG-069 — A doctor who signs out still shows as on duty for up to 15 minutes
-**Severity:** P2 · **Area:** Duty status (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **FIX IN THE BACKEND** (see the backend PR named in `HANDOFF.md`)
+**Severity:** P2 · **Area:** Duty status (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED 2026-10-05 — backend #252 (backend FLAG-621), merged and live on `api-dev`**
 **Found:** 2026-10-04, @Bastoh walking checklist build 1
 
 On duty means *used the app in the last 15 minutes and not switched off* (`User.last_seen_at`,
@@ -2705,8 +2705,8 @@ duty. The manual "Go off duty" switch is untouched.
 **Not covered:** a sign-out whose access token had already expired (FLAG-250's remaining gap) never
 reaches the backend, so that user still drops off duty only after 15 minutes.
 
-**Done when** the backend fix is merged and deployed to `api-dev`, and a doctor who signs out is gone
-from reception's list straight away.
+**Verified live 5 Oct:** Doctor 2 signed in → on reception's `GET /receptionist/doctors/on-duty/`; signed
+out (200) → gone from it at once.
 
 ---
 
