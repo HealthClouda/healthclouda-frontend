@@ -2119,7 +2119,7 @@ Grouped because each is a couple of lines and they live in one component.
 ---
 
 ### FLAG-247 — The Patient "My Health" table reads `chief_complaint`, which `GET /episodes/` never sends
-**Severity:** P2 · **Area:** Patient portal / My Health · **Owner:** @Qeeyat · **Status:** OPEN
+**Severity:** P2 · **Area:** Patient portal / My Health · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-10-03 — #163 merged** (`b366bac`): typed against `EpisodeList`, reads `chief_complaint_summary` / `episode_end`, a test on the published shape, and the five Patient baselines captured after the fix. All three "Done when" parts landed.
 **Found:** 2026-09-26, looking at the Patient T5 baselines before committing them
 
 `PatientDashboard.tsx:184` renders `ep.chief_complaint ?? '—'` for rows of
@@ -2146,6 +2146,139 @@ episodes show "—".
 **Done when** the My Health table is typed against `EpisodeList` and reads
 `chief_complaint_summary`, with a test whose fixture has the published shape, and the Patient
 baselines are captured after the fix.
+
+---
+
+### FLAG-248 — The two public landing forms can put a visitor's name, email and phone in the URL
+**Severity:** P3 (PII, not credentials or PHI) · **Area:** Landing / public forms · **Owner:** @Qeeyat · **Status:** 🟡 **FIX IN REVIEW — #180** (`fix/flag-248-landing-forms-post`, 2026-10-04). Mark ✅ resolved when #180 merges
+**Found:** 2026-10-03, reviewing #170 (FLAG-057)
+
+> **2026-10-04, #180:** both forms now declare `method="post"` and keep the submit disabled until
+> `useHydrated()`. `landing-forms-no-get.test.tsx` asserts both guards on each form's server HTML,
+> plus the premise that the inputs are named. 4 of 6 checks were RED before the fix. tsc clean ·
+> 475/475 · build green.
+
+FLAG-057 (#170) gives the five auth forms two guards against a **pre-hydration native submit**:
+`method="post"`, and a submit button disabled until React is running (`useHydrated`). The same
+bug class exists on the two forms that are server-rendered on public pages:
+
+- `src/components/landing/ContactForm.tsx`: `full_name`, `email`, `organisation`, `phone_number`, `message`
+- `src/components/landing/OrgContactForm.tsx`: `name`, `email`, `phone`, `message`
+
+Both are `<form onSubmit>` with no `method`. Their inputs get a `name` from react-hook-form's
+`register()`, and the submit button is only disabled while `status === 'loading'`. A click (or
+Enter) before the JS has loaded submits as **GET**, so a prospect's contact details land in the
+address bar, the browser history and any proxy/CDN log. That's lower severity than FLAG-057
+(no password, no patient data), so it was kept out of #170's scope.
+
+Related, also from this review: `/change-password` (#178) server-renders a password form with
+neither guard. It doesn't leak today, because its inputs are controlled with **no `name`**, so a
+native submit sends no fields. But it's one `register()` refactor away. Noted on #178.
+
+**Done when** both landing forms declare `method="post"` and keep the submit disabled until
+hydrated (`useHydrated()` from #170), with the server-HTML test pattern from
+`auth-forms-no-get.test.tsx` covering them.
+
+---
+
+### FLAG-249 — 🔴 Promotion gate: `api-beta` lacks the admission filters and endpoints `develop` already relies on
+**Severity:** P1 at the next `develop` → `staging` promotion (nothing exposed today) · **Area:** Infra / tier parity · **Owner:** @Bastoh (`[INFRA]`, promotions) · **Status:** 🟠 **OPEN — a precondition, not a bug in code**
+**Found:** 2026-10-03, reviewing #176
+
+Measured 2026-10-03 against both live schemas and by probe:
+
+| | `api-dev` | `api-beta` |
+|---|---|---|
+| `GET /ward/admissions/` documented params | `mine, needs_doctor_review, ordering, page, page_size, patient_id, search, status, unassigned, ward_id` | **`ordering, page, search`** only |
+| `GET /doctor/queue/` (backend #243) | **401**: exists, needs auth | **404**: does not exist |
+
+`develop` already scopes doctor views with `?mine=true` and `?needs_doctor_review=true`, and #175
+and #176 add `/doctor/queue/` and `?unassigned=true`. **DRF silently ignores a filter it doesn't
+have**, so on today's `api-beta` a doctor's "my admissions" lists **every admission in the
+organisation**, and #176's "Unassigned" section would list them all with a **Take over** button.
+
+**Why nothing is exposed today:** `staging` is still `develop` as of 13 Sep (#98, `7eeeea0`), and it
+has no `?mine=true` code. `beta.healthclouda.com` doesn't resolve (NXDOMAIN, 3 Oct).
+
+**The precondition:** before the next `develop` → `staging` promotion, the `api-beta` backend must
+be at or past backend #245, i.e. `api-beta`'s live schema documents `mine`, `needs_doctor_review`,
+`status` and `unassigned` on `/ward/admissions/`, and `/doctor/queue/` answers 401, not 404.
+Re-measure at promotion time; don't take it from this entry.
+
+Defence in depth, requested on #176: frontend sections that depend on a new filter check each
+row against it and render nothing if the filter evidently wasn't applied (the #164 pattern).
+
+> **2026-10-04, re-review of #176 (`d2e1352`):** #176 now has that guard. Its "Unassigned" and
+> "Awaiting review — no doctor assigned" sections render nothing if any row has an
+> `attending_doctor`. A test with a mock that ignores `?unassigned` fails without it. **Still
+> unguarded, and already on `develop`:** the default **Pending your review** section
+> (`?mine=true&needs_doctor_review=true`). On a backend without `mine` it lists every doctor's
+> reviews. #176's new `rowsMatch` prop makes that a one-line fix. It's worth doing before the
+> promotion, but the precondition above still stands either way.
+
+**Done when** the `api-beta` schema shows those params and `/doctor/queue/` exists, measured at the
+promotion, and recorded on the promotion PR.
+
+---
+
+### FLAG-250 — No sign-out from our app ends the session on the server: the logout route never sends the refresh token
+**Severity:** P2 (every sign-out, every user; nothing leaks without a copied token) · **Area:** Auth / sign-out · **Owner:** @Qeeyat (layer 1, ours) + 🔌 backend (layer 2) · **Status:** 🟡 **Layer 1 fix in review — #183** (2026-10-04). Layer 2 `api-request` not yet filed. One remaining gap, below
+**Found:** 2026-10-04, reviewing #178 (FLAG-611). ⚠️ **Rewritten the same day.** The first version
+said this affected only users who must change their password, and that it was backend-only with
+*"nothing to change on our side"*. Reading `LogoutView` showed both were wrong.
+
+**Layer 1 — ours, every user.** All four ways out (sidebar, `DashboardPlaceholder`, session expiry
+in `client-api.ts`, and #178's "Sign out instead") go through `src/app/api/auth/logout/route.ts`.
+That route calls `POST /auth/logout/` with the access token in `Authorization` and **no body**.
+The backend's `LogoutView` (`apps/accounts/views.py`, `origin/develop` 4 Oct) reads
+`request.data.get('refresh')`, and without it answers **400 "Refresh token is required"** before
+doing anything. So the refresh token is never blacklisted, and `end_session()` (FLAG-610, which
+exists precisely so that logout kills the session's access tokens at once) never runs. Our route's
+`.catch(() => null)` and "best-effort" comment hide the 400. Unchanged since the June auth
+migration (`d6ff422`).
+
+**Layer 2 — backend, flagged users only.** `ForcePasswordChangeMiddleware` (`apps/core/middleware.py`)
+answers 403 `FORCE_PASSWORD_CHANGE` on every path not in `EXEMPT_PATHS`, and `auth/logout` isn't
+in it. So once layer 1 is fixed, a user with `force_password_change` still can't log out
+server-side. **Layer 2 alone changes nothing:** the call would then reach `LogoutView` and 400.
+
+**What still protects users:** our route deletes all three auth cookies whatever the backend
+answers, so the browser really is signed out and the next person at a shared ward PC can't resume.
+The tokens are httpOnly, so page JavaScript can't read them. **What's left:** a server session that
+stays valid after "sign out", usable by anyone who already holds a copy of the token, until it
+idles out (15 min) or reaches its 12 h cap (`enforce_session_freshness`). Not verified: whether
+the refresh endpoint enforces the same idle rule.
+
+**Why P2, not P3:** PHI is arriving, shared PCs are the ward norm, and the backend built FLAG-610
+specifically so logout ends the session. Our route quietly cancels that work.
+
+**Verified:** by reading source only (backend `origin/develop` and our `develop`, 4 Oct). **Not
+reproduced live** (no dev credentials in this session). The cleanest live confirmation: the
+backend writes a `LOGOUT` audit row only after a logout succeeds (FLAG-544), so Audit Logs on
+api-dev filtered to Logout should show **no rows** from people who signed out of our app.
+
+**Fix:**
+1. **Ours:** the route sends `{ refresh: await getRefreshToken() }` (helper already in
+   `src/lib/auth.ts`). Test that the backend call carries it. Consider logging a non-2xx answer
+   (status only) so this can't go silent again.
+2. **Backend `api-request`:** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`.
+
+> **2026-10-04, #183 (layer 1):** the route sends `{refresh}`, skips the call when either token
+> is missing, and logs a refused or unreachable logout as `[logout] … status=… path=…` (never a
+> token or body). New `route.test.ts`: 2 behaviour tests RED before, 4 controls. tsc clean ·
+> 524/524 · build green. **Not exercised live.** Check on dev after merge with the Audit Logs
+> `LOGOUT` row.
+
+**Remaining gap, after #183: a sign-out after the access cookie has lapsed.** The access cookie
+lives 1 h and the refresh cookie 7 d. A user who signs out after the access cookie expired, with
+no API call since that would have refreshed it, has no access token, and `LogoutView` needs one
+(`IsAuthenticated`). The backend has no refresh-only logout. Closing it means refresh-then-logout
+in the route (`POST /auth/refresh/` with the refresh cookie, then logout with the new pair). Left
+out of #183 to keep it small. It's narrow, because any API call in that window refreshes the
+cookie first. #183 doesn't log this case either, since nothing is called.
+
+**Done when** signing out of our app produces a `LOGOUT` audit row and the old access token is
+refused at once, for a normal user (layer 1) and for one with `force_password_change` (layer 2).
 
 ---
 
