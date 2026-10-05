@@ -118,40 +118,40 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
           })}
         </nav>
 
-        {/* User info + logout */}
-        <div className="flex items-center gap-2.5 px-4 py-3.5 border-t border-border flex-shrink-0">
-          <Avatar firstName={user.first_name} lastName={user.last_name} size="md" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12.5px] font-bold text-ink truncate">
-              {user.first_name} {user.last_name}
-            </p>
-            {user.organization_name && (
-              <p className="text-[10.5px] text-text-soft truncate">{user.organization_name}</p>
-            )}
+        {/* User info, then the account actions on their own row (FLAG-068):
+            sharing one 230px row with two buttons left the name ~1px wide. */}
+        <div className="px-4 pt-3.5 pb-2.5 border-t border-border flex-shrink-0 space-y-1.5">
+          <div className="flex items-center gap-2.5">
+            <Avatar firstName={user.first_name} lastName={user.last_name} size="md" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12.5px] font-bold text-ink truncate">
+                {user.first_name} {user.last_name}
+              </p>
+              {user.organization_name && (
+                <p className="text-[10.5px] text-text-soft truncate">{user.organization_name}</p>
+              )}
+            </div>
           </div>
 
-          <button
-            onClick={() => setChangingPassword(true)}
-            aria-label="Change password"
-            title="Change password"
-            className="flex-shrink-0 flex items-center justify-center min-h-11 min-w-11 rounded-md text-text-soft hover:text-ink hover:bg-chip transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-            </svg>
-          </button>
+          <div className="flex items-center justify-between gap-1 -mx-2">
+            <button
+              onClick={() => setChangingPassword(true)}
+              className="flex items-center min-h-11 px-2 rounded-md text-text-soft hover:text-ink hover:bg-chip transition-colors"
+            >
+              <span className="text-[11px] font-semibold whitespace-nowrap">Change password</span>
+            </button>
 
-          <button
-            onClick={handleLogout}
-            className="flex-shrink-0 flex items-center gap-1.5 min-h-11 px-2.5 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
-          >
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-            </svg>
-            <span className="text-[11px] font-semibold">Sign out</span>
-          </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 min-h-11 px-2 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+              </svg>
+              <span className="text-[11px] font-semibold">Sign out</span>
+            </button>
+          </div>
         </div>
       </aside>
 

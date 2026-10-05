@@ -124,6 +124,21 @@ describe('FLAG-611 — Change password from the sidebar, on every dashboard', ()
       .toContain('Password changed. You’ve been signed out on 2 other devices.'));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change password' })).toBeNull());
   });
+
+  it('FLAG-068: the name keeps its own row; the account actions sit on the row below', () => {
+    // #178 put the button in the name's row, and a 230px sidebar left the
+    // name ~1px wide. jsdom can't measure that, so pin the structure instead:
+    // the name's row must not also hold either button.
+    render(<Sidebar navItems={[]} activePage="" onPageChange={vi.fn()} user={user} isOpen onClose={vi.fn()} />);
+    const nameRow = screen.getByText('Emeka Okafor').closest('div.flex') as HTMLElement;
+    expect(within(nameRow).getByText('Demo Clinic')).toBeInTheDocument();
+    expect(within(nameRow).queryByRole('button')).toBeNull();
+
+    const changePw = screen.getByRole('button', { name: 'Change password' });
+    const signOut = screen.getByRole('button', { name: 'Sign out' });
+    expect(changePw.parentElement).toBe(signOut.parentElement);
+    expect(nameRow.contains(changePw)).toBe(false);
+  });
 });
 
 describe('FLAG-611 — the forced change page', () => {
