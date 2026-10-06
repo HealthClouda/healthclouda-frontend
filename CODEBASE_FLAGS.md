@@ -2689,7 +2689,7 @@ it: they don't lay anything out.
 second row below them, as text buttons (owner's choice, 5 Oct). A menu under the name is the usual
 pattern once there are more account settings.
 
-### FLAG-069 — A doctor who signs out still shows as on duty for up to 15 minutes
+### FLAG-069 — A doctor or nurse who signs out still shows as on duty for up to 15 minutes
 **Severity:** P2 · **Area:** Duty status (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED 2026-10-05 — backend #252 (backend FLAG-621), merged and live on `api-dev`**
 **Found:** 2026-10-04, @Bastoh walking checklist build 1
 
@@ -2698,15 +2698,35 @@ backend FLAG-569/579). Signing out ended the session (and, since #183, really en
 but never touched `last_seen_at`. So reception's doctor list and the nurse's "On duty" group kept
 offering a doctor who had just gone home.
 
-**Fix (owner decision, 5 Oct):** on sign-out, if the user has **no other device** active in the last
+**Fix (owner decision, 5 Oct):** on sign-out, if a doctor **or nurse** has **no other device** active in the last
 15 minutes, they go off duty at once. Still signed in and active on another device → they stay on
 duty. The manual "Go off duty" switch is untouched.
 
-**Not covered:** a sign-out whose access token had already expired (FLAG-250's remaining gap) never
-reaches the backend, so that user still drops off duty only after 15 minutes.
+**Not covered** (both drop off duty only after 15 minutes): a sign-out whose access token had already
+expired (FLAG-250's remaining gap) never reaches the backend; and a token from before FLAG-610 (no
+`sid`) returns from `end_session()` before the duty check. The second has been unreachable since the
+12h cap ran out on those tokens (@Qeeyat, review of #184).
 
 **Verified live 5 Oct:** Doctor 2 signed in → on reception's `GET /receptionist/doctors/on-duty/`; signed
 out (200) → gone from it at once.
+
+
+### FLAG-070 — The duty button mixed the action with the state, signing in kept a manual "off", and duty changes were not logged
+**Severity:** P2 · **Area:** Duty status (doctor + nurse) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it, with backend FLAG-622**
+**Found:** 2026-10-06, @Bastoh walking checklist build 5 step 2
+
+Three findings from one note:
+1. **Wording.** One button read *"Go off duty (On duty)"* or *"Back on duty (Off duty — you switched
+   off)"*: the action and the state in the same control, which reads as a contradiction. Now
+   `DutyToggle` shows a status badge (**On duty** / **Off duty**) and, beside it, a button that says
+   only what a click does (**Go off duty** / **Go on duty**). The banners and the toast lost their
+   em dashes too.
+2. **Sign-in.** A doctor or nurse who switched off stayed off after signing in again. **Owner decision
+   (6 Oct):** signing in puts them on duty. Backend FLAG-622.
+3. **The record.** Going on or off duty now writes an audit row (`UPDATE` on record type **Duty**,
+   with the reason and the cause: sign-in, sign-out or the switch). Backend FLAG-622. `Duty` is added
+   to the superadmin record-type list (FLAG-064 keeps that list by hand). Going off duty by being idle
+   is not logged, because nothing happens at that moment to log.
 
 ---
 

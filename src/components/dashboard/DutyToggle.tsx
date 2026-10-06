@@ -10,15 +10,16 @@ export interface DutyState {
 }
 
 /**
- * Shared wording for the overview-page status banners (doctor + nurse) — kept
+ * Shared wording for the overview-page status banners (doctor + nurse), kept
  * next to the toggle so the two never drift into describing the states
  * differently. "Off duty (inactive)" is phrased to not read as broken: using
- * the app at all is activity, so this should be rare on screen.
+ * the app at all is activity, so this should be rare on screen. No em dashes
+ * in on-screen text (owner, 6 Oct; FLAG-070).
  */
 export function dutyBannerText(duty: DutyState): string {
-  if (duty.isOnDuty) return 'You are on duty — patients may be assigned to you.';
-  if (duty.offDutyOverride) return 'You are off duty — you switched yourself off.';
-  return 'You are off duty — no recent activity. Use the app to show as on duty again.';
+  if (duty.isOnDuty) return 'You are on duty. Patients may be assigned to you.';
+  if (duty.offDutyOverride) return 'You are off duty. You switched yourself off.';
+  return 'You are off duty because you have not used the app for 15 minutes. Use the app to show as on duty again.';
 }
 
 interface DutyToggleProps extends DutyState {
@@ -31,21 +32,20 @@ interface ToggleDutyResponse {
 }
 
 /**
- * Build 5 / FLAG-044 — the switch stopped being an on/off pair.
+ * Build 5 / FLAG-044, reworded by FLAG-070 (owner, 6 Oct).
  *
- * It is now an OFF switch only: clicking it while on duty sends
+ * The switch is an OFF switch: clicking it while on duty sends
  * `{is_on_duty: false}`, which marks `off_duty_override`. Clicking it while
- * overridden sends `{is_on_duty: true}`, which only CLEARS the override —
- * being on duty again is decided by activity (the heartbeat), not by this
- * click. The label always says what the click will DO ("Go off duty" /
- * "Back on duty"), never what state it claims to reach, so it cannot promise
- * "on duty" to someone who is about to walk away and sit idle.
+ * switched off sends `{is_on_duty: true}`, which clears the override; the
+ * person is using the app at that moment, so they show as on duty again.
+ * Signing in also clears it (backend FLAG-622), and signing out takes them off
+ * (backend FLAG-621).
  *
- * Renders three states from the two server fields, matched to the contract:
- *  - **On duty** — active in the last 15 minutes AND not switched off.
- *  - **Off duty (you switched off)** — `off_duty_override: true`.
- *  - **Off duty (inactive)** — neither on duty nor overridden; should be
- *    rare on screen, since using the app is itself activity.
+ * FLAG-070: the state and the action used to share one button, "Go off duty
+ * (On duty)", which read as a contradiction. Now a status badge says where
+ * you are ("On duty" / "Off duty") and the button says only what a click does
+ * ("Go off duty" / "Go on duty"). Both come from the server's answer, never a
+ * local flip.
  */
 export function DutyToggle({ isOnDuty, offDutyOverride, onChange }: DutyToggleProps) {
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,9 @@ export function DutyToggle({ isOnDuty, offDutyOverride, onChange }: DutyTogglePr
       toast.success(
         nextOverride
           ? 'You are now off duty'
-          : 'Off-duty switch cleared — you will show as on duty while active',
+          : nextOnDuty
+            ? 'You are back on duty'
+            : 'You will show as on duty while you use the app',
       );
     } catch {
       toast.error('Failed to update duty status');
@@ -77,30 +79,28 @@ export function DutyToggle({ isOnDuty, offDutyOverride, onChange }: DutyTogglePr
     }
   }
 
-  const label = offDutyOverride ? 'Back on duty' : 'Go off duty';
-  const stateText = isOnDuty
-    ? 'On duty'
-    : offDutyOverride
-      ? 'Off duty — you switched off'
-      : 'Off duty — inactive';
+  const label = offDutyOverride ? 'Go on duty' : 'Go off duty';
+  const stateText = isOnDuty ? 'On duty' : 'Off duty';
 
   return (
-    <button
-      onClick={handle}
-      disabled={loading}
-      title={offDutyOverride ? 'Click to clear your off-duty switch' : 'Click to go off duty'}
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
-        transition-all disabled:opacity-60 select-none
-        ${isOnDuty
-          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-1 ring-emerald-200'
-          : 'bg-gray-100 text-gray-500 hover:bg-gray-200 ring-1 ring-gray-200'
-        }`}
-    >
-      <span className={`w-2 h-2 rounded-full ${
-        isOnDuty ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' : 'bg-gray-400'
-      }`} />
-      {loading ? 'Updating…' : label}
-      <span className="text-[10px] font-normal opacity-75">({stateText})</span>
-    </button>
+    <div className="inline-flex items-center gap-2">
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1
+          ${isOnDuty ? 'bg-emerald-100 text-emerald-700 ring-emerald-200' : 'bg-gray-100 text-gray-600 ring-gray-200'}`}
+      >
+        <span aria-hidden className={`w-2 h-2 rounded-full ${
+          isOnDuty ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' : 'bg-gray-400'
+        }`} />
+        {stateText}
+      </span>
+      <button
+        onClick={handle}
+        disabled={loading}
+        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-ink ring-1 ring-border
+          bg-white hover:bg-page transition-colors disabled:opacity-60 select-none"
+      >
+        {loading ? 'Updating…' : label}
+      </button>
+    </div>
   );
 }
