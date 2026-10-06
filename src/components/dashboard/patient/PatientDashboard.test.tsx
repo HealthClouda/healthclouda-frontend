@@ -16,7 +16,7 @@ import type { User } from '@/types/auth';
  *    created_at}. The dashboard still sends the invented `?upcoming=true`
  *    (silently ignored — GLOBAL-2) and renders pre-contract field names
  *    (`appointment_date` / `appointment_time` / `notes`) that don't exist
- *    → every row shows "—" for its date and drops org/reason entirely.
+ *    → every row shows "–" for its date and drops org/reason entirely.
  */
 
 // Sidebar/Header use next/navigation for logout — not under test here.
@@ -130,7 +130,7 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
 
     expect(await screen.findByText('Emeka Okafor')).toBeInTheDocument();
     // Date must come from `scheduled_at` (ISO datetime) — the old
-    // `appointment_date` field doesn't exist and renders "—".
+    // `appointment_date` field doesn't exist and renders "–".
     expect(screen.getByText(/02 Jul 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Demo Clinic/)).toBeInTheDocument();
     expect(screen.getByText(/Malaria symptoms/)).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
  * FLAG-231 / FLAG-232 — the stat-tile contract, asserted against the PUBLISHED
  * payload shape rather than against our own interface.
  *
- * 🔴 **This is the test that was missing.** `StatCard` renders `{value ?? '—'}`,
+ * 🔴 **This is the test that was missing.** `StatCard` renders `{value ?? '–'}`,
  * so a tile bound to a field the API never sends is an em dash, not an error —
  * and every other layer agreed with the bug: the old fixture carried the same
  * two phantom keys as the component (FLAG-221), and `tsc` cannot help because
@@ -185,7 +185,7 @@ describe('PATIENT-1 — appointments page renders the real contract fields', () 
  *
  * ⚠️ It must fail against the pre-fix component. It does: with `stats` shaped
  * like the real payload, "Upcoming Appts" read `stats.upcoming_appointments`,
- * got `undefined`, and rendered '—'. That is the RED this repo requires before
+ * got `undefined`, and rendered '–'. That is the RED this repo requires before
  * a fix counts (CLAUDE.md §5, and the discipline FLAG-221 exists to enforce).
  */
 describe('FLAG-231 — overview stat tiles read fields the endpoint actually publishes', () => {
@@ -250,7 +250,7 @@ describe('FLAG-231 — overview stat tiles read fields the endpoint actually pub
  * the complaint arrives as `chief_complaint_summary` and the close date as
  * `episode_end`. The page read `chief_complaint` and `closed_at`, which exist
  * only on `/doctor/episodes/`'s shape (and `closed_at` not even there), so both
- * columns rendered '—' for every patient. That looks like empty data, which is
+ * columns rendered '–' for every patient. That looks like empty data, which is
  * why only the rendered baseline gave it away.
  */
 describe('FLAG-247 — My Health renders the published EpisodeList shape', () => {

@@ -48,8 +48,8 @@ export function DoctorPicker({
   const defaultHelperText = restrictToOnDuty
     ? (required
         ? 'Choose the doctor taking over this patient. Only doctors on duty can be selected.'
-        : 'Optional — naming one never blocks this admission. Only doctors on duty can be selected; leave it as-is if none is available.')
-    : (required ? 'Choose the doctor.' : 'Optional — naming one never blocks this admission.');
+        : 'Optional. Naming one never blocks this admission. Only doctors on duty can be selected; leave it as-is if none is available.')
+    : (required ? 'Choose the doctor.' : 'Optional. Naming one never blocks this admission.');
   return (
     <div>
       <label htmlFor={id} className="block text-xs font-medium text-text-soft mb-1">
@@ -76,7 +76,7 @@ export function DoctorPicker({
               </optgroup>
             )}
             {offDuty.length > 0 && (
-              <optgroup label={restrictToOnDuty ? 'Not on duty — cannot be selected' : 'Not on duty'}>
+              <optgroup label={restrictToOnDuty ? 'Not on duty (cannot be selected)' : 'Not on duty'}>
                 {offDuty.map(d => (
                   <option key={d.id} value={d.id} disabled={restrictToOnDuty}>{d.full_name}</option>
                 ))}

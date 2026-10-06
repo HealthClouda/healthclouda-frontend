@@ -69,7 +69,7 @@ const user = {
 
 // CAPTURED LIVE 2026-08-29 (FLAG-222) — GET /doctor/dashboard/stats/.
 // The previous fixture used `appointments_today` and `active_prescriptions`,
-// neither of which this endpoint sends, so two stat tiles were permanently '—'
+// neither of which this endpoint sends, so two stat tiles were permanently '–'
 // on real data while these tests stayed green. Values below are the real
 // payload's field names; only the numbers are adjusted for readability.
 const stats = {
@@ -109,7 +109,7 @@ function appointmentAt(iso: string, id = 'appt-1') {
 // elements", which reads like a component bug and isn't one.
 // CAPTURED LIVE 2026-08-29 (FLAG-222). The date field is `episode_start` —
 // there is no `created_at` on this endpoint, which is why the "Opened" column
-// rendered '—' for every row on the real dashboard while this fixture (which
+// rendered '–' for every row on the real dashboard while this fixture (which
 // used `created_at`) kept the tests green.
 const episode = {
   id: 'ep-1',
@@ -584,7 +584,7 @@ describe('doctor referral creation', () => {
     fireEvent.click(screen.getByText('General Hospital'));
 
     // Selecting shows the resolved org, not the raw query the doctor typed.
-    expect(screen.getByText(/General Hospital — Kano, Kano/)).toBeInTheDocument();
+    expect(screen.getByText('General Hospital (Kano, Kano)')).toBeInTheDocument();
   });
 
   it('does not fetch anything on mount, and does not search below 2 characters', async () => {
@@ -749,7 +749,7 @@ describe('D5 — referral accept/decline is NOT the doctor’s to make', () => {
 
 describe('FLAG-222 — stat tiles must read the fields the API actually sends', () => {
   it('renders Appointments Today from `todays_appointments`, not `appointments_today`', async () => {
-    // Same two words, other order. The tile was permanently '—' on real data
+    // Same two words, other order. The tile was permanently '–' on real data
     // and every test here passed, because the fixture agreed with our type.
     render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);
 
@@ -758,14 +758,14 @@ describe('FLAG-222 — stat tiles must read the fields the API actually sends', 
     expect(screen.getByText('4')).toBeInTheDocument();  // active_episodes
     expect(screen.getByText('3')).toBeInTheDocument();  // admissions_under_care
 
-    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    expect(screen.queryByText('–')).not.toBeInTheDocument();
   });
 });
 
 describe('FLAG-222 — the episode "Opened" column reads `episode_start`', () => {
   it('renders a relative date, not the empty placeholder', async () => {
     // /doctor/episodes/ sends `episode_start`; the column read `created_at`,
-    // which the endpoint has never sent, so timeAgo(undefined) rendered '—' for
+    // which the endpoint has never sent, so timeAgo(undefined) rendered '–' for
     // every episode. Found by looking at the dashboard, not by a test — the
     // fixture used to carry `created_at` and so agreed with the bug.
     render(<DoctorDashboard user={user} initialStats={stats} slug="demo-clinic" />);

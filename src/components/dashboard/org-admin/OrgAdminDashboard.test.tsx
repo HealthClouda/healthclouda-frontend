@@ -64,7 +64,7 @@ const user = {
 // CAPTURED from GET /org-admin/dashboard/stats/ against api-dev 2026-08-19,
 // values changed but keys verbatim. The previous fixture invented
 // `total_patients` and `active_episodes`, which the endpoint does not return —
-// so these tests passed while two stat cards rendered '—' against real data.
+// so these tests passed while two stat cards rendered '–' against real data.
 // Fixtures here must mirror a real payload; that is the whole point of them.
 const stats = {
   total_staff: 12,
@@ -224,7 +224,7 @@ describe('OrgAdmin — Staff invite', () => {
     const row = screen.getByText('Ngozi Eze').closest('tr');
     expect(row).not.toBeNull();
     expect(row!.textContent).toContain('Ngozi Eze');
-    // '—' is the empty-value placeholder; a row of them is the failure mode.
+    // '–' is the empty-value placeholder; a row of them is the failure mode.
     expect(row!.textContent?.match(/—/g)?.length ?? 0).toBeLessThan(2);
     // ...and the em-dash count alone CANNOT see the Role column bug, because a
     // raw lowercase role is not an em dash. The fixture's role is 'nurse'
@@ -266,7 +266,7 @@ describe('OrgAdmin — Staff invite', () => {
 
 /**
  * Patients had NO list test before 2026-08-19 — only an accessible-name check.
- * The page shipped rendering 14 rows of blank names and '—' columns, because
+ * The page shipped rendering 14 rows of blank names and '–' columns, because
  * it was typed as `PatientSummary` (the /doctor/patients/ shape) and every
  * field it read was absent from the payload.
  */
@@ -311,7 +311,7 @@ describe('OrgAdmin — Overview stat cards', () => {
     render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
 
     // `total_patients` / `active_episodes` did not exist on the payload, so
-    // these two cards rendered '—' for every org until 2026-08-19.
+    // these two cards rendered '–' for every org until 2026-08-19.
     expect(await screen.findByText('340')).toBeInTheDocument();   // active_patients
     expect(screen.getByText('5/20')).toBeInTheDocument();          // bed_occupancy (a STRING)
     expect(screen.getByText('12')).toBeInTheDocument();            // total_staff

@@ -53,7 +53,7 @@ export function OrgContactForm({ slug }: { slug: string }) {
       });
       if (res.ok) {
         setStatus('success');
-        setStatusMsg('Message sent to the Health Centre — they will get back to you.');
+        setStatusMsg('Message sent to the Health Centre. They will get back to you.');
         reset();
         setTimeout(() => { setStatus('idle'); setStatusMsg(''); }, 5000);
       } else {

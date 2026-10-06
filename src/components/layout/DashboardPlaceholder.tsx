@@ -25,7 +25,7 @@ export function DashboardPlaceholder({ role }: Props) {
         </div>
         <h1 className="text-xl font-semibold text-gray-900">{role} Dashboard</h1>
         <p className="text-gray-500 text-sm max-w-xs">
-          This dashboard is being built. Auth is working — Phase 3 will complete this.
+          This dashboard is being built. Sign-in is working, and the rest of this page is coming.
         </p>
         <button
           onClick={logout}

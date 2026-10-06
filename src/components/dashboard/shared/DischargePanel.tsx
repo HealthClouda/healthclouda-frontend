@@ -174,9 +174,9 @@ export function DischargePanel({
       // Never `toast.success` for DECEASED — success toasts render green
       // with a checkmark, which this outcome must never look like.
       if (outcome === 'DECEASED') {
-        toast.info(`Recorded: ${name} — deceased.${pendingReviewSuffix}`);
+        toast.info(`Recorded: ${name}, deceased.${pendingReviewSuffix}`);
       } else if (outcome === 'AGAINST_MEDICAL_ADVICE' || outcome === 'ABSCONDED') {
-        toast.warning(`${name} discharged — ${outcomeConfig.label.toLowerCase()}.${pendingReviewSuffix}`);
+        toast.warning(`${name} discharged: ${outcomeConfig.label.toLowerCase()}.${pendingReviewSuffix}`);
       } else {
         toast.success(`${name} discharged`);
       }
@@ -234,21 +234,21 @@ export function DischargePanel({
 
         {role === 'NURSE' && (outcome === 'ABSCONDED' || outcome === 'DECEASED') && (
           <p role="status" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
-            A doctor reviews this the next morning — it stays flagged for review until one does.
+            A doctor reviews this the next morning. It stays flagged for review until one does.
           </p>
         )}
 
         {outcomeBlockedForRole && (
           <p role="alert" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
-            Only a doctor can complete this kind of discharge — the backend now attests this to
-            the signed-in account, and a nurse account cannot be the signer. Ask an on-duty
+            Only a doctor can complete this kind of discharge. It is recorded against the
+            signed-in account, and a nurse account cannot be the signer. Ask an on-duty
             doctor to record this discharge.
           </p>
         )}
 
         {!outcomeBlockedForRole && outcome === 'AGAINST_MEDICAL_ADVICE' && (
           <p role="status" className="text-xs font-semibold text-warning-strong bg-warning-bg border border-warning/30 rounded-lg px-3 py-2.5">
-            This is recorded under your name as the signing doctor — the backend attests an
+            This is recorded under your name as the signing doctor. An
             against-medical-advice discharge to the account that submits it, not a separate
             signature field (FLAG-042).
           </p>

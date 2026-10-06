@@ -2727,6 +2727,19 @@ Three findings from one note:
    with the reason and the cause: sign-in, sign-out or the switch). Backend FLAG-622. `Duty` is added
    to the superadmin record-type list (FLAG-064 keeps that list by hand). Going off duty by being idle
    is not logged, because nothing happens at that moment to log.
+### FLAG-071 — Em dashes all over the on-screen text
+**Severity:** P3 (owner's style call, 6 Oct) · **Area:** Copy, every dashboard · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it**
+**Found:** 2026-10-06, @Bastoh walking checklist build 4: "we have to clean the em dashes just like we did with the landing page"
+
+About 170 lines of code put an em dash on screen: ~85 sentences and labels, and ~85 lone "—" standing
+in for an empty value. Sentences now use a full stop, comma, colon or brackets ("Emergency:
+immediate intervention", "Nobody (unassigned)", "Name (City, State)"). Empty values show an en dash
+(–). `src/lib/no-em-dashes.test.ts` scans the source (comments skipped) and fails if one comes back.
+Exempt: `src/lib/config.ts` (a developer-only build error) and `DutyToggle.tsx`, reworded in #185;
+drop that exemption once #185 is on `develop`.
+
+The backend's user-facing strings (gender warning, merge refusal, the admission-request notification,
+the welcome email) are backend FLAG-623.
 
 ---
 

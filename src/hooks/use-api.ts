@@ -101,7 +101,7 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
         if (totalPages > maxPages) {
           setError(
             `This list has ${count} items, more than this view can load at once. ` +
-              'Showing nothing rather than a partial list — please report this.',
+              'Showing nothing rather than a partial list. Please report this.',
           );
           setData(null);
           return;

@@ -1,6 +1,6 @@
 // Date / time
 export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   return new Date(iso).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -9,7 +9,7 @@ export function formatDate(iso: string | null | undefined): string {
 }
 
 export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   return new Date(iso).toLocaleString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -37,7 +37,7 @@ export function localDateTimeToISOString(value: string): string {
 }
 
 export function formatTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   return new Date(iso).toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
@@ -56,9 +56,9 @@ export function formatTime(iso: string | null | undefined): string {
 export function personName(
   p?: { first_name?: string; last_name?: string } | null,
 ): string {
-  if (!p) return '—';
+  if (!p) return '–';
   const full = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
-  return full || '—';
+  return full || '–';
 }
 
 /**
@@ -83,7 +83,7 @@ export function isToday(iso: string | null | undefined): boolean {
 }
 
 export function timeAgo(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return 'just now';

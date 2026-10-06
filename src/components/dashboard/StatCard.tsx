@@ -56,7 +56,7 @@ export function StatCard({
         </span>
       </div>
       <p className="font-body font-black text-[29px] text-ink mt-2.5 tracking-[-0.02em] leading-none tabular-nums">
-        {value ?? '—'}
+        {value ?? '–'}
       </p>
       {delta && (
         <p className={`text-xs mt-2.5 font-semibold flex items-center gap-1 ${

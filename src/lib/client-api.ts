@@ -131,7 +131,7 @@ export class ClientApiError extends Error {
 }
 
 function errorMessage(status: number, data: unknown): string {
-  if (status === 429) return 'Too many requests — please try again shortly.';
+  if (status === 429) return 'Too many requests. Please try again shortly.';
   const obj = data as Record<string, unknown> | null;
   const msg = obj?.detail ?? obj?.error;
   return typeof msg === 'string' ? msg : `Request failed (HTTP ${status})`;

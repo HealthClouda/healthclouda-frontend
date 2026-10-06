@@ -201,7 +201,7 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
           <div className="rounded-[10px] border border-[rgba(0,117,255,0.15)] bg-chip px-4 py-[14px]">
             <p className="text-center text-[12.5px] leading-[1.55] text-[#1a4b8c]">
               <strong>Notice:</strong> HealthClouda accounts cannot be created online. Please visit the
-              reception desk at {isOrg ? 'your organisation clinic' : 'any registered clinic'} — admin staff
+              reception desk at {isOrg ? 'your organisation clinic' : 'any registered clinic'}, where staff
               will create your login.
             </p>
           </div>
