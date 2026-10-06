@@ -2660,6 +2660,54 @@ to complete.
 
 **Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
 
+### FLAG-067 — Reception can check in a patient recorded as dead
+**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-04, walking checklist build 9 on dev
+
+`POST /receptionist/check-ins/` accepted `HCL-KK4CKY` (recorded as dead) and put him in Dr Emeka's
+Queue. Nothing unsafe follows: the doctor's **Start episode** is refused (backend FLAG-619, #177), and
+admission is refused too. But the front desk is never told, and a dead patient sits in a doctor's
+Queue until someone marks a No-show.
+
+**Fix (backend, small):** apply the same non-disclosing deceased guard to check-in that episodes and
+admissions already use (`apps/patients/access.py`), with its own sentence. The frontend shows
+`details.patient` already.
+
+**Done when** checking in a patient recorded as dead is refused in words that don't say why, and a
+test pins it.
+
+### FLAG-068 — The sidebar showed only the user's initials: Change password squeezed the name to 1px
+**Severity:** P2 (every dashboard, every user) · **Area:** Layout / Sidebar · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it**
+**Found:** 2026-10-04, @Bastoh walking checklist build 1 ("I can only see the NB logo")
+
+#178 (FLAG-611) added a 44px key button to the sidebar footer, between the name and **Sign out**. The
+sidebar is 230px wide, so the name and clinic got **1.3px** (measured on dev: `scrollWidth` 88,
+width 1.27) and truncated to nothing, leaving only the avatar initials. The jsdom tests could not see
+it: they don't lay anything out.
+
+**Fixed:** the name and clinic keep their own row; **Change password** and **Sign out** sit on a
+second row below them, as text buttons (owner's choice, 5 Oct). A menu under the name is the usual
+pattern once there are more account settings.
+
+### FLAG-069 — A doctor who signs out still shows as on duty for up to 15 minutes
+**Severity:** P2 · **Area:** Duty status (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED 2026-10-05 — backend #252 (backend FLAG-621), merged and live on `api-dev`**
+**Found:** 2026-10-04, @Bastoh walking checklist build 1
+
+On duty means *used the app in the last 15 minutes and not switched off* (`User.last_seen_at`,
+backend FLAG-569/579). Signing out ended the session (and, since #183, really ends it server-side),
+but never touched `last_seen_at`. So reception's doctor list and the nurse's "On duty" group kept
+offering a doctor who had just gone home.
+
+**Fix (owner decision, 5 Oct):** on sign-out, if the user has **no other device** active in the last
+15 minutes, they go off duty at once. Still signed in and active on another device → they stay on
+duty. The manual "Go off duty" switch is untouched.
+
+**Not covered:** a sign-out whose access token had already expired (FLAG-250's remaining gap) never
+reaches the backend, so that user still drops off duty only after 15 minutes.
+
+**Verified live 5 Oct:** Doctor 2 signed in → on reception's `GET /receptionist/doctors/on-duty/`; signed
+out (200) → gone from it at once.
+
 ---
 
 ## Resolved flags

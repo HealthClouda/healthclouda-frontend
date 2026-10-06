@@ -42,7 +42,7 @@ and why the dashboard gates check the organisation as well as the role.
 | `/[slug]/doctor` · `nurse` · `receptionist` · `org-admin` | The four org-scoped staff dashboards |
 | `/patient` | **The patient dashboard — slug-less on purpose (FLAG-210).** A patient belongs to no organisation (`/auth/me/` returns `organization: null`, correctly: records move *with* the patient), so there is no slug to scope them to. `patient` is in `RESERVED_PATHS` so no org can shadow it |
 | `/[slug]/forgot-password` · `reset-password` · `check-email` · `password-success` | Org-scoped password flows |
-| `/change-password` | **Forced password change (FLAG-611).** Slug-less, for every role. Where a user the backend flags `force_password_change` is sent; guarded by middleware like a dashboard. After the change, `/auth/me/` decides which dashboard they go to. A signed-in user changes their password from the sidebar's key icon instead (a panel, same form) |
+| `/change-password` | **Forced password change (FLAG-611).** Slug-less, for every role. Where a user the backend flags `force_password_change` is sent; guarded by middleware like a dashboard. After the change, `/auth/me/` decides which dashboard they go to. A signed-in user changes their password from **Change password** in the sidebar footer instead, on its own row beside Sign out (a panel, same form) |
 
 ⚠️ **`RESERVED_PATHS` (`src/lib/config.ts`) must stay in sync with `src/app/`.** `[slug]` is a
 catch-all at the root, so any new top-level route that is not reserved can be shadowed by an
