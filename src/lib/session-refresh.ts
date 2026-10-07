@@ -1,4 +1,4 @@
-import { API_BASE_URL, ENDPOINTS } from './config';
+import { API_BASE_URL, BACKGROUND_HEADER, ENDPOINTS } from './config';
 import { sessionExpiryCodeFrom, type SessionExpiryCode } from './session-expiry-code';
 
 /**
@@ -35,12 +35,19 @@ export type RefreshOutcome =
  * backend means keep their cookies and try again, because destroying a live
  * seven-day session over one network blip is the worse failure.
  */
-export async function refreshSessionTokens(refreshToken: string): Promise<RefreshOutcome> {
+export async function refreshSessionTokens(
+  refreshToken: string,
+  opts?: { background?: boolean },
+): Promise<RefreshOutcome> {
   let res: Response;
+  // FLAG-073: a refresh triggered by a background poll rotates the tokens but
+  // must not count as activity (backend FLAG-625).
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (opts?.background) headers[BACKGROUND_HEADER] = '1';
   try {
     res = await fetch(`${API_BASE_URL}${ENDPOINTS.REFRESH}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ refresh: refreshToken }),
       cache: 'no-store',
     });

@@ -10,6 +10,7 @@ vi.mock('@/lib/auth', async (importOriginal) => {
 
 import { POST } from './route';
 import { getRefreshToken, AUTH_COOKIES } from '@/lib/auth';
+import { BACKGROUND_HEADER } from '@/lib/config';
 
 /**
  * Regression guard for PR #49 (fix/auth-layer): "refresh rotation persistence".
@@ -71,5 +72,37 @@ describe('POST /api/auth/refresh — rotation persistence', () => {
 
     expect(res.status).toBe(401);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * FLAG-073 — a refresh that a background poll triggered must reach the backend
+ * marked as background, or it extends the idle window (backend FLAG-625).
+ */
+describe('POST /api/auth/refresh — background marker', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function sentHeaders(req?: Request): Promise<Record<string, string>> {
+    vi.mocked(getRefreshToken).mockResolvedValue('a-refresh-token');
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ access: 'a', refresh: 'r' }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await POST(req);
+    return fetchMock.mock.calls[0][1].headers as Record<string, string>;
+  }
+
+  it('forwards it when the browser sent it', async () => {
+    const headers = await sentHeaders(
+      new Request('http://localhost/api/auth/refresh', { method: 'POST', headers: { [BACKGROUND_HEADER]: '1' } }),
+    );
+    expect(headers[BACKGROUND_HEADER]).toBe('1');
+  });
+
+  it('does not add it to an ordinary refresh', async () => {
+    const headers = await sentHeaders(new Request('http://localhost/api/auth/refresh', { method: 'POST' }));
+    expect(headers[BACKGROUND_HEADER]).toBeUndefined();
   });
 });
