@@ -18,7 +18,7 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **FLAG-071** — no em dashes in on-screen text (~170 lines; empty values show –), with a source-scanning guard test; backend half is FLAG-623 | `fix/flag-071-no-em-dashes` | ~26 files under `src/`, new `src/lib/no-em-dashes.test.ts`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-10-07 | 🟡 **In progress.** Claimed in this branch's first commit (FLAG-240 option (a)) |
+| @Bastoh | **FLAG-072** — Wards & Beds: Add ward, Edit and Delete (with the number of beds); pairs with backend FLAG-624 (only the org admin sets up wards, a nurse keeps a bed's status) | `fix/flag-072-ward-setup` | new `WardSetupPanel.tsx` + test, `OrgAdminDashboard.tsx`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-10-07 | 🟡 **In progress.** Claimed in this branch's first commit (FLAG-240 option (a)) |
 
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
