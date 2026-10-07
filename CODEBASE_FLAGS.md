@@ -2730,6 +2730,51 @@ Three findings from one note:
 
 ---
 
+### FLAG-073 — No dashboard refreshed on its own: a new request or check-in showed only after a reload
+**Severity:** P2 · **Area:** Data layer / all staff dashboards · **Owner:** @Bastoh · **Status:** 🟡 **FIX IN PR — `fix/flag-073-live-updates`, needs backend #262 (backend FLAG-625) live on `api-dev` first**
+**Found:** 2026-10-06, @Bastoh walking checklist builds 1–6: "no live refresh anywhere"
+
+Every list loaded once, when its page opened. A nurse's admission request, a patient checked in at
+reception or a death recorded on a ward reached the other person only when they reloaded.
+
+**Why not just a timer.** Every authenticated request counted as activity on the backend. A page that
+re-fetched on a timer would keep an unattended ward computer signed in forever and keep a doctor who
+walked away "on duty", which is exactly what `use-heartbeat.ts` (build 5 / FLAG-044) forbids. So the
+backend gained a **background** marker first (backend FLAG-625).
+
+**Fix.**
+- `src/hooks/use-live-updates.ts` (new), mounted once in `DashboardShell` for DOCTOR, NURSE,
+  RECEPTIONIST and ORGANIZATION_ADMIN: every 30s, while the tab is visible, `GET /auth/me/updates/`
+  (counts and a `changed_at`, no patient details). Polls again the moment a hidden tab is shown; does
+  not poll while hidden, or while the small-screen gate is up (FLAG-203: a gated device fetches nothing).
+- When `changed_at` moves, a context tick makes every mounted `useApi` / `usePaginatedList` /
+  `useAllPages` refetch **silently**: no loading skeleton, and a failure keeps the list on screen.
+- Every request the timer causes (the poll, the silent refetches, and any token refresh they trigger)
+  carries `X-HC-Background: 1` (`BACKGROUND_HEADER` in `config.ts`), forwarded by `/api/data` and
+  `/api/auth/refresh`. Ordinary requests are unchanged.
+- Sidebar badges from the counts: doctor Queue (waiting today) and Admissions (reviews: mine +
+  nobody's); nurse Admission Requests; reception Check-ins (waiting today); org admin Duplicate
+  Records (flagged) and Referrals (pending). Each count is defined on the backend exactly as that
+  page filters its list.
+
+**Behaviour change worth knowing:** an idle session in an open tab is now signed out (with the
+"inactivity" reason) within about 30s of hitting the 15-minute limit, instead of when the person next
+clicks. That is the idle rule doing its job; it also takes records off an unattended screen sooner.
+
+**Not done (deliberately):**
+- The header bell still shows nothing. The count is in the response (`unread_notifications`), but the
+  bell's dropdown has no list wired, and a number over an empty list is worse than no number.
+- `changed_at` is organisation-wide, so any change makes every open staff page refetch its lists once.
+  A few extra reads a minute at beta scale; split it per area if it ever matters.
+- Pages that fetch with `dataGet` directly (not through the hooks) do not refresh; they are panels
+  opened for one record, not lists.
+
+**Tests:** `src/hooks/use-live-updates.test.tsx` (9; the two background assertions were confirmed RED by
+removing the marker from the poll and from the silent refetch), `src/app/api/data/route.test.ts` (3),
+`src/app/api/auth/refresh/route.test.ts` (+2).
+
+---
+
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is

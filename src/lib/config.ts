@@ -56,6 +56,14 @@ export const TOKEN_KEYS = {
 } as const;
 
 // ── API endpoints ──────────────────────────────────────────────
+/**
+ * FLAG-073 / backend FLAG-625: request header marking a request the page made
+ * on its own (live-update polling), not a person. The backend does not count
+ * it as activity. Set by `client-api.ts`, forwarded by `/api/data` and
+ * `/api/auth/refresh`; see `dataGet`'s `background` option.
+ */
+export const BACKGROUND_HEADER = 'X-HC-Background';
+
 export const ENDPOINTS = {
   // ── Auth ──────────────────────────────────────────────────
   LOGIN: '/auth/login/',
@@ -98,6 +106,8 @@ export const ENDPOINTS = {
   EPISODES: '/episodes/',
   STAFF_NOTIFS: '/auth/me/notifications/',
   STAFF_UNREAD: '/auth/me/notifications/unread-count/',
+  // Counts only, no patient details; polled as a background request (FLAG-073).
+  STAFF_UPDATES: '/auth/me/updates/',
   STAFF_NOTIF_READ: (id: string) => `/auth/me/notifications/${id}/read/`,
 
   // ── Patient ────────────────────────────────────────────────

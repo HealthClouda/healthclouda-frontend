@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { dataGet, dataAction } from '@/lib/client-api';
+import { useLiveTick } from './use-live-updates';
 import type { Paginated } from '@/types/dashboard';
 
 export interface ApiState<T> {
@@ -29,6 +30,31 @@ export function useApi<T>(path: string | null): ApiState<T> {
   }, [path]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
+
+  // FLAG-073 — live updates. When the organisation's data changes, refetch in
+  // the background: no loading state (the list stays on screen instead of
+  // flashing a skeleton every 30s), and a failure keeps what is already shown
+  // rather than replacing it with an error nobody asked for. Marked background
+  // so it never counts as the person being active.
+  const tick = useLiveTick();
+  const lastTick = useRef(tick);
+  useEffect(() => {
+    if (tick === lastTick.current) return;
+    lastTick.current = tick;
+    if (!path) return;
+    let cancelled = false;
+    dataGet<T>(path, { background: true })
+      .then((fresh) => {
+        if (cancelled) return;
+        setData(fresh);
+        setError(null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [tick, path]);
+
   return { data, loading, error, refetch: fetchData };
 }
 
@@ -68,6 +94,18 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
 
   const refetch = useCallback(() => setReloads((n) => n + 1), []);
 
+  // FLAG-073 — a live update reloads silently (see `useApi`): no loading
+  // state, background-marked requests, and a failure keeps the current list.
+  const tick = useLiveTick();
+  const lastTick = useRef(tick);
+  const silent = useRef(false);
+  useEffect(() => {
+    if (tick === lastTick.current) return;
+    lastTick.current = tick;
+    silent.current = true;
+    setReloads((n) => n + 1);
+  }, [tick]);
+
   useEffect(() => {
     if (!endpoint) {
       setData(null);
@@ -75,12 +113,19 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
       return;
     }
     let cancelled = false;
+    const isSilent = silent.current;
+    silent.current = false;
+    const opts = isSilent ? { background: true } : undefined;
+    const get = (path: string) =>
+      opts ? dataGet<Paginated<T> | T[]>(path, opts) : dataGet<Paginated<T> | T[]>(path);
 
     void (async () => {
-      setLoading(true);
-      setError(null);
+      if (!isSilent) {
+        setLoading(true);
+        setError(null);
+      }
       try {
-        const first = await dataGet<Paginated<T> | T[]>(endpoint);
+        const first = await get(endpoint);
         if (cancelled) return;
 
         // Tolerate hand-rolled APIViews that return a bare array.
@@ -110,7 +155,7 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
         const sep = endpoint.includes('?') ? '&' : '?';
         const rest = await Promise.all(
           Array.from({ length: totalPages - 1 }, (_, i) =>
-            dataGet<Paginated<T> | T[]>(`${endpoint}${sep}page=${i + 2}`),
+            get(`${endpoint}${sep}page=${i + 2}`),
           ),
         );
         if (cancelled) return;
@@ -120,10 +165,10 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
           ...rest.flatMap((r) => (Array.isArray(r) ? r : r.results ?? [])),
         ]);
       } catch (e) {
-        if (cancelled) return;
+        if (cancelled || isSilent) return;
         setError(e instanceof Error ? e.message : 'Failed to load');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !isSilent) setLoading(false);
       }
     })();
 

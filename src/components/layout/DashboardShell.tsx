@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { SmallScreenGate } from './SmallScreenGate';
 import { useWideViewport } from '@/hooks/use-wide-viewport';
 import { useHeartbeat } from '@/hooks/use-heartbeat';
+import {
+  LIVE_UPDATE_ROLES,
+  LiveUpdatesContext,
+  useLiveUpdatesPoll,
+  withLiveBadges,
+} from '@/hooks/use-live-updates';
 import type { NavItem } from './Sidebar';
 import type { Notification } from './DashboardHeader';
 import type { User } from '@/types/auth';
@@ -58,12 +64,23 @@ export function DashboardShell({
   // the gate notice, and the heartbeat carries no PHI, so there is no reason
   // to tie it to whether the dashboard subtree itself mounts.
   useHeartbeat();
+  // FLAG-073 — live updates for staff dashboards: polls counts (no PHI) as a
+  // background request that never counts as activity, and hands the lists
+  // below a refetch signal through context. Counts become sidebar badges.
+  // Off while the small-screen gate is up: no dashboard is showing, and the
+  // gate's promise (FLAG-203) is that such a device fetches nothing at all.
+  const gated = !!smallScreenGateFor && viewport !== 'wide';
+  const live = useLiveUpdatesPoll(LIVE_UPDATE_ROLES.has(user.role) && !gated);
+  const liveNavItems = useMemo(
+    () => withLiveBadges(navItems, user.role, live.counts),
+    [navItems, user.role, live.counts],
+  );
 
   // FLAG-203 — the gate decides whether this subtree MOUNTS, not how it looks.
   // `children` are React elements the caller already built, but React does not
   // invoke a component (or run its hooks, or fire its fetches) until it is
   // actually rendered — so returning early here is what stops the PHI requests.
-  if (smallScreenGateFor && viewport !== 'wide') {
+  if (gated) {
     // `narrow` is a measured answer, so tell the user why. `unknown` is not: it
     // is the server render and the first paint, before anything has measured a
     // viewport. Showing "you need a bigger screen" to a desktop user for one
@@ -79,10 +96,11 @@ export function DashboardShell({
   }
 
   return (
+    <LiveUpdatesContext.Provider value={live}>
     <div className="h-screen">
       <div className="h-screen bg-page overflow-hidden flex">
         <Sidebar
-          navItems={navItems}
+          navItems={liveNavItems}
           activePage={activePage}
           onPageChange={(page) => {
             onPageChange(page);
@@ -109,5 +127,6 @@ export function DashboardShell({
         </div>
       </div>
     </div>
+    </LiveUpdatesContext.Provider>
   );
 }
