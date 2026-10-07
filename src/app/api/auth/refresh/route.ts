@@ -17,7 +17,7 @@ import { BACKGROUND_HEADER } from '@/lib/config';
  * navigations. Two copies of a rotate-and-blacklist call is exactly the kind of
  * drift that costs sessions, so there is one.
  */
-export async function POST(req?: Request) {
+export async function POST(req: Request) {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) {
     return NextResponse.json({ detail: 'No refresh token.' }, { status: 401 });
@@ -25,7 +25,7 @@ export async function POST(req?: Request) {
 
   // FLAG-073: forwarded so a refresh a background poll triggered is not
   // counted as activity by the backend (FLAG-625).
-  const background = req?.headers.get(BACKGROUND_HEADER) === '1';
+  const background = req.headers.get(BACKGROUND_HEADER) === '1';
   const outcome = await refreshSessionTokens(refreshToken, { background });
 
   if (!outcome.ok) {
