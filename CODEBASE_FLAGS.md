@@ -2738,11 +2738,20 @@ Normal practice (owner, 6 Oct): the hospital administrator sets up wards and bed
 **Fixed:**
 - **Add ward** on Wards & Beds, and **Edit** on each ward card, open `WardSetupPanel`: name, type
   (with "what kind?" when Other), patients (anyone / women only / men only) and number of beds.
-- Beds are created and numbered by the backend from that number. Lowering it removes free beds only,
-  and the backend's refusal is shown in the panel.
+- Beds are created and numbered by the backend from that number. Lowering it removes every bed nobody
+  is in (available, **reserved** and **under maintenance** alike), so the panel asks first ("This
+  removes N beds …"). An occupied bed makes the backend refuse, and its words are shown in the panel.
+- An emptied bed box is refused, never sent as 0 (`Number('')` is 0, which would have removed every
+  free bed). Save stays off until the ward has loaded, so a failed load can't save the previous
+  ward's values onto this one. Both found in review on #187 by @Qeeyat.
 - **Delete this ward**, behind a confirm step. A ward with a patient in any bed is refused, in the
   backend's words.
 - Backend FLAG-624 makes this the org admin's alone: a nurse keeps read access and a bed's status.
+
+**Backend gap (found in the same review, not fixable here):** a *refused* bed reduction still saves
+the rest of the PATCH. `WardViewSet.update` calls `serializer.save()` before it returns the 400, and
+`@transaction.atomic` only rolls back on an exception, so a rename sent with an impossible bed count
+is kept while the panel shows the refusal. Needs a backend fix (validate before saving, or raise).
 
 **Not in this PR:** rooms (private and VIP rooms with their own beds), naming beds one by one, and a
 screen for a nurse to mark a bed under maintenance. The API supports all three.
