@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { OrgAdminDashboard } from './OrgAdminDashboard';
 import type { User } from '@/types/auth';
+import { EMPTY_VALUE } from '@/lib/utils';
+
+/** Empty-value placeholders in a row: the current one, plus the old em dash. */
+const placeholders = (text: string | null | undefined) =>
+  text?.match(new RegExp(`[${EMPTY_VALUE}—]`, 'g'))?.length ?? 0;
 
 /**
  * A6 (sprint plan Tier 1) — remove the org-admin consent bypass.
@@ -225,7 +230,7 @@ describe('OrgAdmin — Staff invite', () => {
     expect(row).not.toBeNull();
     expect(row!.textContent).toContain('Ngozi Eze');
     // '–' is the empty-value placeholder; a row of them is the failure mode.
-    expect(row!.textContent?.match(/—/g)?.length ?? 0).toBeLessThan(2);
+    expect(placeholders(row!.textContent)).toBeLessThan(2);
     // ...and the em-dash count alone CANNOT see the Role column bug, because a
     // raw lowercase role is not an em dash. The fixture's role is 'nurse'
     // (lowercase, as this endpoint really returns it); the column must show the
@@ -301,7 +306,7 @@ describe('OrgAdmin — Patients list', () => {
     // box invited searching by it.
     expect(row!.textContent).toContain('HCL-CCBV02');
     expect(row!.textContent).toContain('08096197808');
-    expect(row!.textContent?.match(/—/g)?.length ?? 0).toBeLessThan(2);
+    expect(placeholders(row!.textContent)).toBeLessThan(2);
   });
 });
 

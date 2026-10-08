@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PatientDashboard } from './PatientDashboard';
 import { ENDPOINTS } from '@/lib/config';
+import { EMPTY_VALUE } from '@/lib/utils';
 import type { User } from '@/types/auth';
 
 /**
@@ -216,7 +217,7 @@ describe('FLAG-231 — overview stat tiles read fields the endpoint actually pub
 
     for (const label of ['Upcoming Appts', 'Active Episodes', 'Notifications']) {
       expect(tileValue(label), `tile "${label}" is bound to a field the API does not send`)
-        .not.toMatch(/^(—|NaN|undefined)$/);
+        .not.toMatch(new RegExp(`^(${EMPTY_VALUE}|—|NaN|undefined)$`));
     }
   });
 

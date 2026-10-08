@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAs, VIEWPORTS, type E2ERole } from './helpers';
+import { EMPTY_VALUE } from '../../src/lib/utils';
 
 /**
  * T5 design fidelity — DASH-2 Org Admin, DASH-3 Nurse, DASH-4 Receptionist,
@@ -218,7 +219,7 @@ async function assertTilesCarryValues(page: Page, tiles: readonly string[]): Pro
     await expect(value, `stat tile "${label}" should exist exactly once`).toHaveCount(1);
 
     const text = (await value.innerText()).trim();
-    if (text === '—' || /NaN|undefined/.test(text)) broken.push(`${label} → "${text}"`);
+    if (text === EMPTY_VALUE || text === '—' || /NaN|undefined/.test(text)) broken.push(`${label} → "${text}"`);
   }
 
   // Collected, not thrown per tile. Asserting inside the loop stops at the first

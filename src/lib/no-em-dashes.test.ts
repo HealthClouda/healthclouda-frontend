@@ -15,8 +15,6 @@ import { join } from 'node:path';
 const EXEMPT: Record<string, string> = {
   // A build-time error for developers (missing NEXT_PUBLIC_API_URL), never shown in the app.
   'src/lib/config.ts': 'developer-only build error',
-  // Rewritten by #185 (FLAG-070); drop this line once #185 is on develop.
-  'src/components/dashboard/DutyToggle.tsx': 'reworded in #185',
 };
 
 function sourceFiles(dir: string): string[] {
