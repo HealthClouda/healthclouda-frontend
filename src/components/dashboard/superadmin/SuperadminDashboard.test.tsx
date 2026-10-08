@@ -419,12 +419,13 @@ describe('FLAG-061 — Audit Logs show who, what and why', () => {
     const values = Array.from((select as HTMLSelectElement).options).map(o => o.value);
     // Re-review of #172: all 28 values the three backend writers produce
     // (AuditMiddleware's URL prefixes, the save signals + coverage table,
-    // and log_action callers), read from backend develop 4 Oct.
+    // and log_action callers), read from backend develop 4 Oct, plus 'Duty'
+    // (backend FLAG-622, 6 Oct).
     const ALL = [
       'Admission', 'AdmissionRequest', 'Appointment', 'Bed', 'BillingRecord', 'Episode', 'OrgAccessRequest',
       'Organization', 'Patient', 'PatientCheckIn', 'PatientConsent', 'Prescription', 'Referral', 'User', 'VitalsRecord',
       'Auth', 'Doctor', 'Episodes', 'Nurse', 'Organizations', 'Patients', 'Receptionist', 'Referrals', 'Superadmin', 'Ward',
-      'Action', 'PatientMerge', 'PatientMergeUndo',
+      'Action', 'Duty', 'PatientMerge', 'PatientMergeUndo',
     ];
     for (const v of ALL) expect(values).toContain(v);
     expect(values.filter(v => v !== '')).toHaveLength(ALL.length);

@@ -72,15 +72,25 @@ describe('DutyToggle — it is an OFF switch, not an on/off pair', () => {
     expect(apiActionMock).toHaveBeenCalledWith(expect.any(String), 'POST', { is_on_duty: true });
   });
 
-  it('label says "Back on duty" when overridden and "Go off duty" otherwise — never claims a state the click cannot guarantee', () => {
+  it('FLAG-070: the button says only what a click does: "Go on duty" when switched off, "Go off duty" otherwise', () => {
     const { rerender } = render(<DutyToggle isOnDuty={false} offDutyOverride={true} onChange={vi.fn()} />);
-    expect(screen.getByRole('button')).toHaveTextContent('Back on duty');
+    expect(screen.getByRole('button')).toHaveTextContent(/^Go on duty$/);
 
     rerender(<DutyToggle isOnDuty={true} offDutyOverride={false} onChange={vi.fn()} />);
-    expect(screen.getByRole('button')).toHaveTextContent('Go off duty');
+    expect(screen.getByRole('button')).toHaveTextContent(/^Go off duty$/);
 
     rerender(<DutyToggle isOnDuty={false} offDutyOverride={false} onChange={vi.fn()} />);
-    expect(screen.getByRole('button')).toHaveTextContent('Go off duty');
+    expect(screen.getByRole('button')).toHaveTextContent(/^Go off duty$/);
+  });
+
+  it('FLAG-070: the state is a separate badge, outside the button', () => {
+    const { rerender } = render(<DutyToggle isOnDuty={true} offDutyOverride={false} onChange={vi.fn()} />);
+    const badge = screen.getByText('On duty');
+    expect(screen.getByRole('button').contains(badge)).toBe(false);
+
+    rerender(<DutyToggle isOnDuty={false} offDutyOverride={true} onChange={vi.fn()} />);
+    expect(screen.getByText('Off duty')).toBeInTheDocument();
+    expect(screen.queryByText('On duty')).toBeNull();
   });
 });
 
@@ -99,5 +109,11 @@ describe('dutyBannerText — the three states a clinician reads', () => {
     const text = dutyBannerText({ isOnDuty: false, offDutyOverride: false });
     expect(text).toMatch(/off duty/i);
     expect(text).not.toMatch(/switched/i);
+  });
+
+  it('FLAG-070: no em dashes in any banner', () => {
+    for (const d of [{ isOnDuty: true, offDutyOverride: false }, { isOnDuty: false, offDutyOverride: true }, { isOnDuty: false, offDutyOverride: false }]) {
+      expect(dutyBannerText(d)).not.toContain('\u2014');
+    }
   });
 });

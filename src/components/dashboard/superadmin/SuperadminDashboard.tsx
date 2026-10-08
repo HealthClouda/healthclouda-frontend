@@ -801,7 +801,8 @@ const AUDIT_RESOURCE_GROUPS: { label: string; values: readonly string[] }[] = [
     label: 'API requests (including reads)',
     values: ['Auth', 'Doctor', 'Episodes', 'Nurse', 'Organizations', 'Patients', 'Receptionist', 'Referrals', 'Superadmin', 'Ward'],
   },
-  { label: 'Other actions', values: ['Action', 'PatientMerge', 'PatientMergeUndo'] },
+  // 'Duty': backend FLAG-622 (on/off duty, with the cause), written by log_action.
+  { label: 'Other actions', values: ['Action', 'Duty', 'PatientMerge', 'PatientMergeUndo'] },
 ];
 const FULL_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FULL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

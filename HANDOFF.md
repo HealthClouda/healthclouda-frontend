@@ -18,7 +18,8 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **FLAG-068** — the sidebar's account actions get their own row, so the name shows again (#178 squeezed it to 1px). Plus FLAG-067/069 logged, and the 5 Oct In Flight / Cross-Lane clear | `fix/flag-068-sidebar-account-row` | `src/components/layout/Sidebar.tsx`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-10-05 | 🟡 **In progress.** Claimed in this branch's first commit (FLAG-240 option (a)) |
+| @Bastoh | **FLAG-070** — duty badge + plain button (no more "Go off duty (On duty)"), no em dashes in duty text, `Duty` in the audit record types; pairs with backend FLAG-622 (sign-in = on duty, duty changes logged) | `fix/flag-070-duty-wording` | `src/components/dashboard/DutyToggle.tsx`, `SuperadminDashboard.tsx`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-10-06 | 🟡 **In progress.** Claimed in this branch's first commit (FLAG-240 option (a)) |
+| @Bastoh | **FLAG-622 (backend)** — signing in puts a doctor or nurse on duty; every duty change is an audit row | backend `fix/flag-622-duty-sign-in-and-log` | backend `apps/accounts/{duty,session,views}.py` + test | 2026-10-06 | 🟡 **In progress** (backend repo) |
 
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
@@ -32,6 +33,8 @@
 
 > ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
 > 🔴 **2026-09-04 — this stacking guidance has a cost nobody had measured: a stacked child gets NO CI.** `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`, and a base change on retarget fires an event type the workflow does not listen for. **#100, #117 and #119 all merged into `develop` without a single CI job ever running on them** — verified 2026-09-04. Keep stacking; it is still the right pattern. But see **FLAG-230**, and do not read "no checks reported" as "not yet".
+
+*Cleared on merge — **2026-10-06**: **#184** FLAG-068 sidebar account row (approved by @Qeeyat, merged by @Bastoh).*
 
 *Cleared on merge — **2026-10-05** (each approved by @Bastoh, CI green, merged by @Bastoh at his request): @Qeeyat's **#183** FLAG-250 layer 1 (logout sends the refresh token) · **#179** her 3–4 Oct session docs · **#180** FLAG-248 landing forms. Mine: **#182** session log 30 Sep–4 Oct, and backend **#252** (FLAG-069 / backend FLAG-621: signing out takes a doctor off duty at once, live on `api-dev`). FLAG-248 can now be marked ✅ by its owner.*
 
