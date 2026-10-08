@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Avatar } from '@/components/ui/Avatar';
 import { WardRotaPanel } from '@/components/dashboard/org-admin/WardRotaPanel';
+import { WardSetupPanel, type WardSetupTarget } from '@/components/dashboard/org-admin/WardSetupPanel';
 import { formatDate, roleLabel, splitName, truncate } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
@@ -302,12 +303,20 @@ function WardsPage() {
   const wardList = Array.isArray(wards) ? wards : wards?.results ?? [];
   // Build 6 / FLAG-046 — which ward's rota is open in the side panel.
   const [rotaFor, setRotaFor] = useState<{ id: string; name: string } | null>(null);
+  // FLAG-072: add, edit or delete a ward (and so its beds).
+  const [setupFor, setSetupFor] = useState<WardSetupTarget | null>(null);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="font-body font-black text-[22px] text-ink">Wards & Beds</h2>
-        <p className="text-[13px] text-text-soft mt-0.5">Occupancy across every ward at this organisation</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-body font-black text-[22px] text-ink">Wards & Beds</h2>
+          <p className="text-[13px] text-text-soft mt-0.5">Occupancy across every ward at this organisation</p>
+        </div>
+        <Button onClick={() => setSetupFor({ kind: 'add' })} className="gap-1.5">
+          <PlusIcon />
+          Add ward
+        </Button>
       </div>
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -316,7 +325,7 @@ function WardsPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={refetch} />
       ) : !wardList.length ? (
-        <EmptyState title="No wards" description="No wards have been configured for this organisation." />
+        <EmptyState title="No wards yet" description="Add the first ward with the Add ward button. Its beds are created and numbered for you." />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {wardList.map((ward) => {
@@ -348,13 +357,23 @@ function WardsPage() {
 
                 {/* Build 6 / FLAG-046 — plan/edit which nurses are rostered
                     on this ward and who is in charge. */}
-                <button
-                  type="button"
-                  onClick={() => setRotaFor({ id: ward.id, name: ward.name })}
-                  className="mt-3 pt-3 border-t border-border w-full text-left text-[11.5px] font-semibold text-primary hover:underline"
-                >
-                  Manage rota
-                </button>
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRotaFor({ id: ward.id, name: ward.name })}
+                    className="text-[11.5px] font-semibold text-primary hover:underline"
+                  >
+                    Manage rota
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSetupFor({ kind: 'edit', id: ward.id, name: ward.name })}
+                    aria-label={`Edit ${ward.name}`}
+                    className="text-[11.5px] font-semibold text-text-soft hover:text-ink hover:underline"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -362,6 +381,7 @@ function WardsPage() {
       )}
 
       <WardRotaPanel ward={rotaFor} onClose={() => setRotaFor(null)} />
+      <WardSetupPanel target={setupFor} onClose={() => setSetupFor(null)} onSaved={refetch} />
     </div>
   );
 }

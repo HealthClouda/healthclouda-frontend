@@ -2727,6 +2727,34 @@ Three findings from one note:
    with the reason and the cause: sign-in, sign-out or the switch). Backend FLAG-622. `Duty` is added
    to the superadmin record-type list (FLAG-064 keeps that list by hand). Going off duty by being idle
    is not logged, because nothing happens at that moment to log.
+### FLAG-072 — No screen to set up wards: nobody could add, edit or delete a ward in the browser
+**Severity:** P2 · **Area:** Org Admin / Wards & Beds · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it, with backend FLAG-624**
+**Found:** 2026-10-06, @Bastoh walking checklist build 6 step 1: "there's no interface to add wards …
+we should follow normal practice"
+
+Wards & Beds only listed wards and managed their rota. Wards existed only because they were seeded.
+Normal practice (owner, 6 Oct): the hospital administrator sets up wards and beds; nurses run them.
+
+**Fixed:**
+- **Add ward** on Wards & Beds, and **Edit** on each ward card, open `WardSetupPanel`: name, type
+  (with "what kind?" when Other), patients (anyone / women only / men only) and number of beds.
+- Beds are created and numbered by the backend from that number. Lowering it removes every bed nobody
+  is in (available, **reserved** and **under maintenance** alike), so the panel asks first ("This
+  removes N beds …"). An occupied bed makes the backend refuse, and its words are shown in the panel.
+- An emptied bed box is refused, never sent as 0 (`Number('')` is 0, which would have removed every
+  free bed). Save stays off until the ward has loaded, so a failed load can't save the previous
+  ward's values onto this one. Both found in review on #187 by @Qeeyat.
+- **Delete this ward**, behind a confirm step. A ward with a patient in any bed is refused, in the
+  backend's words.
+- Backend FLAG-624 makes this the org admin's alone: a nurse keeps read access and a bed's status.
+
+**Backend gap (found in the same review, not fixable here):** a *refused* bed reduction still saves
+the rest of the PATCH. `WardViewSet.update` calls `serializer.save()` before it returns the 400, and
+`@transaction.atomic` only rolls back on an exception, so a rename sent with an impossible bed count
+is kept while the panel shows the refusal. Needs a backend fix (validate before saving, or raise).
+
+**Not in this PR:** rooms (private and VIP rooms with their own beds), naming beds one by one, and a
+screen for a nurse to mark a bed under maintenance. The API supports all three.
 
 ---
 
