@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, screen, act } from '@testing-library/react';
 import { useLiveUpdatesPoll, LiveUpdatesContext, LIVE_POLL_MS, withLiveBadges } from './use-live-updates';
-import { useApi } from './use-api';
+import { useApi, useAllPages } from './use-api';
 import { BACKGROUND_HEADER, ENDPOINTS } from '@/lib/config';
 import type { NavItem } from '@/components/layout/Sidebar';
 
@@ -186,5 +186,83 @@ describe('withLiveBadges', () => {
     const items: NavItem[] = [{ id: 'queue', label: 'Queue', icon: null, badge: 9 }];
     expect(withLiveBadges(items, 'DOCTOR', { queue_waiting: 1 })[0].badge).toBe(9);
     expect(withLiveBadges(nav(['overview']), 'PATIENT', {})).toEqual(nav(['overview']));
+  });
+});
+
+/**
+ * #188 review (Qeeyat): races between a live tick and an ordinary load.
+ * Each was found with a probe against the first version of this PR.
+ */
+describe('live ticks racing ordinary loads', () => {
+  function deferred<T>() {
+    let resolve!: (v: T) => void;
+    let reject!: (e: unknown) => void;
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  }
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  function respond(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), { status });
+  }
+
+  it('useAllPages: a tick during the first load still ends with loading cleared', async () => {
+    const pending: ReturnType<typeof deferred<Response>>[] = [];
+    vi.stubGlobal('fetch', vi.fn(() => {
+      const d = deferred<Response>();
+      pending.push(d);
+      return d.promise;
+    }));
+
+    function AllPages() {
+      const { data, loading } = useAllPages<{ id: string }>('/x/');
+      return <p data-testid="all">{loading ? 'LOADING' : 'READY'} {JSON.stringify(data)}</p>;
+    }
+    const { rerender } = render(
+      <LiveUpdatesContext.Provider value={{ tick: 0, counts: {}, unreadNotifications: 0 }}><AllPages /></LiveUpdatesContext.Provider>,
+    );
+    await act(async () => {});
+    rerender(
+      <LiveUpdatesContext.Provider value={{ tick: 1, counts: {}, unreadNotifications: 0 }}><AllPages /></LiveUpdatesContext.Provider>,
+    );
+    await act(async () => {});
+    // Resolve every request made so far (the cancelled first load and its replacement).
+    await act(async () => {
+      for (const d of pending) d.resolve(respond({ count: 1, next: null, previous: null, results: [{ id: 'fresh' }] }));
+    });
+
+    expect(screen.getByTestId('all').textContent).toBe('READY [{"id":"fresh"}]');
+  });
+
+  it('useApi: a background refetch that lands after a newer ordinary load is ignored', async () => {
+    const pending: { url: string; d: ReturnType<typeof deferred<Response>> }[] = [];
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      const d = deferred<Response>();
+      pending.push({ url, d });
+      return d.promise;
+    }));
+
+    let refetch: () => void = () => {};
+    function One() {
+      const state = useApi<{ v: string }>('/y/');
+      refetch = state.refetch;
+      return <p data-testid="one">{state.data?.v ?? '-'}</p>;
+    }
+    const wrap = (tick: number) => (
+      <LiveUpdatesContext.Provider value={{ tick, counts: {}, unreadNotifications: 0 }}><One /></LiveUpdatesContext.Provider>
+    );
+    const { rerender } = render(wrap(0));
+    await act(async () => { pending[0].d.resolve(respond({ v: 'first' })); });
+
+    rerender(wrap(1)); // background refetch starts: pending[1]
+    await act(async () => { refetch(); }); // the person saves and refetches: pending[2]
+    await act(async () => { pending[2].d.resolve(respond({ v: 'after-save' })); });
+    await act(async () => { pending[1].d.resolve(respond({ v: 'stale-before-save' })); });
+
+    expect(screen.getByTestId('one').textContent).toBe('after-save');
   });
 });

@@ -16,16 +16,24 @@ export function useApi<T>(path: string | null): ApiState<T> {
   const [loading, setLoading] = useState(!!path);
   const [error, setError] = useState<string | null>(null);
 
+  // FLAG-073 (#188 review): counts the loads a person or the page asked for.
+  // A load only lands if no newer one has started since, so a background
+  // refetch already in flight when someone saves and refetches can never put
+  // the pre-save snapshot back on screen.
+  const foregroundSeq = useRef(0);
+
   const fetchData = useCallback(async () => {
+    const seq = ++foregroundSeq.current;
     if (!path) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
-      setData(await dataGet<T>(path));
+      const fresh = await dataGet<T>(path);
+      if (seq === foregroundSeq.current) setData(fresh);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
+      if (seq === foregroundSeq.current) setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
-      setLoading(false);
+      if (seq === foregroundSeq.current) setLoading(false);
     }
   }, [path]);
 
@@ -43,9 +51,11 @@ export function useApi<T>(path: string | null): ApiState<T> {
     lastTick.current = tick;
     if (!path) return;
     let cancelled = false;
+    const startedAfter = foregroundSeq.current;
     dataGet<T>(path, { background: true })
       .then((fresh) => {
-        if (cancelled) return;
+        // Superseded: an ordinary load started after this one did.
+        if (cancelled || foregroundSeq.current !== startedAfter) return;
         setData(fresh);
         setError(null);
       })
@@ -92,13 +102,23 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
   const [error, setError] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
 
-  const refetch = useCallback(() => setReloads((n) => n + 1), []);
+  // FLAG-073 (#188 review): a person's refetch is never run silently, even
+  // when a live tick lands in the same render; its error must show.
+  const forceForeground = useRef(false);
+  const refetch = useCallback(() => {
+    forceForeground.current = true;
+    setReloads((n) => n + 1);
+  }, []);
 
   // FLAG-073 — a live update reloads silently (see `useApi`): no loading
   // state, background-marked requests, and a failure keeps the current list.
   const tick = useLiveTick();
   const lastTick = useRef(tick);
   const silent = useRef(false);
+  // True while an ordinary (loading-state) load is in flight. A live tick that
+  // cancels one must finish its job and clear `loading`, or the page sits on
+  // its skeleton for good (#188 review: every later tick is silent too).
+  const foregroundPending = useRef(false);
   useEffect(() => {
     if (tick === lastTick.current) return;
     lastTick.current = tick;
@@ -108,13 +128,16 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
 
   useEffect(() => {
     if (!endpoint) {
+      foregroundPending.current = false;
       setData(null);
       setLoading(false);
       return;
     }
     let cancelled = false;
-    const isSilent = silent.current;
+    const isSilent = silent.current && !forceForeground.current && !foregroundPending.current;
     silent.current = false;
+    forceForeground.current = false;
+    if (!isSilent) foregroundPending.current = true;
     const opts = isSilent ? { background: true } : undefined;
     const get = (path: string) =>
       opts ? dataGet<Paginated<T> | T[]>(path, opts) : dataGet<Paginated<T> | T[]>(path);
@@ -168,7 +191,10 @@ export function useAllPages<T>(endpoint: string | null, maxPages = 50): ApiState
         if (cancelled || isSilent) return;
         setError(e instanceof Error ? e.message : 'Failed to load');
       } finally {
-        if (!cancelled && !isSilent) setLoading(false);
+        if (!cancelled && !isSilent) {
+          foregroundPending.current = false;
+          setLoading(false);
+        }
       }
     })();
 
