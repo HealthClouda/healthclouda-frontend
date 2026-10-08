@@ -135,8 +135,56 @@ describe('FLAG-072 — edit and delete a ward', () => {
     await waitFor(() => expect((document.getElementById('ward-total-beds') as HTMLInputElement).value).toBe('6'));
     change('ward-total-beds', '2');
     fireEvent.click(screen.getByRole('button', { name: 'Save ward' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Confirm removing beds' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Remove 4 beds' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(msg);
+  });
+
+  // #187 review: Number('') is 0, so an emptied box went out as total_beds: 0
+  // and the backend removed every bed nobody was in.
+  it('an emptied bed box is refused, never sent as 0', async () => {
+    render(<WardSetupPanel target={{ kind: 'edit', id: 'w1', name: 'General Ward' }} onClose={vi.fn()} onSaved={vi.fn()} />);
+    await waitFor(() => expect((document.getElementById('ward-total-beds') as HTMLInputElement).value).toBe('6'));
+    change('ward-total-beds', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Save ward' }));
+
+    expect(await screen.findByText('Enter a whole number from 0 to 200.')).toBeInTheDocument();
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+
+  it('lowering the bed count asks first, saying how many beds go', async () => {
+    dataActionMock.mockResolvedValue(WARD);
+    render(<WardSetupPanel target={{ kind: 'edit', id: 'w1', name: 'General Ward' }} onClose={vi.fn()} onSaved={vi.fn()} />);
+    await waitFor(() => expect((document.getElementById('ward-total-beds') as HTMLInputElement).value).toBe('6'));
+    change('ward-total-beds', '5');
+    fireEvent.click(screen.getByRole('button', { name: 'Save ward' }));
+
+    const confirm = screen.getByRole('alertdialog', { name: 'Confirm removing beds' });
+    expect(confirm).toHaveTextContent('This removes 1 bed from General Ward, including any that are reserved or under maintenance.');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Keep them' }));
+    expect(dataActionMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save ward' }));
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Confirm removing beds' })).getByRole('button', { name: 'Remove 1 bed' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith(ENDPOINTS.WARD('w1'), 'PATCH', expect.objectContaining({ total_beds: 5 })));
+  });
+
+  // #187 review: after a failed load the form still held the PREVIOUS ward,
+  // and Save sent its name, type, gender and bed count onto this one.
+  it('a ward that fails to load cannot be saved, and never shows the previous ward', async () => {
+    const { rerender } = render(<WardSetupPanel target={{ kind: 'edit', id: 'w1', name: 'General Ward' }} onClose={vi.fn()} onSaved={vi.fn()} />);
+    await screen.findByDisplayValue('General Ward');
+
+    dataGetMock.mockRejectedValueOnce(new Error('Network down'));
+    rerender(<WardSetupPanel target={{ kind: 'edit', id: 'w2', name: 'Children' }} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network down');
+    expect(screen.queryByDisplayValue('General Ward')).toBeNull();
+    const save = screen.getByRole('button', { name: 'Save ward' });
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(dataActionMock).not.toHaveBeenCalled();
   });
 
   it('deletes only after a confirm step, and shows a refusal if a bed is occupied', async () => {

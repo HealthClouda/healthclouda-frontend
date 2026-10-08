@@ -19,7 +19,8 @@ import { useToast } from '@/store/toast';
  * `POST /ward/` and `PATCH /ward/<id>/` take {name, category, category_other,
  * gender, total_beds}. `total_beds` drives the beds themselves: creating a ward
  * numbers that many beds (e.g. "CH-001"), raising it adds more, and lowering it
- * removes free beds only (an occupied bed refuses with 400 {error}).
+ * removes beds nobody is in: AVAILABLE, MAINTENANCE and RESERVED alike (an
+ * occupied bed refuses with 400 {error}). So a lower count is confirmed first.
  * `DELETE /ward/<id>/` refuses while any bed is occupied. The name is unique
  * per organisation (details.name).
  */
@@ -82,14 +83,21 @@ export function WardSetupPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<{ field: Field | null; message: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Edit only: the bed count the ward had when it loaded, or null until it has
+  // loaded. Save stays off until then (#187 review): a failed load must never
+  // leave the previous ward's values in the form, ready to be saved onto this one.
+  const [loadedBeds, setLoadedBeds] = useState<number | null>(null);
+  const [confirmFewer, setConfirmFewer] = useState(false);
 
   const editingId = target?.kind === 'edit' ? target.id : null;
 
   useEffect(() => {
     setError(null);
     setConfirmDelete(false);
-    if (!target) return;
-    if (target.kind === 'add') { setForm(EMPTY); return; }
+    setConfirmFewer(false);
+    setLoadedBeds(null);
+    setForm(EMPTY);
+    if (!target || target.kind === 'add') return;
     let cancelled = false;
     setLoadingWard(true);
     dataGet<{ name: string; category?: string; category_other?: string; gender?: string; total_beds?: number }>(ENDPOINTS.WARD(target.id))
@@ -102,6 +110,7 @@ export function WardSetupPanel({
           gender: w.gender ?? 'O',
           total_beds: String(w.total_beds ?? 0),
         });
+        setLoadedBeds(w.total_beds ?? 0);
       })
       .catch((err) => { if (!cancelled) setError(readError(err)); })
       .finally(() => { if (!cancelled) setLoadingWard(false); });
@@ -111,17 +120,25 @@ export function WardSetupPanel({
   function set<K extends Field>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
     if (error?.field === key) setError(null);
+    if (key === 'total_beds') setConfirmFewer(false);
   }
 
+  // Number('') is 0, so an emptied box must be caught before it is read as
+  // "no beds": on Edit that would delete every free bed (#187 review).
+  const bedsBlank = form.total_beds.trim() === '';
   const beds = Number(form.total_beds);
   const localError: { field: Field; message: string } | null =
     !form.name.trim() ? { field: 'name', message: 'Give the ward a name.' }
       : form.category === 'OTHER' && !form.category_other.trim() ? { field: 'category_other', message: 'Say what kind of ward this is.' }
-        : !Number.isInteger(beds) || beds < 0 || beds > MAX_BEDS ? { field: 'total_beds', message: `Enter a whole number from 0 to ${MAX_BEDS}.` }
+        : bedsBlank || !Number.isInteger(beds) || beds < 0 || beds > MAX_BEDS ? { field: 'total_beds', message: `Enter a whole number from 0 to ${MAX_BEDS}.` }
           : null;
+  const editReady = !editingId || loadedBeds !== null;
+  const removing = editingId && loadedBeds !== null && !localError && beds < loadedBeds ? loadedBeds - beds : 0;
 
   async function save() {
+    if (!editReady) return;
     if (localError) { setError(localError); return; }
+    if (removing > 0 && !confirmFewer) { setConfirmFewer(true); return; }
     setSaving(true);
     setError(null);
     const body = {
@@ -177,7 +194,7 @@ export function WardSetupPanel({
       footer={
         <>
           <Button variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button className="flex-1" onClick={() => void save()} loading={saving} disabled={loadingWard}>
+          <Button className="flex-1" onClick={() => void save()} loading={saving} disabled={loadingWard || !editReady}>
             {editingId ? 'Save ward' : 'Add ward'}
           </Button>
         </>
@@ -185,6 +202,10 @@ export function WardSetupPanel({
     >
       {loadingWard ? (
         <p className="text-sm text-text-soft">Loading the ward…</p>
+      ) : !editReady ? (
+        <p role="alert" className="text-xs font-semibold text-danger bg-danger-bg rounded-lg px-3 py-2.5">
+          {error?.message ?? 'Could not load the ward.'} Close this panel and try again.
+        </p>
       ) : (
         <>
           {error && error.field === null && (
@@ -217,9 +238,22 @@ export function WardSetupPanel({
               className={formInputClass} value={form.total_beds}
               onChange={(e) => set('total_beds', e.target.value)} aria-invalid={error?.field === 'total_beds' || undefined} />
             <span className="text-[11px] text-text-soft">
-              Beds are numbered for you. Lowering the number removes free beds only; a bed with a patient in it stays.
+              Beds are numbered for you. Lowering the number removes beds nobody is in, including reserved and under-maintenance beds. A bed with a patient in it stays.
             </span>
             {fieldError('total_beds')}
+            {confirmFewer && removing > 0 && (
+              <div role="alertdialog" aria-label="Confirm removing beds" className="mt-2 rounded-lg bg-warning-bg px-3 py-3 space-y-2">
+                <p className="text-xs text-ink">
+                  This removes {removing} {removing === 1 ? 'bed' : 'beds'} from {form.name || 'this ward'}, including any that are reserved or under maintenance.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setConfirmFewer(false)} disabled={saving}>Keep them</Button>
+                  <Button variant="danger" onClick={() => void save()} loading={saving}>
+                    Remove {removing} {removing === 1 ? 'bed' : 'beds'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </FormField>
 
           {editingId && (
@@ -232,7 +266,7 @@ export function WardSetupPanel({
               ) : (
                 <div role="alertdialog" aria-label="Confirm deleting the ward" className="rounded-lg bg-danger-bg px-3 py-3 space-y-2">
                   <p className="text-xs text-ink">
-                    Delete {form.name || 'this ward'} and all its free beds? A ward with a patient in any bed can&apos;t be deleted.
+                    Delete {form.name || 'this ward'} and all its beds, including reserved and under-maintenance ones? A ward with a patient in any bed can&apos;t be deleted.
                   </p>
                   <div className="flex gap-2">
                     <Button variant="secondary" onClick={() => setConfirmDelete(false)} disabled={saving}>Keep it</Button>
