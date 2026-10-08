@@ -16,8 +16,21 @@
  * must never call fetch() directly.
  */
 
+import { BACKGROUND_HEADER } from './config';
 import { changePasswordPath, getOrgSlugFromPathname } from './router';
 import { sessionExpiryCodeFrom, SESSION_EXPIRY_REASON, type SessionExpiryCode } from './session-expiry-code';
+
+// ── Background requests (FLAG-073) ─────────────────────────────
+/**
+ * Marks a request the page makes on its own (live-update polling and the
+ * silent refetch it triggers), not because a person did something. The
+ * backend (FLAG-625) still refuses an expired session, but does NOT count a
+ * marked request as activity: it never extends the 15-minute idle window or
+ * keeps a doctor on duty. Without it, an unattended tab that polls would keep
+ * itself signed in forever, which is exactly what `use-heartbeat.ts` forbids.
+ * Our proxy routes forward it; the browser never talks to the backend.
+ */
+const BACKGROUND_HEADERS: Record<string, string> = { [BACKGROUND_HEADER]: '1' };
 
 // ── Single-flight session refresh ──────────────────────────────
 type RefreshResult = { ok: true } | { ok: false; code?: SessionExpiryCode };
@@ -29,8 +42,14 @@ let refreshInFlight: Promise<RefreshResult> | null = null;
  * backend rotates and blacklists refresh tokens, so two in-flight refreshes
  * race and one of them logs the user out.
  */
-export function refreshSession(): Promise<RefreshResult> {
-  refreshInFlight ??= fetch('/api/auth/refresh', { method: 'POST' })
+export function refreshSession(opts?: { background?: boolean }): Promise<RefreshResult> {
+  // A refresh started by a background request is not activity either. If a
+  // person's request joins it while it is in flight, that request is itself
+  // activity when it is retried, so nothing is lost.
+  refreshInFlight ??= fetch('/api/auth/refresh', {
+    method: 'POST',
+    ...(opts?.background ? { headers: BACKGROUND_HEADERS } : {}),
+  })
     .then(async (r): Promise<RefreshResult> => {
       if (r.ok) return { ok: true };
       const body = await r.json().catch(() => null);
@@ -76,7 +95,7 @@ export async function endSessionAndRedirect(code: SessionExpiryCode): Promise<vo
 }
 
 // ── Core fetch with 401 → refresh → retry ──────────────────────
-async function proxyFetch(input: string, init?: RequestInit): Promise<Response> {
+async function proxyFetch(input: string, init?: RequestInit, background = false): Promise<Response> {
   let res = await fetch(input, init);
   // FLAG-611: flagged `force_password_change` mid-session (an administrator
   // set a temporary password). Every call but change-password now 403s with
@@ -98,7 +117,7 @@ async function proxyFetch(input: string, init?: RequestInit): Promise<Response> 
     return res;
   }
 
-  const refreshed = await refreshSession();
+  const refreshed = await refreshSession({ background });
   if (!refreshed.ok) {
     if (refreshed.code) {
       void endSessionAndRedirect(refreshed.code);
@@ -139,9 +158,17 @@ function errorMessage(status: number, data: unknown): string {
 
 // ── Public API ─────────────────────────────────────────────────
 
-/** Authenticated GET of a backend path (e.g. ENDPOINTS.REC_CHECK_INS). */
-export async function dataGet<T = unknown>(path: string): Promise<T> {
-  const res = await proxyFetch(`/api/data?path=${encodeURIComponent(path)}`);
+/**
+ * Authenticated GET of a backend path (e.g. ENDPOINTS.REC_CHECK_INS).
+ * `background: true` only for requests no person asked for (see BACKGROUND_HEADER).
+ */
+export async function dataGet<T = unknown>(path: string, opts?: { background?: boolean }): Promise<T> {
+  const background = !!opts?.background;
+  const res = await proxyFetch(
+    `/api/data?path=${encodeURIComponent(path)}`,
+    background ? { headers: BACKGROUND_HEADERS } : undefined,
+    background,
+  );
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ClientApiError(res.status, data, errorMessage(res.status, data));
   return data as T;
