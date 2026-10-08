@@ -65,7 +65,7 @@ export function PasswordStrengthMeter({ password }: Props) {
     missing.length <= 1
       ? missing.join('')
       : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
-  const helper = score === 4 ? 'Strong password' : `${label} — add ${missingText}`;
+  const helper = score === 4 ? 'Strong password' : `${label}: add ${missingText}`;
 
   return (
     <div>

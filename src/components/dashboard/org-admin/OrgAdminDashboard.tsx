@@ -63,9 +63,9 @@ function OverviewPage({ stats, onNavigate }: { stats: OrgAdminStats | null; onNa
   const pending = accessData?.results ?? [];
 
   const columns: DataTableColumn<AccessRequest>[] = [
-    { key: 'patient', header: 'Patient', render: (ar) => <span className="text-[13px] font-semibold text-ink">{ar.patient_name ?? (ar.patient ? `${ar.patient.first_name} ${ar.patient.last_name}` : '—')}</span> },
-    { key: 'by', header: 'Requested By', render: (ar) => <span className="text-xs text-text-soft">{ar.staff_name ?? '—'}</span> },
-    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: (ar) => <span className="text-xs text-text-soft">{truncate(ar.reason ?? '—', 50)}</span> },
+    { key: 'patient', header: 'Patient', render: (ar) => <span className="text-[13px] font-semibold text-ink">{ar.patient_name ?? (ar.patient ? `${ar.patient.first_name} ${ar.patient.last_name}` : '–')}</span> },
+    { key: 'by', header: 'Requested By', render: (ar) => <span className="text-xs text-text-soft">{ar.staff_name ?? '–'}</span> },
+    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: (ar) => <span className="text-xs text-text-soft">{truncate(ar.reason ?? '–', 50)}</span> },
     { key: 'date', header: 'Date', className: 'whitespace-nowrap', render: (ar) => <span className="text-xs text-text-soft">{formatDate(ar.created_at)}</span> },
     { key: 'status', header: 'Status', render: (ar) => <StatusBadge status={ar.status} /> },
   ];
@@ -74,7 +74,7 @@ function OverviewPage({ stats, onNavigate }: { stats: OrgAdminStats | null; onNa
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Fields captured live 2026-08-19. `total_patients` and
-            `active_episodes` were not in the payload and rendered '—' on every
+            `active_episodes` were not in the payload and rendered '–' on every
             load; `bed_occupancy` arrives as the string "2/7". */}
         <StatCard loading={!stats} label="Total Staff" value={stats?.total_staff} icon={<UsersIcon />} color="purple" />
         <StatCard loading={!stats} label="Active Patients" value={stats?.active_patients} icon={<UserIcon />} color="blue" />
@@ -163,9 +163,9 @@ function StaffPage() {
     { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.is_active ? 'ACTIVE' : 'INACTIVE'} /> },
     // Was: Duty (`is_on_duty`) and Joined (`date_joined`). Neither field is on
     // /org-admin/staff/, so Duty rendered nothing at all and Joined rendered
-    // '—' on every row. Replaced with `phone`, which the endpoint does return.
+    // '–' on every row. Replaced with `phone`, which the endpoint does return.
     // If on-duty status is wanted here it needs an `api-request`, not a column.
-    { key: 'phone', header: 'Phone', render: (s) => <span className="text-xs text-text-soft">{s.phone ?? '—'}</span> },
+    { key: 'phone', header: 'Phone', render: (s) => <span className="text-xs text-text-soft">{s.phone ?? '–'}</span> },
   ];
 
   return (
@@ -250,7 +250,7 @@ function PatientsPage() {
   // Columns match the CAPTURED payload (2026-08-19). The previous set was typed
   // as PatientSummary — the /doctor/patients/ shape — and read first_name,
   // last_name, email, phone_number, date_of_birth and created_at, none of which
-  // this endpoint returns. All 14 rows rendered blank names and '—' columns.
+  // this endpoint returns. All 14 rows rendered blank names and '–' columns.
   // healthclouda_id in particular was being returned and never shown, while the
   // search box invited people to search by it.
   const columns: DataTableColumn<OrgPatientSummary>[] = [
@@ -263,10 +263,10 @@ function PatientsPage() {
         </div>
       </div>
     ) },
-    { key: 'gender', header: 'Gender', render: (p) => <span className="text-xs text-text-soft">{p.gender ?? '—'}</span> },
-    { key: 'phone', header: 'Phone', render: (p) => <span className="text-xs text-text-soft">{p.phone ?? '—'}</span> },
-    { key: 'last_visit', header: 'Last Visit', className: 'whitespace-nowrap', render: (p) => <span className="text-xs text-text-soft">{p.last_visit ? formatDate(p.last_visit) : '—'}</span> },
-    { key: 'status', header: 'Status', render: (p) => (p.status ? <StatusBadge status={p.status} /> : <span className="text-xs text-text-soft">—</span>) },
+    { key: 'gender', header: 'Gender', render: (p) => <span className="text-xs text-text-soft">{p.gender ?? '–'}</span> },
+    { key: 'phone', header: 'Phone', render: (p) => <span className="text-xs text-text-soft">{p.phone ?? '–'}</span> },
+    { key: 'last_visit', header: 'Last Visit', className: 'whitespace-nowrap', render: (p) => <span className="text-xs text-text-soft">{p.last_visit ? formatDate(p.last_visit) : '–'}</span> },
+    { key: 'status', header: 'Status', render: (p) => (p.status ? <StatusBadge status={p.status} /> : <span className="text-xs text-text-soft">–</span>) },
   ];
 
   return (
@@ -381,9 +381,9 @@ function AccessRequestsPage() {
     usePaginatedList<AccessRequest>(endpoint);
 
   const columns: DataTableColumn<AccessRequest>[] = [
-    { key: 'patient', header: 'Patient', render: (ar) => <span className="text-[13px] font-semibold text-ink">{ar.patient_name ?? (ar.patient ? `${ar.patient.first_name} ${ar.patient.last_name}` : '—')}</span> },
-    { key: 'by', header: 'Requested By', render: (ar) => <span className="text-xs text-text-soft">{ar.staff_name ?? '—'}</span> },
-    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: (ar) => <span className="text-xs text-text-soft">{truncate(ar.reason ?? '—', 50)}</span> },
+    { key: 'patient', header: 'Patient', render: (ar) => <span className="text-[13px] font-semibold text-ink">{ar.patient_name ?? (ar.patient ? `${ar.patient.first_name} ${ar.patient.last_name}` : '–')}</span> },
+    { key: 'by', header: 'Requested By', render: (ar) => <span className="text-xs text-text-soft">{ar.staff_name ?? '–'}</span> },
+    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: (ar) => <span className="text-xs text-text-soft">{truncate(ar.reason ?? '–', 50)}</span> },
     { key: 'date', header: 'Date', className: 'whitespace-nowrap', render: (ar) => <span className="text-xs text-text-soft">{formatDate(ar.created_at)}</span> },
     { key: 'status', header: 'Status', render: (ar) => <StatusBadge status={ar.status} /> },
   ];
@@ -509,7 +509,7 @@ function ReferralsPage() {
       key: 'from', header: 'Referred by',
       render: (r) => (
         <div>
-          <div className="text-xs text-ink">{r.from_organization?.name ?? '—'}</div>
+          <div className="text-xs text-ink">{r.from_organization?.name ?? '–'}</div>
           {r.referring_doctor && (
             <div className="text-[11px] text-text-soft">
               Dr. {r.referring_doctor.full_name ?? `${r.referring_doctor.first_name} ${r.referring_doctor.last_name}`}
@@ -518,7 +518,7 @@ function ReferralsPage() {
         </div>
       ),
     },
-    { key: 'reason', header: 'Reason', render: (r) => <span className="text-xs text-text-soft">{truncate(r.reason ?? '—', 40)}</span> },
+    { key: 'reason', header: 'Reason', render: (r) => <span className="text-xs text-text-soft">{truncate(r.reason ?? '–', 40)}</span> },
     {
       key: 'urgency', header: 'Urgency',
       // urgency_display is prose ("Semi-Urgent - assessment within days to
@@ -526,7 +526,7 @@ function ReferralsPage() {
       // the full wording kept as the tooltip.
       render: (r) => (
         <span title={r.urgency_display} className="text-xs font-medium text-ink">
-          {r.urgency ? r.urgency.replace(/_/g, ' ').toLowerCase() : '—'}
+          {r.urgency ? r.urgency.replace(/_/g, ' ').toLowerCase() : '–'}
         </span>
       ),
     },
@@ -549,7 +549,7 @@ function ReferralsPage() {
             </button>
           </div>
         ) : (
-          <span className="text-[11.5px] text-text-soft block text-right">{r.status_display ?? '—'}</span>
+          <span className="text-[11.5px] text-text-soft block text-right">{r.status_display ?? '–'}</span>
         )
       ),
     },
@@ -563,7 +563,7 @@ function ReferralsPage() {
         <h2 className="text-base font-semibold text-ink">Incoming referrals</h2>
         <p className="text-sm text-text-soft mt-0.5">
           Referrals sent to this organisation. Accepting or declining is an organisation admin
-          decision — a doctor cannot respond on the organisation&apos;s behalf.
+          decision. A doctor cannot respond on the organisation&apos;s behalf.
         </p>
       </div>
 
@@ -743,13 +743,13 @@ function DuplicateRecordsPage() {
     try {
       if (action === 'confirm') {
         const res = (await apiAction(ENDPOINTS.PATIENT_MERGE_CONFIRM(merge.id), 'POST')) as PatientMergeRequest;
-        toast.success(`Records merged — ${rowsMovedSummary(res?.rows_moved)} moved to ${merge.survivor_name}`);
+        toast.success(`Records merged: ${rowsMovedSummary(res?.rows_moved)} moved to ${merge.survivor_name}`);
       } else if (action === 'reject') {
         await apiAction(ENDPOINTS.PATIENT_MERGE_REJECT(merge.id), 'POST', { resolution_note: note.trim() });
-        toast.success('Closed — recorded as two different people');
+        toast.success('Closed: recorded as two different people');
       } else {
         await apiAction(ENDPOINTS.PATIENT_MERGE_UNDO(merge.id), 'POST');
-        toast.success(`Merge reversed — ${merge.duplicate_name}'s record is visible again`);
+        toast.success(`Merge reversed. ${merge.duplicate_name}'s record is visible again.`);
       }
       setActing(null);
       refetch();
@@ -782,14 +782,14 @@ function DuplicateRecordsPage() {
         <div>
           {/* Direction matters and is not recoverable from two names side by
               side: one record is hidden and the other keeps its identity. */}
-          <div className="text-[13px] font-semibold text-ink">{m.survivor_name || '—'}</div>
+          <div className="text-[13px] font-semibold text-ink">{m.survivor_name || '–'}</div>
           <div className="text-[11px] text-text-soft">
-            absorbs <span className="font-medium">{m.duplicate_name || '—'}</span>
+            absorbs <span className="font-medium">{m.duplicate_name || '–'}</span>
           </div>
         </div>
       ),
     },
-    { key: 'reason', header: 'Why', className: 'max-w-xs', render: (m) => <span className="text-xs text-text-soft">{truncate(m.reason || '—', 60)}</span> },
+    { key: 'reason', header: 'Why', className: 'max-w-xs', render: (m) => <span className="text-xs text-text-soft">{truncate(m.reason || '–', 60)}</span> },
     { key: 'status', header: 'Status', render: (m) => <StatusBadge status={m.status} /> },
     { key: 'raised', header: 'Raised', className: 'whitespace-nowrap', render: (m) => <span className="text-xs text-text-soft">{formatDate(m.created_at)}</span> },
     {
@@ -818,7 +818,7 @@ function DuplicateRecordsPage() {
             </button>
           )}
           {!canConfirm(m) && !canReject(m) && !canUndo(m) && (
-            <span className="text-[11.5px] text-text-soft">—</span>
+            <span className="text-[11.5px] text-text-soft">–</span>
           )}
         </div>
       ),
@@ -833,7 +833,7 @@ function DuplicateRecordsPage() {
         <h2 className="text-base font-semibold text-ink">Duplicate records</h2>
         <p className="text-sm text-text-soft mt-0.5">
           The front desk flags two records that look like the same person; an administrator decides.
-          Merging moves the clinical records onto the surviving patient and hides the other — it never
+          Merging moves the clinical records onto the surviving patient and hides the other. It never
           rewrites the audit trail, and it can be undone.
         </p>
       </div>
@@ -843,7 +843,7 @@ function DuplicateRecordsPage() {
       <p className="text-xs text-text-soft bg-chip rounded-lg px-3 py-2">
         A merge is escalated automatically when either record has history at another hospital. One
         hospital does not get to rewrite a record another hospital also holds, so a superadmin carries
-        those out — you can still close one as &quot;not a duplicate&quot;.
+        those out. You can still close one as &quot;not a duplicate&quot;.
       </p>
 
       <DataTable
@@ -918,7 +918,7 @@ function DuplicateRecordsPage() {
             <>
               <div className="rounded-lg bg-chip px-3 py-2.5 space-y-1">
                 <p className="text-[11px] text-text-soft">Flagged because</p>
-                <p className="text-[13px] text-ink">{acting?.merge.reason || '—'}</p>
+                <p className="text-[13px] text-ink">{acting?.merge.reason || '–'}</p>
               </div>
 
               {action === 'confirm' && (
@@ -926,7 +926,7 @@ function DuplicateRecordsPage() {
                   <p className="text-ink font-semibold text-[13px]">What this does</p>
                   <ul className="list-disc pl-4 space-y-1">
                     <li>
-                      Every clinical record moves onto <span className="font-semibold text-ink">{acting?.merge.survivor_name}</span> —
+                      Every clinical record moves onto <span className="font-semibold text-ink">{acting?.merge.survivor_name}</span>:
                       episodes, admissions, prescriptions, appointments, the lot.
                     </li>
                     <li>

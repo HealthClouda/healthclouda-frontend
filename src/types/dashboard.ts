@@ -7,7 +7,7 @@
 //
 // The previous version declared total_organizations / active_organizations /
 // total_patients / new_orgs_this_month / total_staff — the endpoint sends NONE
-// of those, so three of the four stat tiles rendered a permanent '—' while the
+// of those, so three of the four stat tiles rendered a permanent '–' while the
 // table directly beneath one of them listed three organisations.
 //
 // ⚠️ `active_records` is NOT a patient count. Measured the same day:
@@ -45,7 +45,7 @@ export interface SuperadminStats {
 //
 // The previous version of this interface had `total_patients` and
 // `active_episodes`, which the endpoint does not return — both stat cards
-// rendered a permanent '—' against real data. The design README named these
+// rendered a permanent '–' against real data. The design README named these
 // fields correctly all along; they were changed on the assumption that the
 // existing names already worked. Nobody had run the dashboard.
 //
@@ -98,7 +98,7 @@ export interface NurseStats {
 //
 // It was declared with `appointments_today` (the endpoint sends
 // `todays_appointments` — same words, other order) and `active_prescriptions`,
-// which does not exist at all. Two of the four tiles were permanently '—'.
+// which does not exist at all. Two of the four tiles were permanently '–'.
 //
 // FLAG-051: `active_prescriptions` now exists (backend #197, for issue #158):
 // this doctor's ACTIVE prescriptions at this org, as a count — so the tile no
@@ -120,7 +120,7 @@ export interface DoctorStats {
 // It previously declared `upcoming_appointments` and `pending_access_requests`.
 // The endpoint publishes NEITHER, and nothing appointment-shaped or
 // access-request-shaped either — so two of the four stat tiles were guaranteed
-// to render '—' the moment any patient signed in.
+// to render '–' the moment any patient signed in.
 //
 // ⚠️ This is the ONE stats interface not confirmed against a live capture,
 // because no patient credentials exist and DASH-6 has still never been rendered
@@ -241,7 +241,7 @@ export interface OrgStaffMember {
 //
 // Shares only `id` with `PatientSummary`, which describes /doctor/patients/.
 // Typing this list as `PatientSummary` meant every column read a field that
-// does not exist: 14 rows rendered with blank names and '—' everywhere, while
+// does not exist: 14 rows rendered with blank names and '–' everywhere, while
 // the HCL-ID the search box advertises was returned and never displayed.
 export interface OrgPatientSummary {
   id: string;
@@ -405,7 +405,7 @@ export interface OnDutyDoctor {
 //
 // ⚠️ There is no `created_at` and no `closed_at`. Both were declared here and
 // `created_at` was declared REQUIRED, so the "Opened" column called
-// `timeAgo(undefined)` and rendered '—' for every episode on the doctor
+// `timeAgo(undefined)` and rendered '–' for every episode on the doctor
 // dashboard — found by looking at it, not by any test.
 //
 // `created_at` survives only as the doctor dashboard's `episode_start ??`
@@ -1134,7 +1134,7 @@ export interface EpisodeListItem {
 // `Meta.fields` still stops at `admission_reason`/`length_of_stay`. Adding
 // `needs_attending_doctor` to `NurseAdmission` would read as present-but-
 // undefined on every row from that endpoint — a wrong "doesn't need a
-// doctor" rather than a visible gap (StatCard's `?? '—'` guard doesn't apply
+// doctor" rather than a visible gap (StatCard's `?? '–'` guard doesn't apply
 // to a raw boolean read). Reported to the orchestrator rather than wired up:
 // surfacing "needs a doctor" on the My Patients / Overview lists needs
 // ActiveAdmissionSerializer to carry the same 4 fields first.
@@ -1296,11 +1296,11 @@ export interface EmergencyAdmissionResponse {
 // sign-off 2026-06-02) — the contract requires reusing this vocabulary
 // rather than inventing a parallel one for admission requests.
 export const URGENCY_OPTIONS = [
-  { value: 'EMERGENCY', label: 'Emergency — immediate intervention (life/limb/organ)' },
-  { value: 'URGENT', label: 'Urgent — review within hours to a few days' },
-  { value: 'SEMI_URGENT', label: 'Semi-Urgent — assessment within days to weeks' },
-  { value: 'ROUTINE', label: 'Routine — specialist input, no significant risk from waiting' },
-  { value: 'ELECTIVE', label: 'Elective — planned, non-urgent evaluation/procedure' },
+  { value: 'EMERGENCY', label: 'Emergency: immediate intervention (life/limb/organ)' },
+  { value: 'URGENT', label: 'Urgent: review within hours to a few days' },
+  { value: 'SEMI_URGENT', label: 'Semi-Urgent: assessment within days to weeks' },
+  { value: 'ROUTINE', label: 'Routine: specialist input, no significant risk from waiting' },
+  { value: 'ELECTIVE', label: 'Elective: planned, non-urgent evaluation/procedure' },
 ] as const;
 
 export const LEVEL_OF_CARE_OPTIONS = [

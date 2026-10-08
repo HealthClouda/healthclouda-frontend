@@ -341,7 +341,7 @@ function OrgsPage() {
     { key: 'type', header: 'Type', render: (org) => <StatusBadge status={org.org_type} label={ORG_TYPE_LABEL[org.org_type] ?? org.org_type} /> },
     { key: 'status', header: 'Status', render: (org) => <StatusBadge status={org.is_active ? 'ACTIVE' : 'SUSPENDED'} /> },
     { key: 'verified', header: 'Verified', render: (org) => <StatusBadge status={org.is_verified ? 'VERIFIED' : 'PENDING'} label={org.is_verified ? 'Verified' : 'Pending'} /> },
-    { key: 'staff', header: 'Staff', className: 'tabular-nums', render: (org) => org.total_staff ?? '—' },
+    { key: 'staff', header: 'Staff', className: 'tabular-nums', render: (org) => org.total_staff ?? '–' },
     { key: 'created', header: 'Date Added', className: 'whitespace-nowrap', render: (org) => <span className="text-xs text-text-soft">{formatDate(org.created_at)}</span> },
     { key: 'actions', header: 'Actions', render: (org) => (
       <div className="flex items-center gap-1.5">
@@ -585,13 +585,13 @@ function UsersPage() {
         {u.role.replace('_', ' ')}
       </span>
     ) },
-    { key: 'org', header: 'Organisation', render: (u) => u.organization?.name ?? '—' },
+    { key: 'org', header: 'Organisation', render: (u) => u.organization?.name ?? '–' },
     { key: 'status', header: 'Status', render: (u) => (
       u.last_login == null
         ? <StatusBadge status="PENDING" label="Invite pending" />
         : <StatusBadge status={u.is_active ? 'ACTIVE' : 'INACTIVE'} />
     ) },
-    { key: 'joined', header: 'Joined', className: 'whitespace-nowrap', render: (u) => <span className="text-xs text-text-soft">{u.date_joined ? formatDate(u.date_joined) : '—'}</span> },
+    { key: 'joined', header: 'Joined', className: 'whitespace-nowrap', render: (u) => <span className="text-xs text-text-soft">{u.date_joined ? formatDate(u.date_joined) : '–'}</span> },
     { key: 'actions', header: 'Actions', render: (u) => (
       <div className="flex items-center gap-1.5">
         {u.last_login == null && (
@@ -767,7 +767,7 @@ function auditColumns({ compact = false } = {}): DataTableColumn<AuditLogEntry>[
   if (compact) return [what, by, when];
   const why: DataTableColumn<AuditLogEntry> = {
     key: 'reason', header: 'Reason', className: 'max-w-xs',
-    render: (log) => <span className="text-[12.5px] text-text-mid">{log.reason ? truncate(log.reason, 120) : '—'}</span>,
+    render: (log) => <span className="text-[12.5px] text-text-mid">{log.reason ? truncate(log.reason, 120) : '–'}</span>,
   };
   return [when, by, what, why];
 }

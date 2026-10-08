@@ -142,7 +142,7 @@ const REFERRAL_TABS = [
 
 const overviewEpisodeColumns: DataTableColumn<Episode>[] = [
   { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
-  { key: 'complaint', header: 'Complaint', className: 'max-w-[160px]', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 30)}</span> },
+  { key: 'complaint', header: 'Complaint', className: 'max-w-[160px]', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '–', 30)}</span> },
   { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
 ];
 
@@ -196,17 +196,17 @@ function patientColumns(
     render: ({ patient: p }) => {
       const sex = p.gender ? SEX_LABEL[p.gender] : '';
       const age = p.age != null ? `${p.age}` : '';
-      return [sex, age].filter(Boolean).join(' · ') || '—';
+      return [sex, age].filter(Boolean).join(' · ') || '–';
     },
   },
-  { key: 'dob', header: 'Date of Birth', render: ({ patient: p }) => (p.date_of_birth ? formatDate(p.date_of_birth) : '—') },
+  { key: 'dob', header: 'Date of Birth', render: ({ patient: p }) => (p.date_of_birth ? formatDate(p.date_of_birth) : '–') },
   {
     key: 'case', header: 'Case',
     render: ({ cases }) => {
       const latest = cases[0];
       return (
         <div>
-          <div className="text-ink">{latest.chief_complaint || latest.episode_type_display || '—'}</div>
+          <div className="text-ink">{latest.chief_complaint || latest.episode_type_display || '–'}</div>
           {cases.length > 1 && <div className="text-xs text-text-soft">+{cases.length - 1} more</div>}
         </div>
       );
@@ -241,7 +241,7 @@ function episodeColumns(
 ): DataTableColumn<Episode>[] {
   return [
     { key: 'patient', header: 'Patient', render: ep => <span className="font-medium text-ink">{subjectName(ep)}</span> },
-    { key: 'complaint', header: 'Chief Complaint', className: 'max-w-xs', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '—', 50)}</span> },
+    { key: 'complaint', header: 'Chief Complaint', className: 'max-w-xs', render: ep => <span className="text-text-soft">{truncate(ep.chief_complaint ?? '–', 50)}</span> },
     { key: 'status', header: 'Status', render: ep => <StatusBadge status={ep.status} /> },
     { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-text-soft">{timeAgo(ep.episode_start ?? ep.created_at)}</span> },
     {
@@ -294,8 +294,8 @@ const appointmentColumns: DataTableColumn<Appointment>[] = [
   { key: 'doctor', header: 'Doctor', render: a => <span data-testid={`appt-doctor-${a.id}`}>{personName(a.doctor)}</span> },
   { key: 'date', header: 'Date', className: 'whitespace-nowrap', render: a => <span data-testid={`appt-when-${a.id}`}>{formatDate(a.scheduled_at)}</span> },
   { key: 'time', header: 'Time', render: a => <span className="text-text-soft">{formatTime(a.scheduled_at)}</span> },
-  { key: 'reason', header: 'Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.reason ?? a.notes ?? '—', 40)}</span> },
-  { key: 'status', header: 'Status', render: a => a.status ? <StatusBadge status={a.status} /> : <span className="text-text-soft">—</span> },
+  { key: 'reason', header: 'Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.reason ?? a.notes ?? '–', 40)}</span> },
+  { key: 'status', header: 'Status', render: a => a.status ? <StatusBadge status={a.status} /> : <span className="text-text-soft">–</span> },
 ];
 
 function referralColumns(tab: 'outgoing' | 'incoming'): DataTableColumn<Referral>[] {
@@ -304,9 +304,9 @@ function referralColumns(tab: 'outgoing' | 'incoming'): DataTableColumn<Referral
     {
       key: 'party',
       header: tab === 'outgoing' ? 'Referred To' : 'Referred By',
-      render: r => (tab === 'outgoing' ? r.referred_to : r.referring_doctor) ?? '—',
+      render: r => (tab === 'outgoing' ? r.referred_to : r.referring_doctor) ?? '–',
     },
-    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: r => <span className="text-text-soft">{truncate(r.reason ?? '—', 45)}</span> },
+    { key: 'reason', header: 'Reason', className: 'max-w-xs', render: r => <span className="text-text-soft">{truncate(r.reason ?? '–', 45)}</span> },
     { key: 'date', header: 'Date', className: 'whitespace-nowrap', render: r => <span className="text-text-soft">{formatDate(r.created_at)}</span> },
     { key: 'status', header: 'Status', render: r => <StatusBadge status={r.status} /> },
   ];
@@ -316,8 +316,8 @@ function prescriptionColumns(onCancel: (rx: Prescription) => void): DataTableCol
   return [
     { key: 'patient', header: 'Patient', render: rx => <span className="font-medium text-ink">{subjectName(rx)}</span> },
     { key: 'medication', header: 'Medication', render: rx => <span className="font-medium text-text-mid">{rx.medication}</span> },
-    { key: 'dosage', header: 'Dosage', render: rx => rx.dosage ?? '—' },
-    { key: 'frequency', header: 'Frequency', render: rx => rx.frequency ?? '—' },
+    { key: 'dosage', header: 'Dosage', render: rx => rx.dosage ?? '–' },
+    { key: 'frequency', header: 'Frequency', render: rx => rx.frequency ?? '–' },
     { key: 'status', header: 'Status', render: rx => <StatusBadge status={rx.status} /> },
     {
       key: 'actions',
@@ -601,11 +601,11 @@ function NewEpisodePanel({ patient, onClose, onCreated }: {
 }
 
 const REFERRAL_URGENCY_OPTIONS: { value: ReferralCreateInput['urgency']; label: string }[] = [
-  { value: 'EMERGENCY', label: 'Emergency — immediate intervention' },
-  { value: 'URGENT', label: 'Urgent — review within hours to a few days' },
-  { value: 'SEMI_URGENT', label: 'Semi-Urgent — assessment within days to weeks' },
-  { value: 'ROUTINE', label: 'Routine — no significant risk from waiting' },
-  { value: 'ELECTIVE', label: 'Elective — planned, non-urgent' },
+  { value: 'EMERGENCY', label: 'Emergency: immediate intervention' },
+  { value: 'URGENT', label: 'Urgent: review within hours to a few days' },
+  { value: 'SEMI_URGENT', label: 'Semi-Urgent: assessment within days to weeks' },
+  { value: 'ROUTINE', label: 'Routine: no significant risk from waiting' },
+  { value: 'ELECTIVE', label: 'Elective: planned, non-urgent' },
 ];
 
 const pickerField =
@@ -675,7 +675,7 @@ function OrganizationPicker({ value, onChange }: {
   if (value) {
     return (
       <div className="mt-1 flex items-center justify-between gap-2 px-3 py-2 text-sm border border-border rounded-lg bg-page">
-        <span className="text-ink">{value.name} — {value.city}, {value.state}</span>
+        <span className="text-ink">{value.name} ({value.city}, {value.state})</span>
         <button type="button" onClick={() => onChange(null)} className="text-xs font-medium text-primary-dark hover:underline shrink-0">
           Change
         </button>
@@ -696,11 +696,11 @@ function OrganizationPicker({ value, onChange }: {
       {trimmedQuery !== '' && (
         <div className="absolute z-10 mt-1 w-full bg-white border border-border rounded-lg shadow-lg max-h-56 overflow-auto">
           {trimmedQuery.length < 2 ? (
-            <p className="px-3 py-2 text-xs text-text-soft">Keep typing — search needs at least 2 characters.</p>
+            <p className="px-3 py-2 text-xs text-text-soft">Keep typing. Search needs at least 2 characters.</p>
           ) : loading ? (
             <p className="px-3 py-2 text-xs text-text-soft">Searching…</p>
           ) : error ? (
-            <p className="px-3 py-2 text-xs text-red-600">Couldn&apos;t search organizations — {error}</p>
+            <p className="px-3 py-2 text-xs text-red-600">Couldn&apos;t search organizations: {error}</p>
           ) : results && results.length === 0 ? (
             <p className="px-3 py-2 text-xs text-text-soft">No organisations match &ldquo;{debouncedQuery.trim()}&rdquo;.</p>
           ) : results && results.length > 0 ? (
@@ -721,7 +721,7 @@ function OrganizationPicker({ value, onChange }: {
               </ul>
               {totalCount > results.length && (
                 <p className="px-3 py-2 text-[11px] text-text-soft border-t border-border">
-                  Showing first {results.length} of {totalCount} — refine your search.
+                  Showing first {results.length} of {totalCount}. Refine your search.
                 </p>
               )}
             </>
@@ -807,7 +807,7 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
       // over inferring anything from the 201 status or from `has_letter`.
       if (res?.letter_generated === false && res.referral?.id) {
         setLetterFailedFor(res.referral.id);
-        toast.success('Referral created — the letter could not be generated');
+        toast.success('Referral created, but the letter could not be generated');
       } else {
         toast.success('Referral created');
         onClose();
@@ -830,7 +830,7 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
         toast.success('Referral letter generated');
         onClose();
       } else {
-        toast.error('The letter still could not be generated — try again shortly');
+        toast.error('The letter still could not be generated. Try again shortly.');
       }
     } catch (err) {
       // The backend returns 503 here rather than swallowing the failure a
@@ -872,10 +872,10 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
     >
       {letterFailedFor ? (
         <div className="space-y-3">
-          <p className="text-sm text-ink">The referral was created — the referral letter could not be generated.</p>
+          <p className="text-sm text-ink">The referral was created, but the referral letter could not be generated.</p>
           <p className="text-xs text-text-soft">
             The receiving organization can&apos;t yet see the letter. You can retry generating it now, or
-            leave it and retry later — the referral itself is not affected either way.
+            leave it and retry later. The referral itself is not affected either way.
           </p>
         </div>
       ) : (
@@ -908,7 +908,7 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
         </label>
 
         <label className={label}>
-          Relevant history <span className="font-normal">(optional — your discretion on what&apos;s relevant)</span>
+          Relevant history <span className="font-normal">(optional: your discretion on what&apos;s relevant)</span>
           <textarea rows={2} value={form.relevant_history} onChange={set('relevant_history')} className={field} />
         </label>
 
@@ -948,8 +948,8 @@ function NewReferralPanel({ patient, onClose, onCreated }: {
 
         <p className="text-[11px] text-text-soft">
           Reason, clinical findings and provisional diagnosis are required, along with both
-          confirmations above. This creates a PDF referral letter for the receiving organization —
-          it does not give them access to this patient&apos;s record.
+          confirmations above. This creates a PDF referral letter for the receiving organization.
+          It does not give them access to this patient&apos;s record.
         </p>
       </form>
       )}
@@ -1002,7 +1002,7 @@ function RequestAdmissionPanel({ episode, onClose, onRequested }: {
         urgency,
         clinical_reason: trimmed,
       });
-      toast.success('Admission requested — the ward has been notified');
+      toast.success('Admission requested. The ward has been notified.');
       onRequested();
       onClose();
     } catch (err) {
@@ -1066,7 +1066,7 @@ function RequestAdmissionPanel({ episode, onClose, onRequested }: {
         </label>
 
         <p className="text-[11px] text-text-soft border-t border-border pt-3">
-          No ward/bed picker here — the ward chooses where when it accepts. Naming a level of care and
+          No ward/bed picker here: the ward chooses where when it accepts. Naming a level of care and
           urgency is what lets it triage the queue.
         </p>
 
@@ -1178,7 +1178,7 @@ function QueuePage() {
   const columns: DataTableColumn<CheckIn>[] = [
     {
       key: 'queue', header: '#', className: 'w-12',
-      render: ci => <span className="text-xs font-mono text-text-soft">{ci.queue_number ?? '—'}</span>,
+      render: ci => <span className="text-xs font-mono text-text-soft">{ci.queue_number ?? '–'}</span>,
     },
     {
       key: 'patient', header: 'Patient',
@@ -1193,7 +1193,7 @@ function QueuePage() {
     },
     {
       key: 'reason', header: 'Reason',
-      render: ci => <span className="text-xs text-text-soft">{truncate(ci.reason_for_visit || '—', 40)}</span>,
+      render: ci => <span className="text-xs text-text-soft">{truncate(ci.reason_for_visit || '–', 40)}</span>,
     },
     {
       key: 'checked_in', header: 'Checked In',
@@ -1309,7 +1309,7 @@ function EpisodeDetailPanel({ episode, onClose }: { episode: Episode | null; onC
         <div className="space-y-5">
           <div>
             <h4 className="text-xs font-semibold text-text-soft mb-1">Chief complaint</h4>
-            <p className="text-sm text-ink">{detail.chief_complaint || '—'}</p>
+            <p className="text-sm text-ink">{detail.chief_complaint || '–'}</p>
           </div>
           {detail.diagnosis && (
             <div>
@@ -1320,7 +1320,7 @@ function EpisodeDetailPanel({ episode, onClose }: { episode: Episode | null; onC
           <div>
             <h4 className="text-xs font-semibold text-text-soft mb-1">Case summary</h4>
             <p className="text-sm text-ink whitespace-pre-wrap">
-              {detail.discharge_summary || 'Not written yet — added when the episode is completed.'}
+              {detail.discharge_summary || 'Not written yet. Added when the episode is completed.'}
             </p>
           </div>
           <div>
@@ -1333,12 +1333,12 @@ function EpisodeDetailPanel({ episode, onClose }: { episode: Episode | null; onC
                   <li key={s.admission_id} className="rounded-lg border border-border p-3 space-y-1">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-xs font-semibold text-ink">
-                        {formatDate(s.admitted_at)} – {s.discharged_at ? formatDate(s.discharged_at) : '—'}
+                        {formatDate(s.admitted_at)} – {s.discharged_at ? formatDate(s.discharged_at) : '–'}
                       </span>
                       <StatusBadge status={s.discharge_outcome} />
                     </div>
                     <p className="text-xs text-text-soft">
-                      Discharged by {s.discharged_by_name ?? '—'}
+                      Discharged by {s.discharged_by_name ?? '–'}
                       {s.needs_doctor_review && ' · awaiting doctor confirmation'}
                     </p>
                     <p className="text-sm text-ink whitespace-pre-wrap">
@@ -1615,7 +1615,7 @@ function PrescriptionsPage() {
 
 function wardBedLabel(a: DoctorAdmission): string {
   const parts = [a.bed?.ward?.name, a.bed ? `Bed ${a.bed.bed_number}` : null].filter(Boolean);
-  return parts.length ? parts.join(' · ') : '—';
+  return parts.length ? parts.join(' · ') : '–';
 }
 
 function admissionColumns(
@@ -1635,14 +1635,14 @@ function admissionColumns(
       ),
     },
     { key: 'bed', header: 'Bed / Ward', className: 'whitespace-nowrap', render: a => <span className="text-text-soft">{wardBedLabel(a)}</span> },
-    { key: 'reason', header: 'Admission Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.admission_reason || '—', 50)}</span> },
+    { key: 'reason', header: 'Admission Reason', className: 'max-w-xs', render: a => <span className="text-text-soft">{truncate(a.admission_reason || '–', 50)}</span> },
     {
       key: 'attending', header: 'Attending', render: a => a.attending_doctor_name ? (
         <span className="text-text-mid">{a.attending_doctor_name}</span>
       ) : a.needs_attending_doctor ? (
         <span className="font-semibold text-warning-strong">Unassigned</span>
       ) : (
-        <span className="text-text-soft">—</span>
+        <span className="text-text-soft">–</span>
       ),
     },
     { key: 'admitted', header: 'Admitted', className: 'whitespace-nowrap', render: a => <span className="text-text-soft">{formatDate(a.admitted_at)}</span> },
@@ -1744,7 +1744,7 @@ function PendingReviewsSection({
       toast.success(
         reviewButtonLabel(a) === 'Confirm death'
           ? `Death confirmed for ${a.patient.first_name} ${a.patient.last_name}`
-          : `Marked reviewed — ${a.patient.first_name} ${a.patient.last_name}`,
+          : `Marked reviewed: ${a.patient.first_name} ${a.patient.last_name}`,
       );
       refetch();
     } catch (e) {
@@ -1774,7 +1774,7 @@ function PendingReviewsSection({
               <div className="font-medium text-ink truncate">{a.patient.first_name} {a.patient.last_name}</div>
               <div className="text-xs text-text-soft truncate">
                 {wardBedLabel(a)} · recorded{a.discharged_by_name ? ` by ${a.discharged_by_name}` : ''}{' '}
-                {a.discharged_at ? timeAgo(a.discharged_at) : '—'}
+                {a.discharged_at ? timeAgo(a.discharged_at) : '–'}
               </div>
               {reviewEventLine(a) && (
                 <div className="text-xs text-ink">{reviewEventLine(a)}</div>
@@ -1888,7 +1888,7 @@ function HandOverPanel({ admission, currentUserId, onClose, onReassigned, presel
       <form id="hand-over" onSubmit={(e) => void submit(e)} className="space-y-4">
         <div className="rounded-lg bg-chip px-3 py-2.5 space-y-1">
           <p className="text-[11px] text-text-soft">Attending now</p>
-          <p className="text-[13px] text-ink">{admission?.attending_doctor_name || 'Nobody — unassigned'}</p>
+          <p className="text-[13px] text-ink">{admission?.attending_doctor_name || 'Nobody (unassigned)'}</p>
         </div>
 
         <DoctorPicker
@@ -1962,7 +1962,7 @@ function UnassignedSection({ list, onTakeOver }: {
     <section aria-labelledby="unassigned-heading" className="rounded-xl border border-border bg-surface p-4 space-y-3">
       <div>
         <h3 id="unassigned-heading" className="text-sm font-semibold text-ink">
-          Unassigned — no doctor yet ({count})
+          Unassigned: no doctor yet ({count})
         </h3>
         <p className="text-xs text-text-soft mt-0.5">
           Admitted with no attending doctor and no case doctor. Any doctor can take them over.
@@ -2019,7 +2019,7 @@ function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
       <PendingReviewsSection />
       <PendingReviewsSection
         query="?unassigned=true&needs_doctor_review=true"
-        title="Awaiting review — no doctor assigned"
+        title="Awaiting review: no doctor assigned"
         rowsMatch={a => isUnassignedRow(a) && a.needs_doctor_review === true}
       />
       <UnassignedSection list={unassigned} onTakeOver={setHandingOver} />
@@ -2031,7 +2031,7 @@ function AdmissionsPage({ currentUserId }: { currentUserId: string }) {
         error={error}
         onRetry={refetch}
         emptyTitle="No active admissions"
-        emptyDescription="Patients admitted under your care — as attending doctor or as the doctor on their episode — will appear here."
+        emptyDescription="Patients admitted under your care, as attending doctor or as the doctor on their episode, will appear here."
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
