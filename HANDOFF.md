@@ -24,6 +24,8 @@
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
 
+| @Bastoh | **FLAG-058** — org admin can correct a patient's name, date of birth and sex (Patients → Edit) | `fix/flag-058-orgadmin-patient-edit` | `src/components/dashboard/org-admin/OrgAdminDashboard.tsx` (+ test), `src/types/dashboard.ts` | 2026-09-30 | 🟡 Claimed in this branch's own commit (FLAG-240 option (a)). ⚠️ The backend lets this change a record other hospitals also hold — built on @Bastoh's call; logged as FLAG-063 (#169) |
+
 > ✅ **Issue #101 shipped in #107 (merged 2026-09-07)** — the receptionist is handed the HealthClouda ID at
 > registration. `POST /patients/` returns `{message, patient:{id, healthclouda_id}}`; **FLAG-216 was derived
 > from a schema that documents the *request* serializer in the 201 slot**, which is why the identifiers looked
