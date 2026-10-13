@@ -196,6 +196,48 @@ Slack, not a doc in this repo, not an assumption in code.
 
 ---
 
+## 📋 Weekly Stand-up Board — the team's task list (added 2026-10-13)
+
+**Board:** https://claude.ai/artifact/HktRWK3SNWSUTgZ5DqSFEW
+
+The team meets **Monday** (assign the week) and **Friday** (review it). Each person works about
+**10 hours a week**. The week's tasks live on this board, not in chat. A task is **done** when its PR is
+**merged into `develop`**; finished but waiting on a reviewer is **review**.
+
+**Who is who on the board** (`owner` field):
+
+| GitHub handle | `owner` |
+|---|---|
+| @Bastoh | `bastoh` |
+| @Ericmoore207 | `eric` |
+| @Qeeyat | `qeeyat` |
+
+**What the board holds** (shared database behind the page, read and written with the `ArtifactData` tool,
+`url` = the board link above):
+- `weeks` collection: one doc per week (`w1`, `w2`, …) with `number`, `dates`, `theme`, `done_when[]`.
+- `tasks` collection: one doc per task with `week` (e.g. `"w1"`), `owner`, `order`, `title`, `detail`,
+  `hours`, `status` (`todo` | `review` | `done`), `pr`, `updated_by`, `updated_at`.
+
+### What the assistant does with it
+
+1. **At session start, after identifying the dev:** read the current week's tasks
+   (`ArtifactData` `query` on `tasks` where `week` = the highest week in `weeks` and `owner` = this dev)
+   and tell the dev what is open on their list. **Suggest work from that list first**, after the
+   Cross-Lane Asks inbox.
+2. **When a PR is opened for a board task:** set that task's `status` to `review` and `pr` to the PR
+   number. **When it merges:** set `status` to `done`. Pass the `version` you read as `if_version`.
+3. **Work that is not on the board:** say so before starting. The dev may add it to their own column,
+   but the week's list was agreed on Monday and should not silently grow.
+4. **Only ever change the current dev's own tasks.** Never tick, edit or delete another dev's task.
+5. **If the `ArtifactData` tool is not available in this session,** or a read is refused, tell the dev to
+   tick the board by hand. Never treat an unreadable board as an empty one.
+
+⚠️ The board is a claude.ai artifact. The dev's own claude.ai account must have **edit (Contributor)
+access** to it, shared by @Bastoh from the page's Share menu; with view access the assistant can read
+the list but every write is refused.
+
+---
+
 ## 4. Session Ritual
 
 ### Session start — in this exact order
@@ -204,6 +246,8 @@ Slack, not a doc in this repo, not an assumption in code.
 2. **Read `HANDOFF.md`** — shared state, In Flight claims, backend contract notes, and the
    **📥 Cross-Lane Asks inbox. Check your own rows there before picking work** — it is the only place
    that answers *"is anything waiting on me?"*, and an open row may outrank your plan for the day.
+2b. **Read this week's tasks on the 📋 Stand-up Board** (the *Weekly Stand-up Board* section above) for this dev, and
+   say what is still open on their list. It is what they committed to on Monday.
 3. **Read _every_ per-dev log — `HANDOFF-<Name>.md` for ALL devs, not just this one.**
    ⚠️ Reading only your own **fails silently.** Nothing errors; you simply miss what the other dev
    did, duplicate their work, or contradict a decision they already made. This is the single
