@@ -231,8 +231,31 @@ The team meets **Monday** (assign the week) and **Friday** (review it). Each per
 3. **Work that is not on the board:** say so before starting. The dev may add it to their own column,
    but the week's list was agreed on Monday and should not silently grow.
 4. **Only ever change the current dev's own tasks.** Never tick, edit or delete another dev's task.
-5. **If the `ArtifactData` tool is not available in this session,** or a read is refused, tell the dev to
-   tick the board by hand. Never treat an unreadable board as an empty one.
+5. **If the `ArtifactData` tool is not available in this session,** or a read is refused, read
+   **`docs/standup/current-week.md`** instead, tell the dev their open tasks from it, and remind them to
+   tick the board by hand in the browser. Never treat an unreadable board as an empty one, and never
+   write ticks into that file: it is a Monday snapshot, not the board.
+
+### Why some devs' assistants cannot read the board (2026-10-14)
+
+The board is owned by @Bastoh's claude.ai account, on a **Pro** plan. Pro has no organization settings,
+and an editor invited from **another** Claude organization can open and tick the board in the browser
+but **cannot use its data from Claude Code**: the read is refused with *"shared with you from another
+organization… doesn't let invited editors use artifact data from Claude Code."* That is the normal state
+for @Ericmoore207 and @Qeeyat today, so rule 5 is their normal path, not an error. It goes away only if
+everyone joins one Team organization.
+
+### @Bastoh's Claude only: the owner's two weekly jobs
+
+As the board owner, @Bastoh's assistant is the one that can always read and write it. These are the only
+exceptions to rule 4.
+
+- **Monday, when the week is set up:** after writing the week's `weeks` and `tasks` docs to the board,
+  regenerate **`docs/standup/current-week.md` in both repos** from the board (same content in each) and
+  open the usual docs PR. Without it, the other devs' assistants have nothing to read.
+- **Friday, before stand-up:** for **every** dev's task with `status = review` and a `pr` number, check the
+  PR on GitHub; merged into `develop` → set `done` (with `if_version`). Change nothing else on another
+  dev's task. This keeps the board right for the devs who tick by hand.
 
 🔒 **No patient data, credentials or demo logins on the board.** This repo is public and carries the
 board link; access control protects the board, but the rule is set before anyone is tempted.
