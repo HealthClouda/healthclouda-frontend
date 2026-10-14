@@ -98,6 +98,15 @@ A nurse reading a partial bed list has no way to tell it is partial, and conclud
 there has clinical consequence. It cannot follow DRF's `next` (an absolute backend URL the browser
 may not call), so it derives the page count from `count` plus the size of page one.
 
+**Live updates (FLAG-073, `src/hooks/use-live-updates.ts`):** `DashboardShell` polls
+`GET /auth/me/updates/` every 30s for staff with an organisation, only while the tab is visible and
+never behind the small-screen gate. The response is counts plus a `changed_at`, no patient details.
+When `changed_at` moves, a context tick makes all three hooks above refetch silently (no loading
+state; a failure keeps what is shown). The counts become sidebar badges (`withLiveBadges`).
+⛔ Every request a timer causes is sent with `X-HC-Background: 1` (`dataGet(path, { background: true })`),
+forwarded by `/api/data` and `/api/auth/refresh`; the backend (FLAG-625) does not count it as
+activity. Drop that marker and an unattended tab keeps itself signed in and its doctor on duty.
+
 **Error handling.** `serverFetchResult()` returns a discriminated result — `no_token`,
 `unauthorized`, `forbidden`, `not_found`, `server`, `network`, `malformed` — and logs the status and
 path only, **never the body** (bodies carry patient data). `serverFetch()` is the back-compatible
