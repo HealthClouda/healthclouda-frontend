@@ -2765,6 +2765,8 @@ Normal practice (owner, 6 Oct): the hospital administrator sets up wards and bed
 the rest of the PATCH. `WardViewSet.update` calls `serializer.save()` before it returns the 400, and
 `@transaction.atomic` only rolls back on an exception, so a rename sent with an impossible bed count
 is kept while the panel shows the refusal. Needs a backend fix (validate before saving, or raise).
+Filed by @Qeeyat as [backend #264](https://github.com/HealthClouda/healthclouda-backend/issues/264)
+(`api-request`), which also asks whether removing RESERVED beds is intended.
 
 **Not in this PR:** rooms (private and VIP rooms with their own beds), naming beds one by one, and a
 screen for a nurse to mark a bed under maintenance. The API supports all three.
