@@ -100,9 +100,22 @@ written down, the rest of the team does not know it happened.
 **Verified:** each trial merge was tsc clean, with suites at 545/544/552/557. Each PR's new tests fail
 without its source. No source changed in this branch (docs only).
 
+**Update 2026-10-14: all three approved.** @Bastoh had pushed fixes to all three on 8 Oct, within
+about 10 minutes of my reviews. ⚠️ **I missed them for five days** because I checked `reviewDecision`,
+which stays CHANGES_REQUESTED until I clear it, and never looked at the commits. To see whether a PR
+has moved, check its **last commit date and comments**. Re-verified each fix by re-running my probe,
+swapping the old code back in so the new tests go red, then tsc and the full suite:
+- **#186** (`37d7325`): one `EMPTY_VALUE` is imported by all four checks. A forced empty tile fails
+  again, and Playwright still loads the spec. 546/546. **Merged.**
+- **#187** (`3a43ebd`): my blank-box probe now sends nothing, and a lower count asks for confirmation
+  first. After a failed load, Save is disabled. 557/557. Backend #264 linked for him.
+- **#188** (`022f0bd`): my stuck-loading probe ends with loading cleared. Loads are sequenced, so a
+  stale background result is dropped. 561/561.
+
 **Left undone / next:**
-- [ ] Re-review #186, #187 and #188 when @Bastoh pushes fixes (my change requests stand until I clear them).
-- [ ] The FLAG-070 rows in In Flight are stale now that #185 has merged. They're @Bastoh's to clear.
+- [x] ~~Re-review #186, #187 and #188~~: approved 14 Oct.
+- [ ] Review **#190** (@Bastoh, Stand-up Board in `CLAUDE.md`).
+- [x] ~~FLAG-070 rows~~: cleared by @Bastoh in #186's rebase.
 - [ ] Still open from before: #96 / FLAG-234.
 
 ---
