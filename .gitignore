@@ -35,3 +35,6 @@ coverage/
 # config (see ONBOARDING.md 5). Only the per-developer file is ignored: it holds
 # one dev's personal permission grants and must never gate the other dev's session.
 .claude/settings.local.json
+
+# graphify knowledge-graph output: local only, never committed
+graphify-out/
