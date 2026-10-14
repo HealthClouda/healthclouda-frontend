@@ -36,7 +36,7 @@ export const SESSION_EXPIRY_REASON: Record<SessionExpiryCode, string> = {
 /** Plain-language copy for the signin page, keyed by the `?reason=` value above. */
 export const SESSION_EXPIRY_MESSAGES: Record<string, string> = {
   idle: 'You were signed out after 15 minutes of inactivity.',
-  max_age: 'Your 12-hour session ended — please sign in again.',
+  max_age: 'Your 12-hour session ended. Please sign in again.',
 };
 
 /**

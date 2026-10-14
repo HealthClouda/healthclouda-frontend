@@ -38,7 +38,7 @@ const user = {
 
 // CAPTURED LIVE 2026-08-29 (FLAG-222) — GET /superadmin/dashboard/.
 // Was `{total_organizations, active_organizations, total_users, total_patients}`:
-// three of those four fields do not exist, so three tiles rendered '—' against
+// three of those four fields do not exist, so three tiles rendered '–' against
 // real data while this fixture kept the tests green.
 const stats = {
   total_users: 4382, total_orgs: 27, active_organizations: 25, total_patients: 3106,
@@ -329,7 +329,7 @@ describe('FLAG-222 — stat tiles must read the fields the API actually sends', 
   it('renders every tile from the captured /superadmin/dashboard/ payload', async () => {
     // The fixture above IS the live shape. Before this, the tiles read
     // total_organizations / active_organizations / total_patients — none of
-    // which exist — so three of four rendered '—' on real data while these
+    // which exist — so three of four rendered '–' on real data while these
     // tests stayed green against our own type.
     render(<SuperadminDashboard user={user} initialStats={stats} />);
 
@@ -339,7 +339,7 @@ describe('FLAG-222 — stat tiles must read the fields the API actually sends', 
 
     // No tile may render the empty placeholder from a payload this complete —
     // that is precisely what the bug looked like on screen.
-    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    expect(screen.queryByText('–')).not.toBeInTheDocument();
   });
 
   // FLAG-051 — the two tiles removed under FLAG-222 are back: the backend now

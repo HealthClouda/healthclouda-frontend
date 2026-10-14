@@ -221,10 +221,10 @@ function HealthPage() {
               {episodes.map(ep => (
                 <tr key={ep.id} className="hover:bg-gray-50/60 transition-colors">
                   <Td><span className="font-mono text-xs text-gray-500">#{ep.id.slice(0, 8)}</span></Td>
-                  <Td className="font-medium text-gray-900 max-w-xs">{truncate(ep.chief_complaint_summary || '—', 50)}</Td>
+                  <Td className="font-medium text-gray-900 max-w-xs">{truncate(ep.chief_complaint_summary || '–', 50)}</Td>
                   <Td><StatusBadge status={ep.status} /></Td>
                   <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ep.episode_start)}</Td>
-                  <Td className="text-xs text-gray-400 whitespace-nowrap">{ep.episode_end ? formatDate(ep.episode_end) : '—'}</Td>
+                  <Td className="text-xs text-gray-400 whitespace-nowrap">{ep.episode_end ? formatDate(ep.episode_end) : '–'}</Td>
                 </tr>
               ))}
             </tbody>
@@ -341,8 +341,8 @@ function AccessPage() {
             <tbody className="divide-y divide-gray-50">
               {accessList.map(ar => (
                 <tr key={ar.id} className="hover:bg-gray-50/60 transition-colors">
-                  <Td className="font-medium text-gray-900">{ar.staff_name ?? '—'}</Td>
-                  <Td className="text-xs text-gray-500 max-w-xs">{truncate(ar.reason ?? '—', 55)}</Td>
+                  <Td className="font-medium text-gray-900">{ar.staff_name ?? '–'}</Td>
+                  <Td className="text-xs text-gray-500 max-w-xs">{truncate(ar.reason ?? '–', 55)}</Td>
                   <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(ar.created_at)}</Td>
                   <Td><StatusBadge status={ar.status} /></Td>
                 </tr>
@@ -365,9 +365,9 @@ function AccessPage() {
             <tbody className="divide-y divide-gray-50">
               {refList.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
-                  <Td className="font-medium text-gray-900">{r.referring_doctor ?? '—'}</Td>
-                  <Td className="text-xs">{r.referred_to ?? '—'}</Td>
-                  <Td className="text-xs text-gray-500 max-w-xs">{truncate(r.reason ?? '—', 45)}</Td>
+                  <Td className="font-medium text-gray-900">{r.referring_doctor ?? '–'}</Td>
+                  <Td className="text-xs">{r.referred_to ?? '–'}</Td>
+                  <Td className="text-xs text-gray-500 max-w-xs">{truncate(r.reason ?? '–', 45)}</Td>
                   <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(r.created_at)}</Td>
                   <Td><StatusBadge status={r.status} /></Td>
                 </tr>

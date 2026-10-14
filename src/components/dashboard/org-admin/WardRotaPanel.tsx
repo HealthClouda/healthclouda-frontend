@@ -118,7 +118,7 @@ export function WardRotaPanel({ ward, onClose }: { ward: { id: string; name: str
     { key: 'nurse', header: 'Nurse', render: (s) => <span className="text-[13px] font-semibold text-ink">{s.nurse_name}</span> },
     { key: 'starts', header: 'Starts', className: 'whitespace-nowrap', render: (s) => <span className="text-xs text-text-soft">{formatDateTime(s.starts_at)}</span> },
     { key: 'ends', header: 'Ends', className: 'whitespace-nowrap', render: (s) => <span className="text-xs text-text-soft">{formatDateTime(s.ends_at)}</span> },
-    { key: 'in_charge', header: 'In charge', render: (s) => (s.is_in_charge ? <StatusBadge status="ACTIVE" label="In charge" /> : <span className="text-xs text-text-soft">—</span>) },
+    { key: 'in_charge', header: 'In charge', render: (s) => (s.is_in_charge ? <StatusBadge status="ACTIVE" label="In charge" /> : <span className="text-xs text-text-soft">–</span>) },
     {
       key: 'actions', header: '',
       render: (s) => (
@@ -145,7 +145,7 @@ export function WardRotaPanel({ ward, onClose }: { ward: { id: string; name: str
       >
         <div className="space-y-4">
           <p className="text-xs text-text-soft">
-            Upcoming and past shifts for this ward — a full history, so who was in charge and when
+            Upcoming and past shifts for this ward: a full history, so who was in charge and when
             can always be answered later.
           </p>
           <DataTable
@@ -207,7 +207,7 @@ export function WardRotaPanel({ ward, onClose }: { ward: { id: string; name: str
             In charge of this ward for this shift
           </label>
           <p className="text-xs text-text-soft">
-            Only one nurse is in charge of a ward at a time — marking this shift moves it here.
+            Only one nurse is in charge of a ward at a time. Marking this shift moves it here.
           </p>
         </form>
       </SlidePanel>

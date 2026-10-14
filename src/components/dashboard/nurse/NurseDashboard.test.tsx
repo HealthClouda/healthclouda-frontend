@@ -12,7 +12,7 @@ import type { User } from '@/types/auth';
  *
  *  - GET /nurse/my-patients/ returns ADMISSIONS ({count, results}) with
  *    nested patient/bed/ward/episode — not flat PatientSummary rows. The
- *    old page read top-level first_name/phone_number → every cell was "—".
+ *    old page read top-level first_name/phone_number → every cell was "–".
  *  - GET/PATCH /nurse/patients/<patient_id>/vitals/ is the ONLY vitals
  *    endpoint: {patient_id, episode_id, vitals: <latest reading | null>}.
  *    PATCH appends a new reading (partial fields fine; 400 {error, code,
@@ -25,7 +25,7 @@ import type { User } from '@/types/auth';
  *  - GET /nurse/dashboard/stats/ is ward/admission stats (active_admissions,
  *    patients_in_queue, occupancy_rate, todays_admissions, …) — the old
  *    NurseStats fields (total_patients, vitals_pending, critical_patients)
- *    don't exist, so every stat card rendered 0/"—" forever.
+ *    don't exist, so every stat card rendered 0/"–" forever.
  */
 
 // Sidebar/Header use next/navigation for logout — not under test here.
@@ -171,7 +171,7 @@ describe('NURSE-1 — overview uses the real stats contract', () => {
 
     // Real fields: active_admissions=2, patients_in_queue=2,
     // todays_admissions=3. The old cards read total_patients/vitals_pending
-    // (nonexistent) → permanently 0/"—".
+    // (nonexistent) → permanently 0/"–".
     expect(await screen.findByText('Active Admissions')).toBeInTheDocument();
     expect(screen.getByText(/in queue/i)).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
@@ -242,7 +242,7 @@ describe('FLAG-041 — attending doctor / handover visibility', () => {
     // still-loading, failed, or genuinely empty /ward/admissions/ response
     // looks like from this component's point of view: the id is simply not
     // in the map. This must render the same as "no field returned" (StatCard's
-    // `?? '—'` precedent), never a blank crash or a wrong name.
+    // `?? '–'` precedent), never a blank crash or a wrong name.
     mockBackend();
     render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
     fireEvent.click(screen.getByRole('button', { name: 'My Patients' }));
@@ -1200,9 +1200,9 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
       details: { attending_doctor: ['Dr. Femi Adeyemi is not currently on duty. Resend with attending_doctor_override=true to assign them anyway.'] },
     };
     const gender = {
-      error: 'gender: Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.',
+      error: 'gender: Sex not recorded. This is a Female ward. Resend with override=true to admit anyway.',
       code: 'BAD_REQUEST',
-      details: { gender: 'Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.' },
+      details: { gender: 'Sex not recorded. This is a Female ward. Resend with override=true to admit anyway.' },
     };
     dataActionMock
       .mockImplementationOnce(() => reject(400, onDuty, onDuty.error))
@@ -1217,7 +1217,7 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
 
     await screen.findByText(/is not currently on duty/);
     fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
-    await screen.findByText(/this is a Female ward/);
+    await screen.findByText(/This is a Female ward/);
     expect(dataActionMock.mock.calls[1][2]).toEqual(expect.objectContaining({ attending_doctor_override: true, override: false }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Admit anyway' }));
@@ -1230,11 +1230,11 @@ describe('WARD-EMERGENCY — emergency admission, one call (build 2 / FLAG-575, 
       reject(
         400,
         {
-          error: "gender: Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.",
+          error: "gender: Sex not recorded. This is a Female ward. Resend with override=true to admit anyway.",
           code: 'BAD_REQUEST',
-          details: { gender: 'Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.' },
+          details: { gender: 'Sex not recorded. This is a Female ward. Resend with override=true to admit anyway.' },
         },
-        "gender: Sex not recorded — this is a Female ward. Resend with override=true to admit anyway.",
+        "gender: Sex not recorded. This is a Female ward. Resend with override=true to admit anyway.",
       ),
     );
 

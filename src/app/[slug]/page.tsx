@@ -165,7 +165,7 @@ export default async function OrgLandingPage({
             Need Help or Medical Assistance?
           </h2>
           <p className="font-body text-base text-gray-700 leading-[1.6]">
-            Reach out to your Health Centre — your message goes directly to them.
+            Reach out to your Health Centre. Your message goes directly to them.
           </p>
         </div>
         <div className="flex flex-wrap items-start gap-12 max-w-[1000px] mx-auto">
@@ -203,7 +203,7 @@ export default async function OrgLandingPage({
             <div>
               <h4 className="font-heading text-[17px] font-bold text-ink mb-1.5">Trouble signing in?</h4>
               <p className="font-body text-[14.5px] text-gray-700 leading-[1.6] mb-0.5">
-                Visit the reception desk — staff will create or reset your login.
+                Visit the reception desk, and staff will create or reset your login.
               </p>
               <p className="font-body text-[14.5px] text-gray-700 leading-[1.6]">
                 Accounts cannot be created online.
@@ -227,7 +227,7 @@ export default async function OrgLandingPage({
               Message the Health Centre
             </h4>
             <p className="font-body text-[13.5px] text-gray-500 leading-[1.5] mb-[18px]">
-              Sent straight to {org.name} — not to HealthClouda.
+              Sent straight to {org.name}, not to HealthClouda.
             </p>
             <OrgContactForm slug={slug} />
           </div>

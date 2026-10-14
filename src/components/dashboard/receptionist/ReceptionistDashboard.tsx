@@ -97,7 +97,7 @@ function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; 
           <ErrorState message={ciError} onRetry={ciRefetch} />
         ) : !todayQueue.length ? (
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-6 text-center">
-            <p className="text-sm font-medium text-emerald-700">Queue is clear — no pending check-ins</p>
+            <p className="text-sm font-medium text-emerald-700">Queue is clear. No pending check-ins.</p>
           </div>
         ) : (
           <TableWrap>
@@ -110,9 +110,9 @@ function OverviewPage({ stats, onNavigate }: { stats: ReceptionistStats | null; 
                   existed, so every one of these cells used to render blank. */}
               {todayQueue.map(ci => (
                 <tr key={ci.id} className="hover:bg-gray-50/60 transition-colors">
-                  <Td className="text-xs font-mono text-gray-400 w-10">{ci.queue_number ?? '—'}</Td>
+                  <Td className="text-xs font-mono text-gray-400 w-10">{ci.queue_number ?? '–'}</Td>
                   <Td><span className="font-medium text-gray-900">{personName(ci.patient)}</span></Td>
-                  <Td className="text-xs text-gray-500 max-w-xs">{truncate(ci.reason_for_visit ?? '—', 40)}</Td>
+                  <Td className="text-xs text-gray-500 max-w-xs">{truncate(ci.reason_for_visit ?? '–', 40)}</Td>
                   <Td className="text-xs text-gray-400 whitespace-nowrap">{timeAgo(ci.checked_in_at)}</Td>
                   <Td className="text-xs">{ci.assigned_doctor ? personName(ci.assigned_doctor) : <span className="text-amber-500 font-medium">Unassigned</span>}</Td>
                   <Td><StatusBadge status={ci.status} /></Td>
@@ -194,7 +194,7 @@ function CheckInsPage() {
   const columns: DataTableColumn<CheckIn>[] = [
     {
       key: 'queue', header: '#', className: 'w-12',
-      render: (ci) => <span className="text-xs font-mono text-text-soft">{ci.queue_number ?? '—'}</span>,
+      render: (ci) => <span className="text-xs font-mono text-text-soft">{ci.queue_number ?? '–'}</span>,
     },
     {
       key: 'patient', header: 'Patient',
@@ -209,7 +209,7 @@ function CheckInsPage() {
     },
     {
       key: 'reason', header: 'Reason',
-      render: (ci) => <span className="text-xs text-text-soft">{truncate(ci.reason_for_visit ?? '—', 40)}</span>,
+      render: (ci) => <span className="text-xs text-text-soft">{truncate(ci.reason_for_visit ?? '–', 40)}</span>,
     },
     {
       key: 'checked_in', header: 'Checked In',
@@ -233,7 +233,7 @@ function CheckInsPage() {
             {doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.first_name} {d.last_name}</option>)}
           </select>
         ) : (
-          <span className="text-xs text-text-soft">{ci.assigned_doctor ? personName(ci.assigned_doctor) : '—'}</span>
+          <span className="text-xs text-text-soft">{ci.assigned_doctor ? personName(ci.assigned_doctor) : '–'}</span>
         )
       ),
     },
@@ -273,7 +273,7 @@ function CheckInsPage() {
             </button>
           );
         }
-        return <span className="text-xs text-text-soft">—</span>;
+        return <span className="text-xs text-text-soft">–</span>;
       },
     },
   ];
@@ -307,7 +307,7 @@ function CheckInsPage() {
         error={error}
         onRetry={refetch}
         emptyTitle={isToday ? 'No check-ins yet today' : `No check-ins on ${formatDate(date)}`}
-        emptyDescription="The queue is filtered by date — change it above to look at another day."
+        emptyDescription="The queue is filtered by date. Change it above to look at another day."
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
@@ -388,8 +388,8 @@ function AppointmentsPage() {
     { key: 'doctor', header: 'Doctor', render: (a) => <span className="text-xs text-text-soft">{personName(a.doctor)}</span> },
     { key: 'date', header: 'Date', render: (a) => <span className="text-xs text-text-soft whitespace-nowrap">{formatDate(a.scheduled_at)}</span> },
     { key: 'time', header: 'Time', render: (a) => <span className="text-xs text-text-soft">{formatTime(a.scheduled_at)}</span> },
-    { key: 'reason', header: 'Reason', render: (a) => <span className="text-xs text-text-soft">{truncate(a.reason ?? '—', 32)}</span> },
-    { key: 'status', header: 'Status', render: (a) => a.status ? <StatusBadge status={a.status} /> : <span className="text-xs text-text-soft">—</span> },
+    { key: 'reason', header: 'Reason', render: (a) => <span className="text-xs text-text-soft">{truncate(a.reason ?? '–', 32)}</span> },
+    { key: 'status', header: 'Status', render: (a) => a.status ? <StatusBadge status={a.status} /> : <span className="text-xs text-text-soft">–</span> },
   ];
 
   return (
@@ -587,7 +587,7 @@ function RegisterPatientPanel({ open, onClose, onRegistered }: {
           <Field label="Last name *"><input required value={form.last_name} onChange={set('last_name')} className={inputCls} /></Field>
         </div>
 
-        <Field label="Phone" hint="Recommended — it is how the patient is reached when there is no email.">
+        <Field label="Phone" hint="Recommended. It is how the patient is reached when there is no email.">
           <input type="tel" value={form.phone ?? ''} onChange={set('phone')} className={inputCls} />
         </Field>
 
@@ -736,7 +736,7 @@ function FlagDuplicateSection({ patient }: { patient: PatientRef | null }) {
     <div className="border-t border-border pt-4">
       <div className="text-xs font-medium text-text-soft mb-1">Duplicate record</div>
       <p className="text-[11px] text-text-soft mb-2">
-        Same person registered twice? Flag it — an administrator reviews and merges.
+        Same person registered twice? Flag it, and an administrator reviews and merges.
       </p>
 
       {done && (
@@ -940,9 +940,9 @@ function CompleteRecordSection({ detail, onSaved }: {
       if (completing) {
         toast.success(consent || alreadyConsented
           ? 'Record completed'
-          : 'Record completed — consent still not recorded');
+          : 'Record completed, but consent is still not recorded');
       } else {
-        toast.success('Details saved — the record stays open until it is completed');
+        toast.success('Details saved. The record stays open until it is completed.');
       }
       onSaved(completing);
     } catch (e) {
@@ -956,7 +956,7 @@ function CompleteRecordSection({ detail, onSaved }: {
     <section aria-labelledby="complete-record-heading" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-3 space-y-3">
       <div>
         <h3 id="complete-record-heading" className="text-xs font-semibold text-warning-strong">
-          Complete this record — created during an emergency admission
+          Complete this record (created during an emergency admission)
         </h3>
         <p className="text-[11.5px] text-text-soft mt-1">
           Recorded as <span className="font-medium text-ink">{detail.first_name} {detail.last_name}</span>.
@@ -966,7 +966,7 @@ function CompleteRecordSection({ detail, onSaved }: {
         </p>
         {detail.stated_hcl_id && (
           <p className="text-[11.5px] text-text-soft mt-1">
-            HealthClouda ID given at admission: <span className="font-mono">{detail.stated_hcl_id}</span> — a note
+            HealthClouda ID given at admission: <span className="font-mono">{detail.stated_hcl_id}</span>. A note
             only; it is not linked to any record.
           </p>
         )}
@@ -1187,7 +1187,7 @@ function PatientActionsPanel({ patient, onClose, onRecordCompleted }: {
             </div>
             <div>
               <div className="text-xs text-text-soft">Phone</div>
-              <div className="text-ink">{detail.phone || '—'}</div>
+              <div className="text-ink">{detail.phone || '–'}</div>
             </div>
           </div>
 
@@ -1222,7 +1222,7 @@ function PatientActionsPanel({ patient, onClose, onRecordCompleted }: {
               </p>
             )}
 
-            <Field label="Assign doctor" hint="Optional — can be assigned later from the queue.">
+            <Field label="Assign doctor" hint="Optional. Can be assigned later from the queue.">
               <select
                 aria-label="Assign doctor"
                 value={checkInDoctor}
@@ -1272,7 +1272,7 @@ function PatientActionsPanel({ patient, onClose, onRecordCompleted }: {
               {inviting ? 'Sending…' : detail.has_portal_account ? 'Resend portal invite' : 'Send portal invite'}
             </button>
             {!shownEmail && (
-              <p className="text-[11px] text-text-soft mt-1.5">Add an email address first — the invite is sent by email.</p>
+              <p className="text-[11px] text-text-soft mt-1.5">Add an email address first. The invite is sent by email.</p>
             )}
           </div>
 
@@ -1411,7 +1411,7 @@ function PatientSearchPage() {
                   patient. It is their permanent identifier across every
                   organisation on the platform, so it is shown large, in mono,
                   and selectable rather than tucked into a toast that vanishes. */}
-              <p className="text-xs text-text-soft mt-2">HealthClouda ID — read this back to the patient</p>
+              <p className="text-xs text-text-soft mt-2">HealthClouda ID. Read this back to the patient.</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="font-mono text-lg font-semibold text-ink tracking-wide select-all">
                   {justRegistered.healthcloudaId}
@@ -1429,12 +1429,12 @@ function PatientSearchPage() {
                     // `select-all`, so it can still be copied by hand.
                     const id = justRegistered.healthcloudaId;
                     if (!id || !navigator.clipboard) {
-                      toast.error('Could not copy — select the ID and copy it by hand');
+                      toast.error('Could not copy. Select the ID and copy it by hand.');
                       return;
                     }
                     navigator.clipboard.writeText(id).then(
                       () => toast.success('HealthClouda ID copied'),
-                      () => toast.error('Could not copy — select the ID and copy it by hand'),
+                      () => toast.error('Could not copy. Select the ID and copy it by hand.'),
                     );
                   }}
                   className="text-xs font-medium text-primary-dark hover:underline"
@@ -1499,7 +1499,7 @@ function PatientSearchPage() {
                   {/* GLOBAL-3: the HCL-ID is the human-facing patient identifier (wristbands) */}
                   <div className="text-xs text-text-soft font-mono">{p.healthclouda_id}</div>
                 </Td>
-                <Td className="text-xs">{p.masked_phone || '—'}</Td>
+                <Td className="text-xs">{p.masked_phone || '–'}</Td>
                 <Td><AccessBadge p={p} /></Td>
                 <Td>
                   <button
@@ -1570,9 +1570,9 @@ function ReferralsPage() {
           <tbody className="divide-y divide-gray-50">
             {list.map(r => (
               <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
-                <Td><span className="font-medium text-gray-900">{r.patient_name ?? (r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : '—')}</span></Td>
-                <Td className="text-xs">{r.referring_doctor ?? '—'}</Td>
-                <Td className="text-xs text-gray-500 max-w-xs">{truncate(r.reason ?? '—', 50)}</Td>
+                <Td><span className="font-medium text-gray-900">{r.patient_name ?? (r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : '–')}</span></Td>
+                <Td className="text-xs">{r.referring_doctor ?? '–'}</Td>
+                <Td className="text-xs text-gray-500 max-w-xs">{truncate(r.reason ?? '–', 50)}</Td>
                 <Td className="text-xs text-gray-400 whitespace-nowrap">{formatDate(r.created_at)}</Td>
                 <Td><StatusBadge status={r.status} /></Td>
               </tr>

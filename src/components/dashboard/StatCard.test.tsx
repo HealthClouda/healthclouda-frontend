@@ -14,7 +14,7 @@ describe('StatCard', () => {
 
   it('renders — when value is undefined', () => {
     render(<StatCard label="Referrals" icon={icon} />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('–')).toBeInTheDocument();
   });
 
   it('shows shimmer skeleton when loading=true and hides value', () => {

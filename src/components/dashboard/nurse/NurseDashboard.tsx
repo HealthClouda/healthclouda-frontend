@@ -80,7 +80,7 @@ function PatientCell({ admission }: { admission: NurseAdmission }) {
 // `undefined` (id not in the map — endpoint failed, still loading, or this
 // admission fell off a page) degrades to the same em dash as "no doctor
 // named yet" rather than a blank or a crash: a missing lookup and an absent
-// fact must never be told apart in the UI (StatCard's `?? '—'` precedent).
+// fact must never be told apart in the UI (StatCard's `?? '–'` precedent).
 type AttendingByAdmission = Map<string, AdmissionAttendingDoctor>;
 
 function AttendingCell({ admission, attendingByAdmission }: {
@@ -94,7 +94,7 @@ function AttendingCell({ admission, attendingByAdmission }: {
   if (info?.needs_attending_doctor) {
     return <span className="text-xs font-semibold text-warning-strong">Unassigned</span>;
   }
-  return <span className="text-xs text-text-soft">—</span>;
+  return <span className="text-xs text-text-soft">–</span>;
 }
 
 // Shared by the Overview preview and the My Patients table — the two differed
@@ -120,13 +120,13 @@ function admissionColumns(
           render: (a: NurseAdmission) => (
             <span className="text-xs text-text-soft">
               {[a.patient.age != null ? `${a.patient.age}y` : null, a.patient.gender, a.patient.blood_type]
-                .filter(Boolean).join(' · ') || '—'}
+                .filter(Boolean).join(' · ') || '–'}
             </span>
           ),
         }]
       : []),
     { key: 'wardbed', header: 'Ward / Bed', className: 'whitespace-nowrap', render: (a) => <span className="text-xs text-text-mid">{wardBedLabel(a)}</span> },
-    { key: 'complaint', header: 'Complaint', render: (a) => <span className="text-xs text-text-soft">{a.episode?.chief_complaint || '—'}</span> },
+    { key: 'complaint', header: 'Complaint', render: (a) => <span className="text-xs text-text-soft">{a.episode?.chief_complaint || '–'}</span> },
     { key: 'attending', header: 'Attending', className: 'whitespace-nowrap', render: (a) => (
       <AttendingCell admission={a} attendingByAdmission={attendingByAdmission} />
     ) },
@@ -163,7 +163,7 @@ function admissionColumns(
 
 function wardBedLabel(a: NurseAdmission): string {
   const parts = [a.ward?.name, a.bed ? `Bed ${a.bed.bed_number}` : null].filter(Boolean);
-  return parts.length ? parts.join(' · ') : '—';
+  return parts.length ? parts.join(' · ') : '–';
 }
 
 // FLAG-041 — fetches the ACTIVE admissions on /ward/admissions/ (the endpoint
@@ -355,19 +355,19 @@ function LatestReading({ vitals }: { vitals: PatientVitals }) {
     return <EmptyState title="No vitals recorded" description="Readings recorded for this patient's active episode will appear here." />;
   }
   const bp = r.blood_pressure_systolic != null || r.blood_pressure_diastolic != null
-    ? `${r.blood_pressure_systolic ?? '—'} / ${r.blood_pressure_diastolic ?? '—'}`
-    : '—';
+    ? `${r.blood_pressure_systolic ?? '–'} / ${r.blood_pressure_diastolic ?? '–'}`
+    : '–';
   return (
     <div className="bg-white rounded-card border border-border shadow-dash-card p-4 space-y-3">
       <h3 className="text-[13.5px] font-bold text-ink">Latest reading</h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Metric label="BP (mmHg)" value={bp} />
-        <Metric label="Pulse" value={r.pulse_rate != null ? `${r.pulse_rate} bpm` : '—'} />
-        <Metric label="Temp" value={r.temperature != null ? `${r.temperature}°C` : '—'} />
-        <Metric label="SpO2" value={r.oxygen_saturation != null ? `${r.oxygen_saturation}%` : '—'} />
-        <Metric label="Resp. rate" value={r.respiratory_rate != null ? `${r.respiratory_rate}/min` : '—'} />
-        <Metric label="Weight" value={r.weight != null ? `${r.weight} kg` : '—'} />
-        <Metric label="Height" value={r.height != null ? `${r.height} cm` : '—'} />
+        <Metric label="Pulse" value={r.pulse_rate != null ? `${r.pulse_rate} bpm` : '–'} />
+        <Metric label="Temp" value={r.temperature != null ? `${r.temperature}°C` : '–'} />
+        <Metric label="SpO2" value={r.oxygen_saturation != null ? `${r.oxygen_saturation}%` : '–'} />
+        <Metric label="Resp. rate" value={r.respiratory_rate != null ? `${r.respiratory_rate}/min` : '–'} />
+        <Metric label="Weight" value={r.weight != null ? `${r.weight} kg` : '–'} />
+        <Metric label="Height" value={r.height != null ? `${r.height} cm` : '–'} />
         <Metric label="Recorded" value={timeAgo(r.recorded_at)} />
       </div>
       {r.notes && <p className="text-xs text-text-mid border-t border-border pt-2.5">{r.notes}</p>}
@@ -602,7 +602,7 @@ function isBedConflict(err: unknown): boolean {
   return err instanceof ClientApiError && err.status === 409;
 }
 
-const BED_CONFLICT_MESSAGE = 'That bed was just taken by another patient — the list below has been refreshed, pick another.';
+const BED_CONFLICT_MESSAGE = 'That bed was just taken by another patient. The list below has been refreshed; pick another.';
 
 // Non-blocking by design — `role="status"` (polite), not `role="alert"`,
 // and it renders ALONGSIDE the rest of the form rather than replacing it
@@ -665,7 +665,7 @@ function eligibleEpisodeColumns(onAdmit: (ep: EpisodeListItem) => void): DataTab
         </div>
       ),
     },
-    { key: 'complaint', header: 'Chief Complaint', render: ep => <span className="text-xs text-text-soft">{ep.chief_complaint_summary || '—'}</span> },
+    { key: 'complaint', header: 'Chief Complaint', render: ep => <span className="text-xs text-text-soft">{ep.chief_complaint_summary || '–'}</span> },
     { key: 'opened', header: 'Opened', className: 'whitespace-nowrap', render: ep => <span className="text-xs text-text-soft">{timeAgo(ep.episode_start)}</span> },
     {
       key: 'actions', header: '', className: 'text-right',
@@ -1180,8 +1180,8 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       const admittedName = `${res?.patient?.first_name ?? patient?.first_name ?? ''} ${res?.patient?.last_name ?? patient?.last_name ?? ''}`.trim();
       toast.success(
         `${admittedName || 'Patient'} admitted`
-        + (needsDoctor ? ' — no attending doctor assigned yet' : '')
-        + (incomplete ? ' — record incomplete, reception can complete it later' : ''),
+        + (needsDoctor ? '. No attending doctor assigned yet' : '')
+        + (incomplete ? '. Record incomplete; reception can complete it later' : ''),
       );
       setGenderWarning(null);
       setDoctorWarning(null);
@@ -1234,7 +1234,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
       title="Emergency admission"
       subtitle={
         patient ? `${patient.first_name} ${patient.last_name}`
-          : newPatient ? 'New emergency patient — no record yet'
+          : newPatient ? 'New emergency patient (no record yet)'
           : 'No doctor has seen this patient yet'
       }
       footer={
@@ -1269,7 +1269,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-ink">New emergency patient — no record yet</p>
+              <p className="text-xs font-semibold text-ink">New emergency patient (no record yet)</p>
               <button type="button" onClick={resetPatientSelection} className="text-xs font-semibold text-primary-dark hover:underline">
                 Search instead
               </button>
@@ -1279,7 +1279,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
                 Who is this patient?
               </label>
               <p className="text-[11px] text-text-soft mb-1">
-                Required — a short description, e.g. &quot;man, ~40, brought in by police&quot;. Reception
+                Required. A short description, e.g. &quot;man, ~40, brought in by police&quot;. Reception
                 completes the full record later.
               </p>
               <input
@@ -1295,7 +1295,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
                 HealthClouda ID they say they have (optional)
               </label>
               <p className="text-[11px] text-text-soft mb-1">
-                A note only — it does not link or grant access to any record.
+                A note only. It does not link or grant access to any record.
               </p>
               <input
                 id="emergency-stated-hcl-id"
@@ -1316,7 +1316,7 @@ function EmergencyAdmitForm({ open, onClose, onAdmitted }: {
           <label htmlFor="emergency-reason" className="block text-xs font-medium text-text-soft mb-1">
             Reason for admission
           </label>
-          <p className="text-[11px] text-text-soft mb-1">Required — a brief reason is fine. A doctor reviews afterwards.</p>
+          <p className="text-[11px] text-text-soft mb-1">Required. A brief reason is fine. A doctor reviews afterwards.</p>
           <textarea
             id="emergency-reason"
             rows={2}
@@ -1638,7 +1638,7 @@ function DeclineRequestPanel({ request, onClose, onDeclined }: {
     >
       <form id="decline-request" onSubmit={submit} className="space-y-4">
         <p className="text-xs text-text-soft">
-          The ward can refuse a planned admission — for example, no appropriate bed, or the clinical
+          The ward can refuse a planned admission, for example when there is no appropriate bed, or the clinical
           picture does not match the requested level of care. Say why, so the requesting doctor can act on it.
         </p>
         <div>
@@ -1675,10 +1675,10 @@ function admissionRequestColumns(
     },
     { key: 'urgency', header: 'Urgency', render: r => <StatusBadge status={r.urgency} label={urgencyLabel(r.urgency)} /> },
     { key: 'level', header: 'Level of care', render: r => <span className="text-xs text-text-soft">{levelOfCareLabel(r.level_of_care)}</span> },
-    { key: 'reason', header: 'Clinical reason', render: r => <span className="text-xs text-text-soft">{r.clinical_reason || '—'}</span> },
+    { key: 'reason', header: 'Clinical reason', render: r => <span className="text-xs text-text-soft">{r.clinical_reason || '–'}</span> },
     {
       key: 'requested_by', header: 'Requested by', className: 'whitespace-nowrap',
-      render: r => <span className="text-xs text-text-soft">{r.requested_by ? `Dr. ${r.requested_by.first_name} ${r.requested_by.last_name}` : '—'}</span>,
+      render: r => <span className="text-xs text-text-soft">{r.requested_by ? `Dr. ${r.requested_by.first_name} ${r.requested_by.last_name}` : '–'}</span>,
     },
     { key: 'requested', header: 'Requested', className: 'whitespace-nowrap', render: r => <span className="text-xs text-text-soft">{timeAgo(r.created_at)}</span> },
     {
