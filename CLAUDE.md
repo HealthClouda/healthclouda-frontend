@@ -221,8 +221,10 @@ The team meets **Monday** (assign the week) and **Friday** (review it). Each per
 ### What the assistant does with it
 
 1. **At session start, after identifying the dev:** read the current week's tasks
-   (`ArtifactData` `query` on `tasks` where `week` = the highest week in `weeks` and `owner` = this dev)
-   and tell the dev what is open on their list. **Suggest work from that list first**, after the
+   (`ArtifactData` `query` on `tasks` where `week` = the id of the week with the highest `number` in
+   `weeks` (not the highest id: `w10` sorts before `w9`) and `owner` = this dev) and tell the dev what is
+   open on their list. **Catch up first:** any of this dev's `review` tasks whose PR has since merged
+   → set `done`. Most PRs are merged by the other dev, when this dev's assistant is not running. **Suggest work from that list first**, after the
    Cross-Lane Asks inbox.
 2. **When a PR is opened for a board task:** set that task's `status` to `review` and `pr` to the PR
    number. **When it merges:** set `status` to `done`. Pass the `version` you read as `if_version`.
@@ -231,6 +233,9 @@ The team meets **Monday** (assign the week) and **Friday** (review it). Each per
 4. **Only ever change the current dev's own tasks.** Never tick, edit or delete another dev's task.
 5. **If the `ArtifactData` tool is not available in this session,** or a read is refused, tell the dev to
    tick the board by hand. Never treat an unreadable board as an empty one.
+
+🔒 **No patient data, credentials or demo logins on the board.** This repo is public and carries the
+board link; access control protects the board, but the rule is set before anyone is tempted.
 
 ⚠️ The board is a claude.ai artifact. The dev's own claude.ai account must have **edit (Contributor)
 access** to it, shared by @Bastoh from the page's Share menu; with view access the assistant can read
@@ -247,7 +252,8 @@ the list but every write is refused.
    **📥 Cross-Lane Asks inbox. Check your own rows there before picking work** — it is the only place
    that answers *"is anything waiting on me?"*, and an open row may outrank your plan for the day.
 2b. **Read this week's tasks on the 📋 Stand-up Board** (the *Weekly Stand-up Board* section above) for this dev, and
-   say what is still open on their list. It is what they committed to on Monday.
+   say what is still open on their list. It is what they committed to on Monday. Before that, set
+   `done` on any of their `review` tasks whose PR has since merged.
 3. **Read _every_ per-dev log — `HANDOFF-<Name>.md` for ALL devs, not just this one.**
    ⚠️ Reading only your own **fails silently.** Nothing errors; you simply miss what the other dev
    did, duplicate their work, or contradict a decision they already made. This is the single
@@ -292,6 +298,7 @@ It is written for both of you.
 
 1. Confirm what was completed and what remains.
 2. **Update `HANDOFF-<YourName>.md`** — new dated entry at the top.
+2b. **Tick your 📋 Stand-up Board tasks** — `review` for a PR opened this session, `done` for one merged.
 3. **Update `HANDOFF.md`** if durable state changed (In Flight rows, env/deploy facts, backend
    contract notes).
 4. **Update `docs/ARCHITECTURE.md`** if routes, components, state, or the API layer changed.
