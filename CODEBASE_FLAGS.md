@@ -1856,7 +1856,7 @@ to complete.
 **Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
 
 ### FLAG-067 — Reception can check in a patient recorded as dead
-**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — waiting on the backend half** (stand-up w1-e3, @Ericmoore207). Checked 2026-10-16: backend `develop` (`751701e`) still accepts the check-in; the deceased guard in `apps/patients/access.py` is called by episodes, referrals and admissions, but not from the check-in path. **Frontend half needs no change:** `checkInPatient` shows the backend's sentence from `details` (`readableFieldError`), and `ReceptionistDashboard.test.tsx` already pins that path for the FLAG-238 refusal. Once e3 lands, check it on dev (check in `HCL-KK4CKY`), then close this flag
 **Found:** 2026-10-04, walking checklist build 9 on dev
 
 `POST /receptionist/check-ins/` accepted `HCL-KK4CKY` (recorded as dead) and put him in Dr Emeka's
