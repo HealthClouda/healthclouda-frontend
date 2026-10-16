@@ -1581,7 +1581,7 @@ nurse one, and Tuesday's row is corrected to say so.
 ---
 
 ### FLAG-212 — The two bed sources disagree, and one bed belongs to no ward
-**Severity:** ~~P3~~ **P2** (raised 2026-09-04) · **Area:** Backend contract / data · **Owner:** @Qeeyat · **Status:** **OPEN — half of it closed by itself; read the 2026-09-04 re-measurement below before acting**
+**Severity:** ~~P3~~ **P2** (raised 2026-09-04) · **Area:** Backend contract / data · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-10-16 in the PR that logs it (`fix/flag-212-room-beds`).** Problem 2 closed on its own (2026-09-04, below). Problem 1: the `ward: null` bed is **legitimate**. It's a room bed: backend `Bed` has the check constraint `bed_in_ward_or_room_not_both` (a ward OR a room, never neither), and the nurse stats count room beds on purpose (`apps/ward/nurse_views.py`: "include both ward and room beds"). So the tile's 11 was right. The board now lists room beds on a **Rooms** card (bed, room name and number, patient, status, but no counts the backend didn't send), so it shows all 11. No `api-request` was needed. *Moves to Resolved once #193 (the flags cleanup) has merged; it isn't moved here to avoid a conflict with it.*
 **Found:** 2026-08-19, building the D3 ward board — visible only once real beds were rendered
 
 Measured live as `nurse@demo.test`, 2026-08-19:
@@ -1652,6 +1652,9 @@ filing an `api-request`.
 > tier's data model goes near real patients.
 
 ---
+
+> ⚠️ **Filing note (2026-10-16): the block below is not about FLAG-212.** It records the patient-portal fix
+> (FLAG-210: the slug-less `/patient` route) and was appended under this flag by mistake.
 
 > ✅ **Fixed 2026-08-28, and the architecture question it was waiting on is now answered.**
 >

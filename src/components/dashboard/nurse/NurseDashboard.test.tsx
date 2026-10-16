@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { NurseDashboard } from './NurseDashboard';
 import { ENDPOINTS } from '@/lib/config';
 import { useToastStore } from '@/store/toast';
@@ -448,6 +448,84 @@ describe('D3 — ward overview shows per-bed detail', () => {
     await screen.findByText('GW-01');
     const numbers = screen.getAllByText(/^GW-\d+$/).map((el) => el.textContent);
     expect(numbers).toEqual(['GW-01', 'GW-02']);
+  });
+});
+
+/**
+ * FLAG-212 — a bed in a room has `ward: null`, and the board dropped it.
+ * Backend `Bed` has a check constraint, `bed_in_ward_or_room_not_both`: every
+ * bed is in a ward OR a room, never neither. So `ward: null` is a room bed,
+ * not debris, and the nurse stats count it (`nurse_views.py`: "include both
+ * ward and room beds"). Leaving it off the board made the Bed Occupancy tile
+ * ("2 of 11") disagree with the board (10 beds) on the same screen.
+ */
+describe('FLAG-212 — beds in rooms appear on the ward board', () => {
+  const wardsResponse = {
+    count: 1,
+    results: [{
+      id: 'ward-1', name: 'General Ward', category: 'MEDICAL',
+      total_beds: 1, available_beds: 1, occupied_beds: 0, occupancy_rate: 0,
+    }],
+  };
+  // `room` is RoomNestedSerializer: {id, name, room_number}.
+  const bedsResponse = {
+    count: 3,
+    results: [
+      {
+        id: 'bed-1', bed_number: 'GW-01', status: 'AVAILABLE',
+        ward: { id: 'ward-1', name: 'General Ward', category: 'MEDICAL' },
+        room: null, current_patient: null, assigned_at: null,
+      },
+      {
+        id: 'bed-r2', bed_number: 'VIP-02', status: 'AVAILABLE',
+        ward: null, room: { id: 'room-1', name: 'VIP Suite', room_number: 'R-01' },
+        current_patient: null, assigned_at: null,
+      },
+      {
+        id: 'bed-r1', bed_number: 'VIP-01', status: 'OCCUPIED',
+        ward: null, room: { id: 'room-1', name: 'VIP Suite', room_number: 'R-01' },
+        current_patient: { id: 'p-9', healthclouda_id: 'HCL-ROOM01', first_name: 'Amaka', last_name: 'Eze' },
+        assigned_at: '2026-10-15T09:00:00Z',
+      },
+    ],
+  };
+
+  async function openWards(beds: unknown = bedsResponse, wards: unknown = wardsResponse) {
+    dataGetMock.mockImplementation((path: string) => {
+      if (path.startsWith(ENDPOINTS.WARD_BEDS)) return Promise.resolve(beds);
+      if (path.startsWith(ENDPOINTS.NURSE_WARDS_OVERVIEW)) return Promise.resolve(wards);
+      return Promise.resolve({ count: 0, results: [] });
+    });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Ward Overview' }));
+  }
+
+  it('lists room beds under Rooms, with the room, the patient and the status', async () => {
+    await openWards();
+    const rooms = (await screen.findByRole('heading', { name: 'Rooms' })).closest('div.bg-white') as HTMLElement;
+    expect(rooms).not.toBeNull();
+    expect(within(rooms).getByText('VIP-01')).toBeInTheDocument();
+    expect(within(rooms).getByText('VIP-02')).toBeInTheDocument();
+    expect(within(rooms).getAllByText('VIP Suite (R-01)').length).toBe(2);
+    expect(within(rooms).getByText('Amaka Eze')).toBeInTheDocument();
+    expect(within(rooms).getByText('Occupied')).toBeInTheDocument();
+    // Sorted by bed number, like the ward cards.
+    expect(within(rooms).getAllByText(/^VIP-\d+$/).map((el) => el.textContent)).toEqual(['VIP-01', 'VIP-02']);
+    // And the ward card still holds only its own bed.
+    const ward = screen.getByRole('heading', { name: 'General Ward' }).closest('div.bg-white') as HTMLElement;
+    expect(within(ward).queryByText(/^VIP-/)).toBeNull();
+  });
+
+  it('shows no Rooms card when no bed is in a room', async () => {
+    await openWards({ count: 1, results: [bedsResponse.results[0]] });
+    await screen.findByText('GW-01');
+    expect(screen.queryByRole('heading', { name: 'Rooms' })).toBeNull();
+  });
+
+  it('still shows room beds when the organisation has no wards', async () => {
+    await openWards({ count: 2, results: bedsResponse.results.slice(1) }, { count: 0, results: [] });
+    expect(await screen.findByRole('heading', { name: 'Rooms' })).toBeInTheDocument();
+    expect(screen.getByText('VIP-01')).toBeInTheDocument();
   });
 });
 

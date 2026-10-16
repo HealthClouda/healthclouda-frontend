@@ -1772,13 +1772,18 @@ function WardsPage({ currentUserId }: { currentUserId: string }) {
     (acc[wardId] ??= []).push(b);
     return acc;
   }, {});
+  // FLAG-212: a bed with no ward is in a room (the backend allows nothing
+  // else), and the nurse stats count it. Leaving it off the board made the
+  // Bed Occupancy tile disagree with the board. List the beds only: no counts
+  // or percentage the backend didn't send for rooms.
+  const roomBeds = beds.filter((b) => !b.ward?.id && b.room);
 
   return (
     <div className="space-y-4">
       <h2 className="font-body font-black text-[22px] text-ink">Ward Overview</h2>
       {loading ? <ShimmerRows count={3} /> : error ? (
         <ErrorState message={error} onRetry={refetch} />
-      ) : !wards.length ? (
+      ) : !wards.length && !roomBeds.length ? (
         <EmptyState title="No wards" description="Ward information will appear here." />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1808,29 +1813,7 @@ function WardsPage({ currentUserId }: { currentUserId: string }) {
 
                 {/* Per-bed detail from /ward/beds/ — who is in which bed, which
                     is the actual question a nurse has at a ward board. */}
-                {(bedsByWard[ward.id]?.length ?? 0) > 0 && (
-                  <ul className="mt-3 pt-3 border-t border-border space-y-1.5">
-                    {bedsByWard[ward.id]
-                      .slice()
-                      .sort((a, b) => a.bed_number.localeCompare(b.bed_number))
-                      .map((bed) => (
-                        <li key={bed.id} className="flex items-center justify-between gap-2">
-                          <span className="text-[11.5px] font-semibold text-ink font-mono">{bed.bed_number}</span>
-                          <span className="flex items-center gap-2 min-w-0">
-                            {bed.current_patient && (
-                              <span className="text-[11px] text-text-soft truncate">
-                                {bed.current_patient.first_name} {bed.current_patient.last_name}
-                              </span>
-                            )}
-                            <StatusBadge
-                              status={bed.status}
-                              label={BED_STATUS_LABEL[bed.status] ?? bed.status}
-                            />
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                )}
+                {(bedsByWard[ward.id]?.length ?? 0) > 0 && <BedRows beds={bedsByWard[ward.id]} />}
 
                 {/* Build 6 / FLAG-046 — who is rostered on this ward right
                     now, and who is in charge. Never blocks anything above:
@@ -1840,9 +1823,50 @@ function WardsPage({ currentUserId }: { currentUserId: string }) {
               </div>
             );
           })}
+          {roomBeds.length > 0 && (
+            <div className="bg-white rounded-card border border-border shadow-dash-card p-4">
+              <h3 className="text-[13.5px] font-bold text-ink">Rooms</h3>
+              <p className="text-[11px] text-text-soft mt-0.5">Private and VIP rooms, outside any ward</p>
+              <BedRows beds={roomBeds} showRoom />
+            </div>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+/** One row per bed, sorted by bed number: who is in it, and its status. */
+function BedRows({ beds, showRoom = false }: { beds: WardBed[]; showRoom?: boolean }) {
+  return (
+    <ul className="mt-3 pt-3 border-t border-border space-y-1.5">
+      {beds
+        .slice()
+        .sort((a, b) => a.bed_number.localeCompare(b.bed_number))
+        .map((bed) => (
+          <li key={bed.id} className="flex items-center justify-between gap-2">
+            <span className="flex flex-col min-w-0">
+              <span className="text-[11.5px] font-semibold text-ink font-mono">{bed.bed_number}</span>
+              {showRoom && bed.room && (
+                <span className="text-[10.5px] text-text-soft truncate">
+                  {bed.room.name ?? 'Room'}{bed.room.room_number ? ` (${bed.room.room_number})` : ''}
+                </span>
+              )}
+            </span>
+            <span className="flex items-center gap-2 min-w-0">
+              {bed.current_patient && (
+                <span className="text-[11px] text-text-soft truncate">
+                  {bed.current_patient.first_name} {bed.current_patient.last_name}
+                </span>
+              )}
+              <StatusBadge
+                status={bed.status}
+                label={BED_STATUS_LABEL[bed.status] ?? bed.status}
+              />
+            </span>
+          </li>
+        ))}
+    </ul>
   );
 }
 
