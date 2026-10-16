@@ -108,13 +108,13 @@ swapping the old code back in so the new tests go red, then tsc and the full sui
 - **#186** (`37d7325`): one `EMPTY_VALUE` is imported by all four checks. A forced empty tile fails
   again, and Playwright still loads the spec. 546/546. **Merged.**
 - **#187** (`3a43ebd`): my blank-box probe now sends nothing, and a lower count asks for confirmation
-  first. After a failed load, Save is disabled. 557/557. Backend #264 linked for him.
+  first. After a failed load, Save is disabled. 557/557. Backend #264 linked for him. **Merged.**
 - **#188** (`022f0bd`): my stuck-loading probe ends with loading cleared. Loads are sequenced, so a
-  stale background result is dropped. 561/561.
+  stale background result is dropped. 561/561. **Merged.**
 
 **Left undone / next:**
 - [x] ~~Re-review #186, #187 and #188~~: approved 14 Oct.
-- [ ] Review **#190** (@Bastoh, Stand-up Board in `CLAUDE.md`).
+- [x] ~~Review **#190**~~: approved with four suggestions, all taken; merged 14 Oct. Follow-up #191 (board copy for outside-org devs) approved and merged.
 - [x] ~~FLAG-070 rows~~: cleared by @Bastoh in #186's rebase.
 - [ ] Still open from before: #96 / FLAG-234.
 
