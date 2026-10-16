@@ -233,8 +233,10 @@ The team meets **Monday** (assign the week) and **Friday** (review it). Each per
 4. **Only ever change the current dev's own tasks.** Never tick, edit or delete another dev's task.
 5. **If the `ArtifactData` tool is not available in this session,** or a read is refused, read
    **`docs/standup/current-week.md`** instead, tell the dev their open tasks from it, and remind them to
-   tick the board by hand in the browser. Never treat an unreadable board as an empty one, and never
-   write ticks into that file: it is a Monday snapshot, not the board.
+   tick the board by hand in the browser. **First check the week's dates in the file against today:**
+   if today is outside them, say it is last week's copy and that the new one has not reached `develop`
+   yet (the Monday PR still needs the other dev's approval). Never treat an unreadable board as an empty
+   one, and never write ticks into that file: it is a snapshot, not the board.
 
 ### Why some devs' assistants cannot read the board (2026-10-14)
 
@@ -251,8 +253,8 @@ As the board owner, @Bastoh's assistant is the one that can always read and writ
 exceptions to rule 4.
 
 - **Monday, when the week is set up:** after writing the week's `weeks` and `tasks` docs to the board,
-  regenerate **`docs/standup/current-week.md` in both repos** from the board (same content in each) and
-  open the usual docs PR. Without it, the other devs' assistants have nothing to read.
+  regenerate **`docs/standup/current-week.md` in both repos** from the board (same content in each,
+  **with each task's current status and the snapshot date**) and open the usual docs PR. Without it, the other devs' assistants have nothing to read.
 - **Friday, before stand-up:** for **every** dev's task with `status = review` and a `pr` number, check the
   PR on GitHub; merged into `develop` → set `done` (with `if_version`). Change nothing else on another
   dev's task. This keeps the board right for the devs who tick by hand.
