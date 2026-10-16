@@ -2485,6 +2485,24 @@ removing the marker from the poll and from the silent refetch), `src/app/api/dat
 
 ---
 
+### FLAG-074 — The ward set-up panel said lowering the bed count removes reserved beds; since backend #273 it keeps them
+**Severity:** P3 · **Area:** Org admin / Wards & Beds · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/flag-074-reserved-beds-kept`** (board w1-b7)
+**Found:** 2026-10-16, by the reviewer on backend #273 (backend FLAG-627, issue #264)
+
+Backend #273 changed `PATCH /ward/<id>/`: a reserved bed now blocks a lower bed count instead of being
+removed (owner decision 16 Oct), and a refused request changes nothing. The panel still told the admin, in
+the help text and in the "This removes N beds" confirmation, that reserved beds would be removed, so the
+admin was promised one thing and then shown a refusal. The contract comment at the top of the file said the
+same and still described the refusal as a flat `{error}`.
+
+**Fix:** the help text and the confirmation now say reserved beds and beds with a patient stay; the contract
+comment now says RESERVED or occupied beds block the cut with `400 {error, details.total_beds}`. No logic
+change: the panel already shows `details.total_beds` next to the bed-count field (`readError`).
+**Test:** `WardSetup.test.tsx` "lowering the bed count asks first" now asserts the new confirmation text.
+It was RED on the old copy (1 failed, 11 passed) and GREEN after (12 passed).
+
+---
+
 ### FLAG-207 — Dead `ORG_ADMIN_STAFF_MEMBER` endpoint constant, removed
 **Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **FIXED — #78, merged 2026-08-19**
 **Found:** 2026-08-17, building D2 Org Admin, verified against the live schema
