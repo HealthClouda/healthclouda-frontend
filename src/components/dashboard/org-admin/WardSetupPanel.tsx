@@ -19,8 +19,9 @@ import { useToast } from '@/store/toast';
  * `POST /ward/` and `PATCH /ward/<id>/` take {name, category, category_other,
  * gender, total_beds}. `total_beds` drives the beds themselves: creating a ward
  * numbers that many beds (e.g. "CH-001"), raising it adds more, and lowering it
- * removes beds nobody is in: AVAILABLE, MAINTENANCE and RESERVED alike (an
- * occupied bed refuses with 400 {error}). So a lower count is confirmed first.
+ * removes empty beds: AVAILABLE and MAINTENANCE. A RESERVED or occupied bed
+ * blocks it: 400 {error, details.total_beds} and nothing changes (backend
+ * FLAG-627, #273). So a lower count is confirmed first.
  * `DELETE /ward/<id>/` refuses while any bed is occupied. The name is unique
  * per organisation (details.name).
  */
@@ -238,13 +239,13 @@ export function WardSetupPanel({
               className={formInputClass} value={form.total_beds}
               onChange={(e) => set('total_beds', e.target.value)} aria-invalid={error?.field === 'total_beds' || undefined} />
             <span className="text-[11px] text-text-soft">
-              Beds are numbered for you. Lowering the number removes beds nobody is in, including reserved and under-maintenance beds. A bed with a patient in it stays.
+              Beds are numbered for you. Lowering the number removes empty beds, including under-maintenance ones. A bed with a patient in it, or a reserved bed, stays.
             </span>
             {fieldError('total_beds')}
             {confirmFewer && removing > 0 && (
               <div role="alertdialog" aria-label="Confirm removing beds" className="mt-2 rounded-lg bg-warning-bg px-3 py-3 space-y-2">
                 <p className="text-xs text-ink">
-                  This removes {removing} {removing === 1 ? 'bed' : 'beds'} from {form.name || 'this ward'}, including any that are reserved or under maintenance.
+                  This removes {removing} {removing === 1 ? 'bed' : 'beds'} from {form.name || 'this ward'}, including any under maintenance. Reserved beds and beds with a patient stay.
                 </p>
                 <div className="flex gap-2">
                   <Button variant="secondary" onClick={() => setConfirmFewer(false)} disabled={saving}>Keep them</Button>

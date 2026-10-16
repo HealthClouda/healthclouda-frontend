@@ -161,7 +161,7 @@ describe('FLAG-072 — edit and delete a ward', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save ward' }));
 
     const confirm = screen.getByRole('alertdialog', { name: 'Confirm removing beds' });
-    expect(confirm).toHaveTextContent('This removes 1 bed from General Ward, including any that are reserved or under maintenance.');
+    expect(confirm).toHaveTextContent('This removes 1 bed from General Ward, including any under maintenance. Reserved beds and beds with a patient stay.');
     fireEvent.click(within(confirm).getByRole('button', { name: 'Keep them' }));
     expect(dataActionMock).not.toHaveBeenCalled();
 
