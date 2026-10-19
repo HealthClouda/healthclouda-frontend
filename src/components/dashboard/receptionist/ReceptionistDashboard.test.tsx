@@ -1127,6 +1127,32 @@ describe('checking a patient in — POST /receptionist/check-ins/', () => {
     expect(await screen.findByText(/may not be blank/i)).toBeInTheDocument();
     expect(screen.queryByText(/Request failed/i)).not.toBeInTheDocument();
   });
+
+  // FLAG-067 — backend #275 refuses a check-in for a patient recorded as dead,
+  // under `details.patient`, AFTER its org-access check so it discloses nothing
+  // to a hospital without access. The desk must see that sentence, and the
+  // screen must not add words of its own: reception may be standing in front
+  // of the family (backend FLAG-578).
+  it('FLAG-067 — shows the refusal for a patient recorded as dead, in the backend\'s own words', async () => {
+    const refusal = 'This patient cannot be checked in at this time. Please escalate to an administrator.';
+    dataActionMock.mockRejectedValue(
+      new ClientApiError(
+        400,
+        { error: `patient: ${refusal}`, code: 'BAD_REQUEST', details: { patient: [refusal] } },
+        `patient: ${refusal}`,
+      ),
+    );
+    await openPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check in patient' }));
+
+    // Inline under the button (no toaster is rendered here, so this is the
+    // panel's own line), not only in a toast that disappears.
+    expect(await screen.findByText(refusal)).toBeInTheDocument();
+    expect(useToastStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+    expect(screen.queryByText(/Queue number/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/deceased|died|dead|death/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('working the queue — PATCH /receptionist/check-ins/<id>/', () => {

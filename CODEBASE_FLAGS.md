@@ -1858,25 +1858,6 @@ to complete.
 
 **Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
 
-### FLAG-067 — Reception can check in a patient recorded as dead
-**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — waiting on the backend half** (stand-up w1-e3, @Ericmoore207). Checked 2026-10-16: backend `develop` (`751701e`) still accepts the check-in; the deceased guard in `apps/patients/access.py` is called by episodes, referrals and admissions, but not from the check-in path. **Frontend half needs no change:** `checkInPatient` shows the backend's sentence from `details` (`readableFieldError`), and `ReceptionistDashboard.test.tsx` already pins that path for the FLAG-238 refusal. Once e3 lands, check it on dev (check in `HCL-KK4CKY`), then close this flag
-**Found:** 2026-10-04, walking checklist build 9 on dev
-
-`POST /receptionist/check-ins/` accepted `HCL-KK4CKY` (recorded as dead) and put him in Dr Emeka's
-Queue. Nothing unsafe follows: the doctor's **Start episode** is refused (backend FLAG-619, #177), and
-admission is refused too. But the front desk is never told, and a dead patient sits in a doctor's
-Queue until someone marks a No-show.
-
-**Fix (backend, small):** apply the same non-disclosing deceased guard to check-in that episodes and
-admissions already use (`apps/patients/access.py`), with its own sentence. The frontend shows
-`details.patient` already.
-
-**Done when** checking in a patient recorded as dead is refused in words that don't say why, and a
-test pins it.
-
-
----
-
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
@@ -2331,6 +2312,25 @@ merge screens exist to clean up.
 field (an AND of ORs). Keep the minimum length per query, not per word.
 
 **Done when** a full-name search finds the patient, and a test pins it.
+
+---
+
+### FLAG-067 — Reception can check in a patient recorded as dead
+**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — backend #275 (merged 2026-10-17) + this repo's `fix/flag-067-deceased-checkin`.** The backend refuses under `details.patient` ("This patient cannot be checked in at this time. Please escalate to an administrator."), after its org-access check. The panel already surfaced `details.*`, so no product code changed; a test in `ReceptionistDashboard.test.tsx` now pins this sentence inline, no queue number, and no word of ours that says why (proved RED by disabling `readableFieldError`). #275 also refuses **booking** for such a patient; reception has no booking form, so there is nothing to show yet. ⚠️ Not walked on api-dev: no receptionist login in this session.
+**Found:** 2026-10-04, walking checklist build 9 on dev
+
+`POST /receptionist/check-ins/` accepted `HCL-KK4CKY` (recorded as dead) and put him in Dr Emeka's
+Queue. Nothing unsafe follows: the doctor's **Start episode** is refused (backend FLAG-619, #177), and
+admission is refused too. But the front desk is never told, and a dead patient sits in a doctor's
+Queue until someone marks a No-show.
+
+**Fix (backend, small):** apply the same non-disclosing deceased guard to check-in that episodes and
+admissions already use (`apps/patients/access.py`), with its own sentence. The frontend shows
+`details.patient` already.
+
+**Done when** checking in a patient recorded as dead is refused in words that don't say why, and a
+test pins it.
+
 
 ---
 
