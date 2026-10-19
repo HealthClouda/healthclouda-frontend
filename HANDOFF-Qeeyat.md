@@ -60,6 +60,43 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-10-19 — closing out Week 1: FLAG-067 pinned in #196, FLAG-056 already fixed, #174 waits on a rebase (branch: fix/flag-067-deceased-checkin)
+
+**Goal:** finish what was left of my Week 1 stand-up list (13–16 Oct) so I can move to Week 2.
+
+**What I did:**
+- **w1-k4, FLAG-067 → #196** (reviewer @Bastoh, confirmed set). Backend #275 (@Ericmoore207, merged 17 Oct)
+  refuses the check-in under `details.patient`, after its org-access check. Our panel already shows the first
+  `details` message, so **no product code changed**: one test pins the exact sentence inline, no queue number,
+  and no word of ours saying why (backend FLAG-578). Proved RED by disabling `readableFieldError`.
+  tsc clean, 575/575, build green. In Flight claimed in the branch's first commit; FLAG-067 marked RESOLVED.
+- **w1-k5, FLAG-056: nothing to do.** Fixed in #173 on 4 Oct (`DoctorPicker.test.tsx` pins "No attending
+  doctor yet"); my #193 already moves it to Resolved.
+- **#189:** checked that my 16 Oct commit `98f13b7` answers all three of @Bastoh's points from his 19:03 review.
+  It does; the PR is MERGEABLE and only needs his re-approval.
+
+**Week 1 at close:**
+
+| Task | State |
+|---|---|
+| w1-k1 re-reviews | #186/#187/#188 merged 14 Oct. **#174 is CONFLICTING**, no push since 4 Oct; waits on @Bastoh's rebase (and the FLAG-063 conversation) |
+| w1-k2 flags cleanup | review, #193 |
+| w1-k3 FLAG-212 | review, #195 |
+| w1-k4 FLAG-067 | review, #196 |
+| w1-k5 FLAG-056 | done (#173) |
+
+**What I found:**
+- 🟠 **A board task can name work that is already merged.** FLAG-056 was on my list two weeks after #173 fixed
+  it. **Lesson: before starting a board task, `git log -S` the symptom on `origin/develop`.**
+- My assistant still cannot read the board from Claude Code (the "another organization" refusal), and
+  `docs/standup/current-week.md` on `develop` is still Week 1. Ticked by hand in the browser.
+- ⚠️ **Not walked on api-dev:** no receptionist login this session. Worth trying on HCL-KK4CKY.
+- Not mine to clear: @Bastoh's **FLAG-073** In Flight row is stale (#188 merged 14 Oct).
+
+**Next:** Week 2 tasks once the board copy lands; re-review #174 when it is rebased.
+
+---
+
 ### 2026-10-08 — review round: #185 approved, #186/#187/#188 changes requested, backend #264 (branch: docs/qeeyat-session-2026-10-08)
 
 **Goal:** review the four PRs @Bastoh opened 6–7 Oct (#185–#188), all requested from me.
