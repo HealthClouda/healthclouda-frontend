@@ -849,7 +849,10 @@ export interface WardBed {
   bed_number: string;
   status: string;
   ward: { id: string; name: string; category?: string } | null;
-  room: { id: string; name?: string } | null;
+  // FLAG-212: backend `Bed` is in a ward OR a room, never neither (check
+  // constraint `bed_in_ward_or_room_not_both`), so `ward: null` means a room
+  // bed. `room` is RoomNestedSerializer: {id, name, room_number}.
+  room: { id: string; name?: string; room_number?: string } | null;
   current_patient: {
     id: string;
     healthclouda_id: string;
