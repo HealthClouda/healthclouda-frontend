@@ -60,6 +60,103 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-10-19 — closing out Week 1: FLAG-067 pinned in #196, FLAG-056 already fixed, #174 waits on a rebase (branch: fix/flag-067-deceased-checkin)
+
+**Goal:** finish what was left of my Week 1 stand-up list (13–16 Oct) so I can move to Week 2.
+
+**What I did:**
+- **w1-k4, FLAG-067 → #196** (reviewer @Bastoh, confirmed set). Backend #275 (@Ericmoore207, merged 17 Oct)
+  refuses the check-in under `details.patient`, after its org-access check. Our panel already shows the first
+  `details` message, so **no product code changed**: one test pins the exact sentence inline, no queue number,
+  and no word of ours saying why (backend FLAG-578). Proved RED by disabling `readableFieldError`.
+  tsc clean, 575/575, build green. In Flight claimed in the branch's first commit; FLAG-067 marked RESOLVED.
+- **w1-k5, FLAG-056: nothing to do.** Fixed in #173 on 4 Oct (`DoctorPicker.test.tsx` pins "No attending
+  doctor yet"); my #193 already moves it to Resolved.
+- **#189:** checked that my 16 Oct commit `98f13b7` answers all three of @Bastoh's points from his 19:03 review.
+  It does; the PR is MERGEABLE and only needs his re-approval.
+
+**Week 1 at close:**
+
+| Task | State |
+|---|---|
+| w1-k1 re-reviews | #186/#187/#188 merged 14 Oct. **#174 is CONFLICTING**, no push since 4 Oct; waits on @Bastoh's rebase (and the FLAG-063 conversation) |
+| w1-k2 flags cleanup | review, #193 |
+| w1-k3 FLAG-212 | review, #195 |
+| w1-k4 FLAG-067 | review, #196 |
+| w1-k5 FLAG-056 | done (#173) |
+
+**What I found:**
+- 🟠 **A board task can name work that is already merged.** FLAG-056 was on my list two weeks after #173 fixed
+  it. **Lesson: before starting a board task, `git log -S` the symptom on `origin/develop`.**
+- My assistant still cannot read the board from Claude Code (the "another organization" refusal), and
+  `docs/standup/current-week.md` on `develop` is still Week 1. Ticked by hand in the browser.
+- ⚠️ **Not walked on api-dev:** no receptionist login this session. Worth trying on HCL-KK4CKY.
+- Not mine to clear: @Bastoh's **FLAG-073** In Flight row is stale (#188 merged 14 Oct).
+
+**Next:** Week 2 tasks once the board copy lands; re-review #174 when it is rebased.
+
+---
+
+### 2026-10-08 — review round: #185 approved, #186/#187/#188 changes requested, backend #264 (branch: docs/qeeyat-session-2026-10-08)
+
+**Goal:** review the four PRs @Bastoh opened 6–7 Oct (#185–#188), all requested from me.
+
+**What I did:**
+- Same method as 4 Oct: trial-merge each PR onto current `develop` (`2fe30c2`), run tsc and the full suite,
+  swap `develop`'s source back in with the PR's tests kept (they must go RED), and check every backend claim
+  against backend `origin/develop` (`fea35c9`, 7 Oct). Where I suspected a bug, I wrote a throwaway probe test
+  on the trial merge to prove it rather than argue it. Drafts are in `Desktop/healthclouda-reviews/*-2026-10-08.md`.
+  - ✅ **#185 (FLAG-070, duty badge): approved.** Backend #256 really writes `resource_type='Duty'`. It is
+    already merged.
+  - 🔁 **#186 (FLAG-071, em dashes): changes requested.** The empty-value placeholder became `–`, but four
+    checks still look for `—`, so they can no longer fail. One is `e2e/design/roles.spec.ts:221`, the live
+    FLAG-222 detector for stat tiles bound to fields the API never sends. The PR's own guard only scans
+    `src/`, so it couldn't notice.
+  - 🔁 **#187 (FLAG-072, ward set-up): changes requested.** An emptied "Number of beds" box is
+    `Number('') === 0`, which passes validation, so Save sends `total_beds: 0` and the backend deletes every
+    unoccupied bed (proved by probe). Also: Save stays enabled after the ward fails to load and writes the
+    previous ward's values (proved by probe), and the "removes free beds only" text is wrong: reserved and
+    under-maintenance beds go too.
+  - 🔁 **#188 (FLAG-073, live updates): changes requested.** A live tick during a foreground
+    `useAllPages` load cancels it, and the silent reload never clears `loading`, so the page stays on its
+    loading state (probe: `LOADING [{"id":"fresh"}]`). This hits the nurse dashboard most. The backend
+    side (#262, FLAG-625) checks out on both the request path and the refresh path.
+- **Filed backend [#264](https://github.com/HealthClouda/healthclouda-backend/issues/264)** (`api-request`):
+  a refused bed reduction still commits the rest of the PATCH. Cross-Lane row added.
+
+**What I found:**
+- Changing a placeholder string is a contract change for every test that matches on it. Grep `e2e/` too,
+  not only `src/`.
+- `Number('')` is `0`. Any numeric form field validated with `Number(...)` accepts a blank box.
+
+**Dead ends:**
+- I gave the post commands in bash syntax, and my terminal is PowerShell, so the first paste failed to
+  parse and posted nothing. Checked GitHub before re-posting, so there are no duplicates.
+- The agent's own `gh pr review` calls were declined by the permission settings; I posted them by hand.
+
+**Verified:** each trial merge was tsc clean, with suites at 545/544/552/557. Each PR's new tests fail
+without its source. No source changed in this branch (docs only).
+
+**Update 2026-10-14: all three approved.** @Bastoh had pushed fixes to all three on 8 Oct, within
+about 10 minutes of my reviews. ⚠️ **I missed them for five days** because I checked `reviewDecision`,
+which stays CHANGES_REQUESTED until I clear it, and never looked at the commits. To see whether a PR
+has moved, check its **last commit date and comments**. Re-verified each fix by re-running my probe,
+swapping the old code back in so the new tests go red, then tsc and the full suite:
+- **#186** (`37d7325`): one `EMPTY_VALUE` is imported by all four checks. A forced empty tile fails
+  again, and Playwright still loads the spec. 546/546. **Merged.**
+- **#187** (`3a43ebd`): my blank-box probe now sends nothing, and a lower count asks for confirmation
+  first. After a failed load, Save is disabled. 557/557. Backend #264 linked for him. **Merged.**
+- **#188** (`022f0bd`): my stuck-loading probe ends with loading cleared. Loads are sequenced, so a
+  stale background result is dropped. 561/561. **Merged.**
+
+**Left undone / next:**
+- [x] ~~Re-review #186, #187 and #188~~: approved 14 Oct.
+- [x] ~~Review **#190**~~: approved with four suggestions, all taken; merged 14 Oct. Follow-up #191 (board copy for outside-org devs) approved and merged.
+- [x] ~~FLAG-070 rows~~: cleared by @Bastoh in #186's rebase.
+- [ ] Still open from before: #96 / FLAG-234.
+
+---
+
 ### 2026-10-04 — re-review round, #172 still blocked on a new finding, FLAG-248 fixed in #180 (branches: docs/qeeyat-session-2026-10-03, fix/flag-248-landing-forms-post)
 
 **Goal:** re-review the five PRs @Bastoh fixed overnight (all pushed 04:32–04:38), finish #178, then
