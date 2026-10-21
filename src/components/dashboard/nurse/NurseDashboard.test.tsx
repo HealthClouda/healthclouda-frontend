@@ -329,6 +329,28 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     expect(await screen.findByText(/at least one/i)).toBeInTheDocument();
   });
 
+  // FLAG-075: the form kept its own July copy of the limits as input min/max,
+  // so the browser refused to submit readings the backend records. jsdom does
+  // not block submission on invalid inputs, so ask the question the browser
+  // asks before submitting: checkValidity().
+  it('lets the browser submit extreme readings a nurse must be able to chart (28 °C, SpO2 45, pulse 260)', async () => {
+    await openVitalsForPatient();
+    await screen.findByText(/108\s*\/\s*93/);
+
+    const readings: Array<[RegExp, string]> = [
+      [/temperature/i, '28'], // severe hypothermia
+      [/spo2/i, '45'],        // peri-arrest saturation
+      [/pulse rate/i, '260'], // SVT
+    ];
+    for (const [label, value] of readings) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      fireEvent.change(input, { target: { value } });
+      expect(input.checkValidity(), `${label} = ${value} is blocked by the form`).toBe(true);
+    }
+    const form = screen.getByRole('button', { name: /record reading/i }).closest('form')!;
+    expect(form.checkValidity()).toBe(true);
+  });
+
   it('surfaces backend 400 validation messages on the form', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
     dataActionMock.mockRejectedValue(
