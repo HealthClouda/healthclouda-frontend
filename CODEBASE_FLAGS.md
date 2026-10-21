@@ -92,44 +92,6 @@ of `usePaginatedList`.
 
 ---
 
-### FLAG-031 — The ward gender-policy override can never fire: the backend's 400 for it carries no field name at all
-**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — fixed
-at source in the backend, PR #194** (`fix/gender-mismatch-error-shape`, merged 2026-09-14)
-**Found:** 2026-09-14, wiring the "Admit anyway" gender two-step on the ordered-admit Accept panel (#139)
-
-`admit_patient()` (`apps/ward/services.py`) raised a plain `ValueError` for the ward gender-policy
-mismatch (FLAG-239/301) — not `serializers.ValidationError`. Every ward view that called it
-(`AdmissionViewSet.create`, `AdmissionRequestViewSet.accept`, and `AdmissionViewSet.transfer`'s own
-inline check) returned a **flat** `Response({'error': str(exc)}, status=400)`. That response never went
-through `apps.core.exceptions.custom_exception_handler` — it carried **no `details` key and no field
-name**, unlike every other validation rejection in this app.
-
-`readFieldError()` (`NurseDashboard.tsx`) — the helper all three admit surfaces (direct emergency
-admit, ordered-admit Accept, and the create path) use to decide whether to show the gender two-step —
-only ever read `err.data.details[field]`. Since `details` was always `undefined` for this specific
-error, `field` was always `null`, so **the two-step could never fire on any of the three surfaces**.
-The clinician would see a plain error banner quoting the backend's own "Resend with override=true to
-admit anyway" sentence, with no button that does that resend.
-
-**Was worked around, now fixed at source.** The frontend previously carried a text-matching fallback
-in `readFieldError()` against the backend's fixed wording — fragile by construction, since nothing
-obligated that message to stay byte-for-byte stable. Backend #194 fixes it properly: `admit_patient()`
-now raises a typed `WardGenderMismatch` (a `ValueError` subclass), and all three admit surfaces
-translate it into `serializers.ValidationError({'gender': str(exc)})`, so it arrives under
-`details.gender` the same way every other field rejection does. **`details.gender` is a STRING, not a
-list** — matching what `AdmissionCreateSerializer` produced before #193's regression.
-
-The frontend's text-match fallback has been removed (`NurseDashboard.tsx`'s `readFieldError` is now a
-pure `details` read, no `GENDER_MISMATCH_MARKER`), and the three gender-two-step test mocks
-(`NurseDashboard.test.tsx`) were restored to assert the real `details.gender` shape instead of the flat
-workaround shape they'd been rewritten to.
-
-**Done when:** the backend raises this as `serializers.ValidationError({'gender': ...})` instead of
-`ValueError`, so it arrives under `details` the same way every other field rejection does, and the
-frontend's text match can be deleted. — **Done, 2026-09-14.**
-
----
-
 ### FLAG-002 — Backend base URL is stale in three committed places
 **Severity:** P1 · **Area:** Config / Deploy · **Owner:** @Bastoh · **Status:** ⚠️ **PARTIALLY FIXED**
 — codebase purged in PR `fix/tier1-infra-batch` (2026-08-12, sprint item A2). **Still open on the
@@ -172,53 +134,6 @@ and the BACKEND CONTRACT NOTES banner in `HANDOFF.md` reflects verified findings
 
 ---
 
-### FLAG-004 — Doctor dashboard uses two query params the backend ignores
-**Severity:** P2 · **Area:** Backend contract · **Owner:** @Bastoh ·
-**Status:** ✅ **FIXED in PR #90** (2026-08-22, by @Qeeyat) — *stays here until that PR merges;
-move to Resolved then*
-**Found:** 2026-08-08 (originally logged in `CONTRACT-AUDIT.md` as GLOBAL-2, never fixed)
-
-> **How it was fixed, and the part that could not be verified.** `?status=OPEN` → `?status=ACTIVE`:
-> settled against the live schema 2026-08-22, `EpisodeListStatusEnum = ["ACTIVE","COMPLETED"]`, so
-> `OPEN` could never match. `?today=true` was dropped and today-ness is now filtered **client-side**,
-> which the "Done when" below explicitly allows.
->
-> ⚠️ **Neither `/doctor/episodes/` nor `/doctor/appointments/` documents a single query parameter —
-> not even `page`.** On this backend that is not evidence of non-support (see the correction in
-> FLAG-205), but it is not evidence of support either, and **no doctor account exists in
-> `.env.local`**, so `?status=` could not be confirmed empirically. The fix therefore sends the
-> correct value *and* narrows client-side, which is right either way. Anyone who gets a doctor token
-> should confirm whether `?status=` is honoured — if it is, the client-side narrowing becomes
-> belt-and-braces rather than load-bearing. The new pagination-window limitation this introduces is
-> **FLAG-214**.
->
-> 🔍 **This flag had a THIRD site it never named, and it was the worst one.** The entry quotes only
-> the two overview lines (`:56`, `:58`). The **Episodes page** carried the same invented enum: filter
-> tabs labelled *Open* / *Closed* sending `?status=OPEN` / `?status=CLOSED`, and — the real damage —
-> the row action gated on `ep.status === 'OPEN'`. **No episode can ever be `OPEN`, so the Complete
-> Episode button never rendered for anybody.** That is one of the handful of write workflows that
-> exist at all in this app (sprint plan Part 1 §3), unreachable through the UI, with nothing failing
-> and nothing logged. Found while starting the D5 design migration and fixed in the same PR.
-> **Lesson: a flag that quotes line numbers invites fixing exactly those lines. Grep the whole file
-> for the bad value before calling a flag closed.**
-
-```ts
-// src/components/dashboard/doctor/DoctorDashboard.tsx:56
-DOC_APPOINTMENTS + '?today=true&page_size=6'   // ?today= is silently IGNORED by DRF
-// src/components/dashboard/doctor/DoctorDashboard.tsx:58
-DOC_EPISODES + '?status=OPEN&page_size=5'      // enum is ACTIVE, not OPEN → always 0 rows
-```
-
-So "today's appointments" silently lists *all* appointments, and "recent episodes" renders
-permanently empty. Both fail with **no error** — the classic invented-query-param bug class in
-this repo.
-
-**Done when:** both params are verified against the live schema and corrected (`?status=ACTIVE`;
-`?today=` replaced with whatever the schema actually supports, or the filter done client-side),
-with a regression test asserting the requested URL.
-
----
-
 ### FLAG-005 — `serverFetch` swallows every failure as `null`
 **Severity:** P2 · **Area:** Observability / Error handling · **Owner:** @Bastoh · **Status:** 🟡 **PARTIALLY FIXED 2026-08-28** — two of three clauses done; see below
 **Found:** 2026-08-08 (originally AUTH-6; partially mitigated, root cause remains)
@@ -258,23 +173,6 @@ rather than an empty one.
 > (D4/D5/D6), and a wide mechanical edit across them would collide with @Qeeyat's open branches for a
 > cosmetic gain. Better folded into whichever design PR next touches each dashboard. Recorded rather
 > than quietly dropped.
-
----
-
-### FLAG-006 — Lint is dead and there is no CI
-**Severity:** P2 · **Area:** Tooling · **Owner:** @Bastoh · **Status:** OPEN
-**Found:** 2026-08-08
-
-`package.json` defines `"lint": "next lint"` and `eslint-config-next` is installed, but **no
-`eslint.config.*` or `.eslintrc*` exists** — lint has never actually run. There is **no `.github/`
-directory at all**: no Actions, no PR template, no CODEOWNERS.
-
-Combined with branch protection being unenforceable on a private repo, *every* check (tsc, tests,
-build) is manual and honour-system. On a team where two agents can't see each other, that's the
-weakest link.
-
-**Done when:** an ESLint flat config exists and `npm run lint` passes clean, and a GitHub Actions
-workflow runs lint + `tsc --noEmit` + `npm test` + `npm run build` on every PR into `develop`.
 
 ---
 
@@ -909,7 +807,7 @@ deleting the `if (!token)` guard and watching a test fail.
 ---
 
 ### FLAG-024 — 9 of 13 Playwright e2e tests fail on `develop`, and nothing was reporting it
-**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** OPEN
+**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** 🟡 **PARTIALLY FIXED** — #118 (merged 2026-09-07) repaired the specs (13/13). Still open: no CI job runs the credential-free e2e subset, so the "runs in CI as a gating job" half of **Done when** is unmet (checked `.github/workflows/ci.yml`, 2026-10-16).
 **Found:** 2026-09-01, evaluating whether the e2e suite could be added to CI (B8)
 
 `npm test` runs **vitest only**. The Playwright suite is a separate script (`npm run test:e2e`), it
@@ -955,78 +853,6 @@ staleness above and needing a decision, not just a fix:
 **Done when:** `npm run test:e2e` is green for the credential-free specs (`landing`, `auth`) and that
 subset runs in CI as a gating job. The design specs are a separate decision, recorded above, and
 should not be bundled into the same change.
-
----
-
-### FLAG-028 — `NewReferralPanel` never reset between patients: one patient's consent attestation could submit under another's name
-**Severity:** P1 · **Area:** Referrals / Compliance / PHI · **Owner:** @Bastoh · **Status:** ✅ RESOLVED (same PR, 2026-09-08)
-**Found:** 2026-09-08, PR #130 review (@Qeeyat)
-
-`NewReferralPanel` is mounted permanently by `MyPatientsPage` — `SlidePanel` only controls visibility,
-returning `null` while closed, so the panel's own state lives in the parent and survives every
-open/close. The reset effect added when the org picker shipped cleared exactly two of six pieces of
-state (`toOrganization`, `letterFailedFor`); `form` (`reason`/`clinical_findings`/
-`provisional_diagnosis`/`relevant_history`/`recommended_*`), `consentObtained` and
-`destinationDisclosed` were never touched.
-
-**Reproduced:** refer patient A, fill in the clinical fields, tick both attestations, close WITHOUT
-submitting. Refer patient B — `canSubmit` was already `true` off patient A's leftovers, zero new
-input required, and the payload for patient B carried patient A's `reason`/`clinical_findings`/
-`provisional_diagnosis` verbatim plus `patient_consent_obtained: true` and
-`consent_destination_disclosed: true`.
-
-**Why P1, not a UX rough edge:**
-- **Compliance** — those two booleans are the FLAG-272 (backend) DOCTOR ATTESTATION, written into an
-  immutable referral record. The UI fabricated a consent record for a patient the doctor never
-  attested for.
-- **PHI** — the backend generates a PDF from those fields and `notify_receiving_org` alerts the
-  receiving hospital. Patient A's clinical findings and working diagnosis would disclose to a
-  third-party organisation under patient B's name.
-- **Correctness** — the receiving clinician would be treating patient B against patient A's findings.
-- **The backend cannot catch this.** The payload passes `ReferralCreateSerializer.validate()` cleanly
-  — every field is well-formed and both booleans are genuinely `true`. There is no compensating
-  server-side control; this class of bug is only catchable client-side, where the mismatch between
-  "whose data is this" and "who is this for" actually exists.
-
-**Fixed structurally, not with four more `setX` calls** — a fifth field would have reproduced the
-exact same defect. `MyPatientsPage` now keys both `NewEpisodePanel` and `NewReferralPanel` on
-`patient?.id ?? '<sentinel>'`, so any patient change is a full React remount and every piece of state
-starts fresh, including state nobody has added yet. `SlidePanel` returning `null` on close/remount is
-what makes this free — there is no exit animation to interrupt.
-
-**The sibling.** `NewEpisodePanel` had the identical defect — `form` initialised once, no reset effect
-at all — found by grepping for the same shape rather than assuming it was isolated. Materially less
-bad (no consent attestation, no cross-org PDF, no third-party disclosure) but the same missing-reset
-class of bug. Fixed by the same `key` change, in the same commit.
-
-**Proven, not just fixed:** a test reproduces the exact scenario above (fill patient A, cancel, open
-patient B, assert no leftover text and `Send referral` disabled) and was confirmed RED against the
-pre-fix code (temporarily reverting the `key` prop) before being confirmed green against the fix.
-
----
-
-### FLAG-029 — A picker test that could not fail: it waited for a synchronous hint, not the debounced fetch it claimed to prove
-**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** ✅ RESOLVED (same PR, 2026-09-08)
-**Found:** 2026-09-08, PR #130 review (@Qeeyat)
-
-`'does not fetch anything on mount and does not search below 2 characters'` typed one character,
-`waitFor`'d the "Keep typing — at least 2 characters" hint, then asserted `dataGet` hadn't been called
-with the target-organizations path. **The hint renders synchronously off the raw (non-debounced) query
-state**, so the assertion ran well before the picker's 350ms debounce could possibly have fired either
-way — proven by the reviewer weakening the length guard from `< 2` to `< 0` (below zero, i.e. never
-true) and re-running: **23 passed, 0 failed.** The "no fetch on mount" half was asserted even less:
-`dataGetMock.mockClear()` ran immediately before the one assertion the test made, so a mount-time fetch
-would have been silently discarded before anything checked for it.
-
-**Fixed** by asserting the mount-time absence directly (inspecting `dataGetMock.mock.calls` right after
-the panel opens, before clearing anything) and, for the below-2-characters half, waiting a real 500ms —
-past the 350ms debounce — before asserting no fetch happened, so a broken guard has actually had the
-window to fire before the check runs.
-
-**Re-verified against the same two sabotages the reviewer used:** reducing the guard to `< 0` now fails
-at the mount-time assertion (mount itself started fetching, because an untrimmed empty string no longer
-short-circuits); reducing it to `< 1` fails at the post-debounce assertion instead (mount is fine, a
-1-character query now fetches). Both catch a defect the previous version caught neither.
 
 ---
 
@@ -1163,51 +989,6 @@ to the viewport, with that reasoning inline, and closes via the "Close menu" but
 landing page at 375px wide with the menu closed: focus must never land on a drawer control. The
 position assertion in `landing.spec.ts` can then be replaced with a visibility assertion, which is
 the clearer test.
-
----
-
-### FLAG-041 — The nurse's active-admission list has no attending doctor; a different, equally-nurse-readable endpoint does
-**Severity:** P2 · **Area:** Backend contract / Ward-Admissions UI · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/flag-041-attending-doctor-handover`**
-**Found:** 2026-09-13, building the admissions medical-answer corrections (unmerged `feat/ward-admissions-write-path` #139 / `fix/admissions-medical-answers-ui` #142)
-
-`GET /nurse/my-patients/` (`ActiveAdmissionSerializer`, `apps/ward/nurse_serializers.py:60-75` in the
-backend) has no `attending_doctor` field at all, so a handover — "who is looking after this patient
-right now" — had nowhere to render in the one list a nurse actually reads. #142 (still open, stacked
-on #139) logged this and correctly declined to invent a response shape for it.
-
-**What settles it: a different endpoint, already live, already nurse-readable, already carries the
-field.** `GET /ward/admissions/` (`AdmissionListSerializer`, `apps/ward/serializers.py:354-378`)
-publishes `attending_doctor`, `attending_doctor_name` and `needs_attending_doctor` on the exact same
-`Admission` rows (keyed on the same `id`), and `CanManageAdmissions`
-(`apps/core/permissions.py:509-524`, read directly — the OpenAPI schema documents no roles here,
-same gap as FLAG-211) grants **DOCTOR, NURSE, ORG_ADMIN, SUPERADMIN** `GET` on it. So this did not
-need to wait on a backend change: the dashboard now fetches `/ward/admissions/?status=ACTIVE`
-alongside `/nurse/my-patients/` and merges by admission id.
-
-**Fixed:**
-- `AdmissionAttendingDoctor` type (`src/types/dashboard.ts`) — the minimal shape this file reads off
-  `/ward/admissions/`.
-- `useAttendingDoctors()` in `NurseDashboard.tsx` fetches it with `useAllPages` (a partial map here
-  would silently mislabel a real admission, same reasoning as FLAG-013) and is called from **inside**
-  `OverviewPage`/`MyPatientsPage`, not lifted to the top-level dashboard — `DashboardShell`'s
-  small-screen gate (FLAG-203/FLAG-021) works by never mounting its children below the breakpoint, so
-  a hook called any higher than that fires regardless of the gate.
-- A new "Attending" column on both the Overview preview and the My Patients table renders the
-  doctor's name, **"Unassigned"** when `needs_attending_doctor` is true, or a plain em dash when the
-  id isn't in the map (still loading, the fetch failed, or genuinely no data) — a missing lookup and
-  an absent fact are never told apart, the `StatCard` `?? '—'` precedent.
-
-⚠️ **Numbering note:** #142 (unmerged) independently used FLAG-041/042 for the still-open version of
-this finding and FLAG-042 (no doctor-facing discharge screen — out of scope here, left for the
-owner). If #142 merges before or after this branch, its FLAG-041 section and this one describe the
-same gap from before/after the fix — reconcile additively (keep both, in flag-number order) rather
-than dropping either, per the precedent in `HANDOFF.md`'s 2026-09-03 merge note. Do **not** reuse 041
-for anything else.
-
-**Done when:** ✅ a nurse can see who is attending an ACTIVE admission from both the Overview preview
-and the My Patients table, without waiting on a backend change. RED confirmed against pre-fix code
-(4 new tests failed with the production files reverted, 15 pre-existing tests stayed green);
-`npx tsc --noEmit` clean; `npx vitest run --testTimeout=30000` 286/286 across 24 files; lint clean.
 
 ---
 
@@ -1444,20 +1225,6 @@ so an accurate count is fetchable, or confirms `last_login == null` is the inten
 documents it — then the stat card and dashboard-level pending-invites list can be built for real.
 ---
 
-### FLAG-207 — Dead `ORG_ADMIN_STAFF_MEMBER` endpoint constant, removed
-**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ FIXED (this PR)
-**Found:** 2026-08-17, building D2 Org Admin, verified against the live schema
-
-`ORG_ADMIN_STAFF_MEMBER: (id) => '/org-admin/staff/${id}/'` had zero consumers anywhere in `src/`
-and pointed at a URL that doesn't exist in the live schema — only `/org-admin/staff/` (list+create)
-and `/org-admin/staff/<id>/status/` (the activate/deactivate endpoint) do. Removed rather than
-fixed to a guess; `ORG_ADMIN_STAFF_STATUS` added in its place for the endpoint that's actually real.
-
-**Done when:** N/A — already done. Logged for the paper trail, since the removal is referenced by
-name (`FLAG-207`) in the `config.ts` comment.
-
----
-
 ### FLAG-208 — Staff activate/deactivate endpoint exists; body shape doesn't, so it isn't built
 **Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-08-17, building D2 Org Admin
@@ -1492,91 +1259,6 @@ own staff is unknown, not just unbuilt. Not built today rather than guessed.
 **Done when:** either confirmed empirically (org-admin token, real staff id, watch for 200 vs 403)
 once credentials are usable in a session, or the backend documents the permission explicitly.
 
-
----
-
-### FLAG-211 — Admission write endpoints are documented, but nurse permission is not
-**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-09-13 — read from backend source, not guessed and not POSTed against shared seed data**
-**Found:** 2026-08-19, building D3 Nurse
-
-Tuesday's sprint row names an **admission** workflow for the nurse dashboard. The contract exists
-and is fully documented, unusually for this API:
-
-```
-POST /ward/admissions/              AdmissionCreateRequest
-                                    required: patient, episode, bed
-                                    optional: admission_reason, override
-POST /ward/admissions/<id>/discharge/   discharge_summary, discharge_instructions (both optional)
-POST /ward/admissions/<id>/transfer/
-```
-
-**What is verified (live, nurse token, 2026-08-19):** a nurse can **read** both
-`GET /ward/beds/` → 200 (7 beds, with `status` and a nested `current_patient`) and
-`GET /ward/admissions/` → 200. The read side is built in this PR — the ward board now shows which
-patient is in which bed.
-
-**What is NOT verified:** whether a nurse may **POST** any of the three. The schema's `security`
-block says `jwtAuth` generically for every endpoint and never exposes which roles a view's
-permission classes allow — the same gap as FLAG-209. A `GET` returning 200 says nothing about
-`POST`.
-
-> ⚠️ **Narrowed 2026-08-23, after @Bastoh's review of PR #86.** As first written this entry
-> generalised from the doctor endpoints to the whole API, saying the schema documents no
-> parameters. **That generalisation is wrong.** It holds for the doctor routes — `/doctor/appointments/`
-> and `/doctor/episodes/` really are `200: no response body` with no parameters — but **not** for
-> `/ward/beds/`, which documents `page`, `search` and `ordering` and returns a
-> `PaginatedBedListList` envelope.
->
-> This cost something real rather than being a tidy-up: believing the endpoint documented nothing
-> is why the ward board was built with a plain `useApi` and rendered only the first 20 beds. **The
-> roles half of the claim still stands** — no endpoint exposes its permission classes, and that is
-> the part this flag is actually about. **Read the schema per endpoint; this API is not uniform,
-> and assuming it is produced a real bug.**
-
-**Why it wasn't guessed:** the only way to settle it is to POST, and on a shared dev tier that
-means creating or discharging a real admission in seed data the other dev may be testing against.
-Unlike a silently-ignored filter param, a wrong write here is not invisible — it is *visible to
-everyone*, and discharging a seeded admission is only undone by re-admitting.
-
-**Also unresolved even if permission is granted:** `POST /ward/admissions/` needs an **`episode`**
-id, and no nurse endpoint exposes a patient's episodes. `/nurse/my-patients/` carries an episode
-only for patients who are *already admitted*, which is the wrong direction — admitting needs the
-episode of someone not yet in a bed. So the admit flow needs an episode lookup that does not
-currently exist for this role.
-
-**Done when:** either (a) the permission is confirmed — ideally by the backend documenting it,
-otherwise by one deliberate POST against a disposable record with @Bastoh's agreement — **and** an
-episode-lookup route for the nurse role is identified, after which admit/discharge/transfer can be
-built; or (b) it is confirmed that admission is an ORG_ADMIN/receptionist workflow rather than a
-nurse one, and Tuesday's row is corrected to say so.
-
-> ✅ **Resolved 2026-09-13 by @Bastoh, while scoping FLAG-041 — this is a tracker correction, not a
-> code change.** Both open questions are settled by reading the backend source directly, per the
-> house rule "schema first because it is free; the source or a live call to conclude" — the schema's
-> `security` block was never going to answer this, so the fix was to stop asking it.
->
-> **1. The permission IS granted, and it is IN the source, just not in OpenAPI's `security` block —
-> same shape as FLAG-209/211's original finding, one layer down.**
-> `apps/core/permissions.py:509-524`, `CanManageAdmissions.has_permission`, read directly:
-> ```
-> VIEW (GET): DOCTOR, NURSE, ORGANIZATION_ADMIN, SUPERADMIN
-> CREATE / discharge / transfer (POST): DOCTOR, NURSE, SUPERADMIN
-> ```
-> A NURSE may `POST /ward/admissions/`, `.../discharge/` and `.../transfer/`. No POST against shared
-> seed data was needed — the permission class is the ground truth a 200 on GET could never establish,
-> and it settles the question without the blast radius this flag was rightly worried about.
->
-> **2. The episode-lookup gap is real but already has an answer, independently confirmed here:**
-> the generic `GET /episodes/` (`apps/patients/views.py::EpisodeViewSet`, permission
-> `CanAccessEpisode`, `apps/core/permissions.py:329-354`) grants NURSE both list/retrieve and create,
-> unscoped to "already admitted" — unlike `/nurse/my-patients/`, which only carries an episode for
-> patients already in a bed. That is the episode source an admit flow needs. (The unmerged
-> `feat/ward-admissions-write-path` #139 found and used this same endpoint independently, on
-> 2026-09-11/13 — the two readings agree.)
->
-> **Tuesday's row does not need correcting to (b)** — admission is confirmed as a NURSE (and DOCTOR)
-> workflow, not ORG_ADMIN/receptionist-only. Nothing here changed any code; the record now matches
-> what the source has said all along.
 
 ---
 
@@ -1886,6 +1568,1019 @@ here is small enough that one unmasked value shows up at all — as the harness 
 and panels, every new capture is another chance to bake in a timestamp. Fixing the mask matters more
 as that work happens, not less.
 
+### FLAG-240 — One-row In Flight claim PRs conflict with each other and are now a large share of the review queue
+**Severity:** P3 · **Area:** Process · **Owner:** @Qeeyat · **Status:** OPEN — a decision for both devs, not a fix
+**Found:** 2026-09-14, reviewing @Bastoh's queue
+
+On 14 Sep, **5 of the 11 PRs awaiting review** (#132, #134, #138, #140, #144) each did nothing but add one
+In Flight row, **at the same line**. Measured with `git merge-tree`:
+- #132×#138 and #138×#140 conflict with each other.
+- #134 and #144 conflict with #141.
+- **Three of the five rows were already stale when reviewed.** #132 says "DON'T MERGE" over a P1 fixed
+  five days earlier. #138 under-states the files #139 touches. #140 describes a `witnessed_by` picker that
+  backend #190 deleted.
+
+The rule behind it is right: `CLAUDE.md` §3 says claim **before** cutting a branch. But the ruleset
+requires a reviewed PR for every change to `develop` (`bypass_actors: []`), and build agents open branches
+far faster than a claim can be approved. So a claim reaches `develop` **after** the work it announces,
+which is the failure the rule exists to prevent, at five times the review cost.
+
+**Done when:** both devs agree in writing (`CLAUDE.md` §3) on one of:
+- claiming in the feature PR's first commit,
+- one batched claims PR per day, or
+- another mechanism that lands a claim before its branch is visible.
+
+⚠️ **This PR's own In Flight row is the same deviation**, made on purpose: the row travels with the
+change it claims, which is option (a).
+
+---
+
+### FLAG-249 — 🔴 Promotion gate: `api-beta` lacks the admission filters and endpoints `develop` already relies on
+**Severity:** P1 at the next `develop` → `staging` promotion (nothing exposed today) · **Area:** Infra / tier parity · **Owner:** @Bastoh (`[INFRA]`, promotions) · **Status:** 🟠 **OPEN — a precondition, not a bug in code**
+**Found:** 2026-10-03, reviewing #176
+
+Measured 2026-10-03 against both live schemas and by probe:
+
+| | `api-dev` | `api-beta` |
+|---|---|---|
+| `GET /ward/admissions/` documented params | `mine, needs_doctor_review, ordering, page, page_size, patient_id, search, status, unassigned, ward_id` | **`ordering, page, search`** only |
+| `GET /doctor/queue/` (backend #243) | **401**: exists, needs auth | **404**: does not exist |
+
+`develop` already scopes doctor views with `?mine=true` and `?needs_doctor_review=true`, and #175
+and #176 add `/doctor/queue/` and `?unassigned=true`. **DRF silently ignores a filter it doesn't
+have**, so on today's `api-beta` a doctor's "my admissions" lists **every admission in the
+organisation**, and #176's "Unassigned" section would list them all with a **Take over** button.
+
+**Why nothing is exposed today:** `staging` is still `develop` as of 13 Sep (#98, `7eeeea0`), and it
+has no `?mine=true` code. `beta.healthclouda.com` doesn't resolve (NXDOMAIN, 3 Oct).
+
+**The precondition:** before the next `develop` → `staging` promotion, the `api-beta` backend must
+be at or past backend #245, i.e. `api-beta`'s live schema documents `mine`, `needs_doctor_review`,
+`status` and `unassigned` on `/ward/admissions/`, and `/doctor/queue/` answers 401, not 404.
+Re-measure at promotion time; don't take it from this entry.
+
+Defence in depth, requested on #176: frontend sections that depend on a new filter check each
+row against it and render nothing if the filter evidently wasn't applied (the #164 pattern).
+
+> **2026-10-04, re-review of #176 (`d2e1352`):** #176 now has that guard. Its "Unassigned" and
+> "Awaiting review — no doctor assigned" sections render nothing if any row has an
+> `attending_doctor`. A test with a mock that ignores `?unassigned` fails without it. **Still
+> unguarded, and already on `develop`:** the default **Pending your review** section
+> (`?mine=true&needs_doctor_review=true`). On a backend without `mine` it lists every doctor's
+> reviews. #176's new `rowsMatch` prop makes that a one-line fix. It's worth doing before the
+> promotion, but the precondition above still stands either way.
+
+**Done when** the `api-beta` schema shows those params and `/doctor/queue/` exists, measured at the
+promotion, and recorded on the promotion PR.
+
+---
+
+### FLAG-250 — No sign-out from our app ends the session on the server: the logout route never sends the refresh token
+**Severity:** P2 (every sign-out, every user; nothing leaks without a copied token) · **Area:** Auth / sign-out · **Owner:** @Qeeyat (layer 1, ours) + 🔌 backend (layer 2) · **Status:** 🟡 **Layer 1 ✅ — #183, merged 2026-10-05.** Layer 2 (a user with `force_password_change`) is still open, and its `api-request` is not yet filed. One remaining gap, below
+**Found:** 2026-10-04, reviewing #178 (FLAG-611). ⚠️ **Rewritten the same day.** The first version
+said this affected only users who must change their password, and that it was backend-only with
+*"nothing to change on our side"*. Reading `LogoutView` showed both were wrong.
+
+**Layer 1 — ours, every user.** All four ways out (sidebar, `DashboardPlaceholder`, session expiry
+in `client-api.ts`, and #178's "Sign out instead") go through `src/app/api/auth/logout/route.ts`.
+That route calls `POST /auth/logout/` with the access token in `Authorization` and **no body**.
+The backend's `LogoutView` (`apps/accounts/views.py`, `origin/develop` 4 Oct) reads
+`request.data.get('refresh')`, and without it answers **400 "Refresh token is required"** before
+doing anything. So the refresh token is never blacklisted, and `end_session()` (FLAG-610, which
+exists precisely so that logout kills the session's access tokens at once) never runs. Our route's
+`.catch(() => null)` and "best-effort" comment hide the 400. Unchanged since the June auth
+migration (`d6ff422`).
+
+**Layer 2 — backend, flagged users only.** `ForcePasswordChangeMiddleware` (`apps/core/middleware.py`)
+answers 403 `FORCE_PASSWORD_CHANGE` on every path not in `EXEMPT_PATHS`, and `auth/logout` isn't
+in it. So once layer 1 is fixed, a user with `force_password_change` still can't log out
+server-side. **Layer 2 alone changes nothing:** the call would then reach `LogoutView` and 400.
+
+**What still protects users:** our route deletes all three auth cookies whatever the backend
+answers, so the browser really is signed out and the next person at a shared ward PC can't resume.
+The tokens are httpOnly, so page JavaScript can't read them. **What's left:** a server session that
+stays valid after "sign out", usable by anyone who already holds a copy of the token, until it
+idles out (15 min) or reaches its 12 h cap (`enforce_session_freshness`). Not verified: whether
+the refresh endpoint enforces the same idle rule.
+
+**Why P2, not P3:** PHI is arriving, shared PCs are the ward norm, and the backend built FLAG-610
+specifically so logout ends the session. Our route quietly cancels that work.
+
+**Verified:** by reading source only (backend `origin/develop` and our `develop`, 4 Oct). **Not
+reproduced live** (no dev credentials in this session). The cleanest live confirmation: the
+backend writes a `LOGOUT` audit row only after a logout succeeds (FLAG-544), so Audit Logs on
+api-dev filtered to Logout should show **no rows** from people who signed out of our app.
+
+**Fix:**
+1. **Ours:** the route sends `{ refresh: await getRefreshToken() }` (helper already in
+   `src/lib/auth.ts`). Test that the backend call carries it. Consider logging a non-2xx answer
+   (status only) so this can't go silent again.
+2. **Backend `api-request`:** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`.
+
+> **2026-10-04, #183 (layer 1):** the route sends `{refresh}`, skips the call when either token
+> is missing, and logs a refused or unreachable logout as `[logout] … status=… path=…` (never a
+> token or body). New `route.test.ts`: 2 behaviour tests RED before, 4 controls. tsc clean ·
+> 524/524 · build green. **Not exercised live.** Check on dev after merge with the Audit Logs
+> `LOGOUT` row.
+
+**Remaining gap, after #183: a sign-out after the access cookie has lapsed.** The access cookie
+lives 1 h and the refresh cookie 7 d. A user who signs out after the access cookie expired, with
+no API call since that would have refreshed it, has no access token, and `LogoutView` needs one
+(`IsAuthenticated`). The backend has no refresh-only logout. Closing it means refresh-then-logout
+in the route (`POST /auth/refresh/` with the refresh cookie, then logout with the new pair). Left
+out of #183 to keep it small. It's narrow, because any API call in that window refreshes the
+cookie first. #183 doesn't log this case either, since nothing is called.
+
+**Done when** signing out of our app produces a `LOGOUT` audit row and the old access token is
+refused at once, for a normal user (layer 1) and for one with `force_password_change` (layer 2).
+
+---
+
+### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
+
+**Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-09-06, while trying to "finish the one bullet left on #96"
+
+**#96 (schema-reading guidance) has been CLOSED since 2026-08-31 17:06 — by me, unmerged.** I found
+this only after rebasing it, re-verifying every figure in it against the live schema, fixing three
+things that had gone stale, force-pushing, and posting a comment telling @Bastoh he had been
+blocking it for nine days. He had not. **There was nothing to re-review because I had closed it.**
+
+**Every source the session-start ritual actually reads says the opposite:**
+
+| Source | What it says |
+|---|---|
+| `HANDOFF.md` 🚧 In Flight on `develop` | *"PR #96 — CHANGES_REQUESTED… **Open 7 days**"* |
+| @Bastoh's 1 Sep handover in `HANDOFF.md` | *"#96 — still one bullet to reword, open 7 days"* |
+| `HANDOFF.md` on the unmerged #126 branch | ✅ correct — *"CLOSED 2026-08-31, not merged: fixed at source instead"* |
+
+So the correction exists **only in an unmerged branch**, and the four words it offers as a reason
+(*"fixed at source instead"*) are not true in the sense they imply: **the content is on no merged
+branch.** Verified on `develop` 2026-09-06 — `CLAUDE.md` has no unauthenticated-schema bullet,
+`ONBOARDING.md` has no "Four habits", `CODEBASE_FLAGS.md` has no FLAG-217 correction. The guidance
+@Bastoh independently verified and called *"right, valuable"* — that the schema needs no token, and
+that this API documents role matrices and query params **in prose** — is currently nowhere a
+new dev or agent will ever read it.
+
+🎯 **The general fault is not the closure, it is that closing left no trace where anyone looks.**
+A merge writes itself into the log; **a close writes nothing anywhere.** No PR comment, no session-log
+entry, no In Flight update on a branch that merged. This repo's whole premise is that the other dev's
+assistant sees only what is written down — and a closed PR is invisible to *both* devs' assistants,
+including the author's own, two weeks later.
+
+⚠️ **It also cost @Bastoh's trust budget, not just my time.** The comment I posted asserted he had sat
+on a PR for nine days. That is exactly the accusation this repo's docs are designed to prevent people
+making by accident, and I made it from three documents that all agreed with each other and were all
+wrong.
+
+**Done when** one of —
+1. **#96 is reopened and merged** (the branch is rebased, re-verified and ready — reopening was
+   blocked by tooling permissions on 6 Sep, so it needs a human); **or**
+2. it is deliberately closed again **with the reason written in this file**, its content either
+   ported or explicitly abandoned in writing, and the In Flight row + @Bastoh's handover note both
+   corrected — the false "open 7 days" claim removed from every place it appears.
+
+**And regardless of which:** when a PR is closed unmerged, say so in the same places a merge would be
+recorded — the In Flight table, and one line in the session log naming *why* and *where the content
+went*.
+
+---
+
+### FLAG-054 — `api-dev` serves Django's DEBUG 404 page, which lists the whole URL map
+**Severity:** P3 (dev) · P1 if it is ever true on beta/production · **Area:** Infra / Backend config · **Owner:** @Bastoh (`[INFRA]`) · **Status:** 🟡 **OPEN — cross-lane; the fix is a backend/Railway setting**
+**Found:** 2026-09-28, dev-tier re-walk (HCL/CHK/2026-002)
+
+**What.** `GET https://api-dev.healthclouda.com/api/v1/no-such-path/` returns Django's technical 404:
+*"Using the URLconf defined in …"*, the text `DEBUG = True`, and all **20** top-level URL patterns.
+On dev the admin mount is the default `admin/`, so no hidden path leaks today. But any
+`DJANGO_ADMIN_PATH` set on a DEBUG tier would be printed on every 404, and a 500 shows a traceback.
+
+**Already known in part.** The checklist records "debugging deliberately on" for dev. What was
+**not** written anywhere is the URL-map disclosure, or any check that beta and production are *off*.
+
+**Not measured:** `api-beta` and `api` could not be probed from the session (the agent proxy
+refuses those hosts), so their state is unknown.
+
+**Done when** someone who can reach them confirms `api-beta` and `api` answer a 404 with a plain
+body (no `DEBUG = True`, no URLconf), and either dev is switched off too or its DEBUG is recorded
+as deliberate in the backend's own flags.
+
+---
+
+### FLAG-058 — Once a record is completed, nobody can correct the patient's name on screen
+**Severity:** P2 · **Area:** Reception / Org admin · **Owner:** @Bastoh · **Status:** 🟡 **OPEN** (half addressed by #167)
+**Found:** 2026-09-28, browser walk, build 2
+
+Reception's completion form says *"Once the record is complete, only an organisation administrator can
+change the name, date of birth or sex."* But the org admin's **Patients** page is read-only: rows have
+no actions and clicking one opens nothing (`OrgAdminDashboard.tsx` `PatientsPage`). FLAG-048 was closed
+by route (a); its route (b), an org-admin edit screen, was never built. In the walk, `HCL-JM3BPU` was
+completed without a first name, so the nurse's description is now its first name for good.
+
+#167 prevents the common case (Complete record will require first and last name). The advice text still
+points at a screen that doesn't exist.
+
+**Done when** an org admin can edit name, date of birth and sex from the browser, or the advice text
+stops promising it.
+
+**Fix: #174** (Patients → Edit). ⚠️ It exposes FLAG-063 below; built on @Bastoh's call, 30 Sep.
+
+---
+
+### FLAG-062 — Small UI nits from the browser walk
+**Severity:** P4 · **Area:** Toasts / Merge dialog · **Owner:** @Bastoh · **Status:** 🟡 **PARTIALLY FIXED** — #173 (merged 2026-10-04) fixed the toast over the panel button and the double bed-taken notice. Still open: the merge, undo and reject dialogs show names only. **Now unblocked:** backend #242 (closed 2026-10-05) sends `duplicate_healthclouda_id` and `survivor_healthclouda_id`, and nothing in `src/` reads them yet.
+**Found:** 2026-09-28
+
+- **A toast covers the slide panel's primary button.** At 1400×900 the bottom-right toast sits over the
+  panel footer. After one discharge is recorded, its toast blocked the next panel's **Record outcome**
+  for 45 s+ while the pointer rested on it (hover pauses the dismiss timer). It can be closed with ×.
+- **The bed-taken notice appears twice**, once in the panel and once as a toast.
+- **The merge, undo and reject dialogs show names only.** "Tolu Probe-CL28SEP → Tolu Probe-CL28SEP" gives
+  no way to tell which record survives. Show the HealthClouda IDs.
+
+---
+
+### FLAG-063 — An org admin's patient edit changes the record at every hospital that holds it
+**Severity:** P1 (multi-tenancy) · **Area:** Patients / Org admin · **Owner:** @Bastoh · **Status:** 🟠 **OPEN — accepted knowingly**
+**Found:** 2026-09-30, building FLAG-058's edit screen (#174)
+
+`PATCH /patients/{id}/` as ORG_ADMIN uses `PatientFullUpdateSerializer`: name, date of birth, sex,
+email, phone and `is_active` — on **any** patient visible to the org (`PatientViewSet.update`, backend
+`apps/patients/views.py`). Nothing checks whether another hospital also holds the record, so one
+clinic's admin can rename a shared patient (e.g. `HCL-Z5DU8H`) for every hospital. The merge tool
+already refuses this case and escalates to a superadmin ("one hospital does not rewrite a record
+another hospital also holds"); a plain edit skips that rule.
+
+**Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
+backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
+The frontend deliberately does not try to decide which records are shared: that would be a
+client-side trust decision (CLAUDE.md §6 lens 1).
+
+**Done when** identity edits by an org admin are refused or escalated on the server for a record
+another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
+cross-hospital edits are intended.
+
+### FLAG-064 — The audit-log "Record type" list is a hand-kept copy of backend code
+**Severity:** P3 · **Area:** Superadmin / Audit Logs · **Owner:** @Bastoh · **Status:** 🟡 **OPEN (accepted for beta)**
+**Found:** 2026-10-04, @Qeeyat re-reviewing #172
+
+`GET /audit/logs/?resource_type=` is an exact, case-sensitive match, so #172 offers a fixed list
+instead of free text. The list (28 values, `SuperadminDashboard.tsx` `AUDIT_RESOURCE_GROUPS`) is
+copied from the backend's three writers of `AuditLog.resource_type`:
+- the save signals and coverage table, one value per audited model;
+- `AuditMiddleware`, which writes the capitalised URL prefix for every request to a sensitive
+  endpoint, reads included;
+- `log_action` callers, whose default is `Action`.
+
+It drifts as soon as a model joins the coverage table or a prefix joins `SENSITIVE_ENDPOINTS`.
+Nothing fails when that happens: the new value is simply not offered, and a superadmin can't filter
+for it.
+
+**Done when** the backend publishes the set (an enum on the schema, or a distinct-values endpoint)
+and the page reads it from there. That needs an `api-request`; @Qeeyat offered to file it.
+
+### FLAG-066 — An emergency walk-in into a single-sex ward always hits the gender warning
+**Severity:** P3 (product call) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a decision**
+**Found:** 2026-10-04, browser re-walk of build 6 step 6 on dev
+
+The "new emergency patient" form has a free-text description but **no sex field**. So every walk-in
+reaches the backend with sex unrecorded, and a Female or Male ward answers *"Sex not recorded — this
+is a Female ward"* with **Admit anyway** (`override`, audited). In the walk, a woman walk-in into
+Maternity needed that override every time. The step as written expects her admitted with no warning.
+
+**Options:** (a) add an optional Sex field to the walk-in form, sent with the admission (the backend
+would need to accept it on `emergency-admissions/`, so an `api-request`); (b) accept the override as
+correct for unknown sex and reword the checklist step. Option (a) also gives reception one less field
+to complete.
+
+**Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
+
+### FLAG-067 — Reception can check in a patient recorded as dead
+**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — waiting on the backend half** (stand-up w1-e3, @Ericmoore207). Checked 2026-10-16: backend `develop` (`751701e`) still accepts the check-in; the deceased guard in `apps/patients/access.py` is called by episodes, referrals and admissions, but not from the check-in path. **Frontend half needs no change:** `checkInPatient` shows the backend's sentence from `details` (`readableFieldError`), and `ReceptionistDashboard.test.tsx` already pins that path for the FLAG-238 refusal. Once e3 lands, check it on dev (check in `HCL-KK4CKY`), then close this flag
+**Found:** 2026-10-04, walking checklist build 9 on dev
+
+`POST /receptionist/check-ins/` accepted `HCL-KK4CKY` (recorded as dead) and put him in Dr Emeka's
+Queue. Nothing unsafe follows: the doctor's **Start episode** is refused (backend FLAG-619, #177), and
+admission is refused too. But the front desk is never told, and a dead patient sits in a doctor's
+Queue until someone marks a No-show.
+
+**Fix (backend, small):** apply the same non-disclosing deceased guard to check-in that episodes and
+admissions already use (`apps/patients/access.py`), with its own sentence. The frontend shows
+`details.patient` already.
+
+**Done when** checking in a patient recorded as dead is refused in words that don't say why, and a
+test pins it.
+
+
+---
+
+## Resolved flags
+
+> ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
+> not resolved** — those entries were appended to the end of the file as they were raised, and the
+> heading has been sitting above them since. Read each entry's own **Status** line, not its position.
+> Left as-is rather than reordering other people's flags mid-session; worth straightening in a
+> dedicated pass.
+
+> 🧹 **Moved here 2026-10-16 (@Qeeyat, stand-up task w1-k2): 33 flags that were fixed but still filed under Open.**
+> Each was checked against `develop` before moving: the PR is merged and the flag's own **Done when** holds
+> (code and test, not only a PR title). Only their **Status** lines changed, to name the PR. Flags that are
+> partly fixed stayed under Open with an honest status (FLAG-024, FLAG-062, FLAG-250).
+> ⚠️ **Still to do:** the filing note above is still true. Some flags *below* this heading are not resolved.
+
+### FLAG-004 — Doctor dashboard uses two query params the backend ignores
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Bastoh ·
+**Status:** ✅ **FIXED — PR #90, merged 2026-08-23** (by @Qeeyat)
+**Found:** 2026-08-08 (originally logged in `CONTRACT-AUDIT.md` as GLOBAL-2, never fixed)
+
+> **How it was fixed, and the part that could not be verified.** `?status=OPEN` → `?status=ACTIVE`:
+> settled against the live schema 2026-08-22, `EpisodeListStatusEnum = ["ACTIVE","COMPLETED"]`, so
+> `OPEN` could never match. `?today=true` was dropped and today-ness is now filtered **client-side**,
+> which the "Done when" below explicitly allows.
+>
+> ⚠️ **Neither `/doctor/episodes/` nor `/doctor/appointments/` documents a single query parameter —
+> not even `page`.** On this backend that is not evidence of non-support (see the correction in
+> FLAG-205), but it is not evidence of support either, and **no doctor account exists in
+> `.env.local`**, so `?status=` could not be confirmed empirically. The fix therefore sends the
+> correct value *and* narrows client-side, which is right either way. Anyone who gets a doctor token
+> should confirm whether `?status=` is honoured — if it is, the client-side narrowing becomes
+> belt-and-braces rather than load-bearing. The new pagination-window limitation this introduces is
+> **FLAG-214**.
+>
+> 🔍 **This flag had a THIRD site it never named, and it was the worst one.** The entry quotes only
+> the two overview lines (`:56`, `:58`). The **Episodes page** carried the same invented enum: filter
+> tabs labelled *Open* / *Closed* sending `?status=OPEN` / `?status=CLOSED`, and — the real damage —
+> the row action gated on `ep.status === 'OPEN'`. **No episode can ever be `OPEN`, so the Complete
+> Episode button never rendered for anybody.** That is one of the handful of write workflows that
+> exist at all in this app (sprint plan Part 1 §3), unreachable through the UI, with nothing failing
+> and nothing logged. Found while starting the D5 design migration and fixed in the same PR.
+> **Lesson: a flag that quotes line numbers invites fixing exactly those lines. Grep the whole file
+> for the bad value before calling a flag closed.**
+
+```ts
+// src/components/dashboard/doctor/DoctorDashboard.tsx:56
+DOC_APPOINTMENTS + '?today=true&page_size=6'   // ?today= is silently IGNORED by DRF
+// src/components/dashboard/doctor/DoctorDashboard.tsx:58
+DOC_EPISODES + '?status=OPEN&page_size=5'      // enum is ACTIVE, not OPEN → always 0 rows
+```
+
+So "today's appointments" silently lists *all* appointments, and "recent episodes" renders
+permanently empty. Both fail with **no error** — the classic invented-query-param bug class in
+this repo.
+
+**Done when:** both params are verified against the live schema and corrected (`?status=ACTIVE`;
+`?today=` replaced with whatever the schema actually supports, or the filter done client-side),
+with a regression test asserting the requested URL.
+
+---
+
+### FLAG-006 — Lint is dead and there is no CI
+**Severity:** P2 · **Area:** Tooling · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #116, merged 2026-09-01.** ESLint flat config, and CI runs lint, `tsc`, tests and build on every PR into `develop` (checked in `.github/workflows/ci.yml`, 2026-10-16). ⚠️ The ruleset does not *require* those checks: that is FLAG-230.
+**Found:** 2026-08-08
+
+`package.json` defines `"lint": "next lint"` and `eslint-config-next` is installed, but **no
+`eslint.config.*` or `.eslintrc*` exists** — lint has never actually run. There is **no `.github/`
+directory at all**: no Actions, no PR template, no CODEOWNERS.
+
+Combined with branch protection being unenforceable on a private repo, *every* check (tsc, tests,
+build) is manual and honour-system. On a team where two agents can't see each other, that's the
+weakest link.
+
+**Done when:** an ESLint flat config exists and `npm run lint` passes clean, and a GitHub Actions
+workflow runs lint + `tsc --noEmit` + `npm test` + `npm run build` on every PR into `develop`.
+
+---
+
+### FLAG-028 — `NewReferralPanel` never reset between patients: one patient's consent attestation could submit under another's name
+**Severity:** P1 · **Area:** Referrals / Compliance / PHI · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #130, merged 2026-09-14** (`da085b9`)
+**Found:** 2026-09-08, PR #130 review (@Qeeyat)
+
+`NewReferralPanel` is mounted permanently by `MyPatientsPage` — `SlidePanel` only controls visibility,
+returning `null` while closed, so the panel's own state lives in the parent and survives every
+open/close. The reset effect added when the org picker shipped cleared exactly two of six pieces of
+state (`toOrganization`, `letterFailedFor`); `form` (`reason`/`clinical_findings`/
+`provisional_diagnosis`/`relevant_history`/`recommended_*`), `consentObtained` and
+`destinationDisclosed` were never touched.
+
+**Reproduced:** refer patient A, fill in the clinical fields, tick both attestations, close WITHOUT
+submitting. Refer patient B — `canSubmit` was already `true` off patient A's leftovers, zero new
+input required, and the payload for patient B carried patient A's `reason`/`clinical_findings`/
+`provisional_diagnosis` verbatim plus `patient_consent_obtained: true` and
+`consent_destination_disclosed: true`.
+
+**Why P1, not a UX rough edge:**
+- **Compliance** — those two booleans are the FLAG-272 (backend) DOCTOR ATTESTATION, written into an
+  immutable referral record. The UI fabricated a consent record for a patient the doctor never
+  attested for.
+- **PHI** — the backend generates a PDF from those fields and `notify_receiving_org` alerts the
+  receiving hospital. Patient A's clinical findings and working diagnosis would disclose to a
+  third-party organisation under patient B's name.
+- **Correctness** — the receiving clinician would be treating patient B against patient A's findings.
+- **The backend cannot catch this.** The payload passes `ReferralCreateSerializer.validate()` cleanly
+  — every field is well-formed and both booleans are genuinely `true`. There is no compensating
+  server-side control; this class of bug is only catchable client-side, where the mismatch between
+  "whose data is this" and "who is this for" actually exists.
+
+**Fixed structurally, not with four more `setX` calls** — a fifth field would have reproduced the
+exact same defect. `MyPatientsPage` now keys both `NewEpisodePanel` and `NewReferralPanel` on
+`patient?.id ?? '<sentinel>'`, so any patient change is a full React remount and every piece of state
+starts fresh, including state nobody has added yet. `SlidePanel` returning `null` on close/remount is
+what makes this free — there is no exit animation to interrupt.
+
+**The sibling.** `NewEpisodePanel` had the identical defect — `form` initialised once, no reset effect
+at all — found by grepping for the same shape rather than assuming it was isolated. Materially less
+bad (no consent attestation, no cross-org PDF, no third-party disclosure) but the same missing-reset
+class of bug. Fixed by the same `key` change, in the same commit.
+
+**Proven, not just fixed:** a test reproduces the exact scenario above (fill patient A, cancel, open
+patient B, assert no leftover text and `Send referral` disabled) and was confirmed RED against the
+pre-fix code (temporarily reverting the `key` prop) before being confirmed green against the fix.
+
+---
+
+### FLAG-029 — A picker test that could not fail: it waited for a synchronous hint, not the debounced fetch it claimed to prove
+**Severity:** P2 · **Area:** Testing · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #130, merged 2026-09-14** (`da085b9`)
+**Found:** 2026-09-08, PR #130 review (@Qeeyat)
+
+`'does not fetch anything on mount and does not search below 2 characters'` typed one character,
+`waitFor`'d the "Keep typing — at least 2 characters" hint, then asserted `dataGet` hadn't been called
+with the target-organizations path. **The hint renders synchronously off the raw (non-debounced) query
+state**, so the assertion ran well before the picker's 350ms debounce could possibly have fired either
+way — proven by the reviewer weakening the length guard from `< 2` to `< 0` (below zero, i.e. never
+true) and re-running: **23 passed, 0 failed.** The "no fetch on mount" half was asserted even less:
+`dataGetMock.mockClear()` ran immediately before the one assertion the test made, so a mount-time fetch
+would have been silently discarded before anything checked for it.
+
+**Fixed** by asserting the mount-time absence directly (inspecting `dataGetMock.mock.calls` right after
+the panel opens, before clearing anything) and, for the below-2-characters half, waiting a real 500ms —
+past the 350ms debounce — before asserting no fetch happened, so a broken guard has actually had the
+window to fire before the check runs.
+
+**Re-verified against the same two sabotages the reviewer used:** reducing the guard to `< 0` now fails
+at the mount-time assertion (mount itself started fetching, because an untrimmed empty string no longer
+short-circuits); reducing it to `< 1` fails at the post-debounce assertion instead (mount is fine, a
+1-character query now fetches). Both catch a defect the previous version caught neither.
+
+---
+
+### FLAG-031 — The ward gender-policy override can never fire: the backend's 400 for it carries no field name at all
+**Severity:** P2 · **Area:** Ward / Admissions · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — fixed
+at source in the backend, PR #194** (`fix/gender-mismatch-error-shape`, merged 2026-09-14)
+**Found:** 2026-09-14, wiring the "Admit anyway" gender two-step on the ordered-admit Accept panel (#139)
+
+`admit_patient()` (`apps/ward/services.py`) raised a plain `ValueError` for the ward gender-policy
+mismatch (FLAG-239/301) — not `serializers.ValidationError`. Every ward view that called it
+(`AdmissionViewSet.create`, `AdmissionRequestViewSet.accept`, and `AdmissionViewSet.transfer`'s own
+inline check) returned a **flat** `Response({'error': str(exc)}, status=400)`. That response never went
+through `apps.core.exceptions.custom_exception_handler` — it carried **no `details` key and no field
+name**, unlike every other validation rejection in this app.
+
+`readFieldError()` (`NurseDashboard.tsx`) — the helper all three admit surfaces (direct emergency
+admit, ordered-admit Accept, and the create path) use to decide whether to show the gender two-step —
+only ever read `err.data.details[field]`. Since `details` was always `undefined` for this specific
+error, `field` was always `null`, so **the two-step could never fire on any of the three surfaces**.
+The clinician would see a plain error banner quoting the backend's own "Resend with override=true to
+admit anyway" sentence, with no button that does that resend.
+
+**Was worked around, now fixed at source.** The frontend previously carried a text-matching fallback
+in `readFieldError()` against the backend's fixed wording — fragile by construction, since nothing
+obligated that message to stay byte-for-byte stable. Backend #194 fixes it properly: `admit_patient()`
+now raises a typed `WardGenderMismatch` (a `ValueError` subclass), and all three admit surfaces
+translate it into `serializers.ValidationError({'gender': str(exc)})`, so it arrives under
+`details.gender` the same way every other field rejection does. **`details.gender` is a STRING, not a
+list** — matching what `AdmissionCreateSerializer` produced before #193's regression.
+
+The frontend's text-match fallback has been removed (`NurseDashboard.tsx`'s `readFieldError` is now a
+pure `details` read, no `GENDER_MISMATCH_MARKER`), and the three gender-two-step test mocks
+(`NurseDashboard.test.tsx`) were restored to assert the real `details.gender` shape instead of the flat
+workaround shape they'd been rewritten to.
+
+**Done when:** the backend raises this as `serializers.ValidationError({'gender': ...})` instead of
+`ValueError`, so it arrives under `details` the same way every other field rejection does, and the
+frontend's text match can be deleted. — **Done, 2026-09-14.**
+
+---
+
+### FLAG-041 — The nurse's active-admission list has no attending doctor; a different, equally-nurse-readable endpoint does
+**Severity:** P2 · **Area:** Backend contract / Ward-Admissions UI · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #145, merged 2026-09-14** (`fix/flag-041-attending-doctor-handover`)
+**Found:** 2026-09-13, building the admissions medical-answer corrections (unmerged `feat/ward-admissions-write-path` #139 / `fix/admissions-medical-answers-ui` #142)
+
+`GET /nurse/my-patients/` (`ActiveAdmissionSerializer`, `apps/ward/nurse_serializers.py:60-75` in the
+backend) has no `attending_doctor` field at all, so a handover — "who is looking after this patient
+right now" — had nowhere to render in the one list a nurse actually reads. #142 (still open, stacked
+on #139) logged this and correctly declined to invent a response shape for it.
+
+**What settles it: a different endpoint, already live, already nurse-readable, already carries the
+field.** `GET /ward/admissions/` (`AdmissionListSerializer`, `apps/ward/serializers.py:354-378`)
+publishes `attending_doctor`, `attending_doctor_name` and `needs_attending_doctor` on the exact same
+`Admission` rows (keyed on the same `id`), and `CanManageAdmissions`
+(`apps/core/permissions.py:509-524`, read directly — the OpenAPI schema documents no roles here,
+same gap as FLAG-211) grants **DOCTOR, NURSE, ORG_ADMIN, SUPERADMIN** `GET` on it. So this did not
+need to wait on a backend change: the dashboard now fetches `/ward/admissions/?status=ACTIVE`
+alongside `/nurse/my-patients/` and merges by admission id.
+
+**Fixed:**
+- `AdmissionAttendingDoctor` type (`src/types/dashboard.ts`) — the minimal shape this file reads off
+  `/ward/admissions/`.
+- `useAttendingDoctors()` in `NurseDashboard.tsx` fetches it with `useAllPages` (a partial map here
+  would silently mislabel a real admission, same reasoning as FLAG-013) and is called from **inside**
+  `OverviewPage`/`MyPatientsPage`, not lifted to the top-level dashboard — `DashboardShell`'s
+  small-screen gate (FLAG-203/FLAG-021) works by never mounting its children below the breakpoint, so
+  a hook called any higher than that fires regardless of the gate.
+- A new "Attending" column on both the Overview preview and the My Patients table renders the
+  doctor's name, **"Unassigned"** when `needs_attending_doctor` is true, or a plain em dash when the
+  id isn't in the map (still loading, the fetch failed, or genuinely no data) — a missing lookup and
+  an absent fact are never told apart, the `StatCard` `?? '—'` precedent.
+
+⚠️ **Numbering note:** #142 (unmerged) independently used FLAG-041/042 for the still-open version of
+this finding and FLAG-042 (no doctor-facing discharge screen — out of scope here, left for the
+owner). If #142 merges before or after this branch, its FLAG-041 section and this one describe the
+same gap from before/after the fix — reconcile additively (keep both, in flag-number order) rather
+than dropping either, per the precedent in `HANDOFF.md`'s 2026-09-03 merge note. Do **not** reuse 041
+for anything else.
+
+**Done when:** ✅ a nurse can see who is attending an ACTIVE admission from both the Overview preview
+and the My Patients table, without waiting on a backend change. RED confirmed against pre-fix code
+(4 new tests failed with the production files reverted, 15 pre-existing tests stayed green);
+`npx tsc --noEmit` clean; `npx vitest run --testTimeout=30000` 286/286 across 24 files; lint clean.
+
+---
+
+### FLAG-047 — The duplicate-records status filter only sees the page in hand
+**Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #161 (2026-09-27)**. Backend #237 (FLAG-613) made `?status=` a real filter and closed #225. `DuplicateRecordsPage` sends it again, and the page-only note and the client-side filter are removed. Two tests assert the param is sent for a status and dropped for "All statuses"; both were RED against the client-side version. ⚠️ **Needs backend #237 deployed to the tier this build talks to.** An older backend ignores the param and shows the whole queue under a status heading.
+**Raised:** 2026-09-26, fixing FLAG-245 on #161 (review 5325820800 by @Qeeyat)
+
+**History, in one paragraph.** `GET /patients/merge-requests/` used to ignore `?status=` (no filterset,
+FLAG-245). So from 26 Sep #161 stopped sending it and filtered client-side over the page in hand,
+saying so when the queue ran past one page. Backend #237 (FLAG-613, closing #225) made the filter
+real on 27 Sep. The shortcut is gone: the dropdown asks the server, and `count` and the pages are the
+filtered queue's. Trimmed 27 Sep at @Qeeyat's suggestion, because the old body described the
+shortcut as current.
+
+---
+
+### FLAG-048 — An emergency patient keeps the nurse's description as their name: nobody can correct it from the frontend
+**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**, by route (a). Backend #236 (FLAG-612) lets reception set name, date of birth and sex while the record is incomplete, including in the completing PATCH, and closes #226. The completion section now has those fields. They start **empty**, never prefilled with the description, and are sent only when filled in. The on-screen text now says an admin must correct them after completion. 4 tests, all RED against the previous section. ⚠️ Needs backend #236 on the tier. An older backend drops the fields with a 200, which is the original bug.
+**Raised:** 2026-09-26, building the record-completion screen (FLAG-602/603 frontend half)
+
+A walk-in admitted with no record is created with the nurse's free-text description in `first_name`
+("man, ~40, brought in by police"). Completing the record clears `registration_incomplete` and
+captures consent — **but reception's serializer cannot change the name, date of birth or sex**
+(`PatientContactUpdateSerializer`, backend `apps/patients/serializers.py`). Only ORG_ADMIN/SUPERADMIN
+(`PatientFullUpdateSerializer`) can, and **no frontend screen lets an org admin edit a patient** at all.
+So today the description is the patient's name for ever, including on every clinical screen and in
+search.
+
+The completion section says so on screen ("ask an organisation administrator") rather than implying
+completion fixes it — which is currently advice nobody can follow from the UI.
+
+**Done when** either (a) the backend lets reception set name/DOB/sex **while `registration_incomplete`
+is still set** (the same record-state keying `require_contact_key` already uses), and the completion
+section sends them; or (b) an org-admin patient edit screen exists and the on-screen advice points to
+it. Backend ask: **[#226](https://github.com/HealthClouda/healthclouda-backend/issues/226)** (assigned @Ericmoore207).
+
+---
+
+### FLAG-049 — Incomplete emergency records cannot be listed, only searched for
+**Severity:** P3 · **Area:** Reception · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**. Backend #236 made `?registration_incomplete=true` a real, published filter on `GET /patients/`, scoped to the organisation. Patient Search now shows **"Records to complete (n)"**, which is hidden when there are none, opens each record's completion section, and re-reads itself after a completion. It asks the server for incomplete records only, never the whole patient list. 4 tests. ⚠️ Needs backend #236 on the tier. An older backend ignores the param and returns every patient. The section checks each row's `registration_incomplete` and **renders nothing** if any row is complete, so it never lists the whole patient list under this heading. A mutation test proves that guard.
+**Raised:** 2026-09-26, same build
+
+`PatientListSerializer` carries `registration_incomplete` ("so incomplete records can be listed and
+worked through" — FLAG-594), but `GET /patients/` declares no filter on it and its `get_queryset`
+reads no params. Listing them would mean paging the org's entire patient list into the browser —
+a PHI over-fetch this repo refuses elsewhere. So the completion screen is reached by **searching for
+the patient** (the nurse's description is searchable as a name) and opening their record; there is no
+"records to complete" queue. The nurse's admission toast already says reception completes it later,
+but nothing tells reception which records are waiting.
+
+**Done when** `?registration_incomplete=true` is a real, schema-published filter on `/patients/` (same
+backend issue as FLAG-048, **#226**) and reception has a queue built on it.
+
+---
+
+### FLAG-050 — The doctor's pending-review button could not label itself by outcome (`discharge_outcome` not on the list)
+**Severity:** P3 · **Area:** Doctor / Discharge review · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**. `discharge_outcome` and `discharged_by_name` are now required on the type, checked against `AdmissionListSerializer.Meta.fields` on backend `develop`, and the stale comment is gone. The pending-review row says **who recorded it**, and it shows **the time of death** (DECEASED) or **when the patient was found missing** (ABSCONDED) from `deceased_at`/`discovered_at`, which backend #233 (FLAG-609) made readable. 2 tests, both RED against the previous row.
+**Raised:** 2026-09-17 inside the FLAG-045 entry as "FLAG-046"; numbered 2026-09-26
+
+**Why this number.** The gap was first written into FLAG-045's entry as "FLAG-046", and #159 then
+used FLAG-046 for the ward rota, so the file used one number for two things (@Qeeyat, #159 review,
+26 Sep). She suggested 047, then 048; both were taken on 26 Sep (with 049), so it is 050. FLAG-045's
+entry now points here.
+
+**The gap.** The pending-review list labels its button "Confirm death" or "Mark reviewed" by outcome,
+but the build-4 contract did not put `discharge_outcome` on `AdmissionListSerializer`. The frontend
+read it as optional and fell back to "Mark reviewed" rather than guess.
+
+**Backend half: resolved.** Backend **#215** (`f96ea9d`, 17 Sep, FLAG-592) added both
+`discharge_outcome` and `discharged_by_name` to `AdmissionListSerializer.Meta.fields`, explicitly for
+this list. Verified in source on `develop` @ `24d7429`. So "Confirm death" now appears against a real
+backend.
+
+**Frontend remainder (small, not built):**
+- `DoctorAdmission.discharge_outcome` is still typed optional, and its comment in `types/dashboard.ts`
+  still says neither serializer exposes it. Both are stale.
+- `discharged_by_name` is available and unused. The pending-review row says "recorded 3h ago" but not
+  **who** recorded the death or absconding, which is the context a doctor confirming it needs.
+
+**Done when** the type makes `discharge_outcome` required (checked against the live schema), the
+stale comment is gone, and the pending-review row shows who recorded it.
+
+---
+
+### FLAG-055 — A deceased patient can be given a new episode, and then appears on the nurse's Admit list
+**Severity:** P3 · **Area:** Episodes / Admissions (backend rule, frontend symptom) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #177, merged 2026-10-04**, with backend #247 (FLAG-619): the backend refuses a new episode for a deceased patient, and the panel shows the refusal.
+**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
+
+**What happened.** Probe `HCL-KK4CKY` was discharged **DECEASED** during B4 (`deceased_at`
+2026-09-27T21:25Z). As `nurse@demo.test`, `POST /episodes/` for it returned **201** (episode
+`a1d35048`). The nurse's **Admit Patient** list then offered it with an **Admit** button. Admitting
+is correctly refused ("This patient cannot be admitted at this time. Please escalate to an
+administrator."), so no care decision is wrong. But the screen invites an action that can only
+fail, and the deceased guard exists for admissions and referrals while episode creation has none.
+
+**Question for the backend:** should `POST /episodes/` refuse a patient `patient_is_deceased()`
+says has died (same non-disclosing wording), or is a post-mortem episode legitimate (e.g.
+certification paperwork)? If the latter, the Admit list should exclude them.
+
+**Tidy-up owed:** episode `a1d35048` on `HCL-KK4CKY` is still open (synthetic).
+
+**Done when** the backend decides, and either the episode route refuses or the Admit list hides a
+deceased patient.
+
+**Decision (@Bastoh, 28 Sep): the backend refuses.** `POST /episodes/` must refuse a patient
+`patient_is_deceased()` says has died, with the admission refusal's non-disclosing wording. Backend ask
+for @Ericmoore207 (suggested backend FLAG-617); the frontend only needs to show the server's refusal.
+
+**Fix:** backend **#247** (backend FLAG-619, merged 1 Oct; @Bastoh wrote it rather than raise an ask) refuses
+on both episode routes. Frontend **#177** shows the refusal inside the Start episode panel. The stray
+episode `a1d35048` on dev still needs closing (tidy-up).
+
+---
+
+### FLAG-056 — The optional doctor picker's empty option says "No doctor available right now" while a doctor is on duty
+**Severity:** P4 (copy) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #173, merged 2026-10-04.** The optional placeholder reads "No attending doctor yet"; `DoctorPicker.test.tsx` pins it.
+**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
+
+`DoctorPicker` renders its blank option as `required ? 'Select a doctor…' : 'No doctor available
+right now'`. In the emergency panel (not required) that line sits directly above the **"On duty:
+Emeka Okafor"** group, so it reads as a false statement. The blank choice means "admit without
+naming a doctor". Suggested wording: **"No attending doctor yet"**.
+
+**Also noticed, not a defect claim:** the episode-based **Admit patient** panel has no
+attending-doctor picker at all (bed and reason only), so the off-duty warning (FLAG-601) can only be
+met from the emergency panel. Worth a design decision alongside backend FLAG-607's open half.
+
+**Done when** the optional placeholder no longer claims no doctor is available.
+
+---
+
+### FLAG-057 — Clicking Sign In before the page has loaded sends the email and password in the URL
+**Severity:** P1 (security, before PHI) · **Area:** Auth / Sign-in forms · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #170, merged 2026-10-04.** `auth-forms-no-get.test.tsx` covers it.
+**Found:** 2026-09-28, browser walk of HCL/CHK/2026-002
+
+**What happened.** Twice, a sign-in in the automated browser landed on
+`/demo-clinic/signin?email=doctor%40demo.test&password=Demo%23Pass1`. `SigninForm.tsx:136`,
+`SetPasswordForm.tsx:198` and `ResetPasswordForm.tsx:79` are plain `<form onSubmit=…>` with no `method`,
+and react-hook-form gives the inputs `name`s. If the page's JavaScript hasn't loaded (a slow or dropped
+chunk), the browser submits the form natively as a **GET**, and the credentials go into the address bar,
+browser history, and the Vercel/Cloudflare request logs. In the walk the trigger was a JS chunk that
+failed to fetch, which is exactly what happens to a real user on a weak connection.
+
+**Fix (small):** `method="post"` on all three forms (a native POST puts nothing in the URL), and
+disable the submit button until hydration, or set `action` to a harmless same-page target.
+
+**Done when** a native submit of each form with JavaScript disabled puts no field value in the URL.
+
+---
+
+### FLAG-059 — The doctor's My Patients page shows no names, and "New episode" / "Refer" send an episode id as the patient
+**Severity:** P1 · **Area:** Doctor / My Patients · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #181, merged 2026-10-04** (replaces #171, closed by accident by a closing keyword in #169).
+**Found:** 2026-09-28, browser walk
+
+`MyPatientsPage` (`DoctorDashboard.tsx:1013`) reads `/doctor/my-patients/` as a list of flat
+`PatientSummary` rows. The endpoint returns **one row per episode**, with the patient nested under
+`patient` (`MyPatientsPaginatedResponse`, backend `apps/patients/doctor_views.py:184`). So:
+- all 15 rows render as "? — — — —" (no name, phone, date of birth);
+- **New episode** opens "Start episode undefined undefined" and posts `patient: <episode id>`, which the
+  server refuses with 400 "Invalid pk … object does not exist" (shown only as a toast; an earlier
+  version of this entry said no error was shown, which was wrong: the 28 Sep script missed the toast).
+- **Refer** starts from the same row, so it carries the wrong id too (not submitted in the walk).
+
+A doctor cannot start a case from My Patients at all today.
+
+**Done when** the page maps the episode-shaped rows (patient from `row.patient`, one row per patient)
+and New episode and Refer send the patient's id. **Fix: #171.** Verify against the live
+schema's `MyPatientsPaginatedResponse`.
+
+---
+
+### FLAG-060 — A doctor has no browser path to open a case for a newly registered patient
+**Severity:** P1 (workflow) · **Area:** Doctor / Reception hand-off · **Owner:** @Bastoh (frontend) + product call · **Status:** ✅ **RESOLVED — #175, merged 2026-10-04**, with backend #243 (FLAG-617): the doctor's Queue page.
+**Found:** 2026-09-28, browser walk, build 2
+
+Even with FLAG-059 fixed, **My Patients lists only patients who already have an episode with that
+doctor**, so a patient registered at reception can never appear there. Reception's **Check in patient**
+with an assigned doctor creates a check-in (`POST /receptionist/check-ins/` → 201, "Queue number: 1"),
+but no episode, and no doctor screen shows check-ins or a queue. So the only way in the browser to give a
+new patient an episode is the nurse's emergency admission, and that can't find an existing patient
+until #168 (FLAG-053).
+
+**Done when** a doctor can go from a reception check-in (or a patient search) to "Start episode" in the
+browser. Needs a design decision on where the doctor's queue lives.
+
+**Decision (@Bastoh, 28 Sep): a doctor "Queue" page** listing today's check-ins assigned to that
+doctor, each with "Start episode". A patient search is a possible later addition. If no endpoint lets a
+doctor read their check-ins, that is a backend `api-request` for @Ericmoore207 first.
+
+**Fix: #175** (doctor Queue page), on backend **#243** (`GET`/`PATCH /doctor/queue/`, backend FLAG-617, merged
+30 Sep). There was no such endpoint; @Bastoh chose to write it rather than raise an `api-request`. ⚠️ The
+page errors on any tier until #243 is deployed there by Railway.
+
+---
+
+### FLAG-061 — Superadmin Audit Logs show every entry as "System", with no reason
+**Severity:** P2 · **Area:** Superadmin / Audit · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #172, merged 2026-10-04.** Who (`user_email`), what and why, with filters. The record-type list it added is FLAG-064.
+**Found:** 2026-09-28, browser walk, build 5
+
+`SuperadminDashboard.tsx:746` renders `log.performed_by ?? log.user ?? 'System'`. `/audit/logs/` sends
+`user_email` (and `user_role`), so every one of the 4,343 rows reads "System". The Event column shows only
+the action word (CREATE/READ) and never `reason`, `resource_type` or the patient, so an audited decision
+such as FLAG-601's off-duty override can't be found or checked in the browser. There is no filter either,
+although the API supports `?patient=`, `?action=` and `?user_email=`.
+
+**Done when** the page shows who (from `user_email`), what (action + resource + reason), and can be
+filtered by patient.
+
+---
+
+### FLAG-065 — Reception search finds nothing when you type a full name
+**Severity:** P2 · **Area:** Reception / Patient Search (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — backend #255, merged 2026-10-05** (FLAG-519/523). A whole name now matches the full name; pinned by `test_a_full_name_works_for_the_first_time`. No frontend change.
+**Found:** 2026-10-04, browser re-walk of build 2 step 6 on dev
+
+Searching **"Tolu EM-04OCT"** (first and last name) returns no rows. **"Tolu"** alone finds both records.
+Backend `GET /receptionist/patients/search/?query=` (`receptionist_views.py`) matches the **whole** text
+against each field separately (`first_name__icontains=query | last_name__icontains=query | …`), so no
+single field ever contains both words. A receptionist naturally types the whole name, and the empty
+result reads as "no such patient". That leads to a duplicate registration, which is the problem the
+merge screens exist to clean up.
+
+**Fix (backend, small):** split the query on whitespace and require **every** word to match **some**
+field (an AND of ORs). Keep the minimum length per query, not per word.
+
+**Done when** a full-name search finds the patient, and a test pins it.
+
+---
+
+### FLAG-068 — The sidebar showed only the user's initials: Change password squeezed the name to 1px
+**Severity:** P2 (every dashboard, every user) · **Area:** Layout / Sidebar · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #184, merged 2026-10-06**
+**Found:** 2026-10-04, @Bastoh walking checklist build 1 ("I can only see the NB logo")
+
+#178 (FLAG-611) added a 44px key button to the sidebar footer, between the name and **Sign out**. The
+sidebar is 230px wide, so the name and clinic got **1.3px** (measured on dev: `scrollWidth` 88,
+width 1.27) and truncated to nothing, leaving only the avatar initials. The jsdom tests could not see
+it: they don't lay anything out.
+
+**Fixed:** the name and clinic keep their own row; **Change password** and **Sign out** sit on a
+second row below them, as text buttons (owner's choice, 5 Oct). A menu under the name is the usual
+pattern once there are more account settings.
+
+---
+
+### FLAG-069 — A doctor or nurse who signs out still shows as on duty for up to 15 minutes
+**Severity:** P2 · **Area:** Duty status (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED 2026-10-05 — backend #252 (backend FLAG-621), merged and live on `api-dev`**
+**Found:** 2026-10-04, @Bastoh walking checklist build 1
+
+On duty means *used the app in the last 15 minutes and not switched off* (`User.last_seen_at`,
+backend FLAG-569/579). Signing out ended the session (and, since #183, really ends it server-side),
+but never touched `last_seen_at`. So reception's doctor list and the nurse's "On duty" group kept
+offering a doctor who had just gone home.
+
+**Fix (owner decision, 5 Oct):** on sign-out, if a doctor **or nurse** has **no other device** active in the last
+15 minutes, they go off duty at once. Still signed in and active on another device → they stay on
+duty. The manual "Go off duty" switch is untouched.
+
+**Not covered** (both drop off duty only after 15 minutes): a sign-out whose access token had already
+expired (FLAG-250's remaining gap) never reaches the backend; and a token from before FLAG-610 (no
+`sid`) returns from `end_session()` before the duty check. The second has been unreachable since the
+12h cap ran out on those tokens (@Qeeyat, review of #184).
+
+**Verified live 5 Oct:** Doctor 2 signed in → on reception's `GET /receptionist/doctors/on-duty/`; signed
+out (200) → gone from it at once.
+
+---
+
+### FLAG-070 — The duty button mixed the action with the state, signing in kept a manual "off", and duty changes were not logged
+**Severity:** P2 · **Area:** Duty status (doctor + nurse) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #185, merged 2026-10-08**, with backend #256 (FLAG-622)
+**Found:** 2026-10-06, @Bastoh walking checklist build 5 step 2
+
+Three findings from one note:
+1. **Wording.** One button read *"Go off duty (On duty)"* or *"Back on duty (Off duty — you switched
+   off)"*: the action and the state in the same control, which reads as a contradiction. Now
+   `DutyToggle` shows a status badge (**On duty** / **Off duty**) and, beside it, a button that says
+   only what a click does (**Go off duty** / **Go on duty**). The banners and the toast lost their
+   em dashes too.
+2. **Sign-in.** A doctor or nurse who switched off stayed off after signing in again. **Owner decision
+   (6 Oct):** signing in puts them on duty. Backend FLAG-622.
+3. **The record.** Going on or off duty now writes an audit row (`UPDATE` on record type **Duty**,
+   with the reason and the cause: sign-in, sign-out or the switch). Backend FLAG-622. `Duty` is added
+   to the superadmin record-type list (FLAG-064 keeps that list by hand). Going off duty by being idle
+   is not logged, because nothing happens at that moment to log.
+
+---
+
+### FLAG-071 — Em dashes all over the on-screen text
+**Severity:** P3 (owner's style call, 6 Oct) · **Area:** Copy, every dashboard · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #186, merged 2026-10-14**
+**Found:** 2026-10-06, @Bastoh walking checklist build 4: "we have to clean the em dashes just like we did with the landing page"
+
+About 170 lines of code put an em dash on screen: ~85 sentences and labels, and ~85 lone "—" standing
+in for an empty value. Sentences now use a full stop, comma, colon or brackets ("Emergency:
+immediate intervention", "Nobody (unassigned)", "Name (City, State)"). Empty values show an en dash
+(–). `src/lib/no-em-dashes.test.ts` scans the source (comments skipped) and fails if one comes back.
+Exempt: `src/lib/config.ts` (a developer-only build error) and `DutyToggle.tsx`, reworded in #185;
+drop that exemption once #185 is on `develop`.
+
+The backend's user-facing strings (gender warning, merge refusal, the admission-request notification,
+the welcome email) are backend FLAG-623.
+
+---
+
+### FLAG-072 — No screen to set up wards: nobody could add, edit or delete a ward in the browser
+**Severity:** P2 · **Area:** Org Admin / Wards & Beds · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #187, merged 2026-10-14**, with backend #260 (FLAG-624)
+**Found:** 2026-10-06, @Bastoh walking checklist build 6 step 1: "there's no interface to add wards …
+we should follow normal practice"
+
+Wards & Beds only listed wards and managed their rota. Wards existed only because they were seeded.
+Normal practice (owner, 6 Oct): the hospital administrator sets up wards and beds; nurses run them.
+
+**Fixed:**
+- **Add ward** on Wards & Beds, and **Edit** on each ward card, open `WardSetupPanel`: name, type
+  (with "what kind?" when Other), patients (anyone / women only / men only) and number of beds.
+- Beds are created and numbered by the backend from that number. Lowering it removes every bed nobody
+  is in (available, **reserved** and **under maintenance** alike), so the panel asks first ("This
+  removes N beds …"). An occupied bed makes the backend refuse, and its words are shown in the panel.
+- An emptied bed box is refused, never sent as 0 (`Number('')` is 0, which would have removed every
+  free bed). Save stays off until the ward has loaded, so a failed load can't save the previous
+  ward's values onto this one. Both found in review on #187 by @Qeeyat.
+- **Delete this ward**, behind a confirm step. A ward with a patient in any bed is refused, in the
+  backend's words.
+- Backend FLAG-624 makes this the org admin's alone: a nurse keeps read access and a bed's status.
+
+**Backend gap (found in the same review, not fixable here):** a *refused* bed reduction still saves
+the rest of the PATCH. `WardViewSet.update` calls `serializer.save()` before it returns the 400, and
+`@transaction.atomic` only rolls back on an exception, so a rename sent with an impossible bed count
+is kept while the panel shows the refusal. Needs a backend fix (validate before saving, or raise).
+Filed by @Qeeyat as [backend #264](https://github.com/HealthClouda/healthclouda-backend/issues/264)
+(`api-request`), which also asks whether removing RESERVED beds is intended.
+
+**Not in this PR:** rooms (private and VIP rooms with their own beds), naming beds one by one, and a
+screen for a nurse to mark a bed under maintenance. The API supports all three.
+
+---
+
+### FLAG-073 — No dashboard refreshed on its own: a new request or check-in showed only after a reload
+**Severity:** P2 · **Area:** Data layer / all staff dashboards · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #188, merged 2026-10-14**, with backend #262 (FLAG-625).
+**Found:** 2026-10-06, @Bastoh walking checklist builds 1–6: "no live refresh anywhere"
+
+Every list loaded once, when its page opened. A nurse's admission request, a patient checked in at
+reception or a death recorded on a ward reached the other person only when they reloaded.
+
+**Why not just a timer.** Every authenticated request counted as activity on the backend. A page that
+re-fetched on a timer would keep an unattended ward computer signed in forever and keep a doctor who
+walked away "on duty", which is exactly what `use-heartbeat.ts` (build 5 / FLAG-044) forbids. So the
+backend gained a **background** marker first (backend FLAG-625).
+
+**Fix.**
+- `src/hooks/use-live-updates.ts` (new), mounted once in `DashboardShell` for DOCTOR, NURSE,
+  RECEPTIONIST and ORGANIZATION_ADMIN: every 30s, while the tab is visible, `GET /auth/me/updates/`
+  (counts and a `changed_at`, no patient details). Polls again the moment a hidden tab is shown; does
+  not poll while hidden, or while the small-screen gate is up (FLAG-203: a gated device fetches nothing).
+- When `changed_at` moves, a context tick makes every mounted `useApi` / `usePaginatedList` /
+  `useAllPages` refetch **silently**: no loading skeleton, and a failure keeps the list on screen.
+- Every request the timer causes (the poll, the silent refetches, and any token refresh they trigger)
+  carries `X-HC-Background: 1` (`BACKGROUND_HEADER` in `config.ts`), forwarded by `/api/data` and
+  `/api/auth/refresh`. Ordinary requests are unchanged.
+- Sidebar badges from the counts: doctor Queue (waiting today) and Admissions (reviews: mine +
+  nobody's); nurse Admission Requests; reception Check-ins (waiting today); org admin Duplicate
+  Records (flagged) and Referrals (pending). Each count is defined on the backend exactly as that
+  page filters its list.
+
+**Behaviour change worth knowing:** an idle session in an open tab is now signed out (with the
+"inactivity" reason) within about 30s of hitting the 15-minute limit, instead of when the person next
+clicks. That is the idle rule doing its job; it also takes records off an unattended screen sooner.
+
+**Not done (deliberately):**
+- The header bell still shows nothing. The count is in the response (`unread_notifications`), but the
+  bell's dropdown has no list wired, and a number over an empty list is worse than no number.
+- `changed_at` is organisation-wide, so any change makes every open staff page refetch its lists once.
+  A few extra reads a minute at beta scale; split it per area if it ever matters.
+- Pages that fetch with `dataGet` directly (not through the hooks) do not refresh; they are panels
+  opened for one record, not lists.
+
+**Tests:** `src/hooks/use-live-updates.test.tsx` (9; the two background assertions were confirmed RED by
+removing the marker from the poll and from the silent refetch), `src/app/api/data/route.test.ts` (3),
+`src/app/api/auth/refresh/route.test.ts` (+2).
+
+---
+
+### FLAG-207 — Dead `ORG_ADMIN_STAFF_MEMBER` endpoint constant, removed
+**Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **FIXED — #78, merged 2026-08-19**
+**Found:** 2026-08-17, building D2 Org Admin, verified against the live schema
+
+`ORG_ADMIN_STAFF_MEMBER: (id) => '/org-admin/staff/${id}/'` had zero consumers anywhere in `src/`
+and pointed at a URL that doesn't exist in the live schema — only `/org-admin/staff/` (list+create)
+and `/org-admin/staff/<id>/status/` (the activate/deactivate endpoint) do. Removed rather than
+fixed to a guess; `ORG_ADMIN_STAFF_STATUS` added in its place for the endpoint that's actually real.
+
+**Done when:** N/A — already done. Logged for the paper trail, since the removal is referenced by
+name (`FLAG-207`) in the `config.ts` comment.
+
+---
+
+### FLAG-211 — Admission write endpoints are documented, but nurse permission is not
+**Severity:** P2 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-09-13 — read from backend source, not guessed and not POSTed against shared seed data**
+**Found:** 2026-08-19, building D3 Nurse
+
+Tuesday's sprint row names an **admission** workflow for the nurse dashboard. The contract exists
+and is fully documented, unusually for this API:
+
+```
+POST /ward/admissions/              AdmissionCreateRequest
+                                    required: patient, episode, bed
+                                    optional: admission_reason, override
+POST /ward/admissions/<id>/discharge/   discharge_summary, discharge_instructions (both optional)
+POST /ward/admissions/<id>/transfer/
+```
+
+**What is verified (live, nurse token, 2026-08-19):** a nurse can **read** both
+`GET /ward/beds/` → 200 (7 beds, with `status` and a nested `current_patient`) and
+`GET /ward/admissions/` → 200. The read side is built in this PR — the ward board now shows which
+patient is in which bed.
+
+**What is NOT verified:** whether a nurse may **POST** any of the three. The schema's `security`
+block says `jwtAuth` generically for every endpoint and never exposes which roles a view's
+permission classes allow — the same gap as FLAG-209. A `GET` returning 200 says nothing about
+`POST`.
+
+> ⚠️ **Narrowed 2026-08-23, after @Bastoh's review of PR #86.** As first written this entry
+> generalised from the doctor endpoints to the whole API, saying the schema documents no
+> parameters. **That generalisation is wrong.** It holds for the doctor routes — `/doctor/appointments/`
+> and `/doctor/episodes/` really are `200: no response body` with no parameters — but **not** for
+> `/ward/beds/`, which documents `page`, `search` and `ordering` and returns a
+> `PaginatedBedListList` envelope.
+>
+> This cost something real rather than being a tidy-up: believing the endpoint documented nothing
+> is why the ward board was built with a plain `useApi` and rendered only the first 20 beds. **The
+> roles half of the claim still stands** — no endpoint exposes its permission classes, and that is
+> the part this flag is actually about. **Read the schema per endpoint; this API is not uniform,
+> and assuming it is produced a real bug.**
+
+**Why it wasn't guessed:** the only way to settle it is to POST, and on a shared dev tier that
+means creating or discharging a real admission in seed data the other dev may be testing against.
+Unlike a silently-ignored filter param, a wrong write here is not invisible — it is *visible to
+everyone*, and discharging a seeded admission is only undone by re-admitting.
+
+**Also unresolved even if permission is granted:** `POST /ward/admissions/` needs an **`episode`**
+id, and no nurse endpoint exposes a patient's episodes. `/nurse/my-patients/` carries an episode
+only for patients who are *already admitted*, which is the wrong direction — admitting needs the
+episode of someone not yet in a bed. So the admit flow needs an episode lookup that does not
+currently exist for this role.
+
+**Done when:** either (a) the permission is confirmed — ideally by the backend documenting it,
+otherwise by one deliberate POST against a disposable record with @Bastoh's agreement — **and** an
+episode-lookup route for the nurse role is identified, after which admit/discharge/transfer can be
+built; or (b) it is confirmed that admission is an ORG_ADMIN/receptionist workflow rather than a
+nurse one, and Tuesday's row is corrected to say so.
+
+> ✅ **Resolved 2026-09-13 by @Bastoh, while scoping FLAG-041 — this is a tracker correction, not a
+> code change.** Both open questions are settled by reading the backend source directly, per the
+> house rule "schema first because it is free; the source or a live call to conclude" — the schema's
+> `security` block was never going to answer this, so the fix was to stop asking it.
+>
+> **1. The permission IS granted, and it is IN the source, just not in OpenAPI's `security` block —
+> same shape as FLAG-209/211's original finding, one layer down.**
+> `apps/core/permissions.py:509-524`, `CanManageAdmissions.has_permission`, read directly:
+> ```
+> VIEW (GET): DOCTOR, NURSE, ORGANIZATION_ADMIN, SUPERADMIN
+> CREATE / discharge / transfer (POST): DOCTOR, NURSE, SUPERADMIN
+> ```
+> A NURSE may `POST /ward/admissions/`, `.../discharge/` and `.../transfer/`. No POST against shared
+> seed data was needed — the permission class is the ground truth a 200 on GET could never establish,
+> and it settles the question without the blast radius this flag was rightly worried about.
+>
+> **2. The episode-lookup gap is real but already has an answer, independently confirmed here:**
+> the generic `GET /episodes/` (`apps/patients/views.py::EpisodeViewSet`, permission
+> `CanAccessEpisode`, `apps/core/permissions.py:329-354`) grants NURSE both list/retrieve and create,
+> unscoped to "already admitted" — unlike `/nurse/my-patients/`, which only carries an episode for
+> patients already in a bed. That is the episode source an admit flow needs. (The unmerged
+> `feat/ward-admissions-write-path` #139 found and used this same endpoint independently, on
+> 2026-09-11/13 — the two readings agree.)
+>
+> **Tuesday's row does not need correcting to (b)** — admission is confirmed as a NURSE (and DOCTOR)
+> workflow, not ORG_ADMIN/receptionist-only. Nothing here changed any code; the record now matches
+> what the source has said all along.
+
+---
+
 ### FLAG-239 — The ordered admission path skips the ward gender policy, and #139 builds an "Admit anyway" step for a check that never runs
 **Severity:** P2 · **Area:** Backend contract / Ward-Admissions · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-09-14** — backend **#192** closed by backend **#193** (`12eb32c`) + **#194**; frontend consumed in #139 (`5262e64`)
 **Found:** 2026-09-14, reviewing #139 against backend `develop` source
@@ -1913,33 +2608,6 @@ that **implies a safeguard the backend does not apply**.
 - the check moves into the shared path, and the accept two-step is verified against a real 400, **or**
 - the ordered path is confirmed exempt by design, and #139's accept two-step is removed with a comment
   saying why.
-
----
-
-### FLAG-240 — One-row In Flight claim PRs conflict with each other and are now a large share of the review queue
-**Severity:** P3 · **Area:** Process · **Owner:** @Qeeyat · **Status:** OPEN — a decision for both devs, not a fix
-**Found:** 2026-09-14, reviewing @Bastoh's queue
-
-On 14 Sep, **5 of the 11 PRs awaiting review** (#132, #134, #138, #140, #144) each did nothing but add one
-In Flight row, **at the same line**. Measured with `git merge-tree`:
-- #132×#138 and #138×#140 conflict with each other.
-- #134 and #144 conflict with #141.
-- **Three of the five rows were already stale when reviewed.** #132 says "DON'T MERGE" over a P1 fixed
-  five days earlier. #138 under-states the files #139 touches. #140 describes a `witnessed_by` picker that
-  backend #190 deleted.
-
-The rule behind it is right: `CLAUDE.md` §3 says claim **before** cutting a branch. But the ruleset
-requires a reviewed PR for every change to `develop` (`bypass_actors: []`), and build agents open branches
-far faster than a claim can be approved. So a claim reaches `develop` **after** the work it announces,
-which is the failure the rule exists to prevent, at five times the review cost.
-
-**Done when:** both devs agree in writing (`CLAUDE.md` §3) on one of:
-- claiming in the feature PR's first commit,
-- one batched claims PR per day, or
-- another mechanism that lands a claim before its branch is visible.
-
-⚠️ **This PR's own In Flight row is the same deviation**, made on purpose: the row travels with the
-change it claims, which is option (a).
 
 ---
 
@@ -1981,7 +2649,7 @@ present, and ideally the two copies share one module so the fix happens once.
 ---
 
 ### FLAG-243 — The emergency admit creates an ACTIVE episode before the deceased check, and #148's hard stop leaves it orphaned
-**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED** (2026-09-18, @Bastoh, `feat/emergency-admission-single-call`)
+**Severity:** P3 · **Area:** Ward / Admissions · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED — #161, merged 2026-09-27** (@Bastoh, `feat/emergency-admission-single-call`)
 **Found:** 2026-09-15, reviewing #148 against backend `develop` (#199 merged)
 
 > **Resolved by the first "Done when" option, on the backend side.** Build 2 replaced the two
@@ -2115,7 +2783,6 @@ Grouped because each is a couple of lines and they live in one component.
    ever (backend FLAG-601), which is precisely what the helper exists to hide. **Done when** the
    generic `formError` path strips it too.
 
-
 ---
 
 ### FLAG-247 — The Patient "My Health" table reads `chief_complaint`, which `GET /episodes/` never sends
@@ -2150,7 +2817,7 @@ baselines are captured after the fix.
 ---
 
 ### FLAG-248 — The two public landing forms can put a visitor's name, email and phone in the URL
-**Severity:** P3 (PII, not credentials or PHI) · **Area:** Landing / public forms · **Owner:** @Qeeyat · **Status:** 🟡 **FIX IN REVIEW — #180** (`fix/flag-248-landing-forms-post`, 2026-10-04). Mark ✅ resolved when #180 merges
+**Severity:** P3 (PII, not credentials or PHI) · **Area:** Landing / public forms · **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED — #180, merged 2026-10-05.** Both forms post and wait for hydration; `landing-forms-no-get.test.tsx` covers them.
 **Found:** 2026-10-03, reviewing #170 (FLAG-057)
 
 > **2026-10-04, #180:** both forms now declare `method="post"` and keep the submit disabled until
@@ -2180,651 +2847,6 @@ hydrated (`useHydrated()` from #170), with the server-HTML test pattern from
 `auth-forms-no-get.test.tsx` covering them.
 
 ---
-
-### FLAG-249 — 🔴 Promotion gate: `api-beta` lacks the admission filters and endpoints `develop` already relies on
-**Severity:** P1 at the next `develop` → `staging` promotion (nothing exposed today) · **Area:** Infra / tier parity · **Owner:** @Bastoh (`[INFRA]`, promotions) · **Status:** 🟠 **OPEN — a precondition, not a bug in code**
-**Found:** 2026-10-03, reviewing #176
-
-Measured 2026-10-03 against both live schemas and by probe:
-
-| | `api-dev` | `api-beta` |
-|---|---|---|
-| `GET /ward/admissions/` documented params | `mine, needs_doctor_review, ordering, page, page_size, patient_id, search, status, unassigned, ward_id` | **`ordering, page, search`** only |
-| `GET /doctor/queue/` (backend #243) | **401**: exists, needs auth | **404**: does not exist |
-
-`develop` already scopes doctor views with `?mine=true` and `?needs_doctor_review=true`, and #175
-and #176 add `/doctor/queue/` and `?unassigned=true`. **DRF silently ignores a filter it doesn't
-have**, so on today's `api-beta` a doctor's "my admissions" lists **every admission in the
-organisation**, and #176's "Unassigned" section would list them all with a **Take over** button.
-
-**Why nothing is exposed today:** `staging` is still `develop` as of 13 Sep (#98, `7eeeea0`), and it
-has no `?mine=true` code. `beta.healthclouda.com` doesn't resolve (NXDOMAIN, 3 Oct).
-
-**The precondition:** before the next `develop` → `staging` promotion, the `api-beta` backend must
-be at or past backend #245, i.e. `api-beta`'s live schema documents `mine`, `needs_doctor_review`,
-`status` and `unassigned` on `/ward/admissions/`, and `/doctor/queue/` answers 401, not 404.
-Re-measure at promotion time; don't take it from this entry.
-
-Defence in depth, requested on #176: frontend sections that depend on a new filter check each
-row against it and render nothing if the filter evidently wasn't applied (the #164 pattern).
-
-> **2026-10-04, re-review of #176 (`d2e1352`):** #176 now has that guard. Its "Unassigned" and
-> "Awaiting review — no doctor assigned" sections render nothing if any row has an
-> `attending_doctor`. A test with a mock that ignores `?unassigned` fails without it. **Still
-> unguarded, and already on `develop`:** the default **Pending your review** section
-> (`?mine=true&needs_doctor_review=true`). On a backend without `mine` it lists every doctor's
-> reviews. #176's new `rowsMatch` prop makes that a one-line fix. It's worth doing before the
-> promotion, but the precondition above still stands either way.
-
-**Done when** the `api-beta` schema shows those params and `/doctor/queue/` exists, measured at the
-promotion, and recorded on the promotion PR.
-
----
-
-### FLAG-250 — No sign-out from our app ends the session on the server: the logout route never sends the refresh token
-**Severity:** P2 (every sign-out, every user; nothing leaks without a copied token) · **Area:** Auth / sign-out · **Owner:** @Qeeyat (layer 1, ours) + 🔌 backend (layer 2) · **Status:** 🟡 **Layer 1 fix in review — #183** (2026-10-04). Layer 2 `api-request` not yet filed. One remaining gap, below
-**Found:** 2026-10-04, reviewing #178 (FLAG-611). ⚠️ **Rewritten the same day.** The first version
-said this affected only users who must change their password, and that it was backend-only with
-*"nothing to change on our side"*. Reading `LogoutView` showed both were wrong.
-
-**Layer 1 — ours, every user.** All four ways out (sidebar, `DashboardPlaceholder`, session expiry
-in `client-api.ts`, and #178's "Sign out instead") go through `src/app/api/auth/logout/route.ts`.
-That route calls `POST /auth/logout/` with the access token in `Authorization` and **no body**.
-The backend's `LogoutView` (`apps/accounts/views.py`, `origin/develop` 4 Oct) reads
-`request.data.get('refresh')`, and without it answers **400 "Refresh token is required"** before
-doing anything. So the refresh token is never blacklisted, and `end_session()` (FLAG-610, which
-exists precisely so that logout kills the session's access tokens at once) never runs. Our route's
-`.catch(() => null)` and "best-effort" comment hide the 400. Unchanged since the June auth
-migration (`d6ff422`).
-
-**Layer 2 — backend, flagged users only.** `ForcePasswordChangeMiddleware` (`apps/core/middleware.py`)
-answers 403 `FORCE_PASSWORD_CHANGE` on every path not in `EXEMPT_PATHS`, and `auth/logout` isn't
-in it. So once layer 1 is fixed, a user with `force_password_change` still can't log out
-server-side. **Layer 2 alone changes nothing:** the call would then reach `LogoutView` and 400.
-
-**What still protects users:** our route deletes all three auth cookies whatever the backend
-answers, so the browser really is signed out and the next person at a shared ward PC can't resume.
-The tokens are httpOnly, so page JavaScript can't read them. **What's left:** a server session that
-stays valid after "sign out", usable by anyone who already holds a copy of the token, until it
-idles out (15 min) or reaches its 12 h cap (`enforce_session_freshness`). Not verified: whether
-the refresh endpoint enforces the same idle rule.
-
-**Why P2, not P3:** PHI is arriving, shared PCs are the ward norm, and the backend built FLAG-610
-specifically so logout ends the session. Our route quietly cancels that work.
-
-**Verified:** by reading source only (backend `origin/develop` and our `develop`, 4 Oct). **Not
-reproduced live** (no dev credentials in this session). The cleanest live confirmation: the
-backend writes a `LOGOUT` audit row only after a logout succeeds (FLAG-544), so Audit Logs on
-api-dev filtered to Logout should show **no rows** from people who signed out of our app.
-
-**Fix:**
-1. **Ours:** the route sends `{ refresh: await getRefreshToken() }` (helper already in
-   `src/lib/auth.ts`). Test that the backend call carries it. Consider logging a non-2xx answer
-   (status only) so this can't go silent again.
-2. **Backend `api-request`:** add `'/api/v1/auth/logout'` to `EXEMPT_PATHS`.
-
-> **2026-10-04, #183 (layer 1):** the route sends `{refresh}`, skips the call when either token
-> is missing, and logs a refused or unreachable logout as `[logout] … status=… path=…` (never a
-> token or body). New `route.test.ts`: 2 behaviour tests RED before, 4 controls. tsc clean ·
-> 524/524 · build green. **Not exercised live.** Check on dev after merge with the Audit Logs
-> `LOGOUT` row.
-
-**Remaining gap, after #183: a sign-out after the access cookie has lapsed.** The access cookie
-lives 1 h and the refresh cookie 7 d. A user who signs out after the access cookie expired, with
-no API call since that would have refreshed it, has no access token, and `LogoutView` needs one
-(`IsAuthenticated`). The backend has no refresh-only logout. Closing it means refresh-then-logout
-in the route (`POST /auth/refresh/` with the refresh cookie, then logout with the new pair). Left
-out of #183 to keep it small. It's narrow, because any API call in that window refreshes the
-cookie first. #183 doesn't log this case either, since nothing is called.
-
-**Done when** signing out of our app produces a `LOGOUT` audit row and the old access token is
-refused at once, for a normal user (layer 1) and for one with `force_password_change` (layer 2).
-
----
-
-### FLAG-234 — A PR was closed with no reason recorded, its content landed nowhere, and three documents still say it is open
-
-**Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
-**Found:** 2026-09-06, while trying to "finish the one bullet left on #96"
-
-**#96 (schema-reading guidance) has been CLOSED since 2026-08-31 17:06 — by me, unmerged.** I found
-this only after rebasing it, re-verifying every figure in it against the live schema, fixing three
-things that had gone stale, force-pushing, and posting a comment telling @Bastoh he had been
-blocking it for nine days. He had not. **There was nothing to re-review because I had closed it.**
-
-**Every source the session-start ritual actually reads says the opposite:**
-
-| Source | What it says |
-|---|---|
-| `HANDOFF.md` 🚧 In Flight on `develop` | *"PR #96 — CHANGES_REQUESTED… **Open 7 days**"* |
-| @Bastoh's 1 Sep handover in `HANDOFF.md` | *"#96 — still one bullet to reword, open 7 days"* |
-| `HANDOFF.md` on the unmerged #126 branch | ✅ correct — *"CLOSED 2026-08-31, not merged: fixed at source instead"* |
-
-So the correction exists **only in an unmerged branch**, and the four words it offers as a reason
-(*"fixed at source instead"*) are not true in the sense they imply: **the content is on no merged
-branch.** Verified on `develop` 2026-09-06 — `CLAUDE.md` has no unauthenticated-schema bullet,
-`ONBOARDING.md` has no "Four habits", `CODEBASE_FLAGS.md` has no FLAG-217 correction. The guidance
-@Bastoh independently verified and called *"right, valuable"* — that the schema needs no token, and
-that this API documents role matrices and query params **in prose** — is currently nowhere a
-new dev or agent will ever read it.
-
-🎯 **The general fault is not the closure, it is that closing left no trace where anyone looks.**
-A merge writes itself into the log; **a close writes nothing anywhere.** No PR comment, no session-log
-entry, no In Flight update on a branch that merged. This repo's whole premise is that the other dev's
-assistant sees only what is written down — and a closed PR is invisible to *both* devs' assistants,
-including the author's own, two weeks later.
-
-⚠️ **It also cost @Bastoh's trust budget, not just my time.** The comment I posted asserted he had sat
-on a PR for nine days. That is exactly the accusation this repo's docs are designed to prevent people
-making by accident, and I made it from three documents that all agreed with each other and were all
-wrong.
-
-**Done when** one of —
-1. **#96 is reopened and merged** (the branch is rebased, re-verified and ready — reopening was
-   blocked by tooling permissions on 6 Sep, so it needs a human); **or**
-2. it is deliberately closed again **with the reason written in this file**, its content either
-   ported or explicitly abandoned in writing, and the In Flight row + @Bastoh's handover note both
-   corrected — the false "open 7 days" claim removed from every place it appears.
-
-**And regardless of which:** when a PR is closed unmerged, say so in the same places a merge would be
-recorded — the In Flight table, and one line in the session log naming *why* and *where the content
-went*.
-
----
-
-### FLAG-047 — The duplicate-records status filter only sees the page in hand
-**Severity:** P3 · **Area:** Org admin / Duplicate records · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #161 (2026-09-27)**. Backend #237 (FLAG-613) made `?status=` a real filter and closed #225. `DuplicateRecordsPage` sends it again, and the page-only note and the client-side filter are removed. Two tests assert the param is sent for a status and dropped for "All statuses"; both were RED against the client-side version. ⚠️ **Needs backend #237 deployed to the tier this build talks to.** An older backend ignores the param and shows the whole queue under a status heading.
-**Raised:** 2026-09-26, fixing FLAG-245 on #161 (review 5325820800 by @Qeeyat)
-
-**History, in one paragraph.** `GET /patients/merge-requests/` used to ignore `?status=` (no filterset,
-FLAG-245). So from 26 Sep #161 stopped sending it and filtered client-side over the page in hand,
-saying so when the queue ran past one page. Backend #237 (FLAG-613, closing #225) made the filter
-real on 27 Sep. The shortcut is gone: the dropdown asks the server, and `count` and the pages are the
-filtered queue's. Trimmed 27 Sep at @Qeeyat's suggestion, because the old body described the
-shortcut as current.
-
-### FLAG-048 — An emergency patient keeps the nurse's description as their name: nobody can correct it from the frontend
-**Severity:** P2 · **Area:** Reception / Patient identity · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**, by route (a). Backend #236 (FLAG-612) lets reception set name, date of birth and sex while the record is incomplete, including in the completing PATCH, and closes #226. The completion section now has those fields. They start **empty**, never prefilled with the description, and are sent only when filled in. The on-screen text now says an admin must correct them after completion. 4 tests, all RED against the previous section. ⚠️ Needs backend #236 on the tier. An older backend drops the fields with a 200, which is the original bug.
-**Raised:** 2026-09-26, building the record-completion screen (FLAG-602/603 frontend half)
-
-A walk-in admitted with no record is created with the nurse's free-text description in `first_name`
-("man, ~40, brought in by police"). Completing the record clears `registration_incomplete` and
-captures consent — **but reception's serializer cannot change the name, date of birth or sex**
-(`PatientContactUpdateSerializer`, backend `apps/patients/serializers.py`). Only ORG_ADMIN/SUPERADMIN
-(`PatientFullUpdateSerializer`) can, and **no frontend screen lets an org admin edit a patient** at all.
-So today the description is the patient's name for ever, including on every clinical screen and in
-search.
-
-The completion section says so on screen ("ask an organisation administrator") rather than implying
-completion fixes it — which is currently advice nobody can follow from the UI.
-
-**Done when** either (a) the backend lets reception set name/DOB/sex **while `registration_incomplete`
-is still set** (the same record-state keying `require_contact_key` already uses), and the completion
-section sends them; or (b) an org-admin patient edit screen exists and the on-screen advice points to
-it. Backend ask: **[#226](https://github.com/HealthClouda/healthclouda-backend/issues/226)** (assigned @Ericmoore207).
-
----
-
-### FLAG-049 — Incomplete emergency records cannot be listed, only searched for
-**Severity:** P3 · **Area:** Reception · **Owner:** @Bastoh (frontend) + backend · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**. Backend #236 made `?registration_incomplete=true` a real, published filter on `GET /patients/`, scoped to the organisation. Patient Search now shows **"Records to complete (n)"**, which is hidden when there are none, opens each record's completion section, and re-reads itself after a completion. It asks the server for incomplete records only, never the whole patient list. 4 tests. ⚠️ Needs backend #236 on the tier. An older backend ignores the param and returns every patient. The section checks each row's `registration_incomplete` and **renders nothing** if any row is complete, so it never lists the whole patient list under this heading. A mutation test proves that guard.
-**Raised:** 2026-09-26, same build
-
-`PatientListSerializer` carries `registration_incomplete` ("so incomplete records can be listed and
-worked through" — FLAG-594), but `GET /patients/` declares no filter on it and its `get_queryset`
-reads no params. Listing them would mean paging the org's entire patient list into the browser —
-a PHI over-fetch this repo refuses elsewhere. So the completion screen is reached by **searching for
-the patient** (the nurse's description is searchable as a name) and opening their record; there is no
-"records to complete" queue. The nurse's admission toast already says reception completes it later,
-but nothing tells reception which records are waiting.
-
-**Done when** `?registration_incomplete=true` is a real, schema-published filter on `/patients/` (same
-backend issue as FLAG-048, **#226**) and reception has a queue built on it.
-
-### FLAG-050 — The doctor's pending-review button could not label itself by outcome (`discharge_outcome` not on the list)
-**Severity:** P3 · **Area:** Doctor / Discharge review · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED on #164 (2026-09-27)**. `discharge_outcome` and `discharged_by_name` are now required on the type, checked against `AdmissionListSerializer.Meta.fields` on backend `develop`, and the stale comment is gone. The pending-review row says **who recorded it**, and it shows **the time of death** (DECEASED) or **when the patient was found missing** (ABSCONDED) from `deceased_at`/`discovered_at`, which backend #233 (FLAG-609) made readable. 2 tests, both RED against the previous row.
-**Raised:** 2026-09-17 inside the FLAG-045 entry as "FLAG-046"; numbered 2026-09-26
-
-**Why this number.** The gap was first written into FLAG-045's entry as "FLAG-046", and #159 then
-used FLAG-046 for the ward rota, so the file used one number for two things (@Qeeyat, #159 review,
-26 Sep). She suggested 047, then 048; both were taken on 26 Sep (with 049), so it is 050. FLAG-045's
-entry now points here.
-
-**The gap.** The pending-review list labels its button "Confirm death" or "Mark reviewed" by outcome,
-but the build-4 contract did not put `discharge_outcome` on `AdmissionListSerializer`. The frontend
-read it as optional and fell back to "Mark reviewed" rather than guess.
-
-**Backend half: resolved.** Backend **#215** (`f96ea9d`, 17 Sep, FLAG-592) added both
-`discharge_outcome` and `discharged_by_name` to `AdmissionListSerializer.Meta.fields`, explicitly for
-this list. Verified in source on `develop` @ `24d7429`. So "Confirm death" now appears against a real
-backend.
-
-**Frontend remainder (small, not built):**
-- `DoctorAdmission.discharge_outcome` is still typed optional, and its comment in `types/dashboard.ts`
-  still says neither serializer exposes it. Both are stale.
-- `discharged_by_name` is available and unused. The pending-review row says "recorded 3h ago" but not
-  **who** recorded the death or absconding, which is the context a doctor confirming it needs.
-
-**Done when** the type makes `discharge_outcome` required (checked against the live schema), the
-stale comment is gone, and the pending-review row shows who recorded it.
-
----
-
-### FLAG-054 — `api-dev` serves Django's DEBUG 404 page, which lists the whole URL map
-**Severity:** P3 (dev) · P1 if it is ever true on beta/production · **Area:** Infra / Backend config · **Owner:** @Bastoh (`[INFRA]`) · **Status:** 🟡 **OPEN — cross-lane; the fix is a backend/Railway setting**
-**Found:** 2026-09-28, dev-tier re-walk (HCL/CHK/2026-002)
-
-**What.** `GET https://api-dev.healthclouda.com/api/v1/no-such-path/` returns Django's technical 404:
-*"Using the URLconf defined in …"*, the text `DEBUG = True`, and all **20** top-level URL patterns.
-On dev the admin mount is the default `admin/`, so no hidden path leaks today. But any
-`DJANGO_ADMIN_PATH` set on a DEBUG tier would be printed on every 404, and a 500 shows a traceback.
-
-**Already known in part.** The checklist records "debugging deliberately on" for dev. What was
-**not** written anywhere is the URL-map disclosure, or any check that beta and production are *off*.
-
-**Not measured:** `api-beta` and `api` could not be probed from the session (the agent proxy
-refuses those hosts), so their state is unknown.
-
-**Done when** someone who can reach them confirms `api-beta` and `api` answer a 404 with a plain
-body (no `DEBUG = True`, no URLconf), and either dev is switched off too or its DEBUG is recorded
-as deliberate in the backend's own flags.
-
----
-
-### FLAG-055 — A deceased patient can be given a new episode, and then appears on the nurse's Admit list
-**Severity:** P3 · **Area:** Episodes / Admissions (backend rule, frontend symptom) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a backend call; raise as backend FLAG-617 if confirmed there**
-**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
-
-**What happened.** Probe `HCL-KK4CKY` was discharged **DECEASED** during B4 (`deceased_at`
-2026-09-27T21:25Z). As `nurse@demo.test`, `POST /episodes/` for it returned **201** (episode
-`a1d35048`). The nurse's **Admit Patient** list then offered it with an **Admit** button. Admitting
-is correctly refused ("This patient cannot be admitted at this time. Please escalate to an
-administrator."), so no care decision is wrong. But the screen invites an action that can only
-fail, and the deceased guard exists for admissions and referrals while episode creation has none.
-
-**Question for the backend:** should `POST /episodes/` refuse a patient `patient_is_deceased()`
-says has died (same non-disclosing wording), or is a post-mortem episode legitimate (e.g.
-certification paperwork)? If the latter, the Admit list should exclude them.
-
-**Tidy-up owed:** episode `a1d35048` on `HCL-KK4CKY` is still open (synthetic).
-
-**Done when** the backend decides, and either the episode route refuses or the Admit list hides a
-deceased patient.
-
-**Decision (@Bastoh, 28 Sep): the backend refuses.** `POST /episodes/` must refuse a patient
-`patient_is_deceased()` says has died, with the admission refusal's non-disclosing wording. Backend ask
-for @Ericmoore207 (suggested backend FLAG-617); the frontend only needs to show the server's refusal.
-
-**Fix:** backend **#247** (backend FLAG-619, merged 1 Oct; @Bastoh wrote it rather than raise an ask) refuses
-on both episode routes. Frontend **#177** shows the refusal inside the Start episode panel. The stray
-episode `a1d35048` on dev still needs closing (tidy-up).
-
----
-
-### FLAG-056 — The optional doctor picker's empty option says "No doctor available right now" while a doctor is on duty
-**Severity:** P4 (copy) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-09-28, dev-tier re-walk, B5 step 3
-
-`DoctorPicker` renders its blank option as `required ? 'Select a doctor…' : 'No doctor available
-right now'`. In the emergency panel (not required) that line sits directly above the **"On duty:
-Emeka Okafor"** group, so it reads as a false statement. The blank choice means "admit without
-naming a doctor". Suggested wording: **"No attending doctor yet"**.
-
-**Also noticed, not a defect claim:** the episode-based **Admit patient** panel has no
-attending-doctor picker at all (bed and reason only), so the off-duty warning (FLAG-601) can only be
-met from the emergency panel. Worth a design decision alongside backend FLAG-607's open half.
-
-**Done when** the optional placeholder no longer claims no doctor is available.
-
----
-
-### FLAG-057 — Clicking Sign In before the page has loaded sends the email and password in the URL
-**Severity:** P1 (security, before PHI) · **Area:** Auth / Sign-in forms · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-09-28, browser walk of HCL/CHK/2026-002
-
-**What happened.** Twice, a sign-in in the automated browser landed on
-`/demo-clinic/signin?email=doctor%40demo.test&password=Demo%23Pass1`. `SigninForm.tsx:136`,
-`SetPasswordForm.tsx:198` and `ResetPasswordForm.tsx:79` are plain `<form onSubmit=…>` with no `method`,
-and react-hook-form gives the inputs `name`s. If the page's JavaScript hasn't loaded (a slow or dropped
-chunk), the browser submits the form natively as a **GET**, and the credentials go into the address bar,
-browser history, and the Vercel/Cloudflare request logs. In the walk the trigger was a JS chunk that
-failed to fetch, which is exactly what happens to a real user on a weak connection.
-
-**Fix (small):** `method="post"` on all three forms (a native POST puts nothing in the URL), and
-disable the submit button until hydration, or set `action` to a harmless same-page target.
-
-**Done when** a native submit of each form with JavaScript disabled puts no field value in the URL.
-
----
-
-### FLAG-058 — Once a record is completed, nobody can correct the patient's name on screen
-**Severity:** P2 · **Area:** Reception / Org admin · **Owner:** @Bastoh · **Status:** 🟡 **OPEN** (half addressed by #167)
-**Found:** 2026-09-28, browser walk, build 2
-
-Reception's completion form says *"Once the record is complete, only an organisation administrator can
-change the name, date of birth or sex."* But the org admin's **Patients** page is read-only: rows have
-no actions and clicking one opens nothing (`OrgAdminDashboard.tsx` `PatientsPage`). FLAG-048 was closed
-by route (a); its route (b), an org-admin edit screen, was never built. In the walk, `HCL-JM3BPU` was
-completed without a first name, so the nurse's description is now its first name for good.
-
-#167 prevents the common case (Complete record will require first and last name). The advice text still
-points at a screen that doesn't exist.
-
-**Done when** an org admin can edit name, date of birth and sex from the browser, or the advice text
-stops promising it.
-
-**Fix: #174** (Patients → Edit). ⚠️ It exposes FLAG-063 below; built on @Bastoh's call, 30 Sep.
-
----
-
-### FLAG-059 — The doctor's My Patients page shows no names, and "New episode" / "Refer" send an episode id as the patient
-**Severity:** P1 · **Area:** Doctor / My Patients · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-09-28, browser walk
-
-`MyPatientsPage` (`DoctorDashboard.tsx:1013`) reads `/doctor/my-patients/` as a list of flat
-`PatientSummary` rows. The endpoint returns **one row per episode**, with the patient nested under
-`patient` (`MyPatientsPaginatedResponse`, backend `apps/patients/doctor_views.py:184`). So:
-- all 15 rows render as "? — — — —" (no name, phone, date of birth);
-- **New episode** opens "Start episode undefined undefined" and posts `patient: <episode id>`, which the
-  server refuses with 400 "Invalid pk … object does not exist" (shown only as a toast; an earlier
-  version of this entry said no error was shown, which was wrong: the 28 Sep script missed the toast).
-- **Refer** starts from the same row, so it carries the wrong id too (not submitted in the walk).
-
-A doctor cannot start a case from My Patients at all today.
-
-**Done when** the page maps the episode-shaped rows (patient from `row.patient`, one row per patient)
-and New episode and Refer send the patient's id. **Fix: #171.** Verify against the live
-schema's `MyPatientsPaginatedResponse`.
-
----
-
-### FLAG-060 — A doctor has no browser path to open a case for a newly registered patient
-**Severity:** P1 (workflow) · **Area:** Doctor / Reception hand-off · **Owner:** @Bastoh (frontend) + product call · **Status:** 🟡 **OPEN**
-**Found:** 2026-09-28, browser walk, build 2
-
-Even with FLAG-059 fixed, **My Patients lists only patients who already have an episode with that
-doctor**, so a patient registered at reception can never appear there. Reception's **Check in patient**
-with an assigned doctor creates a check-in (`POST /receptionist/check-ins/` → 201, "Queue number: 1"),
-but no episode, and no doctor screen shows check-ins or a queue. So the only way in the browser to give a
-new patient an episode is the nurse's emergency admission, and that can't find an existing patient
-until #168 (FLAG-053).
-
-**Done when** a doctor can go from a reception check-in (or a patient search) to "Start episode" in the
-browser. Needs a design decision on where the doctor's queue lives.
-
-**Decision (@Bastoh, 28 Sep): a doctor "Queue" page** listing today's check-ins assigned to that
-doctor, each with "Start episode". A patient search is a possible later addition. If no endpoint lets a
-doctor read their check-ins, that is a backend `api-request` for @Ericmoore207 first.
-
-**Fix: #175** (doctor Queue page), on backend **#243** (`GET`/`PATCH /doctor/queue/`, backend FLAG-617, merged
-30 Sep). There was no such endpoint; @Bastoh chose to write it rather than raise an `api-request`. ⚠️ The
-page errors on any tier until #243 is deployed there by Railway.
-
----
-
-### FLAG-061 — Superadmin Audit Logs show every entry as "System", with no reason
-**Severity:** P2 · **Area:** Superadmin / Audit · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-09-28, browser walk, build 5
-
-`SuperadminDashboard.tsx:746` renders `log.performed_by ?? log.user ?? 'System'`. `/audit/logs/` sends
-`user_email` (and `user_role`), so every one of the 4,343 rows reads "System". The Event column shows only
-the action word (CREATE/READ) and never `reason`, `resource_type` or the patient, so an audited decision
-such as FLAG-601's off-duty override can't be found or checked in the browser. There is no filter either,
-although the API supports `?patient=`, `?action=` and `?user_email=`.
-
-**Done when** the page shows who (from `user_email`), what (action + resource + reason), and can be
-filtered by patient.
-
----
-
-### FLAG-062 — Small UI nits from the browser walk
-**Severity:** P4 · **Area:** Toasts / Merge dialog · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-09-28
-
-- **A toast covers the slide panel's primary button.** At 1400×900 the bottom-right toast sits over the
-  panel footer. After one discharge is recorded, its toast blocked the next panel's **Record outcome**
-  for 45 s+ while the pointer rested on it (hover pauses the dismiss timer). It can be closed with ×.
-- **The bed-taken notice appears twice**, once in the panel and once as a toast.
-- **The merge, undo and reject dialogs show names only.** "Tolu Probe-CL28SEP → Tolu Probe-CL28SEP" gives
-  no way to tell which record survives. Show the HealthClouda IDs.
-
----
-
-### FLAG-063 — An org admin's patient edit changes the record at every hospital that holds it
-**Severity:** P1 (multi-tenancy) · **Area:** Patients / Org admin · **Owner:** @Bastoh · **Status:** 🟠 **OPEN — accepted knowingly**
-**Found:** 2026-09-30, building FLAG-058's edit screen (#174)
-
-`PATCH /patients/{id}/` as ORG_ADMIN uses `PatientFullUpdateSerializer`: name, date of birth, sex,
-email, phone and `is_active` — on **any** patient visible to the org (`PatientViewSet.update`, backend
-`apps/patients/views.py`). Nothing checks whether another hospital also holds the record, so one
-clinic's admin can rename a shared patient (e.g. `HCL-Z5DU8H`) for every hospital. The merge tool
-already refuses this case and escalates to a superadmin ("one hospital does not rewrite a record
-another hospital also holds"); a plain edit skips that rule.
-
-**Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
-backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
-The frontend deliberately does not try to decide which records are shared: that would be a
-client-side trust decision (CLAUDE.md §6 lens 1).
-
-**Done when** identity edits by an org admin are refused or escalated on the server for a record
-another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
-cross-hospital edits are intended.
-
-### FLAG-064 — The audit-log "Record type" list is a hand-kept copy of backend code
-**Severity:** P3 · **Area:** Superadmin / Audit Logs · **Owner:** @Bastoh · **Status:** 🟡 **OPEN (accepted for beta)**
-**Found:** 2026-10-04, @Qeeyat re-reviewing #172
-
-`GET /audit/logs/?resource_type=` is an exact, case-sensitive match, so #172 offers a fixed list
-instead of free text. The list (28 values, `SuperadminDashboard.tsx` `AUDIT_RESOURCE_GROUPS`) is
-copied from the backend's three writers of `AuditLog.resource_type`:
-- the save signals and coverage table, one value per audited model;
-- `AuditMiddleware`, which writes the capitalised URL prefix for every request to a sensitive
-  endpoint, reads included;
-- `log_action` callers, whose default is `Action`.
-
-It drifts as soon as a model joins the coverage table or a prefix joins `SENSITIVE_ENDPOINTS`.
-Nothing fails when that happens: the new value is simply not offered, and a superadmin can't filter
-for it.
-
-**Done when** the backend publishes the set (an enum on the schema, or a distinct-values endpoint)
-and the page reads it from there. That needs an `api-request`; @Qeeyat offered to file it.
-
-### FLAG-065 — Reception search finds nothing when you type a full name
-**Severity:** P2 · **Area:** Reception / Patient Search (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-10-04, browser re-walk of build 2 step 6 on dev
-
-Searching **"Tolu EM-04OCT"** (first and last name) returns no rows. **"Tolu"** alone finds both records.
-Backend `GET /receptionist/patients/search/?query=` (`receptionist_views.py`) matches the **whole** text
-against each field separately (`first_name__icontains=query | last_name__icontains=query | …`), so no
-single field ever contains both words. A receptionist naturally types the whole name, and the empty
-result reads as "no such patient". That leads to a duplicate registration, which is the problem the
-merge screens exist to clean up.
-
-**Fix (backend, small):** split the query on whitespace and require **every** word to match **some**
-field (an AND of ORs). Keep the minimum length per query, not per word.
-
-**Done when** a full-name search finds the patient, and a test pins it.
-
-### FLAG-066 — An emergency walk-in into a single-sex ward always hits the gender warning
-**Severity:** P3 (product call) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a decision**
-**Found:** 2026-10-04, browser re-walk of build 6 step 6 on dev
-
-The "new emergency patient" form has a free-text description but **no sex field**. So every walk-in
-reaches the backend with sex unrecorded, and a Female or Male ward answers *"Sex not recorded — this
-is a Female ward"* with **Admit anyway** (`override`, audited). In the walk, a woman walk-in into
-Maternity needed that override every time. The step as written expects her admitted with no warning.
-
-**Options:** (a) add an optional Sex field to the walk-in form, sent with the admission (the backend
-would need to accept it on `emergency-admissions/`, so an `api-request`); (b) accept the override as
-correct for unknown sex and reword the checklist step. Option (a) also gives reception one less field
-to complete.
-
-**Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
-
-### FLAG-067 — Reception can check in a patient recorded as dead
-**Severity:** P3 · **Area:** Reception / Check-in (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
-**Found:** 2026-10-04, walking checklist build 9 on dev
-
-`POST /receptionist/check-ins/` accepted `HCL-KK4CKY` (recorded as dead) and put him in Dr Emeka's
-Queue. Nothing unsafe follows: the doctor's **Start episode** is refused (backend FLAG-619, #177), and
-admission is refused too. But the front desk is never told, and a dead patient sits in a doctor's
-Queue until someone marks a No-show.
-
-**Fix (backend, small):** apply the same non-disclosing deceased guard to check-in that episodes and
-admissions already use (`apps/patients/access.py`), with its own sentence. The frontend shows
-`details.patient` already.
-
-**Done when** checking in a patient recorded as dead is refused in words that don't say why, and a
-test pins it.
-
-### FLAG-068 — The sidebar showed only the user's initials: Change password squeezed the name to 1px
-**Severity:** P2 (every dashboard, every user) · **Area:** Layout / Sidebar · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it**
-**Found:** 2026-10-04, @Bastoh walking checklist build 1 ("I can only see the NB logo")
-
-#178 (FLAG-611) added a 44px key button to the sidebar footer, between the name and **Sign out**. The
-sidebar is 230px wide, so the name and clinic got **1.3px** (measured on dev: `scrollWidth` 88,
-width 1.27) and truncated to nothing, leaving only the avatar initials. The jsdom tests could not see
-it: they don't lay anything out.
-
-**Fixed:** the name and clinic keep their own row; **Change password** and **Sign out** sit on a
-second row below them, as text buttons (owner's choice, 5 Oct). A menu under the name is the usual
-pattern once there are more account settings.
-
-### FLAG-069 — A doctor or nurse who signs out still shows as on duty for up to 15 minutes
-**Severity:** P2 · **Area:** Duty status (backend cause) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED 2026-10-05 — backend #252 (backend FLAG-621), merged and live on `api-dev`**
-**Found:** 2026-10-04, @Bastoh walking checklist build 1
-
-On duty means *used the app in the last 15 minutes and not switched off* (`User.last_seen_at`,
-backend FLAG-569/579). Signing out ended the session (and, since #183, really ends it server-side),
-but never touched `last_seen_at`. So reception's doctor list and the nurse's "On duty" group kept
-offering a doctor who had just gone home.
-
-**Fix (owner decision, 5 Oct):** on sign-out, if a doctor **or nurse** has **no other device** active in the last
-15 minutes, they go off duty at once. Still signed in and active on another device → they stay on
-duty. The manual "Go off duty" switch is untouched.
-
-**Not covered** (both drop off duty only after 15 minutes): a sign-out whose access token had already
-expired (FLAG-250's remaining gap) never reaches the backend; and a token from before FLAG-610 (no
-`sid`) returns from `end_session()` before the duty check. The second has been unreachable since the
-12h cap ran out on those tokens (@Qeeyat, review of #184).
-
-**Verified live 5 Oct:** Doctor 2 signed in → on reception's `GET /receptionist/doctors/on-duty/`; signed
-out (200) → gone from it at once.
-
-
-### FLAG-070 — The duty button mixed the action with the state, signing in kept a manual "off", and duty changes were not logged
-**Severity:** P2 · **Area:** Duty status (doctor + nurse) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it, with backend FLAG-622**
-**Found:** 2026-10-06, @Bastoh walking checklist build 5 step 2
-
-Three findings from one note:
-1. **Wording.** One button read *"Go off duty (On duty)"* or *"Back on duty (Off duty — you switched
-   off)"*: the action and the state in the same control, which reads as a contradiction. Now
-   `DutyToggle` shows a status badge (**On duty** / **Off duty**) and, beside it, a button that says
-   only what a click does (**Go off duty** / **Go on duty**). The banners and the toast lost their
-   em dashes too.
-2. **Sign-in.** A doctor or nurse who switched off stayed off after signing in again. **Owner decision
-   (6 Oct):** signing in puts them on duty. Backend FLAG-622.
-3. **The record.** Going on or off duty now writes an audit row (`UPDATE` on record type **Duty**,
-   with the reason and the cause: sign-in, sign-out or the switch). Backend FLAG-622. `Duty` is added
-   to the superadmin record-type list (FLAG-064 keeps that list by hand). Going off duty by being idle
-   is not logged, because nothing happens at that moment to log.
-### FLAG-071 — Em dashes all over the on-screen text
-**Severity:** P3 (owner's style call, 6 Oct) · **Area:** Copy, every dashboard · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it**
-**Found:** 2026-10-06, @Bastoh walking checklist build 4: "we have to clean the em dashes just like we did with the landing page"
-
-About 170 lines of code put an em dash on screen: ~85 sentences and labels, and ~85 lone "—" standing
-in for an empty value. Sentences now use a full stop, comma, colon or brackets ("Emergency:
-immediate intervention", "Nobody (unassigned)", "Name (City, State)"). Empty values show an en dash
-(–). `src/lib/no-em-dashes.test.ts` scans the source (comments skipped) and fails if one comes back.
-Exempt: `src/lib/config.ts` (a developer-only build error) and `DutyToggle.tsx`, reworded in #185;
-drop that exemption once #185 is on `develop`.
-
-The backend's user-facing strings (gender warning, merge refusal, the admission-request notification,
-the welcome email) are backend FLAG-623.
-### FLAG-072 — No screen to set up wards: nobody could add, edit or delete a ward in the browser
-**Severity:** P2 · **Area:** Org Admin / Wards & Beds · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED in the PR that logs it, with backend FLAG-624**
-**Found:** 2026-10-06, @Bastoh walking checklist build 6 step 1: "there's no interface to add wards …
-we should follow normal practice"
-
-Wards & Beds only listed wards and managed their rota. Wards existed only because they were seeded.
-Normal practice (owner, 6 Oct): the hospital administrator sets up wards and beds; nurses run them.
-
-**Fixed:**
-- **Add ward** on Wards & Beds, and **Edit** on each ward card, open `WardSetupPanel`: name, type
-  (with "what kind?" when Other), patients (anyone / women only / men only) and number of beds.
-- Beds are created and numbered by the backend from that number. Lowering it removes every bed nobody
-  is in (available, **reserved** and **under maintenance** alike), so the panel asks first ("This
-  removes N beds …"). An occupied bed makes the backend refuse, and its words are shown in the panel.
-- An emptied bed box is refused, never sent as 0 (`Number('')` is 0, which would have removed every
-  free bed). Save stays off until the ward has loaded, so a failed load can't save the previous
-  ward's values onto this one. Both found in review on #187 by @Qeeyat.
-- **Delete this ward**, behind a confirm step. A ward with a patient in any bed is refused, in the
-  backend's words.
-- Backend FLAG-624 makes this the org admin's alone: a nurse keeps read access and a bed's status.
-
-**Backend gap (found in the same review, not fixable here):** a *refused* bed reduction still saves
-the rest of the PATCH. `WardViewSet.update` calls `serializer.save()` before it returns the 400, and
-`@transaction.atomic` only rolls back on an exception, so a rename sent with an impossible bed count
-is kept while the panel shows the refusal. Needs a backend fix (validate before saving, or raise).
-Filed by @Qeeyat as [backend #264](https://github.com/HealthClouda/healthclouda-backend/issues/264)
-(`api-request`), which also asks whether removing RESERVED beds is intended.
-
-**Not in this PR:** rooms (private and VIP rooms with their own beds), naming beds one by one, and a
-screen for a nurse to mark a bed under maintenance. The API supports all three.
-
----
-
-### FLAG-073 — No dashboard refreshed on its own: a new request or check-in showed only after a reload
-**Severity:** P2 · **Area:** Data layer / all staff dashboards · **Owner:** @Bastoh · **Status:** 🟡 **FIX IN PR — `fix/flag-073-live-updates`, needs backend #262 (backend FLAG-625) live on `api-dev` first**
-**Found:** 2026-10-06, @Bastoh walking checklist builds 1–6: "no live refresh anywhere"
-
-Every list loaded once, when its page opened. A nurse's admission request, a patient checked in at
-reception or a death recorded on a ward reached the other person only when they reloaded.
-
-**Why not just a timer.** Every authenticated request counted as activity on the backend. A page that
-re-fetched on a timer would keep an unattended ward computer signed in forever and keep a doctor who
-walked away "on duty", which is exactly what `use-heartbeat.ts` (build 5 / FLAG-044) forbids. So the
-backend gained a **background** marker first (backend FLAG-625).
-
-**Fix.**
-- `src/hooks/use-live-updates.ts` (new), mounted once in `DashboardShell` for DOCTOR, NURSE,
-  RECEPTIONIST and ORGANIZATION_ADMIN: every 30s, while the tab is visible, `GET /auth/me/updates/`
-  (counts and a `changed_at`, no patient details). Polls again the moment a hidden tab is shown; does
-  not poll while hidden, or while the small-screen gate is up (FLAG-203: a gated device fetches nothing).
-- When `changed_at` moves, a context tick makes every mounted `useApi` / `usePaginatedList` /
-  `useAllPages` refetch **silently**: no loading skeleton, and a failure keeps the list on screen.
-- Every request the timer causes (the poll, the silent refetches, and any token refresh they trigger)
-  carries `X-HC-Background: 1` (`BACKGROUND_HEADER` in `config.ts`), forwarded by `/api/data` and
-  `/api/auth/refresh`. Ordinary requests are unchanged.
-- Sidebar badges from the counts: doctor Queue (waiting today) and Admissions (reviews: mine +
-  nobody's); nurse Admission Requests; reception Check-ins (waiting today); org admin Duplicate
-  Records (flagged) and Referrals (pending). Each count is defined on the backend exactly as that
-  page filters its list.
-
-**Behaviour change worth knowing:** an idle session in an open tab is now signed out (with the
-"inactivity" reason) within about 30s of hitting the 15-minute limit, instead of when the person next
-clicks. That is the idle rule doing its job; it also takes records off an unattended screen sooner.
-
-**Not done (deliberately):**
-- The header bell still shows nothing. The count is in the response (`unread_notifications`), but the
-  bell's dropdown has no list wired, and a number over an empty list is worse than no number.
-- `changed_at` is organisation-wide, so any change makes every open staff page refetch its lists once.
-  A few extra reads a minute at beta scale; split it per area if it ever matters.
-- Pages that fetch with `dataGet` directly (not through the hooks) do not refresh; they are panels
-  opened for one record, not lists.
-
-**Tests:** `src/hooks/use-live-updates.test.tsx` (9; the two background assertions were confirmed RED by
-removing the marker from the poll and from the silent refetch), `src/app/api/data/route.test.ts` (3),
-`src/app/api/auth/refresh/route.test.ts` (+2).
-
----
-
-## Resolved flags
-
-> ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
-> not resolved** — those entries were appended to the end of the file as they were raised, and the
-> heading has been sitting above them since. Read each entry's own **Status** line, not its position.
-> Left as-is rather than reordering other people's flags mid-session; worth straightening in a
-> dedicated pass.
 
 ### FLAG-001 — Authorization is decided from a client-writable cookie
 **Severity:** P1 · **Area:** Security / Auth · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — PR #99, merged 2026-09-03** by @Qeeyat, as a merge commit. Verified on the merge commit from a clean `.next`: tsc clean · lint clean · 211/211 · build green. The fix was re-proven RED-first by running the new middleware tests against the pre-fix middleware (`f4b4832`): **7 failed | 13 passed**. Residual race logged as [FLAG-020]
