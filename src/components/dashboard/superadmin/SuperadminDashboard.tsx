@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   SuperadminStats, OrgSummary, OrganizationDetail, OrganizationInput, StaffMember,
-  UserCreateInput, AuditLogEntry, AuditAction, Paginated,
+  UserCreateInput, AuditLogEntry, AuditAction, Paginated, ContactMessage,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ function SearchIcon() {
 }
 
 // ─── Nav ─────────────────────────────────────────────────────────
-// Records/Billing/Messages/Settings are "Soon" — no backend surface yet
+// Records/Billing/Settings are "Soon": no backend surface yet
 // (design_handoff_dashboards/README.md roadmap items).
 
 const NAV: NavItem[] = [
@@ -68,7 +68,7 @@ const NAV: NavItem[] = [
   { id: 'audit', label: 'Audit Logs', icon: <ClipboardIcon /> },
   { id: 'records', label: 'Records', icon: <RecordsIcon />, section: 'Platform', soon: true },
   { id: 'billing', label: 'Billing', icon: <BillingIcon />, soon: true },
-  { id: 'messages', label: 'Messages', icon: <MessagesIcon />, soon: true },
+  { id: 'messages', label: 'Messages', icon: <MessagesIcon /> },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon />, section: 'System', soon: true },
 ];
 
@@ -724,6 +724,57 @@ function UsersPage() {
   );
 }
 
+// ─── Messages page (w2-b4) ───────────────────────────────────────
+// Read-only: GET /contact/contact-list/ has no search or delete. Deleting
+// waits on a retention policy (backend #285, FLAG-081/121).
+
+const messageColumns: DataTableColumn<ContactMessage>[] = [
+  { key: 'received', header: 'Received', className: 'whitespace-nowrap align-top', render: (m) => (
+    <span className="text-xs text-text-soft">{formatDateTime(m.created_at)}</span>
+  ) },
+  { key: 'from', header: 'From', className: 'align-top', render: (m) => (
+    <div>
+      <div className="text-[13px] font-semibold text-ink">{m.first_name} {m.last_name}</div>
+      <a href={`mailto:${m.email}`} className="block text-xs text-primary hover:underline">{m.email}</a>
+      <div className="text-xs text-text-soft">{m.phone_number}</div>
+    </div>
+  ) },
+  { key: 'message', header: 'Message', className: 'align-top', render: (m) => (
+    <p className="text-[13px] text-text-mid whitespace-pre-wrap break-words max-w-xl">{m.message}</p>
+  ) },
+];
+
+function MessagesPage() {
+  const { items: messages, count, page, setPage, totalPages, loading, error, refetch } =
+    usePaginatedList<ContactMessage>(ENDPOINTS.SA_CONTACT_LIST);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-body font-black text-[22px] text-ink">Messages</h2>
+        <p className="text-[13px] text-text-soft mt-0.5">
+          {count > 0 ? `${count} from the website contact form, newest first` : 'Website contact-form submissions'}
+        </p>
+      </div>
+      <DataTable
+        columns={messageColumns}
+        data={messages}
+        getRowKey={(m) => m.id}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        emptyTitle="No messages yet"
+        emptyDescription="Messages sent through the website's contact form will appear here."
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        totalCount={count}
+        pageSize={20}
+      />
+    </div>
+  );
+}
+
 // ─── Audit Logs page (FLAG-061) ───────────────────────────────────
 
 const ACTION_LABELS: Record<AuditAction, string> = {
@@ -939,6 +990,7 @@ export function SuperadminDashboard({ user, initialStats }: Props) {
       {page === 'organizations' && <OrgsPage />}
       {page === 'users'         && <UsersPage />}
       {page === 'audit'         && <AuditPage />}
+      {page === 'messages'      && <MessagesPage />}
     </DashboardShell>
   );
 }

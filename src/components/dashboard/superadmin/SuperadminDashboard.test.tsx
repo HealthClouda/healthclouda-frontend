@@ -261,6 +261,46 @@ describe('Superadmin — Users page: role filter (FLAG-205)', () => {
   });
 });
 
+// GET /contact/contact-list/ (SUPERADMIN): backend ContactUsSerializer, with
+// created_at added in #295 (source, 2026-10-22). Paginated, newest first.
+const contactMessage = {
+  id: '7c1f2a64-0b8e-4c55-9d1e-2f3a4b5c6d7e',
+  first_name: 'Amaka', last_name: 'Eze', email: 'amaka.eze@example.com', phone_number: '08031234567',
+  message: 'We run two clinics in Enugu and would like a demo.',
+  created_at: '2026-10-20T09:15:00Z',
+};
+
+describe('Superadmin — Messages page (w2-b4)', () => {
+  function withMessages(envelope: unknown) {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/contact/contact-list/')) return envelope;
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+  }
+
+  it('is no longer "Soon": the Messages item can be opened', () => {
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+    expect(screen.getByRole('button', { name: 'Messages' })).toBeEnabled();
+  });
+
+  it('lists contact-form messages: who, how to reply, what they said and when', async () => {
+    withMessages({ count: 1, next: null, previous: null, results: [contactMessage] });
+    await openPage('Messages', 'Amaka Eze');
+
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('/contact/contact-list/'));
+    expect(screen.getByRole('link', { name: 'amaka.eze@example.com' })).toHaveAttribute('href', 'mailto:amaka.eze@example.com');
+    expect(screen.getByText('08031234567')).toBeInTheDocument();
+    expect(screen.getByText('We run two clinics in Enugu and would like a demo.')).toBeInTheDocument();
+    expect(screen.getByText(/2026/)).toBeInTheDocument(); // the received date is shown
+  });
+
+  it('says so when nobody has written in yet', async () => {
+    withMessages({ count: 0, next: null, previous: null, results: [] });
+    await openPage('Messages', 'No messages yet');
+  });
+});
+
 describe('Superadmin — Users page', () => {
   it('gives the users search box an accessible name', async () => {
     await openPage('Users', 'Chidi Okafor');
