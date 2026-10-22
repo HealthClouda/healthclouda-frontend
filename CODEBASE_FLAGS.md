@@ -2503,6 +2503,52 @@ It was RED on the old copy (1 failed, 11 passed) and GREEN after (12 passed).
 
 ---
 
+### FLAG-075 — The nurse vitals form still refuses the readings backend #278 made recordable
+**Severity:** P1 · **Area:** Nurse / Vitals (clinical safety) · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — `fix/flag-075-vitals-form-limits` (2026-10-21)**
+**Found:** 2026-10-20, post-merge review of backend #278 (FLAG-310)
+> **Resolved 2026-10-21:** `min`/`max` removed from `VITAL_FIELDS` and the input; `step` kept. The form now
+> holds no limits of its own, so it can never drift from the backend again. The backend's 400 shows in
+> the form's error line. Took the "drop `min`/`max`" option because the advisor answered backend FLAG-014 the
+> same day: **no clinical recording limit; flag abnormal readings in red, never refuse them.** Backend #280
+> will add a confirm-before-save step for readings outside its table (owner's decision); the form needs a
+> "save anyway?" prompt when that ships. Test: `NurseDashboard.test.tsx` → *lets the browser submit extreme
+> readings…*, which checks `checkValidity()` (jsdom doesn't block an invalid submit, so a click test can't fail).
+> RED on the old copy (*"temperature = 28 is blocked by the form"*), GREEN after; nurse suite 69/69.
+
+
+Backend #278 (merged 17 Oct, live on dev since 20 Oct) moved the vitals **recording limits** into one
+table, `VITALS_RECORDING_LIMITS` in `apps/core/validators.py`, and widened the nurse route to match it:
+temperature 25–45 °C, pulse 20–300, SpO2 0–100, weight 0.1–500 kg. The nurse form here never heard
+about it. `VITAL_FIELDS` in `src/components/dashboard/nurse/NurseDashboard.tsx` (lines 333–340) still
+carries the old numbers, copied from the backend in July (*"probed live 2026-07-11"*):
+
+| Vital | This form | Backend now |
+|---|---|---|
+| Temperature | **min 30** | 25 |
+| Pulse | **max 250** | 300 |
+| SpO2 | **min 50** | 0 |
+| Weight | **min 0.5** | 0.1 |
+
+They are enforced. The inputs are `type="number"` with `min`/`max`, inside a plain `<form onSubmit>`
+with no `noValidate`, so **the browser refuses to submit** a value outside them before any request is
+made. A nurse on this screen still cannot chart severe hypothermia (28 °C), a peri-arrest saturation
+(SpO2 45) or an SVT at 260 bpm, the readings #278 exists for. The doctor's route accepts all three.
+
+The cause is the same as FLAG-310's on the backend: a second copy of numbers that live somewhere else,
+with nothing tying the two together.
+
+**Fix (small):** stop keeping our own copy. Either set the form's limits to the backend's table, or
+drop `min`/`max` and let the backend's 400 (shown inline) do the refusing. Keep `step`.
+⚠️ Do **not** narrow anything toward the age-banded **normal** ranges in backend `docs/medical/`: that
+table is for flagging a reading, and says never to use it to reject one. The temperature floor itself
+(25 °C) is still the advisor's open question (backend FLAG-014), so whatever the form does must follow
+the backend when that number changes.
+
+**Done when** a nurse can submit 28 °C, SpO2 45 and pulse 260 from this form, and a test pins it (RED on
+today's `VITAL_FIELDS`).
+
+---
+
 ### FLAG-207 — Dead `ORG_ADMIN_STAFF_MEMBER` endpoint constant, removed
 **Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **FIXED — #78, merged 2026-08-19**
 **Found:** 2026-08-17, building D2 Org Admin, verified against the live schema
