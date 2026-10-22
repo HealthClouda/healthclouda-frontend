@@ -28,7 +28,7 @@ vi.mock('@/lib/client-api', () => ({
   },
 }));
 
-import { dataGet, dataAction } from '@/lib/client-api';
+import { dataGet, dataAction, ClientApiError } from '@/lib/client-api';
 const dataGetMock = vi.mocked(dataGet);
 const dataActionMock = vi.mocked(dataAction);
 
@@ -110,6 +110,95 @@ describe('Superadmin — Overview', () => {
     await waitFor(() => expect(screen.getByText('Clinic 1')).toBeInTheDocument());
     expect(screen.getByText('Clinic 5')).toBeInTheDocument();
     expect(screen.queryByText('Clinic 6')).not.toBeInTheDocument();
+  });
+});
+
+// GET /superadmin/health/ — shape from backend #294 (apps/core/health.py +
+// SystemHealthView; source, not a live capture: Railway builds were paused, so
+// #294 wasn't deployed yet). It answers 503 WITH this same body when any service errors.
+const healthy = {
+  status: 'healthy', timestamp: '2026-10-22T19:00:00Z',
+  services: {
+    database: { status: 'ok', engine: 'postgresql' },
+    cache: { status: 'ok' },
+    worker: { status: 'ok', workers: 1 },
+    storage: { status: 'ok' },
+  },
+  system: { python_version: '3.11.9', django_version: '4.2.27' },
+  records: { organizations: 27, users: 4382, patients: 3106, episodes: 900, referrals: 41 },
+};
+const workerDown = {
+  ...healthy, status: 'unhealthy',
+  services: { ...healthy.services, worker: { status: 'error', error: 'No background worker replied' } },
+};
+
+describe('Superadmin — Overview: System Health card (b5)', () => {
+  function withHealth(health: unknown) {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/superadmin/health/')) {
+        if (health instanceof Error) throw health;
+        return health;
+      }
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+  }
+
+  it('shows Healthy and one OK row per service from GET /superadmin/health/', async () => {
+    withHealth(healthy);
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    await waitFor(() => expect(within(card).getByText('Healthy')).toBeInTheDocument());
+    for (const name of ['Database', 'Cache (Redis)', 'Background worker', 'File storage']) {
+      expect(within(card).getByText(name)).toBeInTheDocument();
+    }
+    expect(within(card).getAllByText('OK')).toHaveLength(4);
+    expect(within(card).getByText(/django 4\.2\.27/i)).toBeInTheDocument();
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('/superadmin/health/'));
+  });
+
+  // The 503 carries the per-service report. A card that treated every non-2xx as
+  // "couldn't load" would hide WHICH service is down, the one thing it is for.
+  it('reads the 503 body: shows Unhealthy and names the failed service', async () => {
+    withHealth(new ClientApiError(503, workerDown, 'Service unavailable'));
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    await waitFor(() => expect(within(card).getByText('Unhealthy')).toBeInTheDocument());
+    expect(within(card).getByText('No background worker replied')).toBeInTheDocument();
+    expect(within(card).getAllByText('OK')).toHaveLength(3);
+    expect(within(card).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows "Not configured" in neutral, not as a failure', async () => {
+    withHealth({ ...healthy, services: { ...healthy.services, worker: { status: 'not_configured' } } });
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    await waitFor(() => expect(within(card).getByText('Not configured')).toBeInTheDocument());
+    expect(within(card).getByText('Healthy')).toBeInTheDocument();
+  });
+
+  // No report at all means the backend itself didn't answer: that IS the outage signal.
+  it('says no report was available, with a retry, when the server does not answer', async () => {
+    withHealth(new Error('Network down'));
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    expect(await within(card).findByRole('alert')).toHaveTextContent(/could not get a health report/i);
+    expect(within(card).getByRole('button', { name: /try again/i })).toBeInTheDocument();
+  });
+
+  // dev ran the pre-#294 backend when this was built (Railway builds paused): its
+  // body has no `services`. The card must degrade, not take the overview down.
+  it('handles a reply without a service report without breaking the overview', async () => {
+    withHealth({ status: 'healthy', database: { status: 'connected' } });
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    expect(await within(card).findByRole('alert')).toHaveTextContent(/could not get a health report/i);
+    expect(await screen.findByText('Demo Clinic')).toBeInTheDocument();
   });
 });
 

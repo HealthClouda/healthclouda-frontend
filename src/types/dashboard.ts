@@ -39,6 +39,20 @@ export interface SuperadminStats {
   orgs_trend_up?: boolean | null;
 }
 
+// GET /superadmin/health/ — backend #294 (apps/core/health.py). Answers 503 with
+// this same body when any service errors, so read it from ClientApiError.data too.
+export interface ServiceCheck {
+  status: 'ok' | 'error' | 'not_configured';
+  error?: string;
+}
+
+export interface SystemHealth {
+  status: 'healthy' | 'unhealthy';
+  timestamp: string;
+  services: { database: ServiceCheck; cache: ServiceCheck; worker: ServiceCheck; storage: ServiceCheck };
+  system?: { python_version: string; django_version: string };
+}
+
 // GET /org-admin/dashboard/stats/ — CAPTURED LIVE 2026-08-19, not inferred:
 //   {"total_staff":4,"active_patients":14,"todays_appointments":0,
 //    "bed_occupancy":"2/7","pending_access_requests":2,"critical_alerts":0}

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
-import { dataGet } from '@/lib/client-api';
+import { dataGet, ClientApiError } from '@/lib/client-api';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/store/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   SuperadminStats, OrgSummary, OrganizationDetail, OrganizationInput, StaffMember,
-  UserCreateInput, AuditLogEntry, AuditAction, Paginated,
+  UserCreateInput, AuditLogEntry, AuditAction, Paginated, ServiceCheck, SystemHealth,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -154,6 +154,8 @@ function OverviewPage({
         <StatCard loading={!stats} label="Active Records" value={stats?.active_records} icon={<ChartCheckIcon />} color="green" />
       </div>
 
+      <SystemHealthCard />
+
       <div className="rounded-card border border-border bg-white shadow-dash-card p-5">
         <div className="flex items-center justify-between mb-3.5">
           <h2 className="text-[13.5px] font-bold text-ink">Recent Organisations</h2>
@@ -197,6 +199,88 @@ function OverviewPage({
         />
       </div>
     </div>
+  );
+}
+
+const SERVICE_ROWS = [
+  ['database', 'Database'],
+  ['cache', 'Cache (Redis)'],
+  ['worker', 'Background worker'],
+  ['storage', 'File storage'],
+] as const;
+
+const SERVICE_BADGE: Record<ServiceCheck['status'], { status: string; label: string }> = {
+  ok: { status: 'ACTIVE', label: 'OK' },
+  error: { status: 'INACTIVE', label: 'Error' },
+  not_configured: { status: 'CLOSED', label: 'Not configured' },
+};
+
+// Not useApi: it keeps only the error message, and a 503 here carries the
+// per-service report the card exists to show (backend #294).
+function SystemHealthCard() {
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [unreachable, setUnreachable] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const check = useCallback(async () => {
+    setLoading(true);
+    let report: SystemHealth | null = null;
+    try {
+      report = await dataGet<SystemHealth>(ENDPOINTS.SA_SYSTEM_HEALTH);
+    } catch (e) {
+      report = e instanceof ClientApiError && e.status === 503 ? (e.data as SystemHealth | null) : null;
+    } finally {
+      // Trust only a reply that carries a report: an older backend (pre-#294) or
+      // an unexpected body must not crash the overview page.
+      const valid = report?.services ? report : null;
+      setHealth(valid);
+      setUnreachable(!valid);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void check(); }, [check]);
+
+  return (
+    <section aria-labelledby="system-health-title" className="rounded-card border border-border bg-white shadow-dash-card p-5">
+      <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <h2 id="system-health-title" className="text-[13.5px] font-bold text-ink">System Health</h2>
+          {health && !loading && (
+            <StatusBadge status={health.status === 'healthy' ? 'ACTIVE' : 'INACTIVE'} label={health.status === 'healthy' ? 'Healthy' : 'Unhealthy'} />
+          )}
+        </div>
+        <button onClick={() => void check()} disabled={loading} className="text-[11.5px] font-semibold text-primary hover:underline disabled:opacity-50">
+          {loading ? 'Checking…' : 'Check again'}
+        </button>
+      </div>
+      {unreachable && !loading ? (
+        <ErrorState title="Could not get a health report" message="The server didn't answer, or answered without a report, so no service could be checked." onRetry={() => void check()} />
+      ) : (
+        <>
+          <ul className="divide-y divide-border">
+            {SERVICE_ROWS.map(([key, label]) => {
+              const service = health?.services[key];
+              return (
+                <li key={key} className="flex items-center justify-between py-2">
+                  <span className="text-[13px] font-semibold text-ink">{label}</span>
+                  <span className="flex items-center gap-2">
+                    {service?.error && <span className="text-xs text-danger">{service.error}</span>}
+                    {service ? <StatusBadge {...SERVICE_BADGE[service.status]} /> : <span className="text-xs text-text-soft">…</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {health && (
+            <p className="mt-3 text-[11px] text-text-soft">
+              Checked {formatDateTime(health.timestamp)}
+              {health.system && ` · Django ${health.system.django_version} · Python ${health.system.python_version}`}
+            </p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
