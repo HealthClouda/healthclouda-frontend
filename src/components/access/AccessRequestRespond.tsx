@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { AccessRequestInfo } from '@/types/auth';
+import { BrandLoader } from '@/components/ui/BrandLoader';
 
 // Patient-facing access-request consent page (design auth canvas screens 9–10).
 // Flow per the design README: on load GET the request details by token; a valid
@@ -194,9 +195,8 @@ function Inner() {
   if (phase.name === 'loading' || phase.name === 'submitting') {
     return (
       <Card>
-        <Chip tint="#ebf3ff">
-          <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-[#c7daff] border-t-primary" />
-        </Chip>
+        {/* Decorative: the heading below says what is loading. */}
+        <BrandLoader size="md" decorative className="mx-auto mb-5" />
         <h1 className="mb-2 font-heading text-[22px] font-bold text-ink">
           {phase.name === 'submitting' ? 'Recording your response…' : 'Loading request…'}
         </h1>
