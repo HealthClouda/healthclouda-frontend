@@ -39,6 +39,18 @@ export interface SuperadminStats {
   orgs_trend_up?: boolean | null;
 }
 
+// GET /contact/contact-list/ (SUPERADMIN, paginated, newest first): a website
+// contact-form submission. created_at since backend #295.
+export interface ContactMessage {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number: string;
+  message: string;
+  created_at: string;
+}
+
 // GET /org-admin/dashboard/stats/ — CAPTURED LIVE 2026-08-19, not inferred:
 //   {"total_staff":4,"active_patients":14,"todays_appointments":0,
 //    "bed_occupancy":"2/7","pending_access_requests":2,"critical_alerts":0}
