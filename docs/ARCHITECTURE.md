@@ -194,7 +194,14 @@ DashboardShell            sidebar + header + content, and the small-screen gate
 
 Shared primitives in `src/components/ui/`: `DataTable`, `StatCard`, `Modal`, `SlidePanel`,
 `Toaster`, `EmptyState`, `ErrorState`, `Pagination`, `SearchInput`, `Avatar`, `StatusBadge`,
-`Shimmer`, `ConfirmDialog`, `FormField`, `Button`.
+`Shimmer`, `ConfirmDialog`, `FormField`, `Button`, `BrandLoader`.
+
+**Loading states (stand-up w2-k3).** A wait with no layout yet shows `BrandLoader`, the logo's cloud
+with a pulse sweeping along its heartbeat line: `src/app/loading.tsx` covers every page change, and
+`DashboardShell` shows the same loader, in the same place, until it has measured the viewport.
+A wait inside a layout (tables, stat cards, lists) shows `Shimmer` skeletons, which hold the layout
+so nothing jumps when the data lands. Both stop moving under `prefers-reduced-motion`; the rest of
+the app's animations do not yet (FLAG-251).
 
 **`SmallScreenGate` is a PHI control, not a layout preference.** Staff dashboards (DASH-1…5) must
 not render below 768px. It was `hidden md:flex` — pure CSS, so the dashboard still mounted, still
