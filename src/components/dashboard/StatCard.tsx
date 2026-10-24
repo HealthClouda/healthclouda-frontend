@@ -30,7 +30,7 @@ export function StatCard({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-card border border-border p-5 space-y-3 animate-pulse">
+      <div className="bg-white rounded-card border border-border p-5 space-y-3 animate-pulse motion-reduce:animate-none">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2 flex-1">
             <div className="h-3 bg-row-hairline rounded w-24" />

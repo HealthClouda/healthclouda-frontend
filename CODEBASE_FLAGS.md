@@ -1858,6 +1858,26 @@ to complete.
 
 **Done when** the owner picks, and either the form sends sex or the step text says to expect the warning.
 
+---
+
+### FLAG-251 — The app's other animations ignore prefers-reduced-motion
+**Severity:** P3 · **Area:** Accessibility (WCAG 2.3.3) · **Owner:** @Qeeyat · **Status:** OPEN
+**Found:** 2026-10-22, building the branded loader (stand-up w2-k3)
+
+Before w2-k3 nothing in `src/` mentioned `prefers-reduced-motion` or `motion-reduce`. That branch made
+the new `BrandLoader` and the loading skeletons (`Shimmer`, `StatCard`) respect it. Everything else still
+moves regardless of the user's setting:
+
+- `globals.css`: `hc-panel-in` (slide panel, 480px slide), `hc-modal-in` (spring scale),
+  `hc-toast-in`, `hc-pop`, `hc-blink` (OTP caret), and the landing page's endless `carousel-scroll`
+  (the strongest case: large, continuous, and not user-started).
+- `Button`'s `loading` spinner (`animate-spin`). A spinner is arguably essential motion; if kept, say so here.
+
+**Fix (small):** one `@media (prefers-reduced-motion: reduce)` block in `globals.css` that turns the
+entrance animations into a plain appear and stops the carousel. No component changes needed.
+
+**Done when** each animation above is either stopped under reduce-motion or listed here as deliberately kept, with a reason.
+
 ## Resolved flags
 
 > ⚠️ **Filing note (2026-09-03):** everything from **FLAG-215 downwards is BELOW this heading but is
