@@ -194,6 +194,22 @@ export interface OrganizationDetail extends OrgSummary {
   verified_at: string | null;
   total_episodes: number;
   updated_at: string;
+  // Backend #293 (w2-e4), CAPTURED LIVE 2026-10-24 on all three dev orgs.
+  // Detail-only: the list does not carry them (each costs a query per org).
+  /** Always present; null when unverified, AND on orgs verified before #293
+   *  started recording it (all three dev orgs: verified_at set, verified_by null). */
+  verified_by: OrgStaffMinimal | null;
+  /** Active staff per UPPERCASE role, patients excluded. Sums to total_staff. */
+  staff_by_role: Record<string, number>;
+  org_admins: OrgStaffMinimal[];
+}
+
+// OrgStaffMinimal in the live schema (backend #293).
+export interface OrgStaffMinimal {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
 }
 
 // POST /org/ and PUT /org/<id>/ body — verified against OrganizationOrgAdminRequest
