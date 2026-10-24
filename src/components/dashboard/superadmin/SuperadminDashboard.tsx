@@ -18,7 +18,7 @@ import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
   SuperadminStats, OrgSummary, OrganizationDetail, OrganizationInput, StaffMember,
-  UserCreateInput, AuditLogEntry, AuditAction, Paginated,
+  StaffMemberDetail, UserCreateInput, AuditLogEntry, AuditAction, Paginated,
 } from '@/types/dashboard';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -462,6 +462,15 @@ function OrgsPage() {
 
 const EMPTY_USER_FORM: UserCreateInput = { email: '', first_name: '', last_name: '', role: '', phone: '', organization: '' };
 
+function UserFact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <dt className="text-text-soft">{label}</dt>
+      <dd className="text-right font-medium text-ink">{children}</dd>
+    </div>
+  );
+}
+
 // Roles offered by the filter. Matches RoleEnum in the live schema; PATIENT is
 // included because /auth/users/ lists patients too, not just staff.
 const ROLE_FILTERS = [
@@ -476,17 +485,23 @@ const ROLE_FILTERS = [
 function UsersPage() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
+  const [status, setStatus] = useState<'' | 'true' | 'false'>('');
+  const [orgFilter, setOrgFilter] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
 
   // FLAG-205 correction: `?role=` IS honoured, despite being absent from the
-  // schema — measured against api-dev 2026-08-19 (/auth/users/?role=DOCTOR
-  // narrows 7 → 2, while ?is_active=true on the same endpoint returns all 7,
-  // proving unknown params really are ignored here and this one isn't).
-  // It was dropped during D1 on the assumption that schema absence meant
-  // non-support; on this backend it does not. Verify, don't infer.
+  // schema at the time — measured against api-dev 2026-08-19. It was dropped
+  // during D1 on the assumption that schema absence meant non-support; on this
+  // backend it did not. Verify, don't infer.
+  // w2-k2: backend #293 published all four filters, and `?is_active=` and
+  // `?organization=` were measured honoured on api-dev 2026-10-24 against a
+  // nonsense-param control (is_active=false → 0 of 10, organization=<id> → 1).
   const params = new URLSearchParams();
   if (debouncedSearch) params.set('search', debouncedSearch);
   if (role) params.set('role', role);
+  if (status) params.set('is_active', status);
+  if (orgFilter) params.set('organization', orgFilter);
+  const filtered = !!(role || status || orgFilter);
   const query = params.toString();
   const endpoint = ENDPOINTS.SA_USERS + (query ? `?${query}` : '');
 
@@ -503,12 +518,14 @@ function UsersPage() {
   const [form, setForm] = useState<UserCreateInput>(EMPTY_USER_FORM);
   const [saving, setSaving] = useState(false);
   const [justResent, setJustResent] = useState<Set<string>>(new Set());
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = useApi<StaffMemberDetail>(detailId ? ENDPOINTS.SA_USER(detailId) : null);
 
   // FLAG-013: `?page_size=100` was a no-op — the server ignores it and returns
-  // 20. This dropdown is therefore capped at the first 20 organisations, so a
-  // superadmin cannot yet invite into the 21st. Harmless at 2 orgs; it needs
-  // real paging (or a searchable picker) before the org count reaches 20.
-  const { data: orgOptions } = useApi<Paginated<OrgSummary>>(invitePanel ? ENDPOINTS.SA_ORGS : null);
+  // 20. Both org dropdowns (the filter and the invite form) are therefore capped
+  // at the first 20 organisations. Harmless at 3 orgs; it needs real paging (or
+  // a searchable picker) before the org count reaches 20.
+  const { data: orgOptions } = useApi<Paginated<OrgSummary>>(ENDPOINTS.SA_ORGS);
 
   function openInvite() {
     setForm(EMPTY_USER_FORM);
@@ -551,6 +568,7 @@ function UsersPage() {
         toast.success('User activated');
       }
       refetch();
+      if (detailId === confirm.user.id) detail.refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Action failed');
     } finally {
@@ -575,7 +593,14 @@ function UsersPage() {
       <div className="flex items-center gap-2.5">
         <Avatar firstName={u.first_name} lastName={u.last_name} size="sm" />
         <div>
-          <div className="text-[13px] font-semibold text-ink">{u.first_name} {u.last_name}</div>
+          <button
+            type="button"
+            onClick={() => setDetailId(u.id)}
+            aria-label={`View details for ${u.first_name} ${u.last_name}`}
+            className="text-[13px] font-semibold text-ink hover:underline text-left rounded focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            {u.first_name} {u.last_name}
+          </button>
           <div className="text-[11px] text-text-soft">{u.email}</div>
         </div>
       </div>
@@ -627,9 +652,9 @@ function UsersPage() {
         error={error}
         onRetry={refetch}
         emptyTitle="No users found"
-        emptyDescription={search ? 'Try adjusting your search.' : 'No users registered yet.'}
+        emptyDescription={search || filtered ? 'Try adjusting your search or filters.' : 'No users registered yet.'}
         toolbar={
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" label="Search users" />
             <select
               aria-label="Filter by role"
@@ -640,6 +665,27 @@ function UsersPage() {
               <option value="">All roles</option>
               {ROLE_FILTERS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
+            <select
+              aria-label="Filter by organisation"
+              className={`${inputClass} h-9 w-auto max-w-[220px] text-[12.5px]`}
+              value={orgFilter}
+              onChange={(e) => setOrgFilter(e.target.value)}
+            >
+              <option value="">All organisations</option>
+              {orgOptions?.results.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            {/* `is_active` only: "Invite pending" (never signed in) is shown
+                from last_login and counts as Active here. */}
+            <select
+              aria-label="Filter by status"
+              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              value={status}
+              onChange={(e) => setStatus(e.target.value as '' | 'true' | 'false')}
+            >
+              <option value="">All statuses</option>
+              <option value="true">Active</option>
+              <option value="false">Suspended</option>
+            </select>
           </div>
         }
         page={page}
@@ -648,6 +694,54 @@ function UsersPage() {
         totalCount={count}
         pageSize={20}
       />
+
+      {/* w2-k2: read-only account facts. Reset password is deliberately absent:
+          POST .../reset-password/ makes the admin choose and pass on the
+          user's password and leaves their sessions signed in, so it waits for
+          a backend reset-link flow (see FLAG-252). */}
+      <SlidePanel
+        open={!!detailId}
+        onClose={() => setDetailId(null)}
+        title="User details"
+        subtitle={detail.data ? `${detail.data.first_name} ${detail.data.last_name}` : undefined}
+        footer={detail.data ? (
+          <>
+            <Button variant="secondary" className="flex-1" onClick={() => setDetailId(null)}>Close</Button>
+            {detail.data.is_active
+              ? <Button variant="danger" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
+              : <Button className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'activate' })}>Activate</Button>}
+          </>
+        ) : undefined}
+      >
+        {detail.error ? (
+          <ErrorState title="Couldn't load this user" message={detail.error} onRetry={detail.refetch} />
+        ) : detail.loading || !detail.data ? (
+          <div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading user details…</div>
+        ) : (
+          <dl className="divide-y divide-row-hairline text-[13px]">
+            <UserFact label="Email">{detail.data.email}</UserFact>
+            <UserFact label="Phone">{detail.data.phone || '–'}</UserFact>
+            <UserFact label="Role">{roleLabel(detail.data.role)}</UserFact>
+            <UserFact label="Organisation">
+              {detail.data.organization ? (
+                <>
+                  {detail.data.organization.name}
+                  <span className="block text-[11px] text-text-soft">{detail.data.organization.org_id}</span>
+                </>
+              ) : 'None (platform account)'}
+            </UserFact>
+            <UserFact label="Status">
+              {detail.data.last_login == null
+                ? <StatusBadge status="PENDING" label="Invite pending" />
+                : <StatusBadge status={detail.data.is_active ? 'ACTIVE' : 'INACTIVE'} />}
+            </UserFact>
+            <UserFact label="Joined">{formatDate(detail.data.date_joined)}</UserFact>
+            <UserFact label="Last sign-in">{detail.data.last_login ? formatDateTime(detail.data.last_login) : 'Never'}</UserFact>
+            <UserFact label="Password last changed">{detail.data.password_changed_at ? formatDateTime(detail.data.password_changed_at) : 'Never'}</UserFact>
+            <UserFact label="Must change password at next sign-in">{detail.data.force_password_change ? 'Yes' : 'No'}</UserFact>
+          </dl>
+        )}
+      </SlidePanel>
 
       <SlidePanel
         open={invitePanel}
