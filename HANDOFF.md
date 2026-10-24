@@ -18,6 +18,7 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
+| @Qeeyat | **Users filters + detail panel (stand-up w2-k2)**: status and organisation filters on Superadmin → Users (backend #293, measured on dev 24 Oct) and a read-only user detail panel. Reset password deliberately left out pending a backend reset-link flow | `feat/w2-k2-users-filters-detail` | `src/components/dashboard/superadmin/SuperadminDashboard.tsx` (+ test), `src/types/dashboard.ts`, `CODEBASE_FLAGS.md`, `HANDOFF.md` | 2026-10-24 | 🟡 **In progress.** Claimed in this branch's first commit |
 
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
