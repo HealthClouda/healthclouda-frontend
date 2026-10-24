@@ -60,6 +60,69 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-10-22 / 24 — Week 2: loader (#201), users filters + detail (#204), org detail (#205); reset password held back (branches: feat/w2-k3-brand-loader, feat/w2-k2-users-filters-detail, feat/w2-k1-org-detail)
+
+**Goal:** clear my review queue, then my Week 2 list (w2-k1, k2, k3).
+
+**What I did:**
+- **Reviews, all approved:** #197 (Week 2 board copy), #194 (FLAG-074 ward copy, checked against backend #273),
+  #199 (In Flight clear), #198 (FLAG-075, limits checked against `NurseDashboard.tsx:332-340`; it had **no
+  reviewer assigned**). Nits left on each. #197, #194 and #199 have merged.
+- **w2-k3 → #201 (approved, mergeable).** `BrandLoader`: the logo's cloud with a pulse sweeping along the
+  heartbeat line. Shown by a new `src/app/loading.tsx` (there was **no `loading.tsx` anywhere**: page changes
+  showed nothing) and in `DashboardShell`'s pre-measure frame. Fades in after 200ms; `role="status"`, or
+  `decorative` next to visible text. Shimmer/StatCard skeletons kept for tables and cards, and now stop under
+  reduce-motion. **FLAG-251** logs the app's other animations, which still ignore it.
+- **w2-k2 → #204.** Organisation and Status filters on Superadmin → Users (Search and Role already existed),
+  and a read-only user detail panel (`GET /auth/users/<id>/`: last sign-in, password last changed, change due).
+- **w2-k1 → #205.** "View" on an organisation now opens an in-tab detail view (badges, staff/patients/episodes
+  tiles, details, verification, org admins, staff by role, staff list), with Edit / Verify / Suspend as buttons.
+- **Backend #297** (`api-request`) and a Cross-Lane row: admin password reset by emailed link, ending sessions, audited.
+- Rebased #201 after #199 merged (conflict was only claim rows), re-verified, force-pushed my own branch.
+
+**What I found:**
+- 🔴 **The admin reset-password endpoint makes the admin know the password.** `reset_password` takes
+  `{new_password}`, sets `force_password_change`, and nothing else: sessions are **not** ended, and there's no
+  explicit audit call. **I chose to leave the button out** of #204 and pinned its absence in a test. FLAG-252, backend #297.
+- 🟠 **`?is_active=` on `/auth/users/` is honoured now.** It was ignored on 19 Aug (FLAG-205's comment). Measured
+  24 Oct as superadmin against a `?nonsense_param=1` control (10 of 10): `is_active=false` → 0,
+  `organization=<id>` → 1, unknown uuid → 0, bad id → 400 `details.organization`. Comments updated in #204.
+- 🟠 **Backend #293 merged 22 Oct 00:36 but wasn't on api-dev until sometime before 24 Oct.** On the 22nd the
+  schema was byte-identical (362,210). **Lesson: "merged" on the backend is not "live on dev". Diff the schema.**
+- 🟠 **Every dev org has `verified_at` set and `verified_by: null`** (verified before #293 recorded who).
+  #205 says "verifier not recorded" instead of a blank. **Third Clinic has no org admin**, so #205 warns on it.
+- **Dead ends, to save the next person time:**
+  - `gh pr review` from the assistant was **blocked by my permission settings**; I posted the reviews myself with `--body-file`.
+  - **No Python on this machine.** Use the Edit tool or `sed`, not a Python one-liner.
+  - My first loader CSS had the pulse popping in, not sliding: with `dasharray: 0.3 1` the period is 1.3, so
+    `offset 1.3 ≡ 0`. Fixed with a gap of 2. Caught by thinking it through, then confirmed with Playwright screenshots.
+  - An existing test finds the Resend button by `class*="text-primary"`, so a `hover:text-primary` on another
+    button broke it. I removed the hover colour rather than loosen the test.
+- My assistant still can't read the board ("another organization"), as expected; I used `docs/standup/current-week.md`.
+
+**Decisions:**
+- Skeletons stay for tables and cards; the brand loader is for waits with no layout yet. Fewer things move at once,
+  and nothing jumps when data lands.
+- Reset password out until the backend can email a link (my call, 24 Oct).
+- Org detail as an in-tab view, not a new route: the whole dashboard is tab state, so a URL would be the odd one out.
+- #204's `UserFact` and #205's `OrgFact` are identical, because both were cut from the same `develop`. **Fold them
+  together in whichever merges second.**
+
+**Verified:** each PR on its own branch: `tsc` clean, ESLint `--max-warnings=0` clean, `npm test` green
+(#201 584, #204 586, #205 587), `npm run build` green. RED first each time (#204: 8 failing; #205: 12).
+Live schema and payloads checked on api-dev on 22 and 24 Oct; #205 also viewed signed in on a local prod build.
+
+**Left undone / next:**
+- [ ] Rebase whichever of #204 / #205 merges second (claim-row conflict + fold `UserFact`/`OrgFact`).
+- [ ] Organisations list filters (`is_active`, `is_verified`, now-real `search`): **doing it myself.** Measure on
+      dev first; also replace `OrgsPage`'s effect-based page reset (the #78 pattern).
+- [ ] w2-k5: approve #174 once @Bastoh rebases it.
+- [ ] Board, by hand: w2-k1 → review (#205), w2-k2 → review (#204), w2-k3 → review (#201), w2-k4 → done (#173).
+- [ ] When backend #297 lands: add the reset button to the user panel and replace the "no Reset password" test (FLAG-252).
+- [ ] Delete my stale local branch `docs/qeeyat-session-2026-10-08` (its content merged in #189 under new SHAs).
+
+---
+
 ### 2026-10-19 — closing out Week 1: FLAG-067 pinned in #196, FLAG-056 already fixed, #174 waits on a rebase (branch: fix/flag-067-deceased-checkin)
 
 **Goal:** finish what was left of my Week 1 stand-up list (13–16 Oct) so I can move to Week 2.
