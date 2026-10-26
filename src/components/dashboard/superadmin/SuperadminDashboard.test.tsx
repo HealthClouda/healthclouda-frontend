@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
 import { SuperadminDashboard } from './SuperadminDashboard';
 import type { User } from '@/types/auth';
 
@@ -63,6 +63,11 @@ const orgDetail = {
   verified_at: '2026-06-02T00:00:00Z',
   total_episodes: 16,
   updated_at: '2026-08-01T00:00:00Z',
+  // Backend #293 fields, shaped as captured live 2026-10-24. verified_by is
+  // null with verified_at set: true of every org on dev today.
+  verified_by: null,
+  staff_by_role: { DOCTOR: 2, NURSE: 1, ORGANIZATION_ADMIN: 1, RECEPTIONIST: 1 },
+  org_admins: [{ id: 'u-9', email: 'ngozi@demo-clinic.test', full_name: 'Ngozi Eze', role: 'ORGANIZATION_ADMIN' }],
 };
 
 const pendingUser = {
@@ -90,6 +95,14 @@ async function openPage(name: string, expectText: string) {
   render(<SuperadminDashboard user={user} initialStats={stats} />);
   fireEvent.click(screen.getByRole('button', { name }));
   await waitFor(() => expect(screen.getByText(expectText)).toBeInTheDocument());
+}
+
+// w2-k1: "View" opens the organisation's detail view; Edit is a button on it.
+async function openOrgDetail() {
+  await openPage('Organisations', 'Demo Clinic');
+  fireEvent.click(screen.getByRole('button', { name: 'View' }));
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Demo Clinic', level: 2 })).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('12 Awolowo Road, Ikoyi')).toBeInTheDocument());
 }
 
 describe('Superadmin — Overview', () => {
@@ -137,8 +150,9 @@ describe('Superadmin — Organisations page', () => {
   });
 
   it('prefills the edit panel from GET /org/<id>/, so the stored address is visible', async () => {
-    await openPage('Organisations', 'Demo Clinic');
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    await openOrgDetail();
+    dataGetMock.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
     await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith('/org/org-1/'));
     const panel = screen.getByRole('dialog');
@@ -148,8 +162,8 @@ describe('Superadmin — Organisations page', () => {
   });
 
   it('edit PATCHes only what changed and never blanks the untouched address', async () => {
-    await openPage('Organisations', 'Demo Clinic');
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    await openOrgDetail();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     const panel = screen.getByRole('dialog');
     await waitFor(() => expect(within(panel).getByLabelText(/address/i)).toHaveValue('12 Awolowo Road, Ikoyi'));
 
@@ -166,10 +180,10 @@ describe('Superadmin — Organisations page', () => {
   });
 
   it('blocks Save while the detail fetch is still in flight', async () => {
-    await openPage('Organisations', 'Demo Clinic');
+    await openOrgDetail();
     let release: (v: unknown) => void = () => {};
     dataGetMock.mockImplementationOnce(() => new Promise((r) => { release = r; }));
-    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
     const panel = screen.getByRole('dialog');
     expect(within(panel).getByRole('button', { name: /save changes/i })).toBeDisabled();
@@ -191,6 +205,96 @@ describe('Superadmin — Organisations page', () => {
     });
   });
 });
+
+/**
+ * Stand-up w2-k1. "View" used to open the edit form. It now opens a detail view
+ * built on backend #293's org detail fields and `/auth/users/?organization=`,
+ * both captured live 2026-10-24.
+ */
+describe('Superadmin — organisation detail view (w2-k1)', () => {
+  it('"View" opens the detail view, not the edit form, and reads the org and its staff', async () => {
+    await openOrgDetail();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(dataGetMock).toHaveBeenCalledWith('/org/org-1/');
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringMatching(/^\/auth\/users\/\?.*organization=org-1/));
+    expect(screen.getByText('HCL-NG-DEMO-01')).toBeInTheDocument();
+  });
+
+  it('shows staff, patient and episode counts', async () => {
+    await openOrgDetail();
+    for (const [label, value] of [['Staff', '5'], ['Patients', '21'], ['Episodes', '16']]) {
+      const card = screen.getByText(label, { selector: 'p, span, div' }).closest('div.rounded-card') as HTMLElement;
+      expect(card).toHaveTextContent(value);
+    }
+  });
+
+  it('says the verifier was not recorded when verified_at is set but verified_by is null', async () => {
+    await openOrgDetail();
+    const verification = screen.getByRole('region', { name: 'Verification' });
+    expect(verification).toHaveTextContent(/verified on 02 Jun 2026/i);
+    expect(verification).toHaveTextContent(/verifier not recorded/i);
+  });
+
+  it('names the verifier when the backend recorded one', async () => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path === '/org/org-1/') return { ...orgDetail, verified_by: { id: 'sa1', email: 'admin@healthclouda.com', full_name: 'Zainab Bello', role: 'SUPERADMIN' } };
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      if (path.startsWith('/auth/users/')) return usersEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    await openOrgDetail();
+    expect(screen.getByRole('region', { name: 'Verification' })).toHaveTextContent(/by Zainab Bello/);
+  });
+
+  it('lists the org admins, and warns when there are none', async () => {
+    await openOrgDetail();
+    const admins = screen.getByRole('region', { name: 'Organisation admins' });
+    expect(within(admins).getByText('Ngozi Eze')).toBeInTheDocument();
+    expect(within(admins).getByText('ngozi@demo-clinic.test')).toBeInTheDocument();
+
+    cleanupAndRenderWith({ ...orgDetail, org_admins: [] });
+    await openOrgDetail();
+    expect(screen.getByRole('region', { name: 'Organisation admins' })).toHaveTextContent(/no organisation admin/i);
+  });
+
+  it('shows staff by role, with readable role names', async () => {
+    await openOrgDetail();
+    const byRole = screen.getByRole('region', { name: 'Staff by role' });
+    expect(byRole).toHaveTextContent('Doctor2');
+    expect(byRole).toHaveTextContent('Org Admin1');
+  });
+
+  it('lists the staff from /auth/users/?organization=<id>', async () => {
+    await openOrgDetail();
+    const staff = screen.getByRole('region', { name: 'Staff' });
+    await waitFor(() => expect(within(staff).getByText('Amara Nwosu')).toBeInTheDocument());
+  });
+
+  it('Back returns to the organisations table', async () => {
+    await openOrgDetail();
+    fireEvent.click(screen.getByRole('button', { name: /back to organisations/i }));
+    expect(screen.getByRole('textbox', { name: /search organisations/i })).toBeInTheDocument();
+  });
+
+  it('suspending from the detail view uses the superadmin endpoint and re-reads the org', async () => {
+    await openOrgDetail();
+    dataGetMock.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspend' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith('/superadmin/organizations/org-1/suspend/', 'POST', undefined));
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith('/org/org-1/'));
+  });
+});
+
+function cleanupAndRenderWith(detail: Record<string, unknown>) {
+  cleanup();
+  dataGetMock.mockImplementation(async (path: string) => {
+    if (path === '/org/org-1/') return detail;
+    if (path.startsWith('/org/')) return orgsEnvelope;
+    if (path.startsWith('/auth/users/')) return usersEnvelope;
+    return { count: 0, next: null, previous: null, results: [] };
+  });
+}
 
 /**
  * FLAG-205 correction. The Role dropdown was dropped from this page while
