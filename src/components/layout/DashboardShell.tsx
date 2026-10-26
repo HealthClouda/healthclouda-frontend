@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { SmallScreenGate } from './SmallScreenGate';
+import { BrandLoader } from '@/components/ui/BrandLoader';
 import { useWideViewport } from '@/hooks/use-wide-viewport';
 import { useHeartbeat } from '@/hooks/use-heartbeat';
 import {
@@ -89,8 +90,10 @@ export function DashboardShell({
     return viewport === 'narrow' ? (
       <SmallScreenGate dashboardName={smallScreenGateFor} />
     ) : (
-      <div className="h-screen bg-page" aria-busy="true">
-        <span className="sr-only">Loading dashboard</span>
+      // The same loader as src/app/loading.tsx, in the same place, so a page
+      // change reads as one wait rather than loader → blank → dashboard.
+      <div className="flex h-screen items-center justify-center bg-page" aria-busy="true">
+        <BrandLoader size="lg" label="Loading dashboard" />
       </div>
     );
   }

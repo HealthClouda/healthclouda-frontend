@@ -1,5 +1,6 @@
-// Base animation class shared by all shimmer variants
-const base = 'animate-pulse bg-gray-200 rounded';
+// Base animation class shared by all shimmer variants. The pulse stops under
+// prefers-reduced-motion; the grey shape still says "loading" (stand-up w2-k3).
+const base = 'animate-pulse motion-reduce:animate-none bg-gray-200 rounded';
 
 export function ShimmerLine({ className = '' }: { className?: string }) {
   return <div className={`h-4 ${base} ${className}`} />;
