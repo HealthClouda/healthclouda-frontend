@@ -1842,6 +1842,27 @@ for it.
 **Done when** the backend publishes the set (an enum on the schema, or a distinct-values endpoint)
 and the page reads it from there. That needs an `api-request`; @Qeeyat offered to file it.
 
+### FLAG-252 — Superadmin → Users has no Reset password, on purpose: the backend's reset makes the admin know the password
+**Severity:** P2 · **Area:** Superadmin / Users (security) · **Owner:** @Qeeyat (frontend) · backend **#297** (`api-request`) · **Status:** OPEN — waiting on backend
+**Found:** 2026-10-24, building stand-up w2-k2 (users filters + detail panel)
+
+w2-k2 asked for a Reset password button in the user detail panel. `POST /auth/users/{id}/reset-password/`
+exists and works, but read in `apps/accounts/views.py` it takes `{new_password}`, sets it, and sets
+`force_password_change = True`, and nothing else:
+- the **admin chooses the password** and must pass it on outside the system;
+- the user's **existing sessions stay signed in** (unlike logout since backend FLAG-610), which defeats
+  the commonest reason to reset;
+- **no explicit audit entry** (`resend_setup_email` writes one; this does not; a general layer was not checked).
+
+**Decision (@Qeeyat, 24 Oct):** ship the detail panel without the button rather than put this flow in
+front of admins weeks before PHI. A test pins its absence (`SuperadminDashboard.test.tsx`, "offers no
+Reset password"), so it can't be added back by accident.
+
+**Done when** backend #297 (or an equivalent) lands an emailed reset link that also ends sessions and
+is audited, the panel offers it, and that test is replaced by one for the new button.
+
+---
+
 ### FLAG-066 — An emergency walk-in into a single-sex ward always hits the gender warning
 **Severity:** P3 (product call) · **Area:** Nurse / Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a decision**
 **Found:** 2026-10-04, browser re-walk of build 6 step 6 on dev

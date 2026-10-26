@@ -75,11 +75,19 @@ const activeUser = {
 };
 const usersEnvelope = { count: 2, next: null, previous: null, results: [pendingUser, activeUser] };
 
+// GET /auth/users/<id>/ (UserDetail, live schema 2026-10-24): the list fields
+// plus force_password_change and password_changed_at.
+const activeUserDetail = {
+  ...activeUser, phone: '+2348011111111',
+  force_password_change: false, password_changed_at: '2026-07-02T10:00:00Z',
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   dataGetMock.mockImplementation(async (path: string) => {
     if (path.startsWith('/org/org-')) return orgDetail;
     if (path.startsWith('/org/')) return orgsEnvelope;
+    if (path === '/auth/users/u-2/') return activeUserDetail;
     if (path.startsWith('/auth/users/')) return usersEnvelope;
     return { count: 0, next: null, previous: null, results: [] };
   });
@@ -199,8 +207,10 @@ describe('Superadmin — Organisations page', () => {
  *
  * That reasoning was wrong. @Qeeyat measured it against `api-dev` 2026-08-19:
  * `/auth/users/?role=DOCTOR` narrows 7 → 2, while `?is_active=true` on the same
- * endpoint returns all 7 — so an unknown param IS silently ignored here, which
+ * endpoint returned all 7 — so an unknown param IS silently ignored here, which
  * is what makes the `?role=` result real filtering rather than coincidence.
+ * (Since backend #293, `?is_active=` is honoured too and all four filters are
+ * published — see the w2-k2 block below.)
  *
  * These tests can only prove we send the param; that it is HONOURED rests on
  * that live measurement, recorded in FLAG-205 and HANDOFF.md.
@@ -258,6 +268,102 @@ describe('Superadmin — Users page: role filter (FLAG-205)', () => {
     for (const [path] of dataGetMock.mock.calls) {
       expect(path).not.toContain('page=2');
     }
+  });
+});
+
+/**
+ * Stand-up w2-k2. Backend #293 published `?is_active=` and `?organization=` on
+ * /auth/users/. Measured on api-dev 2026-10-24 as superadmin, against a control
+ * (`?nonsense_param=1` → 10 of 10): is_active=false → 0, organization=<id> → 1,
+ * organization=<unknown uuid> → 0, organization=not-a-uuid → 400. So both are
+ * really honoured, and these tests pin that we send them.
+ */
+describe('Superadmin — Users page: status and organisation filters (w2-k2)', () => {
+  it('sends ?is_active=false for Suspended and ?is_active=true for Active', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'false' } });
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('is_active=false')));
+
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'true' } });
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('is_active=true')));
+  });
+
+  it('lists organisations to filter by, and sends ?organization=<id> with the other filters', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    const orgFilter = screen.getByLabelText(/filter by organisation/i);
+    await waitFor(() => expect(within(orgFilter).getByRole('option', { name: 'Demo Clinic' })).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/filter by role/i), { target: { value: 'DOCTOR' } });
+    dataGetMock.mockClear();
+    fireEvent.change(orgFilter, { target: { value: 'org-1' } });
+
+    await waitFor(() => {
+      const paths = dataGetMock.mock.calls.map(([p]) => p as string);
+      expect(paths.some((p) => p.startsWith('/auth/users/?') && p.includes('organization=org-1') && p.includes('role=DOCTOR'))).toBe(true);
+    });
+  });
+
+  it('"All" drops the status and organisation params entirely', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'false' } });
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('is_active=false')));
+
+    dataGetMock.mockClear();
+    fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: '' } });
+    await waitFor(() => expect(dataGetMock).toHaveBeenCalled());
+    for (const [path] of dataGetMock.mock.calls) {
+      expect(path).not.toContain('is_active=');
+      expect(path).not.toContain('organization=');
+    }
+  });
+
+  it('says to adjust the filters when a filter, not a search, empties the list', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value: 'false' } });
+    await waitFor(() => expect(screen.getByText(/adjusting your search or filters/i)).toBeInTheDocument());
+  });
+});
+
+describe('Superadmin — user detail panel (w2-k2)', () => {
+  async function openDetail() {
+    await openPage('Users', 'Amara Nwosu');
+    fireEvent.click(screen.getByRole('button', { name: /view details for amara nwosu/i }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByText('+2348011111111')).toBeInTheDocument());
+    return panel;
+  }
+
+  it('opens from the user name and reads GET /auth/users/<id>/', async () => {
+    const panel = await openDetail();
+    expect(dataGetMock).toHaveBeenCalledWith('/auth/users/u-2/');
+    expect(within(panel).getByText('amara@demo-clinic.test')).toBeInTheDocument();
+    expect(within(panel).getByText('Demo Clinic')).toBeInTheDocument();
+  });
+
+  it('shows the account facts the list cannot: password last changed and whether a change is due', async () => {
+    const panel = await openDetail();
+    expect(within(panel).getByText('Password last changed')).toBeInTheDocument();
+    expect(within(panel).getByText('Must change password at next sign-in')).toBeInTheDocument();
+    expect(within(panel).getByText('No')).toBeInTheDocument();
+  });
+
+  it('suspends from the panel through the same confirmed DELETE as the table', async () => {
+    const panel = await openDetail();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Suspend' }));
+    const confirm = screen.getAllByRole('dialog').find((d) => d !== panel)!;
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Suspend' }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith('/auth/users/u-2/', 'DELETE', undefined));
+  });
+
+  it('offers no Reset password (left out until the backend can email a reset link)', async () => {
+    const panel = await openDetail();
+    expect(within(panel).queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
   });
 });
 

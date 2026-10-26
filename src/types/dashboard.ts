@@ -267,6 +267,14 @@ export interface StaffMember {
   organization?: { id: string; name: string; org_id: string } | null;
 }
 
+// GET /auth/users/<id>/ — UserDetail in the live schema (verified 2026-10-24):
+// the list fields plus two the list does not carry.
+export interface StaffMemberDetail extends StaffMember {
+  /** True until the user sets their own password (invite, or an admin reset). */
+  force_password_change: boolean;
+  password_changed_at: string | null;
+}
+
 // POST /auth/users/ body — verified against UserCreateRequest live 2026-08-14.
 // password is deliberately omitted (invite flow — backend emails a
 // setup-password link when it's absent); organization omitted for SUPERADMIN.
