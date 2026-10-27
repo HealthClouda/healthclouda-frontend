@@ -1,58 +1,63 @@
 # Stand-up Board: this week's tasks (read-only copy)
 
 > **The board is the source of truth:** https://claude.ai/artifact/HktRWK3SNWSUTgZ5DqSFEW
-> This file is a **copy**, written by @Bastoh's Claude when the week is set up on Monday, so that an
+> This file is a **copy**, written by @Bastoh's Claude when the week is set up, so that an
 > assistant that cannot read the board (an account outside @Bastoh's Claude organization) can still
-> tell its dev what they committed to. **Statuses are a snapshot taken on Tue 20 Oct 2026** and go
+> tell its dev what they committed to. **Statuses are a snapshot taken on Tue 27 Oct 2026** and go
 > stale as soon as anyone ticks the board. Tick tasks on the board, never here.
 
-**Week 2 · Mon 19 to Fri 23 Oct · Superadmin, part 1.** We now build **top-down**: superadmin, then
-org admin, doctor, nurse, reception, patient, landing pages, then integrations (lab, theatre…). This
-week: finish what is half-built in superadmin (search, detail views, screens whose backend already
-exists) and make the audit log usable. **Dr Abdulmuiz now joins the stand-ups** to confirm that what we
-build matches clinical practice.
+**Week 3 · Tue 27 to Fri 30 Oct · Superadmin, part 2.** Still building **top-down** (superadmin, then
+org admin, doctor, nurse, reception, patient, landing pages, integrations). **Day 1 (Tuesday) goes to
+the fixes the browser walkthrough found on Mon 26 Oct**, then the remaining superadmin gaps.
+**New rule:** every frontend PR is walked in the browser (UX first, every action done and reverted on
+`api-dev`) before it merges, not just code-reviewed.
 
 **Done by Friday when:**
-- Organisations and users can be searched and filtered
-- An organisation has a real detail page, not just an edit form
-- Audit log usable: background noise hidden by default, date range filter, sign-out no longer logged as a failed sign-in
-- Messages shows contact-form submissions
-- Branded loader in place
-- Dr Abdulmuiz has answered the facility-verification question
-- Last week's open PRs reviewed and merged
+- Day-1 fixes merged: a suspended user can be found and re-activated; #205's Staff table stays true after Suspend
+- FLAG-378 closed: org-admin, org, audit-log and contact reads are audited
+- Admin password reset by emailed link is live (#297), and the Users panel offers it
+- Unverified organisations can't send or receive inter-org referrals (FLAG-631 part 1)
+- Qeeyat's review queue cleared: #200, #202, #203 reviewed
+- #205 merged after a browser re-review
 
-> ⚠️ **Week 1 leftover for @Qeeyat:** your week-1 tasks w1-k2, w1-k3 and w1-k4 are done (#193, #195,
-> #196) but still read "todo" on the board. Mark them **In review** in the browser.
+> 🩺 **Dr Abdulmuiz is unwell**, so Q10 (what stops when a facility licence expires) is still open.
+> Facility-verification **part 2** waits on it; nothing this week does.
 
 ## @Bastoh (`bastoh`) · backend + frontend
 
 | id | Task | Hours | Status |
 |---|---|---|---|
-| w2-b1 | Review Qeeyat's open PRs #189, #193, #195, #196 | 2.5 | todo |
-| w2-b2 | Post-merge review of Eric's week-1 PRs #276 to #279 | 1.5 | todo |
-| w2-b3 | #174: resolve merge conflicts, fix Qeeyat's two nits (`ENDPOINTS.PATIENT(id)`; local date, not UTC), settle FLAG-063 with her | 1 | todo |
-| w2-b4 | Superadmin Messages screen (frontend), from the existing `/contact/contact-list/` endpoint | 3 | todo |
-| w2-b5 | Superadmin dashboard: system health card (frontend), from the existing `/superadmin/health/` endpoint | 1 | todo |
-| w2-b6 | Facility verification spec: ask Dr Abdulmuiz what proof a facility must give, then write the spec | 1 | todo |
-| w2-b7 | Clean old test accounts off dev before the demo | 0.5 | todo |
+| w3-b1 | Browser re-review + merge of #205's fix; review Qeeyat's #206 | 1 | todo |
+| w3-b2 | Post-merge reviews of Eric's e1 to e4, with the Railway approvals | 2 | todo |
+| w3-b3 | #280: vitals "confirm before saving" for out-of-range readings (FLAG-014). Failing test first | 2.5 | todo |
+| w3-b4 | Railway: migrate Config as Code before it stops working on 1 Dec | 1.5 | todo |
+| w3-b5 | Rescue FLAG-076 to 081 (frontend docs PR from branch `ccr-cd9ff359-v8tvuf`) | 0.75 | todo |
+| w3-b6 | FLAG-230: make frontend CI a required check | 0.5 | todo |
+| w3-b7 | Decisions: Records screen, facility types, FLAG-063 (#174), `license_number` field | 1 | todo |
+| w3-b8 | Fix `audit/0007` so #296 could deploy (FLAG-634) · off-board, Mon 26 Oct | 1.5 | done (#298) |
+| w3-b9 | Browser walkthrough of #204/#205, and the `/browser-review` skill · off-board, Mon 26 Oct | 2 | done |
+| w3-b10 | Stale sweep before week 3 · off-board, Mon 26 Oct | 1 | done |
+| w3-b11 | Post-merge review of Eric's #299 (FLAG-166) · off-board, Tue 27 Oct | 0.5 | done |
 
 ## @Ericmoore207 (`eric`) · backend
 
 | id | Task | Hours | Status |
 |---|---|---|---|
-| w2-e1 | Audit log noise: tag background requests (heartbeat, `/auth/me/`, dashboard polling) and hide them by default. Keep logging them. Failing test first | 3.5 | todo |
-| w2-e2 | Audit log date range filter: `date_from` / `date_to` on `/audit/logs/`, published in the schema | 1.5 | todo |
-| w2-e3 | Bug: sign-out is logged as an anonymous "Failed sign-in" (`LOGIN_FAILURE /api/v1/auth/logout/`). Failing test first | 1.5 | todo |
-| w2-e4 | Organisation detail data on the org endpoint: staff count by role, org admins, patient count, verified by and when. Check the live schema first | 2 | todo |
-| w2-e5 | Search and filters: organisations by name and status; users by name/email, organisation and status. Published in the schema | 1.5 | todo |
+| w3-e1 | **Day 1:** a suspended user can't be brought back. Suspend soft-deletes, and every list hides soft-deleted users, so there's no Activate button and #204's "Suspended" filter can never show anyone. Make them listable and re-activatable. Failing test first | 2 | todo |
+| w3-e2 | **Day 1:** FLAG-378 + twins. Audit `/org-admin/`, `/org/`, `/audit/` and `/contact/` (`/organizations/` in `SENSITIVE_ENDPOINTS` is dead). Measure volume first; tag polled dashboard stats `is_background`. Failing test first | 2 | todo |
+| w3-e3 | #297: admin password reset by emailed link. The admin never sees the password; the user's sessions end; audited; published in the schema. Unblocks Qeeyat's k5 | 3 | todo |
+| w3-e4 | FLAG-631 part 1: an unverified organisation can't send or receive inter-org referrals (`docs/FACILITY_VERIFICATION_SPEC.md` §4.3). Failing tests first | 2.5 | todo |
+
+> Your other triaged issues (#286, #282, #289) and the newly assigned #155 / #136 are **not** this
+> week; they come after these four.
 
 ## @Qeeyat (`qeeyat`) · frontend
 
 | id | Task | Hours | Status |
 |---|---|---|---|
-| w2-k1 | Organisation detail page: "View" opens a detail page (info, org admins, staff list, patient count, verification status) with Edit as a button. Uses Eric's e4 | 4 | todo |
-| w2-k2 | Users: search, filters, and a user detail panel with Reset password (endpoint exists). Uses Eric's e5 | 3 | todo |
-| w2-k3 | Branded loader: a HealthClouda loading animation on page/tab changes and while data loads. Use the logo as inspiration (e.g. a heartbeat moving through the cloud); reach out to Bastoh if you need direction. Respect reduce-motion; screen-reader label | 1.5 | todo |
-| w2-k4 | FLAG-056: "No doctor available" shows while a doctor is on duty (carried over) | 1 | todo |
-| w2-k5 | Approve #174 once Bastoh's fixes land | 0.5 | todo |
-| w2-k6 | Review #194 (ward set-up panel wording, FLAG-074) | 0.5 | todo |
+| w3-k1 | **Day 1:** #205 fix. The Staff table goes stale after Suspend/Activate (changes requested on the PR). If quick, make the org Suspend dialog say every staff member is deactivated. Test first; drop the In Flight row from the branch | 1.5 | todo |
+| w3-k2 | Review Bastoh's #200, #202, #203 (the second of #202/#203 to merge needs a rebase; Bastoh does it) | 2.5 | todo |
+| w3-k3 | UX follow-ups: #204's filter bar wraps at 1280px; browser Back leaves the dashboard (put the view in the URL); `/superadmin/signin` should send a signed-in user to the dashboard | 2 | todo |
+| w3-k4 | After Eric's e1: check the Suspended filter + Activate on Users | 0.5 | todo |
+| w3-k5 | After Eric's e3: wire the Reset password button (FLAG-252) | 1.5 | todo |
+| w3-k6 | Decide your two old branches: `docs/schema-contract-guidance` (#96) and `fix/flag-235-mask-contract` | 0.5 | todo |
