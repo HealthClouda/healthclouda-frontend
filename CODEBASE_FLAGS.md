@@ -3946,7 +3946,7 @@ That is its own PR, not a rider on the one that first rendered Nurse.
 ---
 
 ### FLAG-230 — Stacked PRs never run CI, and the repo's safe-merge pattern is exactly what stacks them
-**Severity:** P2 · **Area:** CI / process · **Owner:** @Bastoh (repo settings + workflow) · **Status:** OPEN
+**Severity:** P2 · **Area:** CI / process · **Owner:** @Bastoh (repo settings + workflow) · **Status:** ✅ **RESOLVED 2026-10-29 (w3-b6)**: `ci.yml` runs on `pull_request: branches: ['**']`, and the three jobs (`tsc + tests + build`, `Lint`, `Build fails loud without a tier URL`) are required status checks in ruleset 11328360. The third box was already met (`HANDOFF.md` stacking note, 4 Sep).
 **Found:** 2026-09-04, opening #128 onto a stack parent and noticing it had no checks at all
 
 `ci.yml` triggers on `pull_request: branches: [develop, staging, main]`. **A PR whose base is
