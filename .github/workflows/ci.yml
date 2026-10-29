@@ -7,15 +7,18 @@ name: CI
 # on 2026-08-28 and again on 2026-08-30, six PRs each were re-verified by hand,
 # one at a time, because nothing else could say whether they were green.
 #
-# ⚠️ Adding this file does NOT by itself block a merge. Ruleset 11328360 enforces
-# one approving review on main/staging/develop, but these jobs only become a
-# MERGE GATE once they are added to that ruleset's required status checks. Until
-# someone does that in repo settings, they run for signal. Say so out loud rather
-# than let a green tick imply a gate that isn't wired up.
+# 🔒 The three jobs below are REQUIRED status checks in ruleset 11328360 (since
+# 2026-10-29, FLAG-230), so a PR into main/staging/develop cannot merge until
+# they pass. Renaming a job's `name:` breaks that gate: update the ruleset too.
+#
+# FLAG-230: `pull_request` runs on EVERY base branch, not just the protected
+# three. A PR stacked on another feature branch used to get no CI at all, and
+# a retarget onto develop does not re-trigger it, so #100 (the patient portal),
+# #117 and #119 reached develop never checked.
 
 on:
   pull_request:
-    branches: [develop, staging, main]
+    branches: ['**']
   push:
     branches: [develop]
 
