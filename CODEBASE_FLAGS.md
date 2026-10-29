@@ -2544,6 +2544,141 @@ It was RED on the old copy (1 failed, 11 passed) and GREEN after (12 passed).
 
 ---
 
+> 🛟 **Rescued 2026-10-29 (board w3-b5).** Written 2026-10-12 on cloud branch `ccr-cd9ff359-v8tvuf` as
+> FLAG-074 to 081, which never reached `develop`; those numbers were taken meanwhile (074 by #194, 075 by
+> #200), so they are renumbered **076 to 083**, cross-references included. Re-checked against the code the
+> same day: all eight still open, and none of the medical questions they wait on has been answered.
+
+### FLAG-076 — The "Level of care" list on Request admission was never reviewed by a clinician
+**Severity:** P2 (needs a medical answer) · **Area:** Doctor / Request admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a decision**
+**Found:** 2026-10-12, writing the medical team's admissions walkthrough (HCL/CHK/2026-003)
+
+`LEVEL_OF_CARE_OPTIONS` (`src/types/dashboard.ts`) offers **General, HDU, ICU, Isolation**, mirroring
+backend `AdmissionRequest.LevelOfCare`. Nobody clinical chose that list. The backend's own
+`docs/MEDICAL_REVIEW_PACK.md` §6 told the medical advisor *"We will not invent this list, so we will
+come back to you for it"*, and we never did. Obvious gaps a clinician would raise: Maternity / Labour,
+Paediatric, Surgical, Neonatal.
+
+The urgency list beside it is fine: it is the five levels the medical team signed off in June.
+
+**Done when** the medical team has answered question 1 in HCL/CHK/2026-003 (or equivalent), and the
+backend choices and `LEVEL_OF_CARE_OPTIONS` match that answer. Changing the backend list is an
+`api-request`.
+
+### FLAG-077 — An emergency admission can still name no doctor, though the medical advisor said one is required
+**Severity:** P2 · **Area:** Nurse / Admit + Emergency admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs a decision**
+**Found:** 2026-10-12, writing HCL/CHK/2026-003
+
+The advisor's answer to Q2 (backend `docs/MEDICAL_REVIEW_PACK.md`, 13 Sep) was: *the nurse must name
+a doctor who is on duty*. What we built: both Admit forms offer **No attending doctor yet**, and the
+backend accepts `attending_doctor: null`. The patient then shows on every doctor's **Unassigned** list
+(FLAG-607, #176). That list was a deliberate safety net, but it contradicts the answer we were given,
+and nobody went back to the advisor to say so.
+
+**Options:** (a) require a doctor on the emergency form (on-duty warn-and-allow already exists);
+(b) keep "nobody" and get the medical team to accept the Unassigned list as the safety net, ideally with
+an alert to someone if a patient stays unassigned.
+
+**Done when** the medical team picks (question 5 in HCL/CHK/2026-003) and the forms match it.
+
+### FLAG-078 — Who may discharge: the owner's rule differs from what the medical advisor was told
+**Severity:** P2 (clinical confirmation) · **Area:** Discharge · **Owner:** @Bastoh · **Status:** 🟡 **OPEN — needs confirmation**
+**Found:** 2026-10-12, writing HCL/CHK/2026-003
+
+The advisor's Q3 answer was written up as *"a nurse can still perform every other discharge, as
+before"*. Four days later the owner decided (FLAG-045 / backend FLAG-592, 17 Sep) that **Routine,
+Transferred out and Against medical advice are doctor-only**. A nurse can record only Absconded and
+Deceased. That is a reasonable call, but it is stricter than the medical team's own description of the
+workflow (*"the doctor orders it, the nurse carries it out"*), and the medical team has not seen it.
+At night or at a weekend it means no patient goes home until a doctor signs in.
+
+**Done when** the medical team confirms or corrects the rule (rule 10 and step 5.2 in
+HCL/CHK/2026-003), and any change is made on both sides.
+
+### FLAG-079 — An emergency admission marked "for review" is invisible: no API field, no screen
+**Severity:** P2 · **Area:** Nurse / Doctor / Admissions (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-12, writing HCL/CHK/2026-003
+
+Backend FLAG-595 (owner, 17 Sep): an emergency admission with sex not recorded on a single-sex ward is
+allowed through and **"flagged for review in the morning"**. The flag is
+`Admission.needs_admission_review`, set in `apps/ward/services.py:249`. But:
+
+- no backend serializer exposes it (`git grep needs_admission_review` on `develop`: only the model, the
+  service and one test), and
+- no frontend screen could show it anyway.
+
+So the morning review the decision depends on cannot happen: nobody can find which admissions need it.
+It fires on every Maternity walk-in today, because the walk-in form has no sex field (FLAG-066).
+
+**Fix:** backend exposes the field on the admissions list, with a filter (`api-request`). The frontend
+then shows a "Needs review" list or badge for the nurse in charge and the attending doctor, with a way
+to clear it.
+
+**Done when** a walk-in admitted with sex unrecorded shows up on a screen as needing review, and
+someone can mark it reviewed.
+
+### FLAG-080 — A doctor is never shown that their admission request was accepted or declined
+**Severity:** P2 · **Area:** Doctor / Notifications · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-12, writing HCL/CHK/2026-003
+
+The backend does the right thing: `decline_admission_request()` and `accept_admission_request()` both
+create a `StaffNotification` for the requesting doctor (`ADMISSION_DECLINED` / `ADMISSION_ACCEPTED`,
+`apps/ward/services.py`). The frontend never reads it. `ENDPOINTS.STAFF_NOTIFS` is defined in
+`config.ts` and fetched nowhere, and `DashboardHeader`'s bell is always given an empty list (PR #188
+notes the same: *"The bell still shows no count"*).
+
+So a declined admission (*"No bed in General Ward today"*) reaches no one. The doctor's only clue is
+that the patient is not in **Admissions**. That gap is a clinical one: the patient is still waiting
+somewhere.
+
+**Done when** the staff bell lists `/auth/me/notifications/` with unread counts and mark-read, and a
+declined request with its reason appears for the ordering doctor. Ties in with FLAG-073's live updates.
+
+### FLAG-081 — A doctor cannot cancel their own admission request on screen
+**Severity:** P3 · **Area:** Doctor / Request admission · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-12, writing HCL/CHK/2026-003
+
+The backend has it: `POST /ward/admission-requests/{id}/cancel/` (`AdmissionRequestViewSet.cancel`,
+requesting doctor only, `REQUESTED` status only). The frontend has no endpoint constant for it and no
+button. The doctor also has no list of their own pending requests to cancel from.
+
+**Done when** a doctor can see their pending requests and cancel one, and the nurse's queue loses it.
+Whether cancel is wanted at all is question 3 in HCL/CHK/2026-003, so let the medical team answer first.
+
+### FLAG-082 — The same admission can be requested twice for one episode
+**Severity:** P2 · **Area:** Doctor / Request admission (backend cause) · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-12, checking the step text for HCL/CHK/2026-003
+
+`Request admission` is hidden only when the episode has an **ACTIVE admission** (`has_admission`,
+`apps/patients/doctor_serializers.py:89`). A pending request doesn't count, so the link stays after
+**Send request**. `AdmissionRequestCreateSerializer.validate()` and `request_admission()` have no check
+for an existing `REQUESTED` row on the same episode either, and there is no constraint. A second click,
+or a second doctor, puts the same patient in the nurse's queue twice. If both are accepted, the
+second is presumably refused by the one-active-admission rule, but only at the bedside.
+
+**Fix:** backend refuses a second `REQUESTED` request per episode (a partial unique constraint, like
+`unique_active_episode_per_patient_org`; `api-request`). Frontend shows "Admission requested" in
+place of the link while one is pending (needs the episode serializer to say so).
+
+**Done when** a second request for an episode with one pending is refused, and the doctor's Episodes
+row shows that a request is pending.
+
+### FLAG-083 — The planned admission path has never been walked in a browser
+**Severity:** P2 (process) · **Area:** Doctor → Nurse / Admission requests · **Owner:** @Bastoh · **Status:** 🟡 **OPEN**
+**Found:** 2026-10-12, writing HCL/CHK/2026-003
+
+Engineering's walkthrough (HCL/CHK/2026-002, ten builds) covers emergency admission, discharge, duty,
+rota and the Unassigned list. It never touches the **ordered** path: Episodes → **Request admission**
+(doctor) → **Admission Requests** → **Accept & admit** / **Decline** (nurse). Those screens shipped in
+September and have unit tests only. FLAG-080, FLAG-081 and FLAG-082 were all found by reading that path,
+not by walking it, which suggests a walk would find more.
+
+The medical walkthrough (HCL/CHK/2026-003, scenario 1) now covers it, but it is labelled "not yet
+walked by engineering", so clinicians may be the first to hit a break.
+
+**Done when** a build covering the ordered path is added to HCL/CHK/2026-002 and walked on dev, ideally
+before the medical team reaches scenario 1.
+
 ### FLAG-207 — Dead `ORG_ADMIN_STAFF_MEMBER` endpoint constant, removed
 **Severity:** P3 · **Area:** Backend contract · **Owner:** @Qeeyat · **Status:** ✅ **FIXED — #78, merged 2026-08-19**
 **Found:** 2026-08-17, building D2 Org Admin, verified against the live schema
