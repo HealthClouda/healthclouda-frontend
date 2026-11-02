@@ -60,6 +60,41 @@ written down, the rest of the team does not know it happened.
 
 ## Session Log
 
+### 2026-11-02 — Week 4 day 0: #205 fix, review queue, FLAG-063 ask (branches: `feat/w2-k1-org-detail`, this one)
+
+**Goal:** w4-k1 (#205 fix), then the w4-k2 review queue. I didn't work week 3; all six of its tasks
+were carried into week 4 (k1 to k6), nothing dropped.
+
+**What I did:**
+- **w4-k1, #205:** after Suspend/Activate/Verify the detail view's Staff table now re-reads (a counter
+  in `OrgsPage`, watched by `OrgDetailView`). The Suspend dialog now says every staff member is
+  deactivated. Test written first and seen RED (tile updated, table still "Active"). Rebased onto
+  `develop` after #204; commit `76589d7`. Comment on #205 + re-review requested from @Bastoh.
+- **Reviews written for #200, #202, #203, #207, #211, #212.** Not posted by the assistant:
+  `.claude/settings.json` denies `gh pr review` to agents, so I post them by hand.
+  - #200 comment: `step: 0.1` still blocks 3.25 kg / 0.85 kg / 36.65 °C (`stepMismatch`), suggest `step: 'any'`.
+  - #202 approve (types checked against backend `SystemHealthView`; proxy passes the 503 body).
+  - #203 approve (encode the `mailto:`; the schema's `search` on contact-list is phantom, no `search_fields`).
+  - #207 request changes: content concern raised **privately with @Bastoh**, not written here.
+  - #211 request changes: the eight OPEN flags are inserted inside `## Resolved flags`.
+  - #212 approve: ruleset 11328360 **does** now require the three checks (API, 2 Nov); stale docs
+    (`CLAUDE.md` §3, `ARCHITECTURE.md:276`, `BETA_READINESS.md:330`, two Cross-Lane rows) to update.
+- **Cross-Lane row** for @Bastoh: decide FLAG-063. #174 waits on it; no outcome recorded since the
+  22 Oct stand-up item.
+
+**Dead ends / confusion:**
+- My local `feat/w2-k1-org-detail` was a stale pre-rebase copy (still had the claim-row commit). Kept
+  as `backup/w2-k1-org-detail-pre-rebase`; safe to delete.
+
+**Verified:** #205 branch: tsc clean · lint clean · 603/603 · build green; CI green on `76589d7`.
+Live `api-dev` schema read 2 Nov (vitals, health, contact).
+
+**Left undone / next:**
+- [ ] Post the saved reviews (#200, #202, #203, #211, #212); #207 after talking to @Bastoh.
+- [ ] FLAG-063 with @Bastoh (bring the private notes), then a verdict on #174.
+- [ ] **Next: w4-k3** Reset password button (FLAG-252), `POST /auth/users/{id}/send-password-reset/`, live on dev.
+- [ ] w4-k4, k5, k6, k7.
+
 ### 2026-10-22 / 24 — Week 2: loader (#201), users filters + detail (#204), org detail (#205); reset password held back (branches: feat/w2-k3-brand-loader, feat/w2-k2-users-filters-detail, feat/w2-k1-org-detail)
 
 **Goal:** clear my review queue, then my Week 2 list (w2-k1, k2, k3).
