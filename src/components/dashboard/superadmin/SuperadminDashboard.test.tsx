@@ -292,6 +292,37 @@ describe('Superadmin — organisation detail view (w2-k1)', () => {
     await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith('/superadmin/organizations/org-1/suspend/', 'POST', undefined));
     await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith('/org/org-1/'));
   });
+
+  // Found in @Bastoh's browser pass on #205: after Suspend the tile said 0 staff
+  // but the Staff table still listed everyone as Active, because only the org
+  // was re-read. Suspending an org deactivates all of its staff (backend), so
+  // the table must re-read too.
+  it('re-reads the Staff table after Suspend, so it matches the tile', async () => {
+    await openOrgDetail();
+    const staffRow = () => within(screen.getByRole('region', { name: 'Staff' })).getByText('Amara Nwosu').closest('tr') as HTMLElement;
+    await waitFor(() => expect(staffRow()).toHaveTextContent(/active/i));
+
+    // From here on the backend reports the suspended state.
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path === '/org/org-1/') return { ...orgDetail, is_active: false, total_staff: 0, staff_by_role: {} };
+      if (path.startsWith('/org/')) return { ...orgsEnvelope, results: [{ ...activeOrg, is_active: false }] };
+      if (path.startsWith('/auth/users/')) {
+        return { ...usersEnvelope, results: usersEnvelope.results.map((u) => ({ ...u, is_active: false })) };
+      }
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspend' }));
+
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Staff by role' })).toHaveTextContent(/no active staff/i));
+    await waitFor(() => expect(staffRow()).toHaveTextContent(/inactive/i));
+  });
+
+  it('the Suspend confirmation says the staff will be deactivated', async () => {
+    await openOrgDetail();
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent(/every staff member at this organisation will be deactivated/i);
+  });
 });
 
 function cleanupAndRenderWith(detail: Record<string, unknown>) {

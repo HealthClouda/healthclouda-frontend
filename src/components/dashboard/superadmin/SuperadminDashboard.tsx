@@ -242,9 +242,11 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
  * Edits and status actions stay in OrgsPage, which owns the panel and dialog.
  */
 function OrgDetailView({
-  detail, onBack, onEdit, onAction,
+  detail, staffVersion, onBack, onEdit, onAction,
 }: {
   detail: ApiState<OrganizationDetail>;
+  /** Goes up after a status action, so the Staff table re-reads (suspending an org deactivates its staff). */
+  staffVersion: number;
   onBack: () => void;
   onEdit: (org: OrganizationDetail) => void;
   onAction: (org: OrganizationDetail, action: 'suspend' | 'activate' | 'verify') => void;
@@ -257,6 +259,13 @@ function OrgDetailView({
   useEffect(() => { if (loaded) heading.current?.focus(); }, [loaded]);
 
   const staff = usePaginatedList<StaffMember>(org ? `${ENDPOINTS.SA_USERS}?organization=${encodeURIComponent(org.id)}` : null);
+  const { refetch: refetchStaff } = staff;
+  const seenStaffVersion = useRef(staffVersion);
+  useEffect(() => {
+    if (staffVersion === seenStaffVersion.current) return;
+    seenStaffVersion.current = staffVersion;
+    refetchStaff();
+  }, [staffVersion, refetchStaff]);
 
   const back = (
     <button type="button" onClick={onBack} className="text-[13px] font-semibold text-primary hover:underline">
@@ -420,6 +429,7 @@ function OrgsPage() {
   // w2-k1: "View" opens the detail view in place of the table.
   const [viewingId, setViewingId] = useState<string | null>(null);
   const orgDetail = useApi<OrganizationDetail>(viewingId ? ENDPOINTS.SA_ORG(viewingId) : null);
+  const [staffVersion, setStaffVersion] = useState(0);
 
   function openAdd() {
     setForm(EMPTY_ORG_FORM);
@@ -508,7 +518,10 @@ function OrgsPage() {
       await apiAction(path, 'POST');
       toast.success(`Organisation ${confirm.action}d successfully`);
       refetch();
-      if (viewingId) orgDetail.refetch();
+      if (viewingId) {
+        orgDetail.refetch();
+        setStaffVersion((v) => v + 1);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Action failed');
     } finally {
@@ -550,6 +563,7 @@ function OrgsPage() {
       {viewingId ? (
         <OrgDetailView
           detail={orgDetail}
+          staffVersion={staffVersion}
           onBack={() => setViewingId(null)}
           onEdit={(org) => void openEdit(org)}
           onAction={(org, action) => setConfirm({ org, action })}
@@ -650,7 +664,9 @@ function OrgsPage() {
         onConfirm={runAction}
         loading={working}
         title={`${confirm?.action === 'verify' ? 'Verify' : confirm?.action === 'suspend' ? 'Suspend' : 'Activate'} Organisation`}
-        description={`Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
+        description={confirm?.action === 'suspend'
+          ? `Are you sure you want to suspend "${confirm.org.name}"? Every staff member at this organisation will be deactivated and can't sign in until it is activated again.`
+          : `Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
         confirmLabel={confirm?.action === 'suspend' ? 'Suspend' : confirm?.action === 'activate' ? 'Activate' : 'Verify'}
         confirmVariant={confirm?.action === 'suspend' ? 'danger' : 'primary'}
       />
