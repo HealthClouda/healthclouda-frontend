@@ -75,7 +75,7 @@ were carried into week 4 (k1 to k6), nothing dropped.
   - #200 comment: `step: 0.1` still blocks 3.25 kg / 0.85 kg / 36.65 °C (`stepMismatch`), suggest `step: 'any'`.
   - #202 approve (types checked against backend `SystemHealthView`; proxy passes the 503 body).
   - #203 approve (encode the `mailto:`; the schema's `search` on contact-list is phantom, no `search_fields`).
-  - #207 request changes: content concern raised **privately with @Bastoh**, not written here.
+  - #207 request changes: a content concern, to raise **privately with @Bastoh** first; deliberately not written here.
   - #211 request changes: the eight OPEN flags are inserted inside `## Resolved flags`.
   - #212 approve: ruleset 11328360 **does** now require the three checks (API, 2 Nov); stale docs
     (`CLAUDE.md` §3, `ARCHITECTURE.md:276`, `BETA_READINESS.md:330`, two Cross-Lane rows) to update.
