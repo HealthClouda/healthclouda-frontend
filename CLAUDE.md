@@ -253,11 +253,24 @@ As the board owner, @Bastoh's assistant is the one that can always read and writ
 exceptions to rule 4.
 
 - **Monday, when the week is set up:** after writing the week's `weeks` and `tasks` docs to the board,
-  regenerate **`docs/standup/current-week.md` in both repos** from the board (same content in each,
-  **with each task's current status and the snapshot date**) and open the usual docs PR. Without it, the other devs' assistants have nothing to read.
+  write **`docs/standup/current-week.md` in both repos** from the board (**with each task's current status
+  and the snapshot date**), as **two PRs with their own merge rules**: backend self-merges after review,
+  frontend needs @Qeeyat. Without them, the other devs' assistants have nothing to read.
+  ⚠️ **The two copies are NOT the same file. The frontend copy is public.** The backend copy is the board
+  in full. In the frontend copy:
+  - every **backend** row is `| id | short title (+ issue number) | hours | status |`, nothing else;
+  - the **week header** (theme, "done by Friday when") is reworded the same way;
+  - **any row, either repo**, about a security issue **not yet live on `staging`** carries no file
+    paths, line numbers or what the bug lets someone do (a fix on `develop` is not a fix on `staging`).
+  **Before pushing, run both checks and show the output** (proven 2026-11-03: they flag the full copy, pass the redacted one):
+  `grep -E '^\| w[0-9]+-e' <file> | grep -vcE '^\| w[0-9]+-e[0-9]+ \| [^|*]{1,70} \| [0-9.]+ \| [a-z]+ \|$'` must print **0**;
+  `grep -nE '[A-Za-z_/]+\.(py|tsx?|jsx?)\b|\.(py|tsx?|jsx?):[0-9]+|throttl|takeover|bypass|platform-wide|leak' <file>` is a backstop: explain every hit.
+  Then read the file whole. **The PR title, body and commit message are public too:** same rule.
 - **Friday, before stand-up:** for **every** dev's task with `status = review` and a `pr` number, check the
   PR on GitHub; merged into `develop` → set `done` (with `if_version`). Change nothing else on another
   dev's task. This keeps the board right for the devs who tick by hand.
+
+🔒 **No detail of a security issue not yet live on `staging`, in any public frontend artifact** (see Monday above).
 
 🔒 **No patient data, credentials or demo logins on the board.** This repo is public and carries the
 board link; access control protects the board, but the rule is set before anyone is tempted.
