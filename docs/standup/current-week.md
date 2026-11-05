@@ -31,9 +31,9 @@ queue. **Next: org admin, with billing** (spec waits on the owner's pricing mode
 | w4-b1 | Browser re-review + merge of #205; review Qeeyat's #206 (carried) | 1 | todo |
 | w4-b2 | As Qeeyat approves: rebase #202/#203, merge, check each on dev | 1.5 | todo |
 | w4-b3 | Post-merge reviews of Eric's e1 to e7 + the Railway approvals | 2 | todo |
-| w4-b4 | Decisions (carried): Records screen, facility types, FLAG-063 (#174), `license_number` | 1 | todo |
+| w4-b4 | Decisions: Records screen, facility types, #174, license number | 1 | todo |
 | w4-b5 | Decide and build the superadmin Records screen (frontend) | 3 | todo |
-| w4-b6 | Plan the staging promotion: date, parity checklist, Railway worker step | 1.5 | todo |
+| w4-b6 | Plan staging promotion: date, parity checklist, Railway worker step | 1.5 | todo |
 | w4-b7 | Week-4 board + this file in both repos | 0.25 | review |
 
 ## @Ericmoore207 (`eric`) · backend

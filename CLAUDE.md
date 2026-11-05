@@ -235,8 +235,9 @@ The team meets **Monday** (assign the week) and **Friday** (review it). Each per
    **`docs/standup/current-week.md`** instead, tell the dev their open tasks from it, and remind them to
    tick the board by hand in the browser. **First check the week's dates in the file against today:**
    if today is outside them, say it is last week's copy and that the new one has not reached `develop`
-   yet (the Monday PR still needs the other dev's approval). Never treat an unreadable board as an empty
-   one, and never write ticks into that file: it is a snapshot, not the board.
+   yet (the backend copy waits on @Bastoh's own review and merge; the frontend copy needs @Qeeyat's
+   approval). Never treat an unreadable board as an empty one, and never write ticks into that file:
+   it is a snapshot, not the board.
 
 ### Why some devs' assistants cannot read the board (2026-10-14)
 
@@ -258,14 +259,30 @@ exceptions to rule 4.
   frontend needs @Qeeyat. Without them, the other devs' assistants have nothing to read.
   ⚠️ **The two copies are NOT the same file. The frontend copy is public.** The backend copy is the board
   in full. In the frontend copy:
-  - every **backend** row is `| id | short title (+ issue number) | hours | status |`, nothing else;
-  - the **week header** (theme, "done by Friday when") is reworded the same way;
+  - every **backend-lane** row (`-e` and `-b` ids) is `| id | short title (+ backend #NNN) | hours | status |`,
+    nothing else. Write backend issues as **`backend #NNN`**: in the frontend repo a bare `#NNN` links
+    to the frontend's own issue of that number;
+  - the **week header** (theme, and each "done by Friday when" bullet) names the area + issue number
+    only for backend work, e.g. `Referral access gaps closed (backend #NNN)`;
   - **any row, either repo**, about a security issue **not yet live on `staging`** carries no file
-    paths, line numbers or what the bug lets someone do (a fix on `develop` is not a fix on `staging`).
-  **Before pushing, run both checks and show the output** (proven 2026-11-03: they flag the full copy, pass the redacted one):
-  `grep -E '^\| w[0-9]+-e' <file> | grep -vcE '^\| w[0-9]+-e[0-9]+ \| [^|*]{1,70} \| [0-9.]+ \| [a-z]+ \|$'` must print **0**;
-  `grep -nE '[A-Za-z_/]+\.(py|tsx?|jsx?)\b|\.(py|tsx?|jsx?):[0-9]+|throttl|takeover|bypass|platform-wide|leak' <file>` is a backstop: explain every hit.
-  Then read the file whole. **The PR title, body and commit message are public too:** same rule.
+    paths, line numbers, endpoints or what the bug lets someone do (a fix on `develop` is not a fix on
+    `staging`). Its public title names only the **area and the issue**, e.g. `Ward export fix (backend #NNN)`:
+    a short title can still describe the bug.
+  **Before pushing, run the tripwires and show the output.** They catch common slips, not every leak: a
+  short plain title that describes the bug passes them all.
+  With `` SHAPE='^ *\| *w[0-9]+-[be][0-9]+ *\| [^|*`]{1,70} \| [0-9.]+ \| [a-z]+ \|$' ``:
+  1. **Positive control first:** `` printf '%s\n' '| W9-E9 | **bad** row in `a.py:1` | 1 | todo |' | grep -vicE "$SHAPE" ``
+     must print **1**. If it prints 0 the check is broken; fix it, don't trust its 0 below.
+  2. `grep -iE '^ *\|[^|]*w[0-9]+-[be][0-9]' <file> | grep -vicE "$SHAPE"` must print **0** (read the
+     number: `grep -c` exits 1 on a clean file, so never chain it with `&&` or `set -e`).
+  3. Backstop, explain every hit: `sed -E 's#https?://claude\.ai/artifact/[A-Za-z0-9_-]+##g' <file> | grep -inE '[A-Za-z0-9_/]+\.(py|tsx?|jsx?|md|ya?ml|toml)\b|:[0-9]+\b|/[a-z0-9_{}-]+/|throttl|takeover|bypass|platform-wide|leak'`
+     (strip the board link, don't drop its line: anything else on that line must still be seen).
+  **The guard is reading the whole file**: header, "done by Friday when" list and every row, asking of
+  each line *"does this tell a stranger what an unfixed bug lets them do?"* **The PR title, body and
+  commit message are public too:** same rule. Closing a public PR does **not** remove its diff from
+  the PR page, so a leak is caught before the push or not at all.
+  🔁 **This section has a twin in the backend `CLAUDE.md`: change both in the same session.** Its
+  examples are deliberately made up; never illustrate it with a real open bug: this repo is public.
 - **Friday, before stand-up:** for **every** dev's task with `status = review` and a `pr` number, check the
   PR on GitHub; merged into `develop` → set `done` (with `if_version`). Change nothing else on another
   dev's task. This keeps the board right for the devs who tick by hand.
