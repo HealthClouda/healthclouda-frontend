@@ -39,7 +39,7 @@ export interface SuperadminStats {
   orgs_trend_up?: boolean | null;
 }
 
-// GET /superadmin/health/ — backend #294 (apps/core/health.py). Answers 503 with
+// GET /superadmin/health/ — backend #294. Answers 503 with
 // this same body when any service errors, so read it from ClientApiError.data too.
 export interface ServiceCheck {
   status: 'ok' | 'error' | 'not_configured';

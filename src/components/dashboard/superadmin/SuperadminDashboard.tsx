@@ -215,6 +215,14 @@ const SERVICE_BADGE: Record<ServiceCheck['status'], { status: string; label: str
   not_configured: { status: 'CLOSED', label: 'Not configured' },
 };
 
+// A status outside the three above (an older shape, or a new one like 'degraded')
+// must not reach StatusBadge as undefined: that throws during render and takes the
+// whole overview down, which is what the card exists to avoid.
+const UNKNOWN_BADGE = { status: 'UNKNOWN', label: 'Unknown' };
+function badgeFor(status: string) {
+  return (SERVICE_BADGE as Record<string, { status: string; label: string }>)[status] ?? UNKNOWN_BADGE;
+}
+
 // Not useApi: it keeps only the error message, and a 503 here carries the
 // per-service report the card exists to show (backend #294).
 function SystemHealthCard() {
@@ -266,7 +274,9 @@ function SystemHealthCard() {
                   <span className="text-[13px] font-semibold text-ink">{label}</span>
                   <span className="flex items-center gap-2">
                     {service?.error && <span className="text-xs text-danger">{service.error}</span>}
-                    {service ? <StatusBadge {...SERVICE_BADGE[service.status]} /> : <span className="text-xs text-text-soft">…</span>}
+                    {service
+                      ? <StatusBadge {...badgeFor(service.status)} />
+                      : <span className="text-xs text-text-soft">{health ? 'Not reported' : '…'}</span>}
                   </span>
                 </li>
               );

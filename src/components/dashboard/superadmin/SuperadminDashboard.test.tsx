@@ -121,9 +121,9 @@ describe('Superadmin — Overview', () => {
   });
 });
 
-// GET /superadmin/health/ — shape from backend #294 (apps/core/health.py +
-// SystemHealthView; source, not a live capture: Railway builds were paused, so
-// #294 wasn't deployed yet). It answers 503 WITH this same body when any service errors.
+// GET /superadmin/health/ — shape from backend #294 (read from its source, not a
+// live capture: Railway builds were paused, so #294 wasn't deployed yet). It
+// answers 503 WITH this same body when any service errors.
 const healthy = {
   status: 'healthy', timestamp: '2026-10-22T19:00:00Z',
   services: {
@@ -207,6 +207,30 @@ describe('Superadmin — Overview: System Health card (b5)', () => {
     const card = await screen.findByRole('region', { name: 'System Health' });
     expect(await within(card).findByRole('alert')).toHaveTextContent(/could not get a health report/i);
     expect(await screen.findByText('Demo Clinic')).toBeInTheDocument();
+  });
+
+  // A status this card doesn't know (an older shape, or a new one like 'degraded')
+  // used to reach StatusBadge as undefined and crash the whole overview.
+  it('shows an unknown service status as "Unknown" without breaking the overview', async () => {
+    withHealth({ ...healthy, services: { ...healthy.services, worker: { status: 'degraded' } } });
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    await waitFor(() => expect(within(card).getByText('Unknown')).toBeInTheDocument());
+    expect(within(card).getAllByText('OK')).toHaveLength(3);
+    expect(await screen.findByText('Demo Clinic')).toBeInTheDocument();
+  });
+
+  // Once a report has arrived, a service it leaves out is "Not reported", not the
+  // loading ellipsis: "…" forever reads as still checking.
+  it('shows a service missing from the report as "Not reported", not as still loading', async () => {
+    const { worker: _omitted, ...withoutWorker } = healthy.services;
+    withHealth({ ...healthy, services: withoutWorker });
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+
+    const card = await screen.findByRole('region', { name: 'System Health' });
+    await waitFor(() => expect(within(card).getByText('Not reported')).toBeInTheDocument());
+    expect(within(card).queryByText('…')).not.toBeInTheDocument();
   });
 });
 
