@@ -310,15 +310,6 @@ const EMPTY_ORG_FORM: OrganizationInput = {
 
 // ─── Organisation detail view (stand-up w2-k1) ───────────────────
 
-function OrgFact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
-      <dt className="text-text-soft">{label}</dt>
-      <dd className="text-right font-medium text-ink">{children}</dd>
-    </div>
-  );
-}
-
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   const id = useId();
   return (
@@ -422,13 +413,13 @@ function OrgDetailView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DetailSection title="Details">
           <dl className="divide-y divide-row-hairline text-[13px]">
-            <OrgFact label="Email">{org.email}</OrgFact>
-            <OrgFact label="Phone">{org.phone || '–'}</OrgFact>
-            <OrgFact label="Address">{org.address}</OrgFact>
-            <OrgFact label="City / State">{org.city}, {org.state}</OrgFact>
-            <OrgFact label="Country">{org.country_name}</OrgFact>
-            <OrgFact label="Licence number">{org.license_number || '–'}</OrgFact>
-            <OrgFact label="On HealthClouda since">{formatDate(org.created_at)}</OrgFact>
+            <Fact label="Email">{org.email}</Fact>
+            <Fact label="Phone">{org.phone || '–'}</Fact>
+            <Fact label="Address">{org.address}</Fact>
+            <Fact label="City / State">{org.city}, {org.state}</Fact>
+            <Fact label="Country">{org.country_name}</Fact>
+            <Fact label="Licence number">{org.license_number || '–'}</Fact>
+            <Fact label="On HealthClouda since">{formatDate(org.created_at)}</Fact>
           </dl>
         </DetailSection>
 
@@ -772,7 +763,7 @@ function OrgsPage() {
 
 const EMPTY_USER_FORM: UserCreateInput = { email: '', first_name: '', last_name: '', role: '', phone: '', organization: '' };
 
-function UserFact({ label, children }: { label: string; children: React.ReactNode }) {
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <dt className="text-text-soft">{label}</dt>
@@ -1029,26 +1020,26 @@ function UsersPage() {
           <div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading user details…</div>
         ) : (
           <dl className="divide-y divide-row-hairline text-[13px]">
-            <UserFact label="Email">{detail.data.email}</UserFact>
-            <UserFact label="Phone">{detail.data.phone || '–'}</UserFact>
-            <UserFact label="Role">{roleLabel(detail.data.role)}</UserFact>
-            <UserFact label="Organisation">
+            <Fact label="Email">{detail.data.email}</Fact>
+            <Fact label="Phone">{detail.data.phone || '–'}</Fact>
+            <Fact label="Role">{roleLabel(detail.data.role)}</Fact>
+            <Fact label="Organisation">
               {detail.data.organization ? (
                 <>
                   {detail.data.organization.name}
                   <span className="block text-[11px] text-text-soft">{detail.data.organization.org_id}</span>
                 </>
               ) : 'None (platform account)'}
-            </UserFact>
-            <UserFact label="Status">
+            </Fact>
+            <Fact label="Status">
               {detail.data.last_login == null
                 ? <StatusBadge status="PENDING" label="Invite pending" />
                 : <StatusBadge status={detail.data.is_active ? 'ACTIVE' : 'INACTIVE'} />}
-            </UserFact>
-            <UserFact label="Joined">{formatDate(detail.data.date_joined)}</UserFact>
-            <UserFact label="Last sign-in">{detail.data.last_login ? formatDateTime(detail.data.last_login) : 'Never'}</UserFact>
-            <UserFact label="Password last changed">{detail.data.password_changed_at ? formatDateTime(detail.data.password_changed_at) : 'Never'}</UserFact>
-            <UserFact label="Must change password at next sign-in">{detail.data.force_password_change ? 'Yes' : 'No'}</UserFact>
+            </Fact>
+            <Fact label="Joined">{formatDate(detail.data.date_joined)}</Fact>
+            <Fact label="Last sign-in">{detail.data.last_login ? formatDateTime(detail.data.last_login) : 'Never'}</Fact>
+            <Fact label="Password last changed">{detail.data.password_changed_at ? formatDateTime(detail.data.password_changed_at) : 'Never'}</Fact>
+            <Fact label="Must change password at next sign-in">{detail.data.force_password_change ? 'Yes' : 'No'}</Fact>
           </dl>
         )}
       </SlidePanel>
