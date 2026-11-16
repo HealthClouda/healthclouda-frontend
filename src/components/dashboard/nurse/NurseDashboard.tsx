@@ -328,16 +328,21 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
 
 // ─── Vitals page ──────────────────────────────────────────────────
 
-// Backend validation bounds — probed live 2026-07-11 (400 {error} outside).
+// FLAG-075: no min/max here. The limits live only in the backend (FLAG-310), and
+// the advisor ruled no reading may be refused clinically; its 400 shows in formError.
+// step "any" on the float fields: a step is a submit rule too (3.25 kg, 36.65 °C).
+// min 0 on the whole-number fields is not a clinical limit (nothing reads below 0 and
+// the backend refuses it): without a min the browser counts steps from the value
+// attribute React rewrites on blur, so step 1 could pass 97.5 and then refuse 97.
 const VITAL_FIELDS = [
-  { key: 'temperature',              label: 'Temperature (°C)',       min: 30,  max: 45,  step: 0.1 },
-  { key: 'blood_pressure_systolic',  label: 'Systolic (mmHg)',        min: 50,  max: 300, step: 1 },
-  { key: 'blood_pressure_diastolic', label: 'Diastolic (mmHg)',       min: 20,  max: 200, step: 1 },
-  { key: 'pulse_rate',               label: 'Pulse rate (bpm)',       min: 20,  max: 250, step: 1 },
-  { key: 'respiratory_rate',         label: 'Resp. rate (per min)',   min: 5,   max: 60,  step: 1 },
-  { key: 'oxygen_saturation',        label: 'SpO2 (%)',               min: 50,  max: 100, step: 1 },
-  { key: 'weight',                   label: 'Weight (kg)',            min: 0.5, max: 500, step: 0.1 },
-  { key: 'height',                   label: 'Height (cm)',            min: 20,  max: 300, step: 0.1 },
+  { key: 'temperature',              label: 'Temperature (°C)',       step: 'any' },
+  { key: 'blood_pressure_systolic',  label: 'Systolic (mmHg)',        step: 1, min: 0 },
+  { key: 'blood_pressure_diastolic', label: 'Diastolic (mmHg)',       step: 1, min: 0 },
+  { key: 'pulse_rate',               label: 'Pulse rate (bpm)',       step: 1, min: 0 },
+  { key: 'respiratory_rate',         label: 'Resp. rate (per min)',   step: 1, min: 0 },
+  { key: 'oxygen_saturation',        label: 'SpO2 (%)',               step: 1, min: 0 },
+  { key: 'weight',                   label: 'Weight (kg)',            step: 'any' },
+  { key: 'height',                   label: 'Height (cm)',            step: 'any' },
 ] as const;
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -424,9 +429,8 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
             <input
               id={`vital-${f.key}`}
               type="number"
-              min={f.min}
-              max={f.max}
               step={f.step}
+              min={'min' in f ? f.min : undefined}
               value={values[f.key] ?? ''}
               onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
               className={formInputClass}

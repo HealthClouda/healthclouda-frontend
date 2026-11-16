@@ -329,6 +329,61 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     expect(await screen.findByText(/at least one/i)).toBeInTheDocument();
   });
 
+  // FLAG-075: the form kept its own July copy of the limits as input min/max,
+  // so the browser refused to submit readings the backend records. jsdom does
+  // not block submission on invalid inputs, so ask the question the browser
+  // asks before submitting: checkValidity().
+  it('lets the browser submit extreme readings a nurse must be able to chart (28 °C, SpO2 45, pulse 260)', async () => {
+    await openVitalsForPatient();
+    await screen.findByText(/108\s*\/\s*93/);
+
+    const readings: Array<[RegExp, string]> = [
+      [/temperature/i, '28'], // severe hypothermia
+      [/spo2/i, '45'],        // peri-arrest saturation
+      [/pulse rate/i, '260'], // SVT
+    ];
+    for (const [label, value] of readings) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      fireEvent.change(input, { target: { value } });
+      expect(input.checkValidity(), `${label} = ${value} is blocked by the form`).toBe(true);
+    }
+    const form = screen.getByRole('button', { name: /record reading/i }).closest('form')!;
+    expect(form.checkValidity()).toBe(true);
+  });
+
+  // FLAG-075 review (Qeeyat, 2 Nov): `step: 0.1` is a submit rule too, so the
+  // browser can refuse a newborn's 3.25 kg or a 36.65 °C reading. The backend
+  // stores temperature, weight and height as plain floats: no rounding rule.
+  //
+  // Why this asserts the rendered `step` instead of calling checkValidity():
+  // React copies a controlled input's value into its `value` attribute, and the
+  // browser counts steps from that attribute when there is no `min`. In jsdom
+  // that makes every typed value "on step", so a checkValidity() test for step
+  // can never fail here (measured 16 Nov: a fractional pulse with step 1 passed).
+  it('puts no rounding rule on temperature, weight and height (step "any")', async () => {
+    await openVitalsForPatient();
+    await screen.findByText(/108\s*\/\s*93/);
+    for (const label of [/temperature/i, /weight/i, /height/i]) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      expect(input.getAttribute('step'), `${label} has a rounding rule`).toBe('any');
+    }
+  });
+
+  // Whole-number fields: with min 0 the browser counts steps from 0, not from
+  // the value attribute React rewrites, so this checkValidity() CAN fail
+  // (it did, before min was added: 97.5 passed). Both directions are pinned.
+  it('refuses a fractional reading on whole-number fields and accepts a whole one', async () => {
+    await openVitalsForPatient();
+    await screen.findByText(/108\s*\/\s*93/);
+    for (const label of [/systolic/i, /diastolic/i, /pulse rate/i, /resp\. rate/i, /spo2/i]) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      fireEvent.change(input, { target: { value: '97.5' } });
+      expect(input.checkValidity(), `${label} accepted 97.5`).toBe(false);
+      fireEvent.change(input, { target: { value: '97' } });
+      expect(input.checkValidity(), `${label} refused 97`).toBe(true);
+    }
+  });
+
   it('surfaces backend 400 validation messages on the form', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
     dataActionMock.mockRejectedValue(
