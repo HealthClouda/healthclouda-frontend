@@ -1819,6 +1819,9 @@ backend yet. #174's panel tells the admin the change applies at every hospital t
 The frontend deliberately does not try to decide which records are shared: that would be a
 client-side trust decision (CLAUDE.md §6 lens 1).
 
+**Decision (@Bastoh, 16 Nov):** for beta, #174's warning plus an explicit consent tick is enough;
+#174 merged with both. The "Done when" below is unchanged and is scheduled for the org-admin week.
+
 **Done when** identity edits by an org admin are refused or escalated on the server for a record
 another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
 cross-hospital edits are intended.
