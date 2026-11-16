@@ -339,9 +339,10 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
   const { toast } = useToast();
   const { data: detail, loading, error } =
     useApi<PatientIdentity>(patient ? ENDPOINTS.PATIENT(patient.id) : null);
-  const original: IdentityForm | null = detail
-    ? { first_name: detail.first_name, last_name: detail.last_name, date_of_birth: detail.date_of_birth ?? '', gender: detail.gender ?? '' }
-    : null;
+  // The baseline is frozen when the form is prefilled (review of #174): useApi
+  // refetches in the background, and diffing against a fresher record would
+  // send the old values back over someone else's correction.
+  const [original, setOriginal] = useState<IdentityForm | null>(null);
   const [form, setForm] = useState<IdentityForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -349,7 +350,14 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
   // admin confirms it here; the panel remounts per patient, so it never carries over.
   const [consented, setConsented] = useState(false);
   // Prefill once the record arrives (during render, not in an effect).
-  if (original && !form) setForm(original);
+  if (detail && !original) {
+    const snapshot: IdentityForm = {
+      first_name: detail.first_name.trim(), last_name: detail.last_name.trim(),
+      date_of_birth: detail.date_of_birth ?? '', gender: detail.gender ?? '',
+    };
+    setOriginal(snapshot);
+    setForm(snapshot);
+  }
 
   // Local date, not UTC (review of #174): in Lagos (UTC+1) toISOString() is
   // still yesterday between 00:00 and 01:00, which refused a birth today.
@@ -406,10 +414,10 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
       {form && (
         <>
           <FormField label="First name *">
-            <input className={formInputClass} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+            <input className={formInputClass} maxLength={100} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
           </FormField>
           <FormField label="Last name *">
-            <input className={formInputClass} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+            <input className={formInputClass} maxLength={100} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
           </FormField>
           <FormField label="Date of birth">
             <input type="date" max={today} className={formInputClass} value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />

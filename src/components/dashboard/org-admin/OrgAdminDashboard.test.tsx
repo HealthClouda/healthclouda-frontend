@@ -361,9 +361,37 @@ describe('FLAG-058 — org admin corrects a patient\'s name, date of birth and s
     expect(body).toEqual({ first_name: 'Musa', gender: 'M' });
   });
 
+  // Consent is ticked first in these two, or Save is disabled by the missing
+  // tick and the test could not fail (review of #174).
   it('will not save a blank name', async () => {
     await openEdit();
+    fireEvent.click(screen.getByLabelText(/patient .*has agreed to this correction/i));
     fireEvent.change(screen.getByLabelText(/First name/), { target: { value: '  ' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: 'Musa' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+
+  it('will not save a date of birth in the future', async () => {
+    await openEdit();
+    fireEvent.click(screen.getByLabelText(/patient .*has agreed to this correction/i));
+    fireEvent.change(screen.getByLabelText(/Date of birth/), { target: { value: '2999-01-01' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Date of birth/), { target: { value: '1990-05-05' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+
+  it('does not count a stored trailing space as a change', async () => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org-admin/patients/')) return { count: 1, next: null, previous: null, results: [row] };
+      if (path.startsWith('/patients/p-9/')) return { ...detail, last_name: 'Probe ' };
+      return envelope;
+    });
+    render(<OrgAdminDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
+    fireEvent.click(await screen.findByRole('button', { name: `Edit details for ${row.full_name}` }));
+    await waitFor(() => expect(screen.getByLabelText(/Last name/)).toHaveValue('Probe'));
+    fireEvent.click(screen.getByLabelText(/patient .*has agreed to this correction/i));
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
