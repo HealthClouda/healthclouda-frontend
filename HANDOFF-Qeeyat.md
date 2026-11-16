@@ -367,10 +367,9 @@ queue (#165–#178). All 14 listed me as reviewer, and nothing of his could merg
   `/ward/admissions/`, and `/doctor/queue/` is 404 there (401 on dev). `develop` already relies on
   `mine` / `needs_doctor_review`. Nothing is exposed today (`staging` = 13 Sep, `beta.` NXDOMAIN), but
   the next promotion must wait for beta backend parity. Cross-Lane row for @Bastoh.
-- 🔴 **FLAG-063 is wider than its entry says.** I traced it in backend source and **wrote the detail
-  privately, not here, because this repo is public.** I'm talking it through with @Bastoh before
-  anything is filed, since the entry records his call not to raise it yet. **Until that's settled,
-  #174 stays unapproved.**
+- **FLAG-063:** I'm talking it through with @Bastoh before anything is filed, since the entry records
+  his call not to raise it yet. **Until that's settled, #174 stays unapproved.** *(Settled 16 Nov: see
+  FLAG-063 and backend #321. Line edited by @Bastoh, 16 Nov.)*
 - **FLAG-054 measured:** `api-beta` gives a clean JSON 404, and `api.healthclouda.com` doesn't exist yet.
   On #169.
 - **FLAG-248:** the two public landing forms have FLAG-057's bug class (PII, lower severity). Found
