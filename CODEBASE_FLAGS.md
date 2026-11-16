@@ -1808,8 +1808,7 @@ stops promising it.
 **Found:** 2026-09-30, building FLAG-058's edit screen (#174)
 
 A patient's identity details are one record shared by every hospital that holds the patient, so an
-org admin's edit applies everywhere, as #174's panel tells the admin. The detail lives in the backend
-repo (private).
+org admin's edit applies everywhere, as #174's panel tells the admin. Server side: **backend #321**.
 
 > ✏️ Trimmed 2026-11-16 by @Bastoh, because this repo is public.
 
@@ -1821,8 +1820,7 @@ client-side trust decision (CLAUDE.md §6 lens 1).
 **Decision (@Bastoh, 16 Nov):** for beta, #174's warning plus an explicit consent tick is enough;
 #174 merged with both. The "Done when" below is unchanged and is scheduled for the org-admin week.
 
-**Done when** identity edits by an org admin are refused or escalated on the server for a record
-another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
+**Done when** backend #321 lands and the panel shows its outcome, or the owner records that
 cross-hospital edits are intended.
 
 ### FLAG-064 — The audit-log "Record type" list is a hand-kept copy of backend code
@@ -3659,8 +3657,8 @@ role, with the capture date.
 > which is exactly how FLAG-231 was found.
 ---
 
-### FLAG-226 — `?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes
-**Severity:** P1 — **P0 if live capture shows unscoped results** · **Area:** Security / PHI ·
+### FLAG-226 — ~~`?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes~~ → ✅ RESOLVED, not a leak
+**Severity:** ~~P1, P0 if unscoped~~ none: the episode list is patient-scoped · **Area:** Security / PHI ·
 **Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-11-16 — not a leak** (see the resolution at the end)
 **Found:** 2026-08-30, same audit
 
@@ -3694,10 +3692,13 @@ changes nothing and destroys the evidence that prompted the check.
 whether the response is user-scoped — and if it is not, the page moves to a patient-scoped endpoint
 and a test asserts no foreign patient id appears in the rendered rows.
 
-**Resolution (@Bastoh, 2026-11-16): the first outcome.** Read in backend source on both `develop` and
-`staging`: for a patient, the episode list is always limited to that patient's own episodes, whatever
-the query string says. `?my=true` is ignored and harmless. **Settled from source, not a live capture**
-(the house rule accepts either). Left: deleting the dead `?my=true` is an optional tidy, not a fix.
+**Resolution (@Bastoh, 2026-11-16): the first outcome.** Backend source on both `develop` and `staging`
+limits a patient's episode list to their own episodes, whatever the query string says. **Live capture
+on api-dev, 16 Nov**, as a seeded patient (the only one on dev with a login and episodes), with and
+without `?my=true`: the returned episode ids were exactly the patient's own (0 foreign, 0 missing),
+while 49 other patients' episodes existed as the control. Run in a rolled-back transaction. Not
+captured on api-beta, which has no patients yet. Left: deleting the dead `?my=true` is an optional
+tidy, not a fix.
 
 
 ---
