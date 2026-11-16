@@ -617,7 +617,9 @@ function OrgsPage() {
         : confirm.action === 'activate' ? ENDPOINTS.SA_ORG_ACTIVATE(confirm.org.id)
         : ENDPOINTS.SA_ORG_VERIFY(confirm.org.id);
       await apiAction(path, 'POST');
-      toast.success(`Organisation ${confirm.action}d successfully`);
+      // Spelled out: `${action}d` read "suspendd" and "verifyd".
+      const done = { suspend: 'suspended', activate: 'activated', verify: 'verified' }[confirm.action];
+      toast.success(`Organisation ${done} successfully`);
       refetch();
       if (viewingId) {
         orgDetail.refetch();

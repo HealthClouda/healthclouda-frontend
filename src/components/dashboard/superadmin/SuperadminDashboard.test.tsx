@@ -433,6 +433,15 @@ describe('Superadmin — organisation detail view (w2-k1)', () => {
     await waitFor(() => expect(staffRow()).toHaveTextContent(/inactive/i));
   });
 
+  // Found in the browser walk of #205 (predates it): the toast was built as
+  // `${action}d`, so it read "suspendd" and "verifyd".
+  it('confirms in plain English: "Organisation suspended successfully"', async () => {
+    await openOrgDetail();
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspend' }));
+    expect(await screen.findByText('Organisation suspended successfully')).toBeInTheDocument();
+  });
+
   it('the Suspend confirmation says the staff will be deactivated', async () => {
     await openOrgDetail();
     fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
