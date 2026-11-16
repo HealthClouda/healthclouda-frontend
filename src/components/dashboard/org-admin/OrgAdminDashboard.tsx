@@ -345,6 +345,9 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
   const [form, setForm] = useState<IdentityForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Owner, 16 Nov: an identity correction needs the patient's consent. The
+  // admin confirms it here; the panel remounts per patient, so it never carries over.
+  const [consented, setConsented] = useState(false);
   // Prefill once the record arrives (during render, not in an effect).
   if (original && !form) setForm(original);
 
@@ -361,7 +364,7 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
   }
   const valid = !!form && form.first_name.trim() !== '' && form.last_name.trim() !== ''
     && (!form.date_of_birth || form.date_of_birth <= today);
-  const canSave = valid && Object.keys(changes).length > 0 && !saving;
+  const canSave = valid && consented && Object.keys(changes).length > 0 && !saving;
 
   async function save() {
     if (!patient || !canSave) return;
@@ -416,6 +419,17 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
               {SEX_OPTIONS.map((o) => <option key={o.value || 'none'} value={o.value}>{o.label}</option>)}
             </select>
           </FormField>
+          <label className="flex items-start gap-2 pt-1">
+            <input
+              type="checkbox"
+              checked={consented}
+              onChange={(e) => setConsented(e.target.checked)}
+              className="mt-0.5 rounded border-border text-primary focus:ring-primary/30"
+            />
+            <span className="text-xs text-text-soft">
+              The patient (or their guardian) has agreed to this correction.
+            </span>
+          </label>
           {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
         </>
       )}

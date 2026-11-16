@@ -352,6 +352,7 @@ describe('FLAG-058 — org admin corrects a patient\'s name, date of birth and s
     await openEdit();
     fireEvent.change(screen.getByLabelText(/First name/), { target: { value: 'Musa' } });
     fireEvent.change(screen.getByLabelText(/^Sex/), { target: { value: 'M' } });
+    fireEvent.click(screen.getByLabelText(/patient .*has agreed to this correction/i));
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(dataActionMock).toHaveBeenCalled());
     const [path, method, body] = dataActionMock.mock.calls[0];
@@ -371,8 +372,21 @@ describe('FLAG-058 — org admin corrects a patient\'s name, date of birth and s
     dataActionMock.mockRejectedValueOnce(new ClientApiError(400, { error: 'date_of_birth: Date of birth cannot be in the future.' }, 'date_of_birth: Date of birth cannot be in the future.'));
     await openEdit();
     fireEvent.change(screen.getByLabelText(/Last name/), { target: { value: 'Okoro' } });
+    fireEvent.click(screen.getByLabelText(/patient .*has agreed to this correction/i));
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/cannot be in the future/);
+  });
+
+  // Owner, 16 Nov: an identity correction needs the patient's consent. The
+  // admin confirms it before Save is offered; nothing is sent without it.
+  it('will not save until the admin confirms the patient agreed to the correction', async () => {
+    await openEdit();
+    fireEvent.change(screen.getByLabelText(/First name/), { target: { value: 'Musa' } });
+    const consent = screen.getByLabelText(/patient .*has agreed to this correction/i);
+    expect(consent).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.click(consent);
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   });
 
   it('says the change applies wherever the record is held', async () => {
