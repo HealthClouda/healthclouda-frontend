@@ -10,19 +10,20 @@ name: CI
 # 🔒 The three jobs below are REQUIRED status checks in ruleset 11328360 (since
 # 2026-10-29, FLAG-230), so a PR into main/staging/develop cannot merge until
 # they pass. Renaming a job's `name:` breaks that gate: update the ruleset too.
-# ⚠️ Exception (2026-11-16): the `merge-bypass` team (one member, @Bastoh) is a
-# PR-only bypass actor on that ruleset, and a bypass skips EVERY rule, these
-# checks included. For that one person the gate is discipline, not enforcement:
-# merge only on green.
+# ⚠️ Exception (2026-11-16, owner's decision): the ruleset has one PR-only
+# bypass actor. A bypass skips EVERY rule, these checks included, so for that
+# actor the gate is discipline, not enforcement: merge only on green.
 #
-# FLAG-230: `pull_request` runs on EVERY base branch, not just the protected
-# three. A PR stacked on another feature branch used to get no CI at all, and
-# a retarget onto develop does not re-trigger it, so #100 (the patient portal),
-# #117 and #119 reached develop never checked.
+# FLAG-230: CI runs on a PR whatever its base, not just the protected three.
+# A PR stacked on another feature branch used to get no CI at all, and #100
+# (the patient portal), #117 and #119 reached develop never checked. `edited`
+# is listed because a retarget (base change) fires it and nothing else: without
+# it a stacked child keeps its old green, which was tested against its parent.
+# A title or body edit also re-runs CI; that is the price.
 
 on:
   pull_request:
-    branches: ['**']
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [develop]
 

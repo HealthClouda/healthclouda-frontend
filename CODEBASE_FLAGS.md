@@ -1960,7 +1960,7 @@ with a regression test asserting the requested URL.
 ---
 
 ### FLAG-006 — Lint is dead and there is no CI
-**Severity:** P2 · **Area:** Tooling · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #116, merged 2026-09-01.** ESLint flat config, and CI runs lint, `tsc`, tests and build on every PR into `develop` (checked in `.github/workflows/ci.yml`, 2026-10-16). ⚠️ The ruleset does not *require* those checks: that is FLAG-230.
+**Severity:** P2 · **Area:** Tooling · **Owner:** @Bastoh · **Status:** ✅ **RESOLVED — #116, merged 2026-09-01.** ESLint flat config, and CI runs lint, `tsc`, tests and build on every PR into `develop` (checked in `.github/workflows/ci.yml`, 2026-10-16). Since 2026-10-29 the ruleset requires them (FLAG-230).
 **Found:** 2026-08-08
 
 `package.json` defines `"lint": "next lint"` and `eslint-config-next` is installed, but **no
@@ -3946,7 +3946,7 @@ That is its own PR, not a rider on the one that first rendered Nurse.
 ---
 
 ### FLAG-230 — Stacked PRs never run CI, and the repo's safe-merge pattern is exactly what stacks them
-**Severity:** P2 · **Area:** CI / process · **Owner:** @Bastoh (repo settings + workflow) · **Status:** ✅ **RESOLVED 2026-10-29 (w3-b6)**: `ci.yml` runs on `pull_request: branches: ['**']`, and the three jobs (`tsc + tests + build`, `Lint`, `Build fails loud without a tier URL`) are required status checks in ruleset 11328360. The third box was already met (`HANDOFF.md` stacking note, 4 Sep).
+**Severity:** P2 · **Area:** CI / process · **Owner:** @Bastoh (repo settings + workflow) · **Status:** ✅ **RESOLVED with #212 (w3-b6; settings 2026-10-29, workflow 2026-11-16)**: the three jobs (`tsc + tests + build`, `Lint`, `Build fails loud without a tier URL`) are required status checks in ruleset 11328360, and `ci.yml` runs on every PR whatever its base, **including on a retarget** (`edited`), so a stacked child is re-tested against `develop` instead of keeping its parent-based green. `HANDOFF.md`'s stacking note is corrected in the same PR. ⚠️ Two limits: stacks opened before #212 merged still carry the old trigger until rebased onto `develop`; and since 2026-11-16 the ruleset has one PR-only bypass actor, for whom the required checks are discipline, not enforcement.
 **Found:** 2026-09-04, opening #128 onto a stack parent and noticing it had no checks at all
 
 `ci.yml` triggers on `pull_request: branches: [develop, staging, main]`. **A PR whose base is
@@ -3982,12 +3982,12 @@ nothing notices the absence. A required check would at least have blocked on "Ex
 status to be reported".
 
 **Done when** — one of:
-- [ ] `ci.yml` also triggers on `pull_request: branches: ['**']` (simplest; runs CI on every PR
+- [x] `ci.yml` also triggers on `pull_request: branches: ['**']` (simplest; runs CI on every PR
       regardless of base), **or** adds `types: [opened, synchronize, reopened, edited]` so a
       retarget re-runs it. The first is the more honest fix — it checks the child *before* it is
       retargeted, not after.
-- [ ] Required status checks are added to the ruleset, so a PR with no checks cannot merge silently.
-- [ ] `HANDOFF.md`'s stacking guidance says out loud that a stacked child gets no CI until it is
+- [x] Required status checks are added to the ruleset, so a PR with no checks cannot merge silently.
+- [x] `HANDOFF.md`'s stacking guidance says out loud that a stacked child gets no CI until it is
       retargeted **and** pushed to.
 
 ---
