@@ -62,6 +62,10 @@ written down, the rest of the team does not know it happened.
 
 ### 2026-11-02 — Week 4 day 0: #205 fix, review queue, FLAG-063 ask (branches: `feat/w2-k1-org-detail`, this one)
 
+> ✏️ **Edited by @Bastoh, 16 Nov, before merge:** two lines shortened because this repo is public: the #207 line
+> and the 24 Oct reset-password paragraph. Your original wording is on the PR page (#206). Everything else
+> is as you wrote it.
+
 **Goal:** w4-k1 (#205 fix), then the w4-k2 review queue. I didn't work week 3; all six of its tasks
 were carried into week 4 (k1 to k6), nothing dropped.
 
@@ -75,7 +79,7 @@ were carried into week 4 (k1 to k6), nothing dropped.
   - #200 comment: `step: 0.1` still blocks 3.25 kg / 0.85 kg / 36.65 °C (`stepMismatch`), suggest `step: 'any'`.
   - #202 approve (types checked against backend `SystemHealthView`; proxy passes the 503 body).
   - #203 approve (encode the `mailto:`; the schema's `search` on contact-list is phantom, no `search_fields`).
-  - #207 request changes: a content concern, to raise **privately with @Bastoh** first; deliberately not written here.
+  - #207: discussed offline.
   - #211 request changes: the eight OPEN flags are inserted inside `## Resolved flags`.
   - #212 approve: ruleset 11328360 **does** now require the three checks (API, 2 Nov); stale docs
     (`CLAUDE.md` §3, `ARCHITECTURE.md:276`, `BETA_READINESS.md:330`, two Cross-Lane rows) to update.
@@ -90,7 +94,7 @@ were carried into week 4 (k1 to k6), nothing dropped.
 Live `api-dev` schema read 2 Nov (vitals, health, contact).
 
 **Left undone / next:**
-- [ ] Post the saved reviews (#200, #202, #203, #211, #212); #207 after talking to @Bastoh.
+- [ ] Post the saved reviews (#200, #202, #203, #211, #212).
 - [ ] FLAG-063 with @Bastoh (bring the private notes), then a verdict on #174.
 - [ ] **Next: w4-k3** Reset password button (FLAG-252), `POST /auth/users/{id}/send-password-reset/`, live on dev.
 - [ ] w4-k4, k5, k6, k7.
@@ -116,9 +120,8 @@ Live `api-dev` schema read 2 Nov (vitals, health, contact).
 - Rebased #201 after #199 merged (conflict was only claim rows), re-verified, force-pushed my own branch.
 
 **What I found:**
-- 🔴 **The admin reset-password endpoint makes the admin know the password.** `reset_password` takes
-  `{new_password}`, sets `force_password_change`, and nothing else: sessions are **not** ended, and there's no
-  explicit audit call. **I chose to leave the button out** of #204 and pinned its absence in a test. FLAG-252, backend #297.
+- 🔴 **The admin reset needed an emailed link.** **I chose to leave the button out** of #204 and pinned its
+  absence in a test. FLAG-252, backend #297.
 - 🟠 **`?is_active=` on `/auth/users/` is honoured now.** It was ignored on 19 Aug (FLAG-205's comment). Measured
   24 Oct as superadmin against a `?nonsense_param=1` control (10 of 10): `is_active=false` → 0,
   `organization=<id>` → 1, unknown uuid → 0, bad id → 400 `details.organization`. Comments updated in #204.
