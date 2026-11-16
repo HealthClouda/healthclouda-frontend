@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { SuperadminDashboard } from './SuperadminDashboard';
 import type { User } from '@/types/auth';
+import { formatDateTime } from '@/lib/utils';
 
 /**
  * D1 Superadmin pages (sprint plan Thu 13 Aug row) — rebuilt onto the shared
@@ -477,6 +478,65 @@ describe('Superadmin — user detail panel (w2-k2)', () => {
   it('offers no Reset password (left out until the backend can email a reset link)', async () => {
     const panel = await openDetail();
     expect(within(panel).queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
+  });
+});
+
+// GET /contact/contact-list/ (SUPERADMIN): shape from backend #295, which added
+// created_at (source, 2026-10-22). Paginated, newest first.
+const contactMessage = {
+  id: '7c1f2a64-0b8e-4c55-9d1e-2f3a4b5c6d7e',
+  first_name: 'Amaka', last_name: 'Eze', email: 'amaka.eze@example.com', phone_number: '08031234567',
+  message: 'We run two clinics in Enugu and would like a demo.',
+  created_at: '2026-10-20T09:15:00Z',
+};
+
+describe('Superadmin — Messages page (w2-b4)', () => {
+  function withMessages(envelope: unknown) {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/contact/contact-list/')) return envelope;
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+  }
+
+  it('is no longer "Soon": the Messages item can be opened', () => {
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+    expect(screen.getByRole('button', { name: 'Messages' })).toBeEnabled();
+  });
+
+  it('lists contact-form messages: who, how to reply, what they said and when', async () => {
+    withMessages({ count: 1, next: null, previous: null, results: [contactMessage] });
+    await openPage('Messages', 'Amaka Eze');
+
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('/contact/contact-list/'));
+    expect(screen.getByRole('link', { name: 'amaka.eze@example.com' })).toHaveAttribute('href', 'mailto:amaka.eze@example.com');
+    expect(screen.getByText('08031234567')).toBeInTheDocument();
+    expect(screen.getByText('We run two clinics in Enugu and would like a demo.')).toBeInTheDocument();
+    expect(screen.getByText(formatDateTime(contactMessage.created_at))).toBeInTheDocument(); // the received date
+  });
+
+  // Review of #203: the email comes from the PUBLIC contact form, and the
+  // backend's validator accepts `x?bcc=...&a=@example.com`. Unencoded, `?`
+  // `&` `=` became mailto fields: a hidden Bcc on the superadmin's reply.
+  it('a hostile contact-form email cannot add fields to the reply link', async () => {
+    const hostile = 'x?bcc=spy%40evil.test&a=@example.com';
+    withMessages({ count: 1, next: null, previous: null, results: [{ ...contactMessage, email: hostile }] });
+    await openPage('Messages', 'Amaka Eze');
+    const href = screen.getByRole('link', { name: hostile }).getAttribute('href')!;
+    expect(href.startsWith('mailto:')).toBe(true);
+    expect(href.slice('mailto:'.length)).not.toMatch(/[?&=]/);
+  });
+
+  it('gives the page a title in the header', async () => {
+    withMessages({ count: 1, next: null, previous: null, results: [contactMessage] });
+    await openPage('Messages', 'Amaka Eze');
+    expect(screen.getByRole('heading', { name: 'Messages', level: 1 })).toBeInTheDocument();
+  });
+
+  it('says so when nobody has written in yet', async () => {
+    withMessages({ count: 0, next: null, previous: null, results: [] });
+    await openPage('Messages', 'No messages yet');
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('/contact/contact-list/'));
   });
 });
 

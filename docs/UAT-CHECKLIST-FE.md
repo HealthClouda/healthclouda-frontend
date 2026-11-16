@@ -208,7 +208,8 @@ to their org portal — that is correct behaviour, not a defect. Superadmin has 
 | 6.5 | Organisations → create, edit, then suspend and reactivate a test org | Each succeeds and the status badge updates | ✅ | | |
 | 6.6 | Users → create a user; resend setup; deactivate/reactivate | Each succeeds | ✅ | | |
 | 6.7 | Audit Logs | Rows render; paging works | ✅ | | |
-| 6.8 | Records, Billing, Messages, Settings | "Coming soon" placeholder, not a broken page | ✅ | | |
+| 6.8 | Records, Billing, Settings | "Coming soon" placeholder, not a broken page | ✅ | | |
+| 6.9 | Messages (w2-b4, from 22 Oct) | Contact-form submissions newest first: name, email (opens a reply), phone, message, received date; paging works; empty state if none | | | |
 
 ---
 
@@ -278,7 +279,7 @@ deployed app** (open since 2026-09-08). These steps close that.*
 
 | Role | Pages | Mon | Tue | Wed | Thu | Fri |
 |---|---|---|---|---|---|---|
-| Superadmin | Dashboard · Organisations · Users · Audit Logs · *(Records · Billing · Messages · Settings = placeholders)* | | | | | |
+| Superadmin | Dashboard · Organisations · Users · Audit Logs · Messages · *(Records · Billing · Settings = placeholders)* | | | | | |
 | Org admin | Dashboard · Staff · Patients · Wards & Beds · Access Requests · Referrals · *(Notifications · Settings = placeholders)* | | | | | |
 | Doctor | Overview · My Patients · Episodes · Appointments · Referrals · Prescriptions | | | | | |
 | Nurse | Overview · My Patients · Vitals · Ward Overview | | | | | |
