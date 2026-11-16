@@ -145,15 +145,24 @@ row is how the other frontend dev knows; the issue is how the backend knows.
 > ```
 > repo                  PUBLIC   (isPrivate: false)
 > ruleset 11328360      enforcement: active  ·  refs/heads/{main,staging,develop}
-> bypass_actors         []       ← nobody, repo admins included
+> bypass_actors         one PR-only bypass actor (since 2026-11-16, see below)
 > rules                 deletion · non_fast_forward
 >                       pull_request: required_approving_review_count = 1
 >                                     dismiss_stale_reviews_on_push  = false
+>                       required_status_checks: tsc + tests + build · Lint ·
+>                                     Build fails loud without a tier URL   (since 2026-10-29)
 > ```
 >
 > **What IS mechanically enforced on `main` / `staging` / `develop`:** a PR is required, it needs
-> **one approving review**, and force-pushes and branch deletion are blocked — for everyone, with no
-> bypass list.
+> **one approving review and the three CI checks green**, and force-pushes and branch deletion are
+> blocked.
+>
+> ⚠️ **One exception, the owner's decision of 2026-11-16:** while the team is a single developer, the
+> ruleset has one **PR-only bypass actor** so that dev's own PRs don't wait on a reviewer who isn't
+> available. A bypass skips every rule above, the CI checks included, so for that actor the gate is
+> discipline: their PRs still get a code review, a browser walkthrough and a public-repo leak check
+> before merge, and merge only on green. Every other contributor's PR still needs an approval.
+> Remove the bypass when a second reviewer is back.
 >
 > 🔑 **`dismiss_stale_reviews_on_push = false` is the part that surprises people.** A
 > CHANGES_REQUESTED review is **not** cleared by pushing a fix — the reviewer must come back and
@@ -165,12 +174,10 @@ row is how the other frontend dev knows; the issue is how the backend knows.
 > shortcuts in `CODEBASE_FLAGS.md`. Nothing checks those, and that is why they are written down —
 > violating one silently is a real cost to the other dev.
 >
-> ⚠️ **CI now exists, and it still gates nothing.** PR #116 closed FLAG-006: GitHub Actions runs
-> `tsc`, the test suite, the build, and ESLint at `--max-warnings=0` on every PR. But ruleset
-> 11328360 carries **no required status checks** — verified against the API 2026-09-02, the rules
-> are `deletion`, `non_fast_forward`, `pull_request` and nothing else. **So a green tick implies a
-> gate that is not wired up**: a red CI run does not block a merge today. Making the three jobs
-> required is a repo-settings change only @Bastoh can make.
+> ✅ **CI gates merges** (FLAG-006 + FLAG-230): GitHub Actions runs `tsc`, the test suite, the build,
+> and ESLint at `--max-warnings=0` on every PR whatever its base, and again on a retarget. The three
+> jobs are required status checks in ruleset 11328360 since 2026-10-29. *(Until then this paragraph
+> said CI gated nothing, which was true when written on 2026-09-02.)*
 
 ### Reviewers — always set one, and it is always the other dev
 
