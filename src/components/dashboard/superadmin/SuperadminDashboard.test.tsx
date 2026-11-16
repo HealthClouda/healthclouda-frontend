@@ -439,7 +439,10 @@ describe('Superadmin — organisation detail view (w2-k1)', () => {
     await openOrgDetail();
     fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspend' }));
-    expect(await screen.findByText('Organisation suspended successfully')).toBeInTheDocument();
+    // The Toaster isn't rendered here; the message lands in the toast store.
+    const { useToastStore } = await import('@/store/toast');
+    await waitFor(() => expect(useToastStore.getState().toasts.map((t) => t.message))
+      .toContain('Organisation suspended successfully'));
   });
 
   it('the Suspend confirmation says the staff will be deactivated', async () => {
