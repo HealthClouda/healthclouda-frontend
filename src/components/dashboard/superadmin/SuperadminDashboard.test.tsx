@@ -343,7 +343,7 @@ describe('Superadmin — organisation detail view (w2-k1)', () => {
 
   it('shows staff, patient and episode counts', async () => {
     await openOrgDetail();
-    for (const [label, value] of [['Staff', '5'], ['Patients', '21'], ['Episodes', '16']]) {
+    for (const [label, value] of [['Active staff', '5'], ['Patients', '21'], ['Episodes', '16']]) {
       const card = screen.getByText(label, { selector: 'p, span, div' }).closest('div.rounded-card') as HTMLElement;
       expect(card).toHaveTextContent(value);
     }
@@ -413,7 +413,9 @@ describe('Superadmin — organisation detail view (w2-k1)', () => {
   it('re-reads the Staff table after Suspend, so it matches the tile', async () => {
     await openOrgDetail();
     const staffRow = () => within(screen.getByRole('region', { name: 'Staff' })).getByText('Amara Nwosu').closest('tr') as HTMLElement;
-    await waitFor(() => expect(staffRow()).toHaveTextContent(/active/i));
+    // "before" must be Active, not merely contain "active" (which "Inactive" does).
+    await waitFor(() => expect(staffRow()).not.toHaveTextContent(/inactive/i));
+    expect(staffRow()).toHaveTextContent('Active'); // cells run together, so no \b
 
     // From here on the backend reports the suspended state.
     dataGetMock.mockImplementation(async (path: string) => {
@@ -435,6 +437,66 @@ describe('Superadmin — organisation detail view (w2-k1)', () => {
     await openOrgDetail();
     fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
     expect(screen.getByRole('dialog')).toHaveTextContent(/every staff member at this organisation will be deactivated/i);
+  });
+
+  // Review of #205: useApi keeps the previous data while the next path loads,
+  // so View B briefly rendered A's page, with Suspend bound to A. Suspending
+  // in that window would deactivate every staff member at the wrong org.
+  it('opening a second organisation never shows the first one while it loads', async () => {
+    const otherOrg = { ...activeOrg, id: 'org-2', org_id: 'HCL-NG-OTHER-02', name: 'Other Clinic', slug: 'other-clinic' };
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path === '/org/org-1/') return orgDetail;
+      if (path === '/org/org-2/') return new Promise(() => {}); // still loading
+      if (path.startsWith('/org/')) return { ...orgsEnvelope, count: 2, results: [activeOrg, otherOrg] };
+      if (path.startsWith('/auth/users/')) return usersEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    await openPage('Organisations', 'Other Clinic');
+    fireEvent.click(screen.getAllByRole('button', { name: 'View' })[0]);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Demo Clinic', level: 2 })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /back to organisations/i }));
+    fireEvent.click((await screen.findAllByRole('button', { name: 'View' }))[1]);
+
+    expect(screen.getByText(/loading organisation/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Demo Clinic', level: 2 })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Suspend' })).not.toBeInTheDocument();
+  });
+
+  // Review of #205: org_admins counts ACTIVE admins only, and suspending an org
+  // deactivates all of its staff, so every suspended org looked admin-less.
+  it('does not warn "no organisation admin" on a suspended organisation', async () => {
+    cleanupAndRenderWith({ ...orgDetail, is_active: false, total_staff: 0, staff_by_role: {}, org_admins: [] });
+    await openOrgDetail();
+    const admins = screen.getByRole('region', { name: 'Organisation admins' });
+    expect(admins).not.toHaveTextContent(/nobody at this organisation/i);
+    expect(admins).toHaveTextContent(/suspended/i);
+  });
+
+  // Review of #205: staging's backend does not send the #293 fields yet.
+  it('renders without the #293 fields instead of crashing', async () => {
+    const { staff_by_role: _r, org_admins: _a, ...older } = orgDetail;
+    cleanupAndRenderWith(older);
+    await openOrgDetail();
+    expect(screen.getByRole('region', { name: 'Staff by role' })).toBeInTheDocument();
+  });
+
+  it('calls the staff tile "Active staff", since it counts active staff only', async () => {
+    await openOrgDetail();
+    expect(screen.getByText('Active staff')).toBeInTheDocument();
+  });
+
+  it('shows a deactivated staff member who never signed in as Inactive, not "Invite pending"', async () => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path === '/org/org-1/') return orgDetail;
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      if (path.startsWith('/auth/users/')) return { ...usersEnvelope, results: [{ ...pendingUser, is_active: false }] };
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    await openOrgDetail();
+    const staff = screen.getByRole('region', { name: 'Staff' });
+    const row = (await within(staff).findByText('Chidi Okafor')).closest('tr') as HTMLElement;
+    expect(row).toHaveTextContent(/inactive/i);
+    expect(row).not.toHaveTextContent(/invite pending/i);
   });
 });
 

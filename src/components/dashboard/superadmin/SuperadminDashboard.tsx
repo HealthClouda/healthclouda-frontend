@@ -327,8 +327,10 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
  * Edits and status actions stay in OrgsPage, which owns the panel and dialog.
  */
 function OrgDetailView({
-  detail, staffVersion, onBack, onEdit, onAction,
+  orgId, detail, staffVersion, onBack, onEdit, onAction,
 }: {
+  /** The org being viewed. useApi keeps the previous org's data while the next one loads. */
+  orgId: string;
   detail: ApiState<OrganizationDetail>;
   /** Goes up after a status action, so the Staff table re-reads (suspending an org deactivates its staff). */
   staffVersion: number;
@@ -336,7 +338,9 @@ function OrgDetailView({
   onEdit: (org: OrganizationDetail) => void;
   onAction: (org: OrganizationDetail, action: 'suspend' | 'activate' | 'verify') => void;
 }) {
-  const org = detail.data;
+  // Only this org's data counts as loaded (review of #205): showing the previous
+  // org while the next loads put its Suspend button on screen under no warning.
+  const org = detail.data?.id === orgId ? detail.data : null;
   const heading = useRef<HTMLHeadingElement>(null);
   const loaded = !!org;
   // Move focus to the new view, so keyboard and screen-reader users are not
@@ -365,7 +369,9 @@ function OrgDetailView({
     return <div className="space-y-4">{back}<div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading organisation…</div></div>;
   }
 
-  const roles = Object.entries(org.staff_by_role).sort(([, a], [, b]) => b - a);
+  // `?? {}` / `?? []`: backends before #293 (staging today) don't send these.
+  const roles = Object.entries(org.staff_by_role ?? {}).sort(([, a], [, b]) => b - a);
+  const orgAdmins = org.org_admins ?? [];
   const staffColumns: DataTableColumn<StaffMember>[] = [
     { key: 'user', header: 'Name', render: (u) => (
       <div>
@@ -375,9 +381,13 @@ function OrgDetailView({
     ) },
     { key: 'role', header: 'Role', render: (u) => roleLabel(u.role) },
     { key: 'status', header: 'Status', render: (u) => (
-      u.last_login == null
-        ? <StatusBadge status="PENDING" label="Invite pending" />
-        : <StatusBadge status={u.is_active ? 'ACTIVE' : 'INACTIVE'} />
+      // Inactive first: an org suspension deactivates staff who never signed in
+      // too, and "Invite pending" would suggest the invite still works.
+      !u.is_active
+        ? <StatusBadge status="INACTIVE" />
+        : u.last_login == null
+          ? <StatusBadge status="PENDING" label="Invite pending" />
+          : <StatusBadge status="ACTIVE" />
     ) },
     { key: 'last', header: 'Last sign-in', className: 'whitespace-nowrap', render: (u) => <span className="text-xs text-text-soft">{u.last_login ? timeAgo(u.last_login) : 'Never'}</span> },
   ];
@@ -405,7 +415,7 @@ function OrgDetailView({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Staff" value={org.total_staff} icon={<UsersIcon />} color="blue" />
+        <StatCard label="Active staff" value={org.total_staff} icon={<UsersIcon />} color="blue" />
         <StatCard label="Patients" value={org.total_patients} icon={<UsersIcon />} color="purple" />
         <StatCard label="Episodes" value={org.total_episodes} icon={<RecordsIcon />} color="green" />
       </div>
@@ -439,13 +449,19 @@ function OrgDetailView({
           </DetailSection>
 
           <DetailSection title="Organisation admins">
-            {org.org_admins.length === 0 ? (
+            {!org.is_active ? (
+              // Only ACTIVE admins are listed, and suspending deactivated them all:
+              // they come back on Activate, so this is not "no admin".
+              <p className="text-[13px] text-text-soft">
+                Suspended: its admins are deactivated with the rest of the staff and return when you activate it.
+              </p>
+            ) : orgAdmins.length === 0 ? (
               <p className="rounded-lg bg-warning-bg px-3 py-2.5 text-[12.5px] text-warning-strong">
                 No organisation admin. Nobody at this organisation can invite or manage its staff. Invite one from Users.
               </p>
             ) : (
               <ul className="space-y-2">
-                {org.org_admins.map((a) => (
+                {orgAdmins.map((a) => (
                   <li key={a.id} className="text-[13px]">
                     <span className="font-semibold text-ink">{a.full_name}</span>
                     <span className="block text-[11px] text-text-soft">{a.email}</span>
@@ -647,6 +663,7 @@ function OrgsPage() {
     <div className="space-y-4">
       {viewingId ? (
         <OrgDetailView
+          orgId={viewingId}
           detail={orgDetail}
           staffVersion={staffVersion}
           onBack={() => setViewingId(null)}
