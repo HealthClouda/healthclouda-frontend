@@ -369,14 +369,18 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     }
   });
 
-  // Control: whole-number fields keep step 1. This fails if someone loosens
-  // every field to "any" to make the test above pass.
-  it('keeps whole-number steps on blood pressure, pulse, respiratory rate and SpO2', async () => {
+  // Whole-number fields: with min 0 the browser counts steps from 0, not from
+  // the value attribute React rewrites, so this checkValidity() CAN fail
+  // (it did, before min was added: 97.5 passed). Both directions are pinned.
+  it('refuses a fractional reading on whole-number fields and accepts a whole one', async () => {
     await openVitalsForPatient();
     await screen.findByText(/108\s*\/\s*93/);
     for (const label of [/systolic/i, /diastolic/i, /pulse rate/i, /resp\. rate/i, /spo2/i]) {
       const input = screen.getByLabelText(label) as HTMLInputElement;
-      expect(input.getAttribute('step'), `${label}`).toBe('1');
+      fireEvent.change(input, { target: { value: '97.5' } });
+      expect(input.checkValidity(), `${label} accepted 97.5`).toBe(false);
+      fireEvent.change(input, { target: { value: '97' } });
+      expect(input.checkValidity(), `${label} refused 97`).toBe(true);
     }
   });
 

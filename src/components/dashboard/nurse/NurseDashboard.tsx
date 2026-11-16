@@ -331,13 +331,16 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
 // FLAG-075: no min/max here. The limits live only in the backend (FLAG-310), and
 // the advisor ruled no reading may be refused clinically; its 400 shows in formError.
 // step "any" on the float fields: a step is a submit rule too (3.25 kg, 36.65 °C).
+// min 0 on the whole-number fields is not a clinical limit (nothing reads below 0 and
+// the backend refuses it): without a min the browser counts steps from the value
+// attribute React rewrites on blur, so step 1 could pass 97.5 and then refuse 97.
 const VITAL_FIELDS = [
   { key: 'temperature',              label: 'Temperature (°C)',       step: 'any' },
-  { key: 'blood_pressure_systolic',  label: 'Systolic (mmHg)',        step: 1 },
-  { key: 'blood_pressure_diastolic', label: 'Diastolic (mmHg)',       step: 1 },
-  { key: 'pulse_rate',               label: 'Pulse rate (bpm)',       step: 1 },
-  { key: 'respiratory_rate',         label: 'Resp. rate (per min)',   step: 1 },
-  { key: 'oxygen_saturation',        label: 'SpO2 (%)',               step: 1 },
+  { key: 'blood_pressure_systolic',  label: 'Systolic (mmHg)',        step: 1, min: 0 },
+  { key: 'blood_pressure_diastolic', label: 'Diastolic (mmHg)',       step: 1, min: 0 },
+  { key: 'pulse_rate',               label: 'Pulse rate (bpm)',       step: 1, min: 0 },
+  { key: 'respiratory_rate',         label: 'Resp. rate (per min)',   step: 1, min: 0 },
+  { key: 'oxygen_saturation',        label: 'SpO2 (%)',               step: 1, min: 0 },
   { key: 'weight',                   label: 'Weight (kg)',            step: 'any' },
   { key: 'height',                   label: 'Height (cm)',            step: 'any' },
 ] as const;
@@ -427,6 +430,7 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
               id={`vital-${f.key}`}
               type="number"
               step={f.step}
+              min={'min' in f ? f.min : undefined}
               value={values[f.key] ?? ''}
               onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
               className={formInputClass}
