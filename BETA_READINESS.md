@@ -207,8 +207,9 @@ pressing Back after logout is not a thing a unit test observes.
 ---
 
 ### 6. ~~**FLAG-226 — `?my=true` on `/episodes/` is undocumented, and may be returning other patients' rows**~~ · ✅
-✅ **CLOSED 2026-11-16: not a leak.** Live capture on api-dev as a patient returned only that patient's
-episodes (0 foreign; 49 other patients' episodes existed as the control). Detail in FLAG-226.
+✅ **CLOSED 2026-11-16: not a leak.** Backend source on `develop` and `staging` scopes a patient's episodes
+to their own, and an in-app probe on api-dev as a patient returned only that patient's episodes. Not yet
+captured on staging. Detail in FLAG-226. *(History below kept as written.)*
 
 The schema documents *field* visibility for patients in prose (*"NO clinical_notes, NO
 treatment_plan"*) and says nothing about **row** scoping. So patients are expected callers and the
@@ -216,10 +217,10 @@ silence is specifically about *which rows come back*. If `?my=true` is silently 
 undocumented params on this API **are** silently ignored, that is FLAG-004's whole story — a patient
 sees other patients' episodes.
 
-⚠️ **Blocked on item 2:** settling it needs a live patient token, which needs #100.
+~~⚠️ **Blocked on item 2:** settling it needs a live patient token, which needs #100.~~
 
-**Done when:** a live capture as a real patient shows only that patient's rows — or, if it does not,
-this becomes a P0 and the beta date is the thing that moves.
+~~**Done when:** a live capture as a real patient shows only that patient's rows — or, if it does not,
+this becomes a P0 and the beta date is the thing that moves.~~ Closed 16 Nov, see above.
 
 ---
 

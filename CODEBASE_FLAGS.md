@@ -1810,17 +1810,16 @@ stops promising it.
 A patient's identity details are one record shared by every hospital that holds the patient, so an
 org admin's edit applies everywhere, as #174's panel tells the admin. Server side: **backend #321**.
 
-> ✏️ Trimmed 2026-11-16 by @Bastoh, because this repo is public.
-
 **Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
 backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
 The frontend deliberately does not try to decide which records are shared: that would be a
 client-side trust decision (CLAUDE.md §6 lens 1).
 
 **Decision (@Bastoh, 16 Nov):** for beta, #174's warning plus an explicit consent tick is enough;
-#174 merged with both. The "Done when" below is unchanged and is scheduled for the org-admin week.
+#174 merged with both. The server-side half is scheduled for the org-admin week.
 
-**Done when** backend #321 lands and the panel shows its outcome, or the owner records that
+**Done when** an org admin's identity edit on a record another hospital holds gets a server-side answer
+(backend #321) and the panel shows it, or the owner records that
 cross-hospital edits are intended.
 
 ### FLAG-064 — The audit-log "Record type" list is a hand-kept copy of backend code
@@ -3693,11 +3692,11 @@ whether the response is user-scoped — and if it is not, the page moves to a pa
 and a test asserts no foreign patient id appears in the rendered rows.
 
 **Resolution (@Bastoh, 2026-11-16): the first outcome.** Backend source on both `develop` and `staging`
-limits a patient's episode list to their own episodes, whatever the query string says. **Live capture
-on api-dev, 16 Nov**, as a seeded patient (the only one on dev with a login and episodes), with and
-without `?my=true`: the returned episode ids were exactly the patient's own (0 foreign, 0 missing),
-while 49 other patients' episodes existed as the control. Run in a rolled-back transaction. Not
-captured on api-beta, which has no patients yet. Left: deleting the dead `?my=true` is an optional
+limits a patient's episode list to their own episodes, whatever the query string says. **In-app probe on
+api-dev, 16 Nov:** a request through the deployed app as a seeded patient (the only one on dev with a
+login and episodes; login forced, so not through a token or the edge), with and without `?my=true`,
+inside a rolled-back transaction. Returned episode ids were exactly the patient's own (0 foreign, 0
+missing); 49 other patients' episodes were in the database. Not yet captured on staging. Left: deleting the dead `?my=true` is an optional
 tidy, not a fix.
 
 
