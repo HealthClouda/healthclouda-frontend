@@ -351,6 +351,35 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     expect(form.checkValidity()).toBe(true);
   });
 
+  // FLAG-075 review (Qeeyat, 2 Nov): `step: 0.1` is a submit rule too, so the
+  // browser can refuse a newborn's 3.25 kg or a 36.65 °C reading. The backend
+  // stores temperature, weight and height as plain floats: no rounding rule.
+  //
+  // Why this asserts the rendered `step` instead of calling checkValidity():
+  // React copies a controlled input's value into its `value` attribute, and the
+  // browser counts steps from that attribute when there is no `min`. In jsdom
+  // that makes every typed value "on step", so a checkValidity() test for step
+  // can never fail here (measured 16 Nov: a fractional pulse with step 1 passed).
+  it('puts no rounding rule on temperature, weight and height (step "any")', async () => {
+    await openVitalsForPatient();
+    await screen.findByText(/108\s*\/\s*93/);
+    for (const label of [/temperature/i, /weight/i, /height/i]) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      expect(input.getAttribute('step'), `${label} has a rounding rule`).toBe('any');
+    }
+  });
+
+  // Control: whole-number fields keep step 1. This fails if someone loosens
+  // every field to "any" to make the test above pass.
+  it('keeps whole-number steps on blood pressure, pulse, respiratory rate and SpO2', async () => {
+    await openVitalsForPatient();
+    await screen.findByText(/108\s*\/\s*93/);
+    for (const label of [/systolic/i, /diastolic/i, /pulse rate/i, /resp\. rate/i, /spo2/i]) {
+      const input = screen.getByLabelText(label) as HTMLInputElement;
+      expect(input.getAttribute('step'), `${label}`).toBe('1');
+    }
+  });
+
   it('surfaces backend 400 validation messages on the form', async () => {
     const { ClientApiError } = await import('@/lib/client-api');
     dataActionMock.mockRejectedValue(

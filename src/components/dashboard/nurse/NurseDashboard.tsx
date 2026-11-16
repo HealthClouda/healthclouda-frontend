@@ -330,15 +330,16 @@ function MyPatientsPage({ onRecordVitals }: { onRecordVitals: (a: NurseAdmission
 
 // FLAG-075: no min/max here. The limits live only in the backend (FLAG-310), and
 // the advisor ruled no reading may be refused clinically; its 400 shows in formError.
+// step "any" on the float fields: a step is a submit rule too (3.25 kg, 36.65 °C).
 const VITAL_FIELDS = [
-  { key: 'temperature',              label: 'Temperature (°C)',       step: 0.1 },
+  { key: 'temperature',              label: 'Temperature (°C)',       step: 'any' },
   { key: 'blood_pressure_systolic',  label: 'Systolic (mmHg)',        step: 1 },
   { key: 'blood_pressure_diastolic', label: 'Diastolic (mmHg)',       step: 1 },
   { key: 'pulse_rate',               label: 'Pulse rate (bpm)',       step: 1 },
   { key: 'respiratory_rate',         label: 'Resp. rate (per min)',   step: 1 },
   { key: 'oxygen_saturation',        label: 'SpO2 (%)',               step: 1 },
-  { key: 'weight',                   label: 'Weight (kg)',            step: 0.1 },
-  { key: 'height',                   label: 'Height (cm)',            step: 0.1 },
+  { key: 'weight',                   label: 'Weight (kg)',            step: 'any' },
+  { key: 'height',                   label: 'Height (cm)',            step: 'any' },
 ] as const;
 
 function Metric({ label, value }: { label: string; value: string }) {
