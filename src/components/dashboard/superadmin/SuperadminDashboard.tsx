@@ -914,7 +914,7 @@ function UsersPage() {
 
 // ─── Messages page (w2-b4) ───────────────────────────────────────
 // Read-only: GET /contact/contact-list/ has no search or delete. Deleting
-// waits on a retention policy (backend #285).
+// waits on a retention policy (backend issue 285).
 
 const messageColumns: DataTableColumn<ContactMessage>[] = [
   { key: 'received', header: 'Received', className: 'whitespace-nowrap align-top', render: (m) => (
@@ -923,7 +923,9 @@ const messageColumns: DataTableColumn<ContactMessage>[] = [
   { key: 'from', header: 'From', className: 'align-top', render: (m) => (
     <div>
       <div className="text-[13px] font-semibold text-ink">{m.first_name} {m.last_name}</div>
-      <a href={`mailto:${m.email}`} className="block text-xs text-primary hover:underline">{m.email}</a>
+      {/* Encoded (review of #203): the address comes from the public form, and
+          an unencoded `?`/`&`/`=` would add fields such as a hidden Bcc. */}
+      <a href={`mailto:${encodeURIComponent(m.email).replace(/%40/g, '@')}`} className="block text-xs text-primary hover:underline break-all">{m.email}</a>
       <div className="text-xs text-text-soft">{m.phone_number}</div>
     </div>
   ) },
@@ -1151,6 +1153,7 @@ const PAGE_TITLES: Record<string, string> = {
   organizations: 'Organisations',
   users: 'Users',
   audit: 'Audit Logs',
+  messages: 'Messages',
 };
 
 interface Props {

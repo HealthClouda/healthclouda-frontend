@@ -279,7 +279,7 @@ deployed app** (open since 2026-09-08). These steps close that.*
 
 | Role | Pages | Mon | Tue | Wed | Thu | Fri |
 |---|---|---|---|---|---|---|
-| Superadmin | Dashboard · Organisations · Users · Audit Logs · *(Records · Billing · Messages · Settings = placeholders)* | | | | | |
+| Superadmin | Dashboard · Organisations · Users · Audit Logs · Messages · *(Records · Billing · Settings = placeholders)* | | | | | |
 | Org admin | Dashboard · Staff · Patients · Wards & Beds · Access Requests · Referrals · *(Notifications · Settings = placeholders)* | | | | | |
 | Doctor | Overview · My Patients · Episodes · Appointments · Referrals · Prescriptions | | | | | |
 | Nurse | Overview · My Patients · Vitals · Ward Overview | | | | | |

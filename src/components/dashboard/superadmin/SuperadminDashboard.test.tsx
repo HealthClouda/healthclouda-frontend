@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { SuperadminDashboard } from './SuperadminDashboard';
 import type { User } from '@/types/auth';
+import { formatDateTime } from '@/lib/utils';
 
 /**
  * D1 Superadmin pages (sprint plan Thu 13 Aug row) — rebuilt onto the shared
@@ -511,12 +512,31 @@ describe('Superadmin — Messages page (w2-b4)', () => {
     expect(screen.getByRole('link', { name: 'amaka.eze@example.com' })).toHaveAttribute('href', 'mailto:amaka.eze@example.com');
     expect(screen.getByText('08031234567')).toBeInTheDocument();
     expect(screen.getByText('We run two clinics in Enugu and would like a demo.')).toBeInTheDocument();
-    expect(screen.getByText(/2026/)).toBeInTheDocument(); // the received date is shown
+    expect(screen.getByText(formatDateTime(contactMessage.created_at))).toBeInTheDocument(); // the received date
+  });
+
+  // Review of #203: the email comes from the PUBLIC contact form, and the
+  // backend's validator accepts `x?bcc=...&a=@example.com`. Unencoded, `?`
+  // `&` `=` became mailto fields: a hidden Bcc on the superadmin's reply.
+  it('a hostile contact-form email cannot add fields to the reply link', async () => {
+    const hostile = 'x?bcc=spy%40evil.test&a=@example.com';
+    withMessages({ count: 1, next: null, previous: null, results: [{ ...contactMessage, email: hostile }] });
+    await openPage('Messages', 'Amaka Eze');
+    const href = screen.getByRole('link', { name: hostile }).getAttribute('href')!;
+    expect(href.startsWith('mailto:')).toBe(true);
+    expect(href.slice('mailto:'.length)).not.toMatch(/[?&=]/);
+  });
+
+  it('gives the page a title in the header', async () => {
+    withMessages({ count: 1, next: null, previous: null, results: [contactMessage] });
+    await openPage('Messages', 'Amaka Eze');
+    expect(screen.getByRole('heading', { name: 'Messages', level: 1 })).toBeInTheDocument();
   });
 
   it('says so when nobody has written in yet', async () => {
     withMessages({ count: 0, next: null, previous: null, results: [] });
     await openPage('Messages', 'No messages yet');
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('/contact/contact-list/'));
   });
 });
 
