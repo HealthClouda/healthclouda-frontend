@@ -35,7 +35,7 @@ and why the dashboard gates check the organisation as well as the role.
 | `/set-password` | Invite setup, `?token=<uuid>` — validated before the form renders |
 | `/forgot-password` · `/reset-password` · `/check-email` · `/password-success` | OTP reset flow (forgot → verify-otp → reset) |
 | `/access-request/respond` | Cross-org consent. `GET ?token=` is read-only; POST performs the decision (`accept` / `deny`) |
-| `/superadmin` | Superadmin dashboard — organisations, users, audit logs |
+| `/superadmin` | Superadmin dashboard — organisations (list, and an in-tab detail view: verification, org admins, staff by role, staff list; w2-k1), users, audit logs |
 | `/superadmin/signin` | **Superadmin portal.** Distinct from `/signin`, which cannot log staff in |
 | `/[slug]` | Org landing page, branded from `GET /org/by-slug/<slug>/` |
 | `/[slug]/signin` | **Org portal** — staff *and* patients of that organisation |

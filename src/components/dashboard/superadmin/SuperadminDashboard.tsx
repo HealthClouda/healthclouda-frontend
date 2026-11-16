@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SlidePanel } from '@/components/ui/SlidePanel';
-import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
+import { useApi, apiAction, usePaginatedList, type ApiState } from '@/hooks/use-api';
 import { dataGet, ClientApiError } from '@/lib/client-api';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { useToast } from '@/store/toast';
@@ -308,6 +308,206 @@ const EMPTY_ORG_FORM: OrganizationInput = {
   name: '', org_type: 'CLINIC', email: '', phone: '', address: '', city: '', state: '', country_code: 'NG', country_name: 'Nigeria',
 };
 
+// ─── Organisation detail view (stand-up w2-k1) ───────────────────
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <section aria-labelledby={id} className="bg-white rounded-card border border-border p-5">
+      <h3 id={id} className="text-[13px] font-bold text-ink mb-3">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * What a superadmin needs to know about one organisation. Reads GET /org/<id>/
+ * (backend #293 added staff_by_role, org_admins and verified_by, captured live
+ * 2026-10-24) and the org's staff from /auth/users/?organization=<id>.
+ * Edits and status actions stay in OrgsPage, which owns the panel and dialog.
+ */
+function OrgDetailView({
+  orgId, detail, staffVersion, onBack, onEdit, onAction,
+}: {
+  /** The org being viewed. useApi keeps the previous org's data while the next one loads. */
+  orgId: string;
+  detail: ApiState<OrganizationDetail>;
+  /** Goes up after a status action, so the Staff table re-reads (suspending an org deactivates its staff). */
+  staffVersion: number;
+  onBack: () => void;
+  onEdit: (org: OrganizationDetail) => void;
+  onAction: (org: OrganizationDetail, action: 'suspend' | 'activate' | 'verify') => void;
+}) {
+  // Only this org's data counts as loaded (review of #205): showing the previous
+  // org while the next loads put its Suspend button on screen under no warning.
+  const org = detail.data?.id === orgId ? detail.data : null;
+  const heading = useRef<HTMLHeadingElement>(null);
+  const loaded = !!org;
+  // Move focus to the new view, so keyboard and screen-reader users are not
+  // left on a "View" button that no longer exists.
+  useEffect(() => { if (loaded) heading.current?.focus(); }, [loaded]);
+
+  const staff = usePaginatedList<StaffMember>(org ? `${ENDPOINTS.SA_USERS}?organization=${encodeURIComponent(org.id)}` : null);
+  const { refetch: refetchStaff } = staff;
+  const seenStaffVersion = useRef(staffVersion);
+  useEffect(() => {
+    if (staffVersion === seenStaffVersion.current) return;
+    seenStaffVersion.current = staffVersion;
+    refetchStaff();
+  }, [staffVersion, refetchStaff]);
+
+  const back = (
+    <button type="button" onClick={onBack} className="text-[13px] font-semibold text-primary hover:underline">
+      ← Back to organisations
+    </button>
+  );
+
+  if (detail.error) {
+    return <div className="space-y-4">{back}<ErrorState title="Couldn't load this organisation" message={detail.error} onRetry={detail.refetch} /></div>;
+  }
+  if (!org) {
+    return <div className="space-y-4">{back}<div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading organisation…</div></div>;
+  }
+
+  // `?? {}` / `?? []`: backends before #293 (staging today) don't send these.
+  const roles = Object.entries(org.staff_by_role ?? {}).sort(([, a], [, b]) => b - a);
+  const orgAdmins = org.org_admins ?? [];
+  const staffColumns: DataTableColumn<StaffMember>[] = [
+    { key: 'user', header: 'Name', render: (u) => (
+      <div>
+        <div className="text-[13px] font-semibold text-ink">{u.first_name} {u.last_name}</div>
+        <div className="text-[11px] text-text-soft">{u.email}</div>
+      </div>
+    ) },
+    { key: 'role', header: 'Role', render: (u) => roleLabel(u.role) },
+    { key: 'status', header: 'Status', render: (u) => (
+      // Inactive first: an org suspension deactivates staff who never signed in
+      // too, and "Invite pending" would suggest the invite still works.
+      !u.is_active
+        ? <StatusBadge status="INACTIVE" />
+        : u.last_login == null
+          ? <StatusBadge status="PENDING" label="Invite pending" />
+          : <StatusBadge status="ACTIVE" />
+    ) },
+    { key: 'last', header: 'Last sign-in', className: 'whitespace-nowrap', render: (u) => <span className="text-xs text-text-soft">{u.last_login ? timeAgo(u.last_login) : 'Never'}</span> },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {back}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 ref={heading} tabIndex={-1} className="font-body font-black text-[22px] text-ink outline-none">{org.name}</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-text-soft">
+            <span className="font-mono">{org.org_id}</span>
+            <StatusBadge status={org.org_type} label={ORG_TYPE_LABEL[org.org_type] ?? org.org_type} />
+            <StatusBadge status={org.is_active ? 'ACTIVE' : 'SUSPENDED'} />
+            <StatusBadge status={org.is_verified ? 'VERIFIED' : 'PENDING'} label={org.is_verified ? 'Verified' : 'Not verified'} />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => onEdit(org)}>Edit</Button>
+          {!org.is_verified && <Button onClick={() => onAction(org, 'verify')}>Verify</Button>}
+          {org.is_active
+            ? <Button variant="danger" onClick={() => onAction(org, 'suspend')}>Suspend</Button>
+            : <Button onClick={() => onAction(org, 'activate')}>Activate</Button>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Active staff" value={org.total_staff} icon={<UsersIcon />} color="blue" />
+        <StatCard label="Patients" value={org.total_patients} icon={<UsersIcon />} color="purple" />
+        <StatCard label="Episodes" value={org.total_episodes} icon={<RecordsIcon />} color="green" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DetailSection title="Details">
+          <dl className="divide-y divide-row-hairline text-[13px]">
+            <Fact label="Email">{org.email}</Fact>
+            <Fact label="Phone">{org.phone || '–'}</Fact>
+            <Fact label="Address">{org.address}</Fact>
+            <Fact label="City / State">{org.city}, {org.state}</Fact>
+            <Fact label="Country">{org.country_name}</Fact>
+            <Fact label="Licence number">{org.license_number || '–'}</Fact>
+            <Fact label="On HealthClouda since">{formatDate(org.created_at)}</Fact>
+          </dl>
+        </DetailSection>
+
+        <div className="space-y-4">
+          <DetailSection title="Verification">
+            {org.is_verified ? (
+              <p className="text-[13px] text-ink">
+                Verified on {formatDate(org.verified_at)}
+                {org.verified_by
+                  ? <> by <b>{org.verified_by.full_name}</b></>
+                  // Orgs verified before backend #293 recorded who did it.
+                  : <span className="text-text-soft"> · verifier not recorded</span>}
+              </p>
+            ) : (
+              <p className="text-[13px] text-text-soft">Not verified yet.</p>
+            )}
+          </DetailSection>
+
+          <DetailSection title="Organisation admins">
+            {!org.is_active ? (
+              // Only ACTIVE admins are listed, and suspending deactivated them all:
+              // they come back on Activate, so this is not "no admin".
+              <p className="text-[13px] text-text-soft">
+                Suspended: its admins are deactivated with the rest of the staff and return when you activate it.
+              </p>
+            ) : orgAdmins.length === 0 ? (
+              <p className="rounded-lg bg-warning-bg px-3 py-2.5 text-[12.5px] text-warning-strong">
+                No organisation admin. Nobody at this organisation can invite or manage its staff. Invite one from Users.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {orgAdmins.map((a) => (
+                  <li key={a.id} className="text-[13px]">
+                    <span className="font-semibold text-ink">{a.full_name}</span>
+                    <span className="block text-[11px] text-text-soft">{a.email}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </DetailSection>
+
+          <DetailSection title="Staff by role">
+            {roles.length === 0 ? (
+              <p className="text-[13px] text-text-soft">No active staff.</p>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                {roles.map(([role, n]) => (
+                  <li key={role} className="inline-flex items-center gap-1.5 rounded-full bg-chip px-3 py-1 text-[12px] font-semibold text-primary">
+                    {roleLabel(role)}<span className="tabular-nums text-ink">{n}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </DetailSection>
+        </div>
+      </div>
+
+      <DetailSection title="Staff">
+        <DataTable
+          columns={staffColumns}
+          data={staff.items}
+          getRowKey={(u) => u.id}
+          loading={staff.loading}
+          error={staff.error}
+          onRetry={staff.refetch}
+          emptyTitle="No staff yet"
+          emptyDescription="Invite staff into this organisation from Users."
+          page={staff.page}
+          totalPages={staff.totalPages}
+          onPageChange={staff.setPage}
+          totalCount={staff.count}
+          pageSize={20}
+        />
+      </DetailSection>
+    </div>
+  );
+}
+
 function OrgsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -327,6 +527,10 @@ function OrgsPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // w2-k1: "View" opens the detail view in place of the table.
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const orgDetail = useApi<OrganizationDetail>(viewingId ? ENDPOINTS.SA_ORG(viewingId) : null);
+  const [staffVersion, setStaffVersion] = useState(0);
 
   function openAdd() {
     setForm(EMPTY_ORG_FORM);
@@ -396,6 +600,7 @@ function OrgsPage() {
       }
       setFormPanel(null);
       refetch();
+      if (viewingId) orgDetail.refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not save organisation');
     } finally {
@@ -412,8 +617,14 @@ function OrgsPage() {
         : confirm.action === 'activate' ? ENDPOINTS.SA_ORG_ACTIVATE(confirm.org.id)
         : ENDPOINTS.SA_ORG_VERIFY(confirm.org.id);
       await apiAction(path, 'POST');
-      toast.success(`Organisation ${confirm.action}d successfully`);
+      // Spelled out: `${action}d` read "suspendd" and "verifyd".
+      const done = { suspend: 'suspended', activate: 'activated', verify: 'verified' }[confirm.action];
+      toast.success(`Organisation ${done} successfully`);
       refetch();
+      if (viewingId) {
+        orgDetail.refetch();
+        setStaffVersion((v) => v + 1);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Action failed');
     } finally {
@@ -439,7 +650,7 @@ function OrgsPage() {
     { key: 'created', header: 'Date Added', className: 'whitespace-nowrap', render: (org) => <span className="text-xs text-text-soft">{formatDate(org.created_at)}</span> },
     { key: 'actions', header: 'Actions', render: (org) => (
       <div className="flex items-center gap-1.5">
-        <button onClick={() => openEdit(org)} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid hover:border-primary hover:text-primary hover:bg-chip transition-colors">View</button>
+        <button onClick={() => setViewingId(org.id)} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid hover:border-primary hover:text-primary hover:bg-chip transition-colors">View</button>
         {!org.is_verified && (
           <button onClick={() => setConfirm({ org, action: 'verify' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary hover:bg-chip transition-colors">Verify</button>
         )}
@@ -452,6 +663,17 @@ function OrgsPage() {
 
   return (
     <div className="space-y-4">
+      {viewingId ? (
+        <OrgDetailView
+          orgId={viewingId}
+          detail={orgDetail}
+          staffVersion={staffVersion}
+          onBack={() => setViewingId(null)}
+          onEdit={(org) => void openEdit(org)}
+          onAction={(org, action) => setConfirm({ org, action })}
+        />
+      ) : (
+      <>
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-body font-black text-[22px] text-ink">Organisations</h2>
@@ -479,6 +701,8 @@ function OrgsPage() {
         totalCount={count}
         pageSize={20}
       />
+      </>
+      )}
 
       <SlidePanel
         open={!!formPanel}
@@ -544,7 +768,9 @@ function OrgsPage() {
         onConfirm={runAction}
         loading={working}
         title={`${confirm?.action === 'verify' ? 'Verify' : confirm?.action === 'suspend' ? 'Suspend' : 'Activate'} Organisation`}
-        description={`Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
+        description={confirm?.action === 'suspend'
+          ? `Are you sure you want to suspend "${confirm.org.name}"? Every staff member at this organisation will be deactivated and can't sign in until it is activated again.`
+          : `Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
         confirmLabel={confirm?.action === 'suspend' ? 'Suspend' : confirm?.action === 'activate' ? 'Activate' : 'Verify'}
         confirmVariant={confirm?.action === 'suspend' ? 'danger' : 'primary'}
       />
@@ -556,7 +782,7 @@ function OrgsPage() {
 
 const EMPTY_USER_FORM: UserCreateInput = { email: '', first_name: '', last_name: '', role: '', phone: '', organization: '' };
 
-function UserFact({ label, children }: { label: string; children: React.ReactNode }) {
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <dt className="text-text-soft">{label}</dt>
@@ -813,26 +1039,26 @@ function UsersPage() {
           <div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading user details…</div>
         ) : (
           <dl className="divide-y divide-row-hairline text-[13px]">
-            <UserFact label="Email">{detail.data.email}</UserFact>
-            <UserFact label="Phone">{detail.data.phone || '–'}</UserFact>
-            <UserFact label="Role">{roleLabel(detail.data.role)}</UserFact>
-            <UserFact label="Organisation">
+            <Fact label="Email">{detail.data.email}</Fact>
+            <Fact label="Phone">{detail.data.phone || '–'}</Fact>
+            <Fact label="Role">{roleLabel(detail.data.role)}</Fact>
+            <Fact label="Organisation">
               {detail.data.organization ? (
                 <>
                   {detail.data.organization.name}
                   <span className="block text-[11px] text-text-soft">{detail.data.organization.org_id}</span>
                 </>
               ) : 'None (platform account)'}
-            </UserFact>
-            <UserFact label="Status">
+            </Fact>
+            <Fact label="Status">
               {detail.data.last_login == null
                 ? <StatusBadge status="PENDING" label="Invite pending" />
                 : <StatusBadge status={detail.data.is_active ? 'ACTIVE' : 'INACTIVE'} />}
-            </UserFact>
-            <UserFact label="Joined">{formatDate(detail.data.date_joined)}</UserFact>
-            <UserFact label="Last sign-in">{detail.data.last_login ? formatDateTime(detail.data.last_login) : 'Never'}</UserFact>
-            <UserFact label="Password last changed">{detail.data.password_changed_at ? formatDateTime(detail.data.password_changed_at) : 'Never'}</UserFact>
-            <UserFact label="Must change password at next sign-in">{detail.data.force_password_change ? 'Yes' : 'No'}</UserFact>
+            </Fact>
+            <Fact label="Joined">{formatDate(detail.data.date_joined)}</Fact>
+            <Fact label="Last sign-in">{detail.data.last_login ? formatDateTime(detail.data.last_login) : 'Never'}</Fact>
+            <Fact label="Password last changed">{detail.data.password_changed_at ? formatDateTime(detail.data.password_changed_at) : 'Never'}</Fact>
+            <Fact label="Must change password at next sign-in">{detail.data.force_password_change ? 'Yes' : 'No'}</Fact>
           </dl>
         )}
       </SlidePanel>
