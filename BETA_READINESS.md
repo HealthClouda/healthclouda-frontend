@@ -90,7 +90,7 @@ builds `/${orgSlug}/patient`, so login is refused rather than navigating to `/un
 
 **Two consequences that make this Tier 1 rather than a bug:**
 - **DASH-6 has never been rendered by anyone.** It is built, merged, and unobserved.
-- **FLAG-226 cannot be settled without it** (item 6) — and FLAG-226 is a candidate P0.
+- ~~**FLAG-226 cannot be settled without it** (item 6)~~ FLAG-226 was settled on 16 Nov another way: not a leak (item 6).
 
 **Done when:** a patient signs in on the general portal and reaches their dashboard, verified against
 `api-dev` with a real patient token.
@@ -113,7 +113,7 @@ builds `/${orgSlug}/patient`, so login is refused rather than navigating to `/un
 > sign in will see **two em dashes**. Found from the schema without credentials; needs one live
 > capture to confirm.
 >
-> **One out-of-band message closes this item, FLAG-231 and item 6 (FLAG-226) together.** It is the
+> **One out-of-band message closes this item and FLAG-231 together** (item 6, FLAG-226, closed 16 Nov). It is the
 > cheapest remaining Tier-1 action in this file. Row raised in `HANDOFF.md`'s 📥 Cross-Lane Asks.
 
 ---
@@ -206,8 +206,10 @@ pressing Back after logout is not a thing a unit test observes.
 
 ---
 
-### 6. **FLAG-226 — `?my=true` on `/episodes/` is undocumented, and may be returning other patients' rows** · 🔨
-❗ **OPEN — a candidate P0, and it is unmeasured.**
+### 6. ~~**FLAG-226 — `?my=true` on `/episodes/` is undocumented, and may be returning other patients' rows**~~ · ✅
+✅ **CLOSED 2026-11-16: not a leak.** Backend source on `develop` and `staging` scopes a patient's episodes
+to their own, and an in-app probe on api-dev as a patient returned only that patient's episodes. Not yet
+captured on staging. Detail in FLAG-226. *(History below kept as written.)*
 
 The schema documents *field* visibility for patients in prose (*"NO clinical_notes, NO
 treatment_plan"*) and says nothing about **row** scoping. So patients are expected callers and the
@@ -215,10 +217,10 @@ silence is specifically about *which rows come back*. If `?my=true` is silently 
 undocumented params on this API **are** silently ignored, that is FLAG-004's whole story — a patient
 sees other patients' episodes.
 
-⚠️ **Blocked on item 2:** settling it needs a live patient token, which needs #100.
+~~⚠️ **Blocked on item 2:** settling it needs a live patient token, which needs #100.~~
 
-**Done when:** a live capture as a real patient shows only that patient's rows — or, if it does not,
-this becomes a P0 and the beta date is the thing that moves.
+~~**Done when:** a live capture as a real patient shows only that patient's rows — or, if it does not,
+this becomes a P0 and the beta date is the thing that moves.~~ Closed 16 Nov, see above.
 
 ---
 

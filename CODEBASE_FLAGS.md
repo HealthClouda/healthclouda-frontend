@@ -1807,12 +1807,8 @@ stops promising it.
 **Severity:** P1 (multi-tenancy) · **Area:** Patients / Org admin · **Owner:** @Bastoh · **Status:** 🟠 **OPEN — accepted knowingly**
 **Found:** 2026-09-30, building FLAG-058's edit screen (#174)
 
-`PATCH /patients/{id}/` as ORG_ADMIN uses `PatientFullUpdateSerializer`: name, date of birth, sex,
-email, phone and `is_active` — on **any** patient visible to the org (`PatientViewSet.update`, backend
-`apps/patients/views.py`). Nothing checks whether another hospital also holds the record, so one
-clinic's admin can rename a shared patient (e.g. `HCL-Z5DU8H`) for every hospital. The merge tool
-already refuses this case and escalates to a superadmin ("one hospital does not rewrite a record
-another hospital also holds"); a plain edit skips that rule.
+A patient's identity details are one record shared by every hospital that holds the patient, so an
+org admin's edit applies everywhere, as #174's panel tells the admin. Server side: **backend #321**.
 
 **Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
 backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
@@ -1820,10 +1816,10 @@ The frontend deliberately does not try to decide which records are shared: that 
 client-side trust decision (CLAUDE.md §6 lens 1).
 
 **Decision (@Bastoh, 16 Nov):** for beta, #174's warning plus an explicit consent tick is enough;
-#174 merged with both. The "Done when" below is unchanged and is scheduled for the org-admin week.
+#174 merged with both. The server-side half is scheduled for the org-admin week.
 
-**Done when** identity edits by an org admin are refused or escalated on the server for a record
-another hospital holds (as merges are), and the panel shows that refusal — or the owner records that
+**Done when** an org admin's identity edit on a record another hospital holds gets a server-side answer
+(backend #321) and the panel shows it, or the owner records that
 cross-hospital edits are intended.
 
 ### FLAG-064 — The audit-log "Record type" list is a hand-kept copy of backend code
@@ -3660,9 +3656,9 @@ role, with the capture date.
 > which is exactly how FLAG-231 was found.
 ---
 
-### FLAG-226 — `?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes
-**Severity:** P1 — **P0 if live capture shows unscoped results** · **Area:** Security / PHI ·
-**Owner:** @Qeeyat · **Status:** OPEN — **verify before 3 Sep**
+### FLAG-226 — ~~`?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes~~ → ✅ RESOLVED, not a leak
+**Severity:** ~~P1, P0 if unscoped~~ none: the episode list is patient-scoped · **Area:** Security / PHI ·
+**Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-11-16 — not a leak** (see the resolution at the end)
 **Found:** 2026-08-30, same audit
 
 The patient "My Health Records" page fetches:
@@ -3694,6 +3690,14 @@ changes nothing and destroys the evidence that prompted the check.
 **Done when:** `GET /episodes/` is captured live with a patient token and it is recorded here
 whether the response is user-scoped — and if it is not, the page moves to a patient-scoped endpoint
 and a test asserts no foreign patient id appears in the rendered rows.
+
+**Resolution (@Bastoh, 2026-11-16): the first outcome.** Backend source on both `develop` and `staging`
+limits a patient's episode list to their own episodes, whatever the query string says. **In-app probe on
+api-dev, 16 Nov:** a request through the deployed app as a seeded patient (the only one on dev with a
+login and episodes; login forced, so not through a token or the edge), with and without `?my=true`,
+inside a rolled-back transaction. Returned episode ids were exactly the patient's own (0 foreign, 0
+missing); 49 other patients' episodes were in the database. Not yet captured on staging. Left: deleting the dead `?my=true` is an optional
+tidy, not a fix.
 
 
 ---
