@@ -1807,12 +1807,11 @@ stops promising it.
 **Severity:** P1 (multi-tenancy) · **Area:** Patients / Org admin · **Owner:** @Bastoh · **Status:** 🟠 **OPEN — accepted knowingly**
 **Found:** 2026-09-30, building FLAG-058's edit screen (#174)
 
-`PATCH /patients/{id}/` as ORG_ADMIN uses `PatientFullUpdateSerializer`: name, date of birth, sex,
-email, phone and `is_active` — on **any** patient visible to the org (`PatientViewSet.update`, backend
-`apps/patients/views.py`). Nothing checks whether another hospital also holds the record, so one
-clinic's admin can rename a shared patient (e.g. `HCL-Z5DU8H`) for every hospital. The merge tool
-already refuses this case and escalates to a superadmin ("one hospital does not rewrite a record
-another hospital also holds"); a plain edit skips that rule.
+A patient's identity details are one record shared by every hospital that holds the patient, so an
+org admin's edit applies everywhere, as #174's panel tells the admin. The detail lives in the backend
+repo (private).
+
+> ✏️ Trimmed 2026-11-16 by @Bastoh, because this repo is public.
 
 **Decision (@Bastoh, 30 Sep):** build the FLAG-058 screen now anyway, and **do not** raise it with the
 backend yet. #174's panel tells the admin the change applies at every hospital that holds the patient.
@@ -3662,7 +3661,7 @@ role, with the capture date.
 
 ### FLAG-226 — `?my=true` on `/episodes/` is undocumented, and if it is ignored the patient sees other patients episodes
 **Severity:** P1 — **P0 if live capture shows unscoped results** · **Area:** Security / PHI ·
-**Owner:** @Qeeyat · **Status:** OPEN — **verify before 3 Sep**
+**Owner:** @Qeeyat · **Status:** ✅ **RESOLVED 2026-11-16 — not a leak** (see the resolution at the end)
 **Found:** 2026-08-30, same audit
 
 The patient "My Health Records" page fetches:
@@ -3694,6 +3693,11 @@ changes nothing and destroys the evidence that prompted the check.
 **Done when:** `GET /episodes/` is captured live with a patient token and it is recorded here
 whether the response is user-scoped — and if it is not, the page moves to a patient-scoped endpoint
 and a test asserts no foreign patient id appears in the rendered rows.
+
+**Resolution (@Bastoh, 2026-11-16): the first outcome.** Read in backend source on both `develop` and
+`staging`: for a patient, the episode list is always limited to that patient's own episodes, whatever
+the query string says. `?my=true` is ignored and harmless. **Settled from source, not a live capture**
+(the house rule accepts either). Left: deleting the dead `?my=true` is an optional tidy, not a fix.
 
 
 ---

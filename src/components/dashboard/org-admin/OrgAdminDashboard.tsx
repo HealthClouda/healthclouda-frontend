@@ -321,9 +321,8 @@ function PatientsPage() {
 // PatientFullUpdateSerializer (backend source 2026-09-30 — the live schema
 // documents no request body for it). Only changed fields are sent.
 //
-// ⚠️ The backend does not check whether another hospital also holds this
-// patient, so an edit here changes the record everywhere (logged in
-// CODEBASE_FLAGS). Built now on @Bastoh's call (30 Sep); the panel says so.
+// ⚠️ An edit here changes the record at every hospital that holds the patient:
+// FLAG-063. Built now on @Bastoh's call (30 Sep); the panel says so.
 
 const SEX_OPTIONS: Array<{ value: PatientIdentity['gender']; label: string }> = [
   { value: '', label: 'Not recorded' }, { value: 'M', label: 'Male' }, { value: 'F', label: 'Female' }, { value: 'O', label: 'Other' },
