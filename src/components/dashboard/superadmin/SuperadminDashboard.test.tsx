@@ -706,23 +706,32 @@ describe('Superadmin — user detail panel (w2-k2)', () => {
   });
 
   it('a throttled reset (429) shows the message and does not retry', async () => {
+    const { useToastStore } = await import('@/store/toast');
+    useToastStore.setState({ toasts: [] }); // earlier tests leave toasts in the store
     dataActionMock.mockRejectedValueOnce(
       new ClientApiError(429, null, 'Too many requests. Please try again shortly.'));
     const confirm = await openResetConfirm();
     fireEvent.click(within(confirm).getByRole('button', { name: /send reset link/i }));
-    const { useToastStore } = await import('@/store/toast');
     await waitFor(() => expect(useToastStore.getState().toasts.map((t) => t.message))
       .toContain('Too many requests. Please try again shortly.'));
+    expect(useToastStore.getState().toasts.map((t) => t.message)).not.toContain('Password reset link sent');
     expect(dataActionMock.mock.calls.filter(([p]) => p === '/auth/users/u-2/send-password-reset/'))
       .toHaveLength(1);
   });
 
-  it('offers no Reset password on a suspended user (they cannot sign in anyway)', async () => {
+  // Suspended: can't sign in anyway. Pending: never signed in, so "signed out,
+  // password stops working" is untrue (Resend in the row is the action).
+  // Own account (signed in as sa1): would sign the admin out with a dead password.
+  it.each([
+    ['a suspended user', { is_active: false }],
+    ['an invite-pending user', { last_login: null }],
+    ['your own account', { id: 'sa1' }],
+  ])('offers no Reset password on %s', async (_label, override) => {
     const base = dataGetMock.getMockImplementation()!;
     dataGetMock.mockImplementation(async (path: string) =>
-      path === '/auth/users/u-2/' ? { ...activeUserDetail, is_active: false } : base(path));
+      path === '/auth/users/u-2/' ? { ...activeUserDetail, ...override } : base(path));
     const panel = await openDetail();
-    expect(within(panel).getByRole('button', { name: 'Activate' })).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: /suspend|activate/i })).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
   });
 });

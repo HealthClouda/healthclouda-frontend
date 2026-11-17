@@ -802,7 +802,19 @@ const ROLE_FILTERS = [
   { value: 'PATIENT', label: 'Patient' },
 ] as const;
 
-function UsersPage() {
+// The user confirm dialog's wording, one entry per action (a missing one is a type error).
+const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
+  title: string; label: string; variant: 'danger' | 'primary'; describe: (name: string) => string;
+}> = {
+  suspend: { title: 'Suspend User', label: 'Suspend', variant: 'danger',
+    describe: (n) => `Are you sure you want to suspend ${n}?` },
+  activate: { title: 'Activate User', label: 'Activate', variant: 'primary',
+    describe: (n) => `Are you sure you want to activate ${n}?` },
+  reset: { title: 'Reset Password', label: 'Send reset link', variant: 'danger',
+    describe: (n) => `${n} will be signed out on every device and their current password will stop working. We'll email them a link to set a new one.` },
+};
+
+function UsersPage({ currentUserId }: { currentUserId: string }) {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
   const [status, setStatus] = useState<'' | 'true' | 'false'>('');
@@ -832,7 +844,7 @@ function UsersPage() {
   // render that had already requested the stale page.
 
   const { toast } = useToast();
-  const [confirm, setConfirm] = useState<{ user: StaffMember; action: 'suspend' | 'activate' | 'reset' } | null>(null);
+  const [confirm, setConfirm] = useState<{ user: StaffMember; action: keyof typeof USER_ACTIONS } | null>(null);
   const [working, setWorking] = useState(false);
   const [invitePanel, setInvitePanel] = useState(false);
   const [form, setForm] = useState<UserCreateInput>(EMPTY_USER_FORM);
@@ -884,15 +896,16 @@ function UsersPage() {
         await apiAction(ENDPOINTS.SA_USER(confirm.user.id), 'DELETE');
         toast.success('User suspended');
       } else if (confirm.action === 'reset') {
-        // A 429 (shared throttle with Resend, backend #319) lands in the catch
-        // below as "Too many requests…"; no retry.
+        // A 429 lands in the catch below; no retry (backend #319).
         await apiAction(ENDPOINTS.SA_USER_SEND_RESET(confirm.user.id), 'POST');
         toast.success('Password reset link sent');
       } else {
         await apiAction(ENDPOINTS.SA_USER_ACTIVATE(confirm.user.id), 'POST');
         toast.success('User activated');
       }
-      refetch();
+      // A reset changes nothing the list shows; the detail reload below
+      // picks up "must change password".
+      if (confirm.action !== 'reset') refetch();
       if (detailId === confirm.user.id) detail.refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Action failed');
@@ -1021,8 +1034,9 @@ function UsersPage() {
       />
 
       {/* w2-k2: read-only account facts. w5-b1 / FLAG-252: Reset password
-          emails the user a one-time link; only on active users (a suspended
-          one can't sign in, a pending one has Resend). */}
+          emails the user a one-time link. Only for users who have signed in
+          and are active, and never on your own account (it would sign you
+          out with a dead password). Pending invites use Resend in the row. */}
       <SlidePanel
         open={!!detailId}
         onClose={() => setDetailId(null)}
@@ -1031,7 +1045,7 @@ function UsersPage() {
         footer={detail.data ? (
           <>
             <Button variant="secondary" className="flex-1" onClick={() => setDetailId(null)}>Close</Button>
-            {detail.data.is_active && (
+            {detail.data.is_active && detail.data.last_login != null && detail.data.id !== currentUserId && (
               <Button variant="secondary" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'reset' })}>Reset password</Button>
             )}
             {detail.data.is_active
@@ -1136,12 +1150,10 @@ function UsersPage() {
         onClose={() => setConfirm(null)}
         onConfirm={runAction}
         loading={working}
-        title={confirm?.action === 'reset' ? 'Reset Password' : confirm?.action === 'suspend' ? 'Suspend User' : 'Activate User'}
-        description={confirm?.action === 'reset'
-          ? `${confirm.user.first_name} ${confirm.user.last_name} will be signed out on every device and their current password will stop working. We'll email them a link to set a new one.`
-          : `Are you sure you want to ${confirm?.action} ${confirm?.user.first_name} ${confirm?.user.last_name}?`}
-        confirmLabel={confirm?.action === 'reset' ? 'Send reset link' : confirm?.action === 'suspend' ? 'Suspend' : 'Activate'}
-        confirmVariant={confirm?.action === 'activate' ? 'primary' : 'danger'}
+        title={confirm ? USER_ACTIONS[confirm.action].title : ''}
+        description={confirm ? USER_ACTIONS[confirm.action].describe(`${confirm.user.first_name} ${confirm.user.last_name}`) : ''}
+        confirmLabel={confirm ? USER_ACTIONS[confirm.action].label : ''}
+        confirmVariant={confirm ? USER_ACTIONS[confirm.action].variant : 'primary'}
       />
     </div>
   );
@@ -1414,7 +1426,7 @@ export function SuperadminDashboard({ user, initialStats }: Props) {
     >
       {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} />}
       {page === 'organizations' && <OrgsPage />}
-      {page === 'users'         && <UsersPage />}
+      {page === 'users'         && <UsersPage currentUserId={user.id} />}
       {page === 'audit'         && <AuditPage />}
       {page === 'messages'      && <MessagesPage />}
     </DashboardShell>
