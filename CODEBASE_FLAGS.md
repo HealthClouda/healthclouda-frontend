@@ -1842,7 +1842,7 @@ for it.
 and the page reads it from there. That needs an `api-request`; @Qeeyat offered to file it.
 
 ### FLAG-252 — Superadmin → Users has no Reset password, on purpose: the backend's reset makes the admin know the password
-**Severity:** P2 · **Area:** Superadmin / Users (security) · **Owner:** @Qeeyat (frontend) · backend **#297** (`api-request`) · **Status:** OPEN — waiting on backend
+**Severity:** P2 · **Area:** Superadmin / Users (security) · **Owner:** @Qeeyat (frontend) · backend **#297** (`api-request`) · **Status:** ✅ **RESOLVED 2026-11-17 in `feat/w5-b1-reset-password` (board w5-b1).** The panel offers Reset password on active users, through a confirm dialog that says the user is signed out everywhere; it calls backend #309's emailed-link endpoint. The "offers no Reset password" test is replaced by tests for the button, the throttled (429) case, and its absence on suspended users.
 **Found:** 2026-10-24, building stand-up w2-k2 (users filters + detail panel)
 
 w2-k2 asked for a Reset password button in the user detail panel. `POST /auth/users/{id}/reset-password/`

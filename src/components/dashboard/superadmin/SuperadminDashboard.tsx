@@ -832,7 +832,7 @@ function UsersPage() {
   // render that had already requested the stale page.
 
   const { toast } = useToast();
-  const [confirm, setConfirm] = useState<{ user: StaffMember; action: 'suspend' | 'activate' } | null>(null);
+  const [confirm, setConfirm] = useState<{ user: StaffMember; action: 'suspend' | 'activate' | 'reset' } | null>(null);
   const [working, setWorking] = useState(false);
   const [invitePanel, setInvitePanel] = useState(false);
   const [form, setForm] = useState<UserCreateInput>(EMPTY_USER_FORM);
@@ -883,6 +883,11 @@ function UsersPage() {
       if (confirm.action === 'suspend') {
         await apiAction(ENDPOINTS.SA_USER(confirm.user.id), 'DELETE');
         toast.success('User suspended');
+      } else if (confirm.action === 'reset') {
+        // A 429 (shared throttle with Resend, backend #319) lands in the catch
+        // below as "Too many requests…"; no retry.
+        await apiAction(ENDPOINTS.SA_USER_SEND_RESET(confirm.user.id), 'POST');
+        toast.success('Password reset link sent');
       } else {
         await apiAction(ENDPOINTS.SA_USER_ACTIVATE(confirm.user.id), 'POST');
         toast.success('User activated');
@@ -1015,10 +1020,9 @@ function UsersPage() {
         pageSize={20}
       />
 
-      {/* w2-k2: read-only account facts. Reset password is deliberately absent:
-          POST .../reset-password/ makes the admin choose and pass on the
-          user's password and leaves their sessions signed in, so it waits for
-          a backend reset-link flow (see FLAG-252). */}
+      {/* w2-k2: read-only account facts. w5-b1 / FLAG-252: Reset password
+          emails the user a one-time link; only on active users (a suspended
+          one can't sign in, a pending one has Resend). */}
       <SlidePanel
         open={!!detailId}
         onClose={() => setDetailId(null)}
@@ -1027,6 +1031,9 @@ function UsersPage() {
         footer={detail.data ? (
           <>
             <Button variant="secondary" className="flex-1" onClick={() => setDetailId(null)}>Close</Button>
+            {detail.data.is_active && (
+              <Button variant="secondary" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'reset' })}>Reset password</Button>
+            )}
             {detail.data.is_active
               ? <Button variant="danger" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
               : <Button className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'activate' })}>Activate</Button>}
@@ -1129,10 +1136,12 @@ function UsersPage() {
         onClose={() => setConfirm(null)}
         onConfirm={runAction}
         loading={working}
-        title={confirm?.action === 'suspend' ? 'Suspend User' : 'Activate User'}
-        description={`Are you sure you want to ${confirm?.action} ${confirm?.user.first_name} ${confirm?.user.last_name}?`}
-        confirmLabel={confirm?.action === 'suspend' ? 'Suspend' : 'Activate'}
-        confirmVariant={confirm?.action === 'suspend' ? 'danger' : 'primary'}
+        title={confirm?.action === 'reset' ? 'Reset Password' : confirm?.action === 'suspend' ? 'Suspend User' : 'Activate User'}
+        description={confirm?.action === 'reset'
+          ? `${confirm.user.first_name} ${confirm.user.last_name} will be signed out on every device and their current password will stop working. We'll email them a link to set a new one.`
+          : `Are you sure you want to ${confirm?.action} ${confirm?.user.first_name} ${confirm?.user.last_name}?`}
+        confirmLabel={confirm?.action === 'reset' ? 'Send reset link' : confirm?.action === 'suspend' ? 'Suspend' : 'Activate'}
+        confirmVariant={confirm?.action === 'activate' ? 'primary' : 'danger'}
       />
     </div>
   );
