@@ -88,6 +88,13 @@ const suspendedUser = {
   is_active: false, is_suspended: true, last_login: null, date_joined: '2026-08-01T00:00:00Z',
   organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'HCL-NG-DEMO-01' },
 };
+// Review of #219: switched off WITHOUT being suspended (an org admin deactivating
+// one staff member does this), never signed in. Not "Invite pending", no Resend.
+const inactiveUser = {
+  id: 'u-4', first_name: 'Ife', last_name: 'Adeola', email: 'ife@demo-clinic.test', role: 'RECEPTIONIST',
+  is_active: false, is_suspended: false, last_login: null, date_joined: '2026-08-02T00:00:00Z',
+  organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'HCL-NG-DEMO-01' },
+};
 const suspendedDetail = { ...suspendedUser, phone: null, force_password_change: true, password_changed_at: null };
 
 // GET /auth/users/<id>/ (UserDetail, live schema 2026-10-24): the list fields
@@ -1042,7 +1049,7 @@ describe('Superadmin — Users page: a suspended user (w5-b2, backend FLAG-647)'
     dataGetMock.mockImplementation(async (path: string) => {
       if (path.startsWith('/org/')) return orgsEnvelope;
       if (path === '/auth/users/u-3/') return suspendedDetail;
-      if (path.startsWith('/auth/users/')) return { count: 3, next: null, previous: null, results: [pendingUser, activeUser, suspendedUser] };
+      if (path.startsWith('/auth/users/')) return { count: 4, next: null, previous: null, results: [pendingUser, activeUser, suspendedUser, inactiveUser] };
       return { count: 0, next: null, previous: null, results: [] };
     });
   });
@@ -1065,6 +1072,16 @@ describe('Superadmin — Users page: a suspended user (w5-b2, backend FLAG-647)'
     // Positive control: the pending user keeps Resend.
     const pending = screen.getByText('Chidi Okafor').closest('tr')!;
     expect(within(pending).getByRole('button', { name: /resend/i })).toBeInTheDocument();
+  });
+
+  it('labels a switched-off, never-signed-in user Inactive, with Activate and no Resend', async () => {
+    await openPage('Users', 'Ife Adeola');
+    const row = screen.getByText('Ife Adeola').closest('tr')!;
+    expect(within(row).getByText('Inactive')).toBeInTheDocument();
+    expect(within(row).queryByText('Invite pending')).toBeNull();
+    expect(within(row).queryByText('Suspended')).toBeNull();
+    expect(within(row).getByRole('button', { name: 'Activate' })).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: /resend/i })).toBeNull();
   });
 
   it('says Suspended in the panel, with Activate and no Reset password', async () => {
