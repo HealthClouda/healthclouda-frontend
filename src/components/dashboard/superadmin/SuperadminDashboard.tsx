@@ -380,15 +380,7 @@ function OrgDetailView({
       </div>
     ) },
     { key: 'role', header: 'Role', render: (u) => roleLabel(u.role) },
-    { key: 'status', header: 'Status', render: (u) => (
-      // Inactive first: an org suspension deactivates staff who never signed in
-      // too, and "Invite pending" would suggest the invite still works.
-      !u.is_active
-        ? <StatusBadge status="INACTIVE" />
-        : u.last_login == null
-          ? <StatusBadge status="PENDING" label="Invite pending" />
-          : <StatusBadge status="ACTIVE" />
-    ) },
+    { key: 'status', header: 'Status', render: (u) => <UserStatusBadge user={u} /> },
     { key: 'last', header: 'Last sign-in', className: 'whitespace-nowrap', render: (u) => <span className="text-xs text-text-soft">{u.last_login ? timeAgo(u.last_login) : 'Never'}</span> },
   ];
 
@@ -793,6 +785,19 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 // Roles offered by the filter. Matches RoleEnum in the live schema; PATIENT is
 // included because /auth/users/ lists patients too, not just staff.
+// w5-b2 / backend FLAG-647: one status badge for both user lists (Users and an
+// organisation's staff), so the two screens cannot label one person differently.
+// Order matters: suspended before inactive before "Invite pending". Every suspended
+// user on dev had never signed in, and a switched-off user (an org admin can
+// deactivate one without suspending them) may never have either; "Invite pending"
+// on either would suggest the invite still works.
+function UserStatusBadge({ user }: { user: StaffMember }) {
+  if (user.is_suspended) return <StatusBadge status="SUSPENDED" label="Suspended" />;
+  if (!user.is_active) return <StatusBadge status="INACTIVE" />;
+  if (user.last_login == null) return <StatusBadge status="PENDING" label="Invite pending" />;
+  return <StatusBadge status="ACTIVE" />;
+}
+
 const ROLE_FILTERS = [
   { value: 'SUPERADMIN', label: 'Super Admin' },
   { value: 'ORGANIZATION_ADMIN', label: 'Org Admin' },
@@ -831,7 +836,14 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
   const params = new URLSearchParams();
   if (debouncedSearch) params.set('search', debouncedSearch);
   if (role) params.set('role', role);
-  if (status) params.set('is_active', status);
+  // w5-b2 / backend FLAG-647: "All" means everyone, suspended users included.
+  // Opt-in, because the backend default (also used by an organisation's staff
+  // list) keeps hiding them.
+  if (status) {
+    params.set('is_active', status);
+  } else {
+    params.set('include_suspended', 'true');
+  }
   if (orgFilter) params.set('organization', orgFilter);
   const filtered = !!(role || status || orgFilter);
   const query = params.toString();
@@ -949,15 +961,11 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
       </span>
     ) },
     { key: 'org', header: 'Organisation', render: (u) => u.organization?.name ?? '–' },
-    { key: 'status', header: 'Status', render: (u) => (
-      u.last_login == null
-        ? <StatusBadge status="PENDING" label="Invite pending" />
-        : <StatusBadge status={u.is_active ? 'ACTIVE' : 'INACTIVE'} />
-    ) },
+    { key: 'status', header: 'Status', render: (u) => <UserStatusBadge user={u} /> },
     { key: 'joined', header: 'Joined', className: 'whitespace-nowrap', render: (u) => <span className="text-xs text-text-soft">{u.date_joined ? formatDate(u.date_joined) : '–'}</span> },
     { key: 'actions', header: 'Actions', render: (u) => (
       <div className="flex items-center gap-1.5">
-        {u.last_login == null && (
+        {u.is_active && u.last_login == null && (
           <button onClick={() => resend(u)} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary hover:bg-chip transition-colors whitespace-nowrap">
             {justResent.has(u.id) ? 'Invite sent ✓' : 'Resend'}
           </button>
@@ -1012,8 +1020,9 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
               <option value="">All organisations</option>
               {orgOptions?.results.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
-            {/* `is_active` only: "Invite pending" (never signed in) is shown
-                from last_login and counts as Active here. */}
+            {/* is_active=false returns suspended AND switched-off users, so the
+                option says both. "All" opts in to suspended users too. "Invite
+                pending" is shown from last_login and counts as Active here. */}
             <select
               aria-label="Filter by status"
               className={`${inputClass} h-9 w-auto text-[12.5px]`}
@@ -1022,7 +1031,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
             >
               <option value="">All statuses</option>
               <option value="true">Active</option>
-              <option value="false">Suspended</option>
+              <option value="false">Suspended or inactive</option>
             </select>
           </div>
         }
@@ -1072,9 +1081,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
               ) : 'None (platform account)'}
             </Fact>
             <Fact label="Status">
-              {detail.data.last_login == null
-                ? <StatusBadge status="PENDING" label="Invite pending" />
-                : <StatusBadge status={detail.data.is_active ? 'ACTIVE' : 'INACTIVE'} />}
+              <UserStatusBadge user={detail.data} />
             </Fact>
             <Fact label="Joined">{formatDate(detail.data.date_joined)}</Fact>
             <Fact label="Last sign-in">{detail.data.last_login ? formatDateTime(detail.data.last_login) : 'Never'}</Fact>

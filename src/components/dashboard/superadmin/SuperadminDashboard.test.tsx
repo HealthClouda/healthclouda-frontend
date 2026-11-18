@@ -80,6 +80,22 @@ const activeUser = {
   is_active: true, last_login: '2026-08-13T09:00:00Z', date_joined: '2026-07-01T00:00:00Z', organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'HCL-NG-DEMO-01' },
 };
 const usersEnvelope = { count: 2, next: null, previous: null, results: [pendingUser, activeUser] };
+// w5-b2 / backend FLAG-647: a suspended user who never signed in, exactly the
+// shape of all 8 suspended users on dev. Kept out of usersEnvelope so the other
+// Users tests keep their two rows.
+const suspendedUser = {
+  id: 'u-3', first_name: 'Sani', last_name: 'Bello', email: 'sani@demo-clinic.test', role: 'NURSE',
+  is_active: false, is_suspended: true, last_login: null, date_joined: '2026-08-01T00:00:00Z',
+  organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'HCL-NG-DEMO-01' },
+};
+// Review of #219: switched off WITHOUT being suspended (an org admin deactivating
+// one staff member does this), never signed in. Not "Invite pending", no Resend.
+const inactiveUser = {
+  id: 'u-4', first_name: 'Ife', last_name: 'Adeola', email: 'ife@demo-clinic.test', role: 'RECEPTIONIST',
+  is_active: false, is_suspended: false, last_login: null, date_joined: '2026-08-02T00:00:00Z',
+  organization: { id: 'org-1', name: 'Demo Clinic', org_id: 'HCL-NG-DEMO-01' },
+};
+const suspendedDetail = { ...suspendedUser, phone: null, force_password_change: true, password_changed_at: null };
 
 // GET /auth/users/<id>/ (UserDetail, live schema 2026-10-24): the list fields
 // plus force_password_change and password_changed_at.
@@ -640,6 +656,18 @@ describe('Superadmin — Users page: status and organisation filters (w2-k2)', (
       expect(path).not.toContain('is_active=');
       expect(path).not.toContain('organization=');
     }
+    // w5-b2: "All" means everyone, suspended users included (owner, 2026-11-18).
+    expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining('include_suspended=true'));
+  });
+
+  it('opts in to suspended users only for "All", not for Active or Suspended', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    for (const value of ['true', 'false']) {
+      dataGetMock.mockClear();
+      fireEvent.change(screen.getByLabelText(/filter by status/i), { target: { value } });
+      await waitFor(() => expect(dataGetMock).toHaveBeenCalledWith(expect.stringContaining(`is_active=${value}`)));
+      for (const [path] of dataGetMock.mock.calls) expect(path).not.toContain('include_suspended');
+    }
   });
 
   it('says to adjust the filters when a filter, not a search, empties the list', async () => {
@@ -1013,5 +1041,57 @@ describe('FLAG-061 — Overview "Recent Activity" shows real entries', () => {
     render(<SuperadminDashboard user={user} initialStats={stats} />);
     expect(await screen.findByText('nurse@demo.test')).toBeInTheDocument();
     expect(screen.queryByText('No recent activity')).not.toBeInTheDocument();
+  });
+});
+
+describe('Superadmin — Users page: a suspended user (w5-b2, backend FLAG-647)', () => {
+  beforeEach(() => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      if (path === '/auth/users/u-3/') return suspendedDetail;
+      if (path.startsWith('/auth/users/')) return { count: 4, next: null, previous: null, results: [pendingUser, activeUser, suspendedUser, inactiveUser] };
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+  });
+
+  it('labels the row Suspended, not "Invite pending", even though they never signed in', async () => {
+    await openPage('Users', 'Sani Bello');
+    const row = screen.getByText('Sani Bello').closest('tr')!;
+    expect(within(row).getByText('Suspended')).toBeInTheDocument();
+    expect(within(row).queryByText('Invite pending')).toBeNull();
+    // Positive control: the never-signed-in active user is still "Invite pending".
+    const pending = screen.getByText('Chidi Okafor').closest('tr')!;
+    expect(within(pending).getByText('Invite pending')).toBeInTheDocument();
+  });
+
+  it('offers Activate but not Resend on a suspended row', async () => {
+    await openPage('Users', 'Sani Bello');
+    const row = screen.getByText('Sani Bello').closest('tr')!;
+    expect(within(row).getByRole('button', { name: 'Activate' })).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: /resend/i })).toBeNull();
+    // Positive control: the pending user keeps Resend.
+    const pending = screen.getByText('Chidi Okafor').closest('tr')!;
+    expect(within(pending).getByRole('button', { name: /resend/i })).toBeInTheDocument();
+  });
+
+  it('labels a switched-off, never-signed-in user Inactive, with Activate and no Resend', async () => {
+    await openPage('Users', 'Ife Adeola');
+    const row = screen.getByText('Ife Adeola').closest('tr')!;
+    expect(within(row).getByText('Inactive')).toBeInTheDocument();
+    expect(within(row).queryByText('Invite pending')).toBeNull();
+    expect(within(row).queryByText('Suspended')).toBeNull();
+    expect(within(row).getByRole('button', { name: 'Activate' })).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: /resend/i })).toBeNull();
+  });
+
+  it('says Suspended in the panel, with Activate and no Reset password', async () => {
+    await openPage('Users', 'Sani Bello');
+    fireEvent.click(screen.getByRole('button', { name: /view details for sani bello/i }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByText('sani@demo-clinic.test')).toBeInTheDocument());
+    expect(within(panel).getByText('Suspended')).toBeInTheDocument();
+    expect(within(panel).queryByText('Invite pending')).toBeNull();
+    expect(within(panel).getByRole('button', { name: 'Activate' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: /reset password/i })).toBeNull();
   });
 });
