@@ -317,6 +317,8 @@ export interface StaffMember {
   is_on_duty?: boolean;
   date_joined?: string;
   last_login?: string | null;
+  /** Suspended (soft-deleted), not merely inactive. Backend FLAG-647: on the list and the detail. */
+  is_suspended?: boolean;
   organization?: { id: string; name: string; org_id: string } | null;
 }
 
