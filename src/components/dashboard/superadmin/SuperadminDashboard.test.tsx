@@ -684,8 +684,54 @@ describe('Superadmin — user detail panel (w2-k2)', () => {
     await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith('/auth/users/u-2/', 'DELETE', undefined));
   });
 
-  it('offers no Reset password (left out until the backend can email a reset link)', async () => {
+  // w5-b1 / FLAG-252: backend #309 emails the user a one-time link; the admin
+  // never sees a password. The reset also signs the user out everywhere, so it
+  // goes through a confirm dialog that says so.
+  async function openResetConfirm() {
     const panel = await openDetail();
+    fireEvent.click(within(panel).getByRole('button', { name: /reset password/i }));
+    const confirm = screen.getAllByRole('dialog').find((d) => d !== panel)!;
+    expect(confirm.textContent).toMatch(/signed out on every device/i);
+    return confirm;
+  }
+
+  it('Reset password confirms, then POSTs /auth/users/<id>/send-password-reset/', async () => {
+    const confirm = await openResetConfirm();
+    fireEvent.click(within(confirm).getByRole('button', { name: /send reset link/i }));
+    await waitFor(() => expect(dataActionMock)
+      .toHaveBeenCalledWith('/auth/users/u-2/send-password-reset/', 'POST', undefined));
+    const { useToastStore } = await import('@/store/toast');
+    await waitFor(() => expect(useToastStore.getState().toasts.map((t) => t.message))
+      .toContain('Password reset link sent'));
+  });
+
+  it('a throttled reset (429) shows the message and does not retry', async () => {
+    const { useToastStore } = await import('@/store/toast');
+    useToastStore.setState({ toasts: [] }); // earlier tests leave toasts in the store
+    dataActionMock.mockRejectedValueOnce(
+      new ClientApiError(429, null, 'Too many requests. Please try again shortly.'));
+    const confirm = await openResetConfirm();
+    fireEvent.click(within(confirm).getByRole('button', { name: /send reset link/i }));
+    await waitFor(() => expect(useToastStore.getState().toasts.map((t) => t.message))
+      .toContain('Too many requests. Please try again shortly.'));
+    expect(useToastStore.getState().toasts.map((t) => t.message)).not.toContain('Password reset link sent');
+    expect(dataActionMock.mock.calls.filter(([p]) => p === '/auth/users/u-2/send-password-reset/'))
+      .toHaveLength(1);
+  });
+
+  // Suspended: can't sign in anyway. Pending: never signed in, so "signed out,
+  // password stops working" is untrue (Resend in the row is the action).
+  // Own account (signed in as sa1): would sign the admin out with a dead password.
+  it.each([
+    ['a suspended user', { is_active: false }],
+    ['an invite-pending user', { last_login: null }],
+    ['your own account', { id: 'sa1' }],
+  ])('offers no Reset password on %s', async (_label, override) => {
+    const base = dataGetMock.getMockImplementation()!;
+    dataGetMock.mockImplementation(async (path: string) =>
+      path === '/auth/users/u-2/' ? { ...activeUserDetail, ...override } : base(path));
+    const panel = await openDetail();
+    expect(within(panel).getByRole('button', { name: /suspend|activate/i })).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
   });
 });

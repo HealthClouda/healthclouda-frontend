@@ -324,7 +324,8 @@ export const ENDPOINTS = {
   SA_USERS: '/auth/users/',
   SA_USER: (id: string) => `/auth/users/${id}/`,
   SA_USER_ACTIVATE: (id: string) => `/auth/users/${id}/activate/`,
-  SA_USER_RESET_PW: (id: string) => `/auth/users/${id}/reset-password/`,
+  // Emails the user a one-time link (backend #309, FLAG-252).
+  SA_USER_SEND_RESET: (id: string) => `/auth/users/${id}/send-password-reset/`,
   SA_USER_RESEND_SETUP: (id: string) => `/auth/users/${id}/resend-setup-email/`,
   SA_AUDIT: '/audit/logs/',
   SA_ACCESS_LOGS: '/audit/access-logs/',
