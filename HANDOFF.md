@@ -18,6 +18,9 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
+| @Bastoh | **FLAG-235**: land @Qeeyat's mask-contract fix (board w5-b3), her commit carried onto today's `develop` with her as author | `fix/flag-235-mask-contract-rebased` | `e2e/design/*.spec.ts`, new `src/lib/drifting-text.contract.test.ts` | 2026-11-18 | 🔨 building |
+
+> 📝 **For @Qeeyat (2026-11-18, board w5-b3):** `docs/schema-contract-guidance` (your closed #96) was **not** reopened: it is 276 commits behind and, by its own last commit, its claims went stale within 12 days. The branch is **kept, not deleted**. Your In Flight row for it is yours to clear; if you want the guidance back, a fresh PR re-checked against today's schema is the way.
 
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
