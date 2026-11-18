@@ -1704,6 +1704,8 @@ refused at once, for a normal user (layer 1) and for one with `force_password_ch
 **Severity:** P2 · **Area:** Process / docs · **Owner:** @Qeeyat · **Status:** OPEN
 **Found:** 2026-09-06, while trying to "finish the one bullet left on #96"
 
+> **2026-11-18:** the reason is now written down: @Bastoh answered the Cross-Lane row "#96, did we mean to close it?" in `HANDOFF.md` (abandon for now, branch kept; board w5-b3). What remains for this flag is @Qeeyat clearing her In Flight row.
+
 **#96 (schema-reading guidance) has been CLOSED since 2026-08-31 17:06 — by me, unmerged.** I found
 this only after rebasing it, re-verifying every figure in it against the live schema, fixing three
 things that had gone stale, force-pushing, and posting a comment telling @Bastoh he had been
