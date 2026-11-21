@@ -387,14 +387,18 @@ function LatestReading({ vitals }: { vitals: PatientVitals }) {
 // (FLAG-310: limits live only there); this file never holds a number of its own.
 interface OutOfRangeReading { field: string; value: number; confirm_below: number; confirm_above: number }
 
-/** The readings to confirm, when the 400 is VITALS_NEED_CONFIRMATION; otherwise null. */
-function readingsToConfirm(err: unknown): OutOfRangeReading[] | null {
+/** The readings the backend asks her to confirm (possibly none listed) when the
+ *  400 is VITALS_NEED_CONFIRMATION; null for any other error. */
+function confirmationAsk(err: unknown): OutOfRangeReading[] | null {
   if (!(err instanceof ClientApiError)) return null;
   const data = err.data as { code?: unknown; details?: { out_of_range?: unknown } } | null;
   if (data?.code !== 'VITALS_NEED_CONFIRMATION') return null;
   const readings = data.details?.out_of_range;
-  return Array.isArray(readings) && readings.length ? (readings as OutOfRangeReading[]) : null;
+  return Array.isArray(readings) ? (readings as OutOfRangeReading[]) : [];
 }
+
+// Never the backend's own sentence here: it tells an API client to resend with a flag.
+const CANNOT_CONFIRM = 'These readings could not be saved. Check them and try again.';
 
 /** "Resp. rate 70 per min", from the form's own label "Resp. rate (per min)". */
 function describeReading(r: OutOfRangeReading): string {
@@ -439,10 +443,15 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
       onRecorded();
     } catch (err) {
       // Asked, never refused (advisor, MEDICAL_REVIEW_PACK §9 Q8). A second ask
-      // after she confirmed would loop, so that one shows as a plain error.
-      const readings = confirmOutOfRange ? null : readingsToConfirm(err);
-      setToConfirm(readings);
-      if (!readings) setFormError(err instanceof Error ? err.message : 'Failed to record vitals');
+      // after she confirmed, or an ask that lists nothing, would loop or show an
+      // empty prompt, so those become a plain error.
+      const asked = confirmationAsk(err);
+      if (asked?.length && !confirmOutOfRange) {
+        setToConfirm(asked);
+      } else {
+        setToConfirm(null);
+        setFormError(asked ? CANNOT_CONFIRM : err instanceof Error ? err.message : 'Failed to record vitals');
+      }
     } finally {
       setSaving(false);
     }
@@ -467,6 +476,9 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
               step={f.step}
               min={'min' in f ? f.min : undefined}
               value={values[f.key] ?? ''}
+              // Locked while a save is in flight: the reply must describe what was
+              // sent (review of #224), and an edit made mid-save would be wiped.
+              disabled={saving}
               onChange={e => { const value = e.target.value; edit(() => setValues(v => ({ ...v, [f.key]: value }))); }}
               className={formInputClass}
             />
@@ -479,6 +491,7 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
           id="vital-notes"
           rows={2}
           value={notes}
+          disabled={saving}
           onChange={e => { const value = e.target.value; edit(() => setNotes(value)); }}
           className={`${formInputClass} h-auto py-2`}
         />
