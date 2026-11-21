@@ -2037,3 +2037,149 @@ describe('Build 6 — positive control: a non-rostered nurse still sees every no
     expect(await screen.findByRole('button', { name: 'Emergency admission' })).toBeInTheDocument();
   });
 });
+
+/**
+ * Frontend #208 (follow-up to FLAG-075 / backend #280). The advisor ruled there is
+ * no clinical recording limit, so the backend never refuses a reading outside the
+ * usual range: it answers 400 VITALS_NEED_CONFIRMATION, saves nothing, and saves
+ * the SAME body resent with `confirm_out_of_range: true`. Before this, the form
+ * showed that 400 as a dead-end error, so a breathing rate of 70 could not be
+ * saved at all. Contract checked against the backend source (backend #280), not only the issue.
+ */
+describe('#208: a reading outside the usual range is confirmed, never refused', () => {
+  const needsConfirmation = (outOfRange: unknown[]) =>
+    new ClientApiError(400, {
+      error: 'Some readings are outside the usual recording range. Check them, then resend with confirm_out_of_range=true to save.',
+      code: 'VITALS_NEED_CONFIRMATION',
+      details: { out_of_range: outOfRange },
+    }, 'Some readings are outside the usual recording range.');
+  // mockReset, not the file's clearAllMocks: a test that never clicks "Save anyway"
+  // leaves its queued *Once reply unused, and clearAllMocks does not empty that
+  // queue, so the next test would receive it.
+  beforeEach(() => dataActionMock.mockReset());
+
+  // The backend's real recording limits (5–60 /min, 25–45 °C), so the fixture is not a second, wrong copy.
+  const RESP_70 = { field: 'respiratory_rate', value: 70, confirm_below: 5, confirm_above: 60 };
+  const TEMP_24 = { field: 'temperature', value: 24.5, confirm_below: 25, confirm_above: 45 };
+
+  async function enterAndSubmit(values: Record<string, string>) {
+    // An earlier test's "Vitals recorded" toast would satisfy the save assertion below.
+    useToastStore.setState({ toasts: [] });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Vitals' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Chidi Nwosu/ }));
+    await screen.findByText(/108\s*\/\s*93/);
+    for (const [label, value] of Object.entries(values)) {
+      fireEvent.change(screen.getByLabelText(new RegExp(label, 'i')), { target: { value } });
+    }
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+  }
+
+  it('shows a "save anyway?" prompt naming the reading and the usual range the backend sent', async () => {
+    dataActionMock.mockRejectedValueOnce(needsConfirmation([RESP_70]));
+    await enterAndSubmit({ 'resp\. rate': '70' });
+
+    const prompt = await screen.findByRole('alert');
+    expect(prompt).toHaveTextContent(/Resp\. rate 70 per min/);
+    expect(prompt).toHaveTextContent(/usual range 5–60/);
+    expect(within(prompt).getByRole('button', { name: 'Save anyway' })).toBeInTheDocument();
+    // The value is kept, and the normal submit is out of the way while she decides.
+    expect(screen.getByLabelText(/resp\. rate/i)).toHaveValue(70);
+    expect(screen.queryByRole('button', { name: /record reading/i })).not.toBeInTheDocument();
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists every reading the backend flagged, in one prompt', async () => {
+    dataActionMock.mockRejectedValueOnce(needsConfirmation([TEMP_24, RESP_70]));
+    await enterAndSubmit({ temperature: '24.5', 'resp\. rate': '70' });
+
+    const prompt = await screen.findByRole('alert');
+    expect(prompt).toHaveTextContent(/Temperature 24\.5 °C/);
+    expect(prompt).toHaveTextContent(/usual range 25–45/);
+    expect(prompt).toHaveTextContent(/Resp\. rate 70 per min/);
+  });
+
+  it('"Save anyway" resends the SAME body with confirm_out_of_range: true, and it is saved', async () => {
+    dataActionMock
+      .mockRejectedValueOnce(needsConfirmation([RESP_70]))
+      .mockResolvedValueOnce({ ...vitalsResponse, vitals: { ...reading, respiratory_rate: 70 } });
+    await enterAndSubmit({ 'resp\. rate': '70', temperature: '36.8' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledTimes(2));
+    const [first, second] = dataActionMock.mock.calls;
+    expect(second[0]).toBe(ENDPOINTS.NURSE_VITALS(admission.patient.id));
+    expect(second[1]).toBe('PATCH');
+    expect(second[2]).toEqual({ ...(first[2] as object), confirm_out_of_range: true });
+    expect(first[2]).not.toHaveProperty('confirm_out_of_range');
+    await waitFor(() => expect(screen.queryByText('Save anyway')).not.toBeInTheDocument());
+    expect(useToastStore.getState().toasts.some(t => /vitals recorded/i.test(t.message))).toBe(true);
+  });
+
+  it('"Go back and edit" closes the prompt, keeps the values, and sends nothing', async () => {
+    dataActionMock.mockRejectedValueOnce(needsConfirmation([RESP_70]));
+    await enterAndSubmit({ 'resp\. rate': '70' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Go back and edit' }));
+
+    expect(screen.queryByText('Save anyway')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/resp\. rate/i)).toHaveValue(70);
+    expect(screen.getByRole('button', { name: /record reading/i })).toBeInTheDocument();
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('changing a reading while the prompt is open closes it, so "Save anyway" can never confirm numbers she was not shown', async () => {
+    dataActionMock.mockRejectedValueOnce(needsConfirmation([RESP_70]));
+    await enterAndSubmit({ 'resp\. rate': '70' });
+    await screen.findByRole('button', { name: 'Save anyway' });
+
+    fireEvent.change(screen.getByLabelText(/resp\. rate/i), { target: { value: '90' } });
+
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
+    expect(dataActionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('the readings cannot be changed while a save is in flight, so the reply always describes what was sent', async () => {
+    // Review of #224: editable inputs let her change temperature to 50 after
+    // sending resp. rate 70; the prompt then named only 70, and Save anyway
+    // sent 50 °C with the confirm flag, saved without ever being asked about.
+    let reject!: (e: unknown) => void;
+    dataActionMock.mockReturnValueOnce(new Promise((_, r) => { reject = r; }));
+    await enterAndSubmit({ 'resp\. rate': '70' });
+
+    await waitFor(() => expect(screen.getByLabelText(/temperature/i)).toBeDisabled());
+    expect(screen.getByLabelText(/resp\. rate/i)).toBeDisabled();
+    expect(screen.getByLabelText(/notes/i)).toBeDisabled();
+
+    reject(needsConfirmation([RESP_70]));
+    await screen.findByRole('button', { name: 'Save anyway' });
+    expect(screen.getByLabelText(/temperature/i)).toBeEnabled();
+  });
+
+  it('if the backend asks again after she confirmed, she sees a plain sentence, not the API instruction', async () => {
+    dataActionMock
+      .mockRejectedValueOnce(needsConfirmation([RESP_70]))
+      .mockRejectedValueOnce(needsConfirmation([RESP_70]));
+    await enterAndSubmit({ 'resp\. rate': '70' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+
+    const alert = await screen.findByText(/could not be saved/i);
+    expect(alert).toHaveAttribute('role', 'alert');
+    expect(screen.queryByText(/confirm_out_of_range/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
+    expect(dataActionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('a plain 400 (zero, negative, SpO2 over 100) stays a normal error: no prompt, nothing can save it', async () => {
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, {
+      error: 'Invalid input.', code: 'BAD_REQUEST',
+      details: { respiratory_rate: ['Must be greater than 0.'] },
+    }, 'Invalid input.'));
+    await enterAndSubmit({ 'resp\. rate': '0' });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/invalid input/i);
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /record reading/i })).toBeInTheDocument();
+  });
+});
