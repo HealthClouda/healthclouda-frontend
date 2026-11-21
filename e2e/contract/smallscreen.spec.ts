@@ -13,7 +13,7 @@ import { signInAs, VIEWPORTS } from './helpers';
  * "span two layers" test FLAG-221 asks for, for this control.
  *
  * ⚠️ Signs in for real against `NEXT_PUBLIC_API_URL` — needs `E2E_SUPERADMIN_*`
- * in `.env.local`. See `docs/DESIGN-VERIFICATION.md`.
+ * in `.env.local`. See `docs/DESIGN-VERIFICATION.md` → The contract checks.
  */
 
 const MOBILE = VIEWPORTS.find((v) => v.name === 'mobile')!;

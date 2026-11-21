@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:contract": "playwright test e2e/contract",
     "lint:fix": "eslint . --fix",
     "test:coverage": "vitest run --coverage",
     "audit:contracts": "node scripts/audit-stat-contracts.mjs"

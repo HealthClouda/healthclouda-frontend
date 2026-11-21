@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 /**
- * T5 design-fidelity harness (docs/DESIGN-VERIFICATION.md). Signs in for
+ * Contract checks against the real API (docs/DESIGN-VERIFICATION.md). Signs in for
  * real against whatever NEXT_PUBLIC_API_URL points at — no mocked auth —
  * so credentials must come from the environment, never this repo.
  *
@@ -44,9 +44,9 @@ export async function signInAs(page: Page, role: E2ERole): Promise<void> {
   const password = process.env[`E2E_${key}_PASSWORD`];
   if (!email || !password) {
     throw new Error(
-      `Missing E2E_${key}_EMAIL / E2E_${key}_PASSWORD. The design screenshot harness signs in for ` +
+      `Missing E2E_${key}_EMAIL / E2E_${key}_PASSWORD. The contract checks sign in for ` +
         `real against api-dev — set these in .env.local (never committed) before running it. ` +
-        `See docs/DESIGN-VERIFICATION.md.`,
+        `See docs/DESIGN-VERIFICATION.md → The contract checks.`,
     );
   }
 

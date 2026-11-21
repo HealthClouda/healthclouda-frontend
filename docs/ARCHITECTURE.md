@@ -232,10 +232,14 @@ beta or production. Full posture and what is accepted in writing: [`SECURITY_BAS
 | Layer | Where |
 |---|---|
 | Unit + component (Vitest, jsdom) | `src/**/*.test.ts(x)` — **282 tests / 24 files** (2026-09-08) |
-| Browser (Playwright) | `e2e/`, including the design-fidelity harness in `e2e/design/` |
+| Browser (Playwright) | `e2e/`, including the pre-staging contract checks in `e2e/contract/` (`npm run test:contract`) |
 
-**T5 design harness coverage** (`e2e/design/`) — it signs in for real against `api-dev`, so a role is
-covered only where credentials exist:
+> 🗑️ **2026-11-21: the screenshot half of this harness was removed** (FLAG-235: its baselines drifted
+> daily with the clock, and the design exports it matched are built). The stat-tile and small-screen
+> checks moved to `e2e/contract/`. The table below is the history of the harness as it stood.
+
+**T5 design harness coverage** (formerly `e2e/design/`) — it signed in for real against `api-dev`, so a role was
+covered only where credentials existed:
 
 | Dashboard | Rendered | Note |
 |---|---|---|

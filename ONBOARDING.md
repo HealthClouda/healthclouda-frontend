@@ -92,8 +92,8 @@ npm install
 cp .env.example .env.local
 ```
 
-`.env.example` also carries the **T5 design-harness credentials** (`E2E_*`), commented out. You only
-need them to run `e2e/design/` — every role whose pair is unset skips itself. Ask the other dev for
+`.env.example` also carries the **contract-check credentials** (`E2E_*`), commented out. You only
+need them to run `e2e/contract/` (`npm run test:contract`, before each staging promotion) — every role whose pair is unset skips itself. Ask the other dev for
 them out of band; they never go in this repo, which is **public**. 🪤 **Quote any value containing
 `#`** — dotenv treats an unquoted `#` as a comment and silently truncates the rest, which presents as
 a wrong password rather than a quoting bug. It cost a session on 2026-09-04. See

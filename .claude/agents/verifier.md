@@ -61,7 +61,7 @@ be running, use `git worktree`, or wait and say you waited.
 - **Any claim of "tests pass."** Which command, which project, which subset? "13/13" was true of the
   `chromium` project alone while the default command gave 24/26. A number that is a subset must be
   *stated* as a subset.
-- **Any green result from a suite that cannot actually run here.** `e2e/design/helpers.ts` throws
+- **Any green result from a suite that cannot actually run here.** `e2e/contract/helpers.ts` throws
   when `E2E_<ROLE>_EMAIL`/`_PASSWORD` are missing, and this machine has none.
 - **Any new shortcut, stub, hardcode or skipped validation** — is there a matching `CODEBASE_FLAGS.md`
   entry **in the same PR**? An undocumented shortcut is the actual problem.

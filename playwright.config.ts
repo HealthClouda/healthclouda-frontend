@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnvConfig } from '@next/env';
 
-// The design harness reads E2E_<ROLE>_EMAIL / _PASSWORD from the environment
+// The contract checks (e2e/contract/) read E2E_<ROLE>_EMAIL / _PASSWORD from the environment
 // and its docs say to put them in `.env.local` — but Playwright is not Next, so
 // nothing was loading that file into this process and the documented setup
 // could never have worked. `@next/env` is what Next itself uses, so the same
@@ -35,9 +35,9 @@ export default defineConfig({
   // required-checks tick with no checks behind it, so the project is removed
   // instead.
   //
-  // Small-viewport behaviour is not lost: `e2e/design/smallscreen.spec.ts` owns
+  // Small-viewport behaviour is not lost: `e2e/contract/smallscreen.spec.ts` owns
   // it, at the design system's own explicit breakpoints (VIEWPORTS in
-  // e2e/design/helpers.ts) rather than a device emulation — which is the more
+  // e2e/contract/helpers.ts) rather than a device emulation — which is the more
   // precise predicate for `SmallScreenGate` anyway, since that gate tests the
   // viewport and not the device.
   //
