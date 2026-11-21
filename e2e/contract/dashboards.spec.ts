@@ -4,17 +4,18 @@ import { EMPTY_VALUE } from '../../src/lib/utils';
 
 /**
  * Dashboard contract checks against the real API, in a real browser:
- * Org Admin, Nurse, Receptionist, Doctor, Patient.
+ * Org Admin, Nurse, Receptionist, Doctor, Patient (Superadmin has its own spec).
  *
  * 🗓️ **Run before every `develop` → `staging` promotion** (`npm run test:contract`,
- * staff logins in `.env.local`, see `helpers.ts`). It is not in CI, because CI
- * holds no credentials, so this is the only moment it is guaranteed to run.
+ * logins in `.env.local`, see `helpers.ts`). Not in CI: CI holds no credentials,
+ * so that is the one moment it is guaranteed to run.
  *
  * Until 21 Nov 2026 this was `e2e/design/roles.spec.ts`, the T5 design harness,
- * and it also took screenshot baselines. Those existed so the Claude Design
- * exports could be matched while they were built. That job is done, and the
- * baselines drifted daily with the clock (FLAG-235), so they were removed. The
- * two checks below never depended on pixels and stay.
+ * which also took screenshot baselines. Those existed so the Claude Design
+ * exports could be matched while they were built; that job is done, and they
+ * drifted daily with the clock (FLAG-235), so they were removed. Every check
+ * that did not depend on pixels stays: each page opens from its nav button and
+ * shows its heading, the stat tiles carry real values, and the 390px gate.
  *
  * ⚠️ **Why this file exists, and what it is actually for.**
  * Gate 2 recorded that the first time anyone rendered a dashboard in a browser,
@@ -39,7 +40,7 @@ import { EMPTY_VALUE } from '../../src/lib/utils';
  * wrong schema is worse than a silent one because it removes the reason to
  * measure. And a schema cannot tell you what actually rendered: `StatCard`
  * renders `{value ?? '—'}`, so an em dash in a tile IS the signature of reading
- * a field the backend never sent. `assertTilesCarryValues` below is the
+ * a field the backend never sent. `assertTilesCarryValues` below remains the
  * assertion with teeth.
  *
  * Signs in for real against `NEXT_PUBLIC_API_URL`; credentials come from
@@ -48,6 +49,27 @@ import { EMPTY_VALUE } from '../../src/lib/utils';
 
 interface RoleSpec {
   role: E2ERole;
+  /**
+   * `nav` is the sidebar button; `title` is the <h1> in the header. They are
+   * NOT always the same string — the receptionist's "Check-ins" button opens a
+   * page titled "Today's Check-ins". Modelling them as one field silently
+   * skipped that page when this was first written.
+   */
+  pages: readonly {
+    nav: string;
+    title: string;
+    /**
+     * Heading level of `title`. Defaults to 1 — the <h1> `DashboardHeader`
+     * renders from the shell's `pageTitle` prop, which is what every staff
+     * dashboard uses on every page.
+     *
+     * The **patient overview is the one page in the product that passes no
+     * `pageTitle`** (`PatientDashboard.tsx`: `page === 'overview' ? undefined
+     * : …`), so it has no <h1> at all and a level-1 lookup there fails on a
+     * page that rendered perfectly. It anchors on a page-level <h2> instead.
+     */
+    titleLevel?: 1 | 2;
+  }[];
   /** Every StatCard label on the overview, exactly as it appears in the DOM. */
   tiles: readonly string[];
   /**
@@ -79,21 +101,52 @@ interface RoleSpec {
 const ROLES: readonly RoleSpec[] = [
   {
     role: 'org-admin',
+    pages: [
+      { nav: 'Dashboard', title: 'Dashboard' },
+      { nav: 'Staff', title: 'Staff' },
+      { nav: 'Patients', title: 'Patients' },
+      { nav: 'Wards & Beds', title: 'Wards & Beds' },
+      { nav: 'Access Requests', title: 'Access Requests' },
+      { nav: 'Referrals', title: 'Referrals' },
+      // 'Notifications' and 'Settings' carry `soon: true` in the nav and render
+      // a placeholder rather than a page. Nothing to verify.
+    ],
     tiles: ['Total Staff', 'Active Patients', 'Bed Occupancy', 'Pending Access'],
     mobile: 'gate',
   },
   {
     role: 'nurse',
+    pages: [
+      { nav: 'Overview', title: 'Overview' },
+      { nav: 'My Patients', title: 'My Patients' },
+      { nav: 'Vitals', title: 'Vitals' },
+      { nav: 'Ward Overview', title: 'Ward Overview' },
+    ],
     tiles: ['Active Admissions', 'Patients in Queue', 'Bed Occupancy', 'Admitted Today'],
     mobile: 'gate',
   },
   {
     role: 'receptionist',
+    pages: [
+      { nav: 'Overview', title: 'Overview' },
+      { nav: 'Check-ins', title: "Today's Check-ins" },
+      { nav: 'Appointments', title: 'Appointments' },
+      { nav: 'Patient Search', title: 'Patient Search' },
+      { nav: 'Referrals', title: 'Referrals' },
+    ],
     tiles: ['Check-ins Today', 'Pending Assignment', 'Avail. Beds', 'Pending Referrals'],
     mobile: 'gate',
   },
   {
     role: 'doctor',
+    pages: [
+      { nav: 'Overview', title: 'Overview' },
+      { nav: 'My Patients', title: 'My Patients' },
+      { nav: 'Episodes', title: 'Episodes' },
+      { nav: 'Appointments', title: 'Appointments' },
+      { nav: 'Referrals', title: 'Referrals' },
+      { nav: 'Prescriptions', title: 'Prescriptions' },
+    ],
     // #109 (FLAG-222/227) fixed the field-name mismatch and swapped the dead
     // "Prescriptions" tile (read `active_prescriptions`, never sent) for
     // "Admissions Under Care" (`admissions_under_care`, genuinely returned).
@@ -105,6 +158,14 @@ const ROLES: readonly RoleSpec[] = [
   },
   {
     role: 'patient',
+    pages: [
+      // No <h1>: the patient overview is the only page that passes no
+      // `pageTitle`. See `titleLevel` on the interface above.
+      { nav: 'Overview', title: 'Upcoming Appointments', titleLevel: 2 },
+      { nav: 'My Health', title: 'My Health' },
+      { nav: 'Appointments', title: 'Appointments' },
+      { nav: 'Access & Referrals', title: 'Access & Referrals' },
+    ],
     // #109 (FLAG-231) confirmed the prediction: `upcoming_appointments` and
     // `pending_access_requests` were never in the payload. "Upcoming Appts"
     // survives on a real value — `apptData.count` from the scheduled-
@@ -182,10 +243,11 @@ async function assertTilesCarryValues(page: Page, tiles: readonly string[]): Pro
   ).toEqual([]);
 }
 
-// One worker, in order: each role's desktop and mobile tests sign in as the SAME
+
+// One worker, in order. Each role's desktop and mobile tests sign in as the SAME
 // account, and the backend rotates and blacklists refresh tokens, so parallel
-// logins for one user log each other out. 'default', not 'serial', so one
-// failing role does not skip the rest: a run should report every broken tile.
+// logins for one user log each other out. (The desktop block below is also
+// `serial`; this line stops the mobile block running beside it.)
 test.describe.configure({ mode: 'default' });
 
 for (const spec of ROLES) {
@@ -193,19 +255,28 @@ for (const spec of ROLES) {
   const hasCreds = !!process.env[`E2E_${key}_EMAIL`] && !!process.env[`E2E_${key}_PASSWORD`];
   const skipReason = `E2E_${key}_EMAIL / E2E_${key}_PASSWORD not set — see e2e/contract/helpers.ts`;
 
-  test.describe(`${spec.role} — desktop`, () => {
+  test.describe(`${spec.role} — desktop structure`, () => {
     // Skip rather than fail: CI holds no secrets, and a suite that goes red for
     // a missing credential trains people to ignore red suites.
     test.skip(!hasCreds, skipReason);
+
+    // Serial, deliberately — every test here signs in as the SAME account, and
+    // SimpleJWT rotates and blacklists refresh tokens (CLAUDE.md §5), so
+    // concurrent logins for one user log each other out. Same reasoning as
+    // superadmin.spec.ts, where it was found the hard way.
+    test.describe.configure({ mode: 'serial' });
     test.use({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
 
-    test('overview stat tiles read fields the API actually returns', async ({ page }) => {
+    test.beforeEach(async ({ page }) => {
       // 150s, not the 30s default. `signInAs` alone allows 45s — against
       // `next dev` each route compiles on first request — so the default test
-      // timeout fired BEFORE the sign-in helper's own wait, and the test failed
-      // looking exactly like broken credentials.
+      // timeout fired BEFORE the sign-in helper's own wait, and every test in
+      // this file failed looking exactly like broken credentials.
       test.setTimeout(150_000);
       await signInAs(page, spec.role);
+    });
+
+    test('overview stat tiles read fields the API actually returns', async ({ page }) => {
       if (spec.knownStatBug) {
         test.fail(
           true,
@@ -217,6 +288,21 @@ for (const spec of ROLES) {
       await waitForData(page);
       await assertTilesCarryValues(page, spec.tiles);
     });
+
+    for (const p of spec.pages) {
+      test(`${p.nav} @ desktop`, async ({ page }) => {
+        if (p.nav !== spec.pages[0].nav) {
+          // exact: true — role-name matching is substring by default, so a nav
+          // label that is a prefix of another control breaks strict mode. It
+          // did for Superadmin's 'Audit Logs'.
+          await page.getByRole('button', { name: p.nav, exact: true }).click();
+        }
+        await expect(
+          page.getByRole('heading', { level: p.titleLevel ?? 1, name: p.title }),
+        ).toBeVisible();
+        await waitForData(page);
+      });
+    }
   });
 
   test.describe(`${spec.role} — mobile @ ${VIEWPORTS[1].width}px`, () => {
@@ -242,6 +328,12 @@ for (const spec of ROLES) {
           // the patient portal into a "get a bigger screen" notice on the only
           // device patients use. `docs/DESIGN-VERIFICATION.md` calls this "the
           // mistake most likely to reach review".
+          //
+          // Wait for the dashboard to have LOADED first: a count of 0 is also
+          // what an empty first paint shows, so checking before the data lands
+          // would pass even if the gate mounted a moment later.
+          await waitForData(page);
+          await expect(page.getByText(spec.tiles[0], { exact: true }).first()).toBeVisible();
           await expect(page.getByText('This dashboard needs a bigger screen')).toHaveCount(0);
           // Present in the DOM at 390px, off-canvas behind the menu button —
           // that is FLAG-025 (the drawer is mounted unconditionally and hidden

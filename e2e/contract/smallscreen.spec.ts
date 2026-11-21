@@ -16,6 +16,14 @@ import { signInAs, VIEWPORTS } from './helpers';
  * in `.env.local`. See `docs/DESIGN-VERIFICATION.md` → The contract checks.
  */
 
+// Skip, don't fail, without credentials: a run that goes red for a missing
+// setting trains people to ignore red runs.
+const hasCreds = !!process.env.E2E_SUPERADMIN_EMAIL && !!process.env.E2E_SUPERADMIN_PASSWORD;
+test.skip(!hasCreds, 'E2E_SUPERADMIN_EMAIL / E2E_SUPERADMIN_PASSWORD not set — see e2e/contract/helpers.ts');
+// One worker, in order: both tests sign in as the same superadmin, and refresh
+// tokens rotate, so parallel logins sign each other out.
+test.describe.configure({ mode: 'default' });
+
 const MOBILE = VIEWPORTS.find((v) => v.name === 'mobile')!;
 const DESKTOP = VIEWPORTS.find((v) => v.name === 'desktop')!;
 

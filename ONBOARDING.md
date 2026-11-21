@@ -254,7 +254,7 @@ and every group exists because of something that already happened here:
 | **Secrets** | reading `.env*` and `API-doc.md`, and `cat`/`head`/`tail` on `.env*` | Both are gitignored and carry values that must not enter a transcript — **this repo is public** |
 | **Review integrity** | `gh pr review`, `gh pr merge`, `gh pr close`, `gh ruleset`, and every writing `gh api` method | Ruleset 11328360's one-approval requirement is **the only quality gate this repo mechanically has.** An assistant that can approve, dismiss or merge can spend it |
 | **Shared branches** | pushing to `develop`/`main`/`staging`, all force-push forms, branch deletion, `reset --hard`, `--no-verify` | Nobody rewrites shared history, and a deleted branch closes any PR stacked on it |
-| **Baselines** | `playwright test --update-snapshots` / `-u` | Silently rewriting a design baseline turns a real visual regression into a green check |
+| **Baselines** | `playwright test --update-snapshots` / `-u` | Kept on purpose after the screenshot baselines were removed (2026-11-21, FLAG-235): if any come back, silently rewriting one turns a real visual regression into a green check |
 | **Infrastructure** | `vercel`, `wrangler`, `railway` | Infra has an **owner, not a PR**. Railway variables, Cloudflare DNS and Vercel env are not version controlled — an assistant reports what needs changing; the owner changes it |
 
 ⚠️ **Two honest limits, so nobody mistakes this list for a sandbox:**

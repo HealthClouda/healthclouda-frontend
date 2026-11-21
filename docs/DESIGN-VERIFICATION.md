@@ -138,18 +138,20 @@ credentials), so that is the one moment they are guaranteed to run.
 npm run test:contract
 ```
 
-They sign in **for real** against `NEXT_PUBLIC_API_URL` (no mocked auth) and check two things a unit
-test structurally cannot:
+They sign in **for real** against `NEXT_PUBLIC_API_URL` (no mocked auth) and check what a unit test
+structurally cannot: the real API, real routing and real CSS.
 
 | Spec | What it proves |
 |---|---|
-| `dashboards.spec.ts` | No stat tile renders `—`, `NaN` or `undefined` once data has loaded (FLAG-222), on Org Admin, Nurse, Receptionist, Doctor and Patient. At 390px, staff dashboards are **absent** behind `SmallScreenGate` and the patient portal has **no** gate |
+| `dashboards.spec.ts` | Org Admin, Nurse, Receptionist, Doctor, Patient: every page opens from its nav button and shows its heading; no stat tile renders `—`, `NaN` or `undefined` once data has loaded (FLAG-222); at 390px staff dashboards are **absent** behind `SmallScreenGate` and the patient portal has **no** gate |
+| `superadmin.spec.ts` | Superadmin: Dashboard, Organisations, Users and Audit Logs open from the nav, show their heading and load table rows; 390px shows only the gate |
 | `smallscreen.spec.ts` | The FLAG-203 gate with real CSS at a real viewport, which jsdom cannot evaluate |
 
 > 🗑️ **Until 21 Nov 2026 this folder was `e2e/design/`, the T5 screenshot harness**, with 35
 > committed baselines. They existed so the Claude Design exports could be matched while the
 > dashboards were built. That job is done, the baselines (last refreshed 26 Sep) drifted daily with
-> the clock (FLAG-235), and they were removed. The checks above never depended on pixels.
+> the clock (FLAG-235), and they were removed. Every check above was in that harness and never
+> depended on pixels.
 
 **Credentials** come from `.env.local` (gitignored), never this repo. One pair per role you test:
 
