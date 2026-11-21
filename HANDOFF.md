@@ -18,7 +18,6 @@
 
 | Who | Item(s) | Branch | Touches | Since | State |
 |---|---|---|---|---|---|
-| @Bastoh | **FLAG-235**: land @Qeeyat's mask-contract fix (board w5-b3), her commit carried onto `develop` with her as author | `fix/flag-235-mask-contract-rebased` (cut after this claim merges) | new `e2e/design/drifting-text.ts`, `e2e/design/roles.spec.ts`, `e2e/design/superadmin.spec.ts`, new `src/lib/drifting-text.contract.test.ts` | 2026-11-18 | 📌 claimed |
 | @Qeeyat | **Schema-reading guidance** — the contract seam, re-verified | `docs/schema-contract-guidance` | `CLAUDE.md`, `ONBOARDING.md`, `CODEBASE_FLAGS.md` | 2026-08-25 | 🔴 **PR #96 is CLOSED (31 Aug, unmerged) — despite `develop`'s row and the 1 Sep handover both saying "open 7 days".** Its blocking change request was answered **29 Aug**. Rebased 6 Sep, every figure re-verified against the live schema, three stale claims fixed. **Needs reopening by hand, or re-closing with a reason written down — FLAG-234.** None of its content is on any merged branch |
 | @Bastoh | **B4** — promote `develop` → `staging` | `develop` → `staging` | branch promotion | 2026-08-28 | ✅ **PR #98 APPROVED — deliberately held.** `[INFRA]` lane + beta runbook ordering: the `staging`-scoped `NEXT_PUBLIC_API_URL=api-beta` override goes in **first**, domain second. **@Bastoh's call** |
 
@@ -32,6 +31,8 @@
 > ⛓️ **The stack merged safely and the pattern is now evidenced twice.** GitHub retargeted **#100** onto `develop` *before* auto-deleting #99's branch, so the child survived. The trap in this file is specifically `gh pr merge --delete-branch`, which removes the base out from under the child first — not auto-delete after a retarget.
 > ✅ **Fixed by #212 (2026-11-16):** CI now runs on every PR whatever its base, and again on a retarget, so the warning below is history. Stacks opened before #212 merged need a rebase onto `develop` to pick up the new trigger.
 > 🔴 **2026-09-04 — this stacking guidance has a cost nobody had measured: a stacked child gets NO CI.** `ci.yml` triggers only on PRs based on `develop`/`staging`/`main`, and a base change on retarget fires an event type the workflow does not listen for. **#100, #117 and #119 all merged into `develop` without a single CI job ever running on them** — verified 2026-09-04. Keep stacking; it is still the right pattern. But see **FLAG-230**, and do not read "no checks reported" as "not yet".
+
+*Cleared on merge — **2026-11-21**: **#222** FLAG-235 (w5-b3) — resolved by **removing** the design screenshot harness, not by fixing its masks (owner's decision; #221 closed with the reasoning). Its non-pixel checks moved to `e2e/contract/`; run `npm run test:contract` before each staging promotion.*
 
 *Cleared on merge — **2026-10-21** (each approved by @Bastoh, CI green, merged by @Bastoh at the owner's request): @Qeeyat's **#193** flags cleanup (33 flags to Resolved) · **#189** 8 Oct session docs · **#195** FLAG-212 ward board room beds · **#196** FLAG-067 deceased check-in. Mine: **FLAG-073** live updates (**#188**, merged 7 Oct; its row was missed then). #189/#195/#196 were rebased after #193 and conflicted only on these claim rows: **a claim row committed on the fix branch conflicts with every other claim made after it.***
 
