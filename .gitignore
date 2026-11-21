@@ -23,8 +23,8 @@ FRONTEND_HANDOFF.pdf
 # TypeScript incremental build cache
 *.tsbuildinfo
 
-# Playwright generated output (screenshots ARE committed — those live under
-# e2e/design/**-snapshots/, this is only the run report/artifacts)
+# Playwright generated output: the run report and artifacts. They hold screenshots
+# of whatever rendered, so they are never committed (this repo is public).
 /playwright-report/
 /test-results/
 

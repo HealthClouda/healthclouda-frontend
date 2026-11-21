@@ -196,7 +196,7 @@ bypass for anyone. Assign the reviewer when you open the PR — it is always the
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | What is actually built |
 | [`docs/SECURITY_BASELINE.md`](docs/SECURITY_BASELINE.md) | The PHI security baseline |
 | [`docs/FRONTEND_SPRINT_PLAN.md`](docs/FRONTEND_SPRINT_PLAN.md) | The dated plan to beta onboarding |
-| [`docs/DESIGN-VERIFICATION.md`](docs/DESIGN-VERIFICATION.md) | How to verify a screen against its design |
+| [`docs/DESIGN-VERIFICATION.md`](docs/DESIGN-VERIFICATION.md) | How to verify a screen against its design, and the pre-staging contract checks (`npm run test:contract`) |
 | [`docs/archive/`](docs/archive/) | Historical documents, kept for context, not current |
 
 ---

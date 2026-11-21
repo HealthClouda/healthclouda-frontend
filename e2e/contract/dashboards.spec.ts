@@ -3,11 +3,19 @@ import { signInAs, VIEWPORTS, type E2ERole } from './helpers';
 import { EMPTY_VALUE } from '../../src/lib/utils';
 
 /**
- * T5 design fidelity — DASH-2 Org Admin, DASH-3 Nurse, DASH-4 Receptionist,
- * DASH-5 Doctor, DASH-6 Patient.
+ * Dashboard contract checks against the real API, in a real browser:
+ * Org Admin, Nurse, Receptionist, Doctor, Patient (Superadmin has its own spec).
  *
- * Superadmin (DASH-1) keeps its own spec because its audit log needs bespoke
- * masking. These five share one table.
+ * 🗓️ **Run before every `develop` → `staging` promotion** (`npm run test:contract`,
+ * logins in `.env.local`, see `helpers.ts`). Not in CI: CI holds no credentials,
+ * so that is the one moment it is guaranteed to run.
+ *
+ * Until 21 Nov 2026 this was `e2e/design/roles.spec.ts`, the T5 design harness,
+ * which also took screenshot baselines. Those existed so the Claude Design
+ * exports could be matched while they were built; that job is done, and they
+ * drifted daily with the clock (FLAG-235), so they were removed. Every check
+ * that did not depend on pixels stays: each page opens from its nav button and
+ * shows its heading, the stat tiles carry real values, and the 390px gate.
  *
  * ⚠️ **Why this file exists, and what it is actually for.**
  * Gate 2 recorded that the first time anyone rendered a dashboard in a browser,
@@ -33,10 +41,10 @@ import { EMPTY_VALUE } from '../../src/lib/utils';
  * measure. And a schema cannot tell you what actually rendered: `StatCard`
  * renders `{value ?? '—'}`, so an em dash in a tile IS the signature of reading
  * a field the backend never sent. `assertTilesCarryValues` below remains the
- * assertion with teeth — the screenshots are the secondary benefit.
+ * assertion with teeth.
  *
  * Signs in for real against `NEXT_PUBLIC_API_URL`; credentials come from
- * `.env.local` and never from this repo. See `docs/DESIGN-VERIFICATION.md`.
+ * `.env.local` and never from this repo. See `helpers.ts`.
  */
 
 interface RoleSpec {
@@ -235,24 +243,17 @@ async function assertTilesCarryValues(page: Page, tiles: readonly string[]): Pro
   ).toEqual([]);
 }
 
-function masksFor(page: Page) {
-  return [
-    // Next's dev-tools indicator sits bottom-left, over the sidebar avatar. It
-    // is a dev-build artifact, not our UI.
-    page.locator('nextjs-portal'),
-    page.locator('text=/\\d+ (second|minute|hour|day)s? ago/i'),
-    page.locator('text=/Today,/i'),
-  ];
-}
 
-function baselineName(role: string, nav: string, viewport: string): string {
-  return `${role}-${nav.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${viewport}.png`;
-}
+// One worker, in order. Each role's desktop and mobile tests sign in as the SAME
+// account, and the backend rotates and blacklists refresh tokens, so parallel
+// logins for one user log each other out. (The desktop block below is also
+// `serial`; this line stops the mobile block running beside it.)
+test.describe.configure({ mode: 'default' });
 
 for (const spec of ROLES) {
   const key = spec.role.toUpperCase().replace(/-/g, '_');
   const hasCreds = !!process.env[`E2E_${key}_EMAIL`] && !!process.env[`E2E_${key}_PASSWORD`];
-  const skipReason = `E2E_${key}_EMAIL / E2E_${key}_PASSWORD not set — see docs/DESIGN-VERIFICATION.md`;
+  const skipReason = `E2E_${key}_EMAIL / E2E_${key}_PASSWORD not set — see e2e/contract/helpers.ts`;
 
   test.describe(`${spec.role} — desktop structure`, () => {
     // Skip rather than fail: CI holds no secrets, and a suite that goes red for
@@ -300,10 +301,6 @@ for (const spec of ROLES) {
           page.getByRole('heading', { level: p.titleLevel ?? 1, name: p.title }),
         ).toBeVisible();
         await waitForData(page);
-        await expect(page).toHaveScreenshot(baselineName(spec.role, p.nav, 'desktop'), {
-          fullPage: true,
-          mask: masksFor(page),
-        });
       });
     }
   });
@@ -331,19 +328,19 @@ for (const spec of ROLES) {
           // the patient portal into a "get a bigger screen" notice on the only
           // device patients use. `docs/DESIGN-VERIFICATION.md` calls this "the
           // mistake most likely to reach review".
+          //
+          // Wait for the dashboard to have LOADED first: a count of 0 is also
+          // what an empty first paint shows, so checking before the data lands
+          // would pass even if the gate mounted a moment later.
+          await waitForData(page);
+          await expect(page.getByText(spec.tiles[0], { exact: true }).first()).toBeVisible();
           await expect(page.getByText('This dashboard needs a bigger screen')).toHaveCount(0);
           // Present in the DOM at 390px, off-canvas behind the menu button —
           // that is FLAG-025 (the drawer is mounted unconditionally and hidden
           // with `-translate-x-full`), so count is 1, not 0. No PHI concern
           // here: this dashboard shows the signed-in patient their own records.
           await expect(page.getByRole('navigation')).toHaveCount(1);
-          await waitForData(page);
         }
-
-        await expect(page).toHaveScreenshot(
-          baselineName(spec.role, spec.mobile === 'gate' ? 'gate' : 'overview', 'mobile'),
-          { mask: masksFor(page) },
-        );
       },
     );
   });

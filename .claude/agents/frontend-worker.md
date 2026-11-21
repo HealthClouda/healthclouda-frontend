@@ -34,7 +34,7 @@ already corrected.
 5. **`gh pr merge --delete-branch` on a stack parent CLOSES the stacked child.** Merge stack parents
    **without** `--delete-branch`; the child then auto-retargets correctly.
 6. **No PHI, no credentials, no real patient data in this repo — it is public.** Synthetic only.
-   Screenshot baselines are committed, so never point the T5 harness at a tier holding real data.
+   Playwright reports hold screenshots, so never point `e2e/contract/` at a tier holding real data.
 7. **You are not alone in this working tree.** If another agent may be operating the same directory,
    say so and stop, or work in a `git worktree`. Two agents doing git operations in one directory
    produce unstable reads that look exactly like regressions — this has already caused one false

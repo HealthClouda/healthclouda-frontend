@@ -34,8 +34,9 @@ Point 3 has a consequence specific to us and worth stating loudly:
 
 🔴 **This repository is PUBLIC.** The backend's is private. Anything that lands here — a Playwright
 baseline PNG, a fixture, a `.env.example`, a pasted payload in a PR description — is world-readable
-**forever**, including after deletion. From the moment the beta backend holds real records, the T5
-design harness must never be pointed at it. This constraint does not exist on the other side of the
+**forever**, including after deletion. From the moment the beta backend holds real records, the
+Playwright checks in `e2e/contract/` must never be pointed at it (the screenshot baselines that
+made this rule urgent were removed 2026-11-21, FLAG-235; Playwright's run reports still hold screenshots). This constraint does not exist on the other side of the
 seam and cannot be inherited from their documents.
 
 ### Which environment must each item be true on?
@@ -317,8 +318,8 @@ in the repo and it has one root cause, so it is one item repeated seven times.
 | **FLAG-216 / 219** | Create endpoints return their input without an `id`, twice | ⚠️ **FLAG-216 was wrong** — `POST /patients/` does return `{patient:{id, healthclouda_id}}`; the *schema* documents the request serializer as the response. Re-scoped in backend PR #160 |
 
 **Done when (the tier, not each row):** every dashboard's stat tiles and tables are typed from a
-**captured live payload** pasted into the PR, and the em-dash render is asserted against — the T5
-harness is what catches this class and it now covers **five of six** roles — Nurse was added 2026-09-04 and **came back clean** (11/11 fields). Only **Patient** is uncovered, for want of credentials.
+**captured live payload** pasted into the PR, and the em-dash render is asserted against — `e2e/contract/dashboards.spec.ts`
+(formerly the T5 harness) is what catches this class and it now covers **five of six** roles — Nurse was added 2026-09-04 and **came back clean** (11/11 fields). Only **Patient** is uncovered, for want of credentials.
 
 🔄 **Update 2026-09-04 — the count went UP, and the method changed.** Backend #161 published the stats response bodies, so a **presence check needs no credentials any more**. That found **FLAG-231**: two of four Patient tiles read fields `/patients/me/dashboard/` does not return. **The class now stands at five of six, not four of six.** Check the schema first because it is free, then render — a schema still cannot say what reached the screen, and per backend **FLAG-554** six fields in that same batch publish with the wrong *type*, which is more dangerous than an absence because it removes the reason to measure.
 

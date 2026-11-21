@@ -2,31 +2,30 @@ import { test, expect } from '@playwright/test';
 import { signInAs, VIEWPORTS } from './helpers';
 
 /**
- * T5 design fidelity — Superadmin (DASH-1). Requires real credentials via
- * env vars (see helpers.ts) — skips itself when they're absent rather than
- * failing CI on missing secrets.
+ * Superadmin contract checks against the real API: every page opens from its
+ * nav button, shows its heading and loads table rows, and 390px shows only the
+ * gate. Run before each staging promotion (`npm run test:contract`). Requires
+ * real credentials via env vars (see helpers.ts) and skips itself without them.
+ *
+ * Until 21 Nov 2026 this file also took screenshot baselines (the T5 design
+ * harness). They were removed (FLAG-235); these checks never needed pixels.
  */
 
 const hasCreds = !!process.env.E2E_SUPERADMIN_EMAIL && !!process.env.E2E_SUPERADMIN_PASSWORD;
-test.skip(!hasCreds, 'E2E_SUPERADMIN_EMAIL / E2E_SUPERADMIN_PASSWORD not set — see docs/DESIGN-VERIFICATION.md');
+test.skip(!hasCreds, 'E2E_SUPERADMIN_EMAIL / E2E_SUPERADMIN_PASSWORD not set — see e2e/contract/helpers.ts');
 
 // Serial, deliberately. Every test here signs in as the SAME account, and the
 // backend rotates and blacklists refresh tokens (CLAUDE.md §5), so concurrent
 // logins for one user interfere with each other: under the repo default of
 // fullyParallel the suite failed 2/5 then 5/5, and passed 5/5 the moment it ran
-// one worker. Screenshot fidelity doesn't benefit from parallelism anyway.
+// one worker.
 test.describe.configure({ mode: 'serial' });
 
 const PAGES = [
   { nav: 'Dashboard', name: 'overview' },
   { nav: 'Organisations', name: 'organisations' },
   { nav: 'Users', name: 'users' },
-  // maskRows: the audit log grows on every sign-in — including the sign-ins
-  // this suite performs — so its rows can never match a committed baseline.
-  // Masking the body keeps what this harness is actually for (layout, spacing,
-  // tokens, table chrome) while dropping the one part that is unstable by
-  // design. Row *content* is covered by unit tests, not by pixels.
-  { nav: 'Audit Logs', name: 'audit', maskRows: true },
+  { nav: 'Audit Logs', name: 'audit' },
 ];
 
 test.describe('Superadmin — desktop structure', () => {
@@ -57,27 +56,6 @@ test.describe('Superadmin — desktop structure', () => {
       await page.locator('.animate-pulse').first().waitFor({ state: 'detached', timeout: 30_000 })
         .catch(() => {}); // a page that never showed a skeleton is fine
       await expect(page.locator('tbody tr').first()).toBeVisible();
-      await expect(page).toHaveScreenshot(`superadmin-${p.name}-desktop.png`, {
-        fullPage: true,
-        mask: [
-          // Next's dev-tools indicator renders bottom-left, on top of the
-          // sidebar avatar. It is a dev-build artifact, not our UI — and it
-          // reads as an avatar showing the wrong initial until you spot it.
-          page.locator('nextjs-portal'),
-          page.locator('text=/\\d+ (second|minute|hour|day)s? ago/i'),
-          page.locator('text=/Today,/i'),
-          // Everything on this page that counts audit rows, because the count
-          // grows with every sign-in — including the ones this suite performs:
-          // the rows, the "N entries" subtitle, and the "1–20 of N" footer.
-          ...(p.maskRows
-            ? [
-                page.locator('tbody'),
-                page.locator('text=/\\d+ entries/'),
-                page.locator('text=/\\d+–\\d+ of \\d+/'),
-              ]
-            : []),
-        ],
-      });
     });
   }
 });
@@ -89,8 +67,5 @@ test.describe('Superadmin — mobile shows SmallScreenGate, not the shell', () =
     await signInAs(page, 'superadmin');
     await expect(page.getByText('This dashboard needs a bigger screen')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Organisations' })).not.toBeVisible();
-    await expect(page).toHaveScreenshot('superadmin-gate-mobile.png', {
-      mask: [page.locator('nextjs-portal')],
-    });
   });
 });

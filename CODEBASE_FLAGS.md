@@ -1472,8 +1472,22 @@ Worth filing as an `api-request` if (1) turns out to be unsupported.
 
 ---
 
-### FLAG-235 — Two of the three content masks in the design harness match strings the app never emits, so every baseline holding a relative time is a slow time bomb
-**Severity:** P2 · **Area:** Test reliability / design verification · **Owner:** @Qeeyat · **Status:** OPEN
+### FLAG-235 — Two of the three content masks in the design harness match strings the app never emits, so every baseline holding a relative time is a slow time bomb → ✅ **RESOLVED BY REMOVAL (2026-11-21, @Bastoh)**
+**Severity:** P2 · **Area:** Test reliability / design verification · **Owner:** @Qeeyat · **Status:** ✅ RESOLVED (removed)
+
+> ✅ **Resolved by removing the screenshot harness, not by fixing the masks (owner's decision, 2026-11-21).**
+> #221 carried a fix where the masks really matched (`timeAgo()`'s `12d ago`, the `(13d)` counter), and
+> review showed **a mask cannot fix this bug**: it paints a box over an element but does not stop it
+> changing width, and the Admitted cell is `whitespace-nowrap`, so `(9d)` → `(10d)` still pushed every
+> later column. Patient age (`34y`) and the "today / this week / this month" counters drifted the same way.
+> A working fix existed (freeze the browser clock with `page.clock`, pin the backend's date-derived fields
+> in the API replies; 8/8 tests, both positive controls RED), but it fixed a harness whose job is done:
+> the baselines existed to match the Claude Design exports while the dashboards were built, and were last
+> refreshed 26 Sep. So the 35 baselines and the screenshot tests were deleted, #221 was closed, and the two
+> checks that never depended on pixels moved to `e2e/contract/` (stat tiles, FLAG-222; small-screen gate,
+> FLAG-203), to run before each staging promotion (`npm run test:contract`).
+> 🎯 **Reusable lesson:** a mask hides pixels, not layout. Anything that changes a string's width moves its
+> neighbours, so drift has to be stopped at the clock that produces it, or not photographed at all.
 **Found:** 2026-09-09, while re-running the T5 harness looking for something else entirely
 
 `e2e/design/roles.spec.ts` → *"nurse — desktop structure › My Patients @ desktop"* fails against its
