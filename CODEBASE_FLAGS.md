@@ -2712,6 +2712,10 @@ It was RED on the old copy (1 failed, 11 passed) and GREEN after (12 passed).
 > ⚠️ **Not covered here:** backend #280 shipped confirm-before-save on 29 Oct. A reading outside the backend's
 > recording table is still refused with "resend with confirm_out_of_range=true", and this form has no way to
 > resend. That is the "save anyway?" prompt, **#208**, next.
+> ✅ **Closed 2026-11-21 (#208, `feat/vitals-confirm-out-of-range-208`):** on `VITALS_NEED_CONFIRMATION` the form lists each
+> reading with the backend's usual range and offers **Save anyway** (resends the same body + `confirm_out_of_range: true`) or
+> **Go back and edit**; editing a value closes the prompt, and a plain 400 stays a normal error. 6 tests, RED first; two positive
+> controls (drop the flag / let an edit keep the prompt) each fail exactly one. Ranges still come only from the reply.
 
 
 Backend #278 (merged 17 Oct, live on dev since 20 Oct) moved the vitals **recording limits** into one

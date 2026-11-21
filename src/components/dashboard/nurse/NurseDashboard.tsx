@@ -383,18 +383,40 @@ function LatestReading({ vitals }: { vitals: PatientVitals }) {
   );
 }
 
+// #208: one reading the backend asks her to confirm. The range is the backend's
+// (FLAG-310: limits live only there); this file never holds a number of its own.
+interface OutOfRangeReading { field: string; value: number; confirm_below: number; confirm_above: number }
+
+/** The readings to confirm, when the 400 is VITALS_NEED_CONFIRMATION; otherwise null. */
+function readingsToConfirm(err: unknown): OutOfRangeReading[] | null {
+  if (!(err instanceof ClientApiError)) return null;
+  const data = err.data as { code?: unknown; details?: { out_of_range?: unknown } } | null;
+  if (data?.code !== 'VITALS_NEED_CONFIRMATION') return null;
+  const readings = data.details?.out_of_range;
+  return Array.isArray(readings) && readings.length ? (readings as OutOfRangeReading[]) : null;
+}
+
+/** "Resp. rate 70 per min", from the form's own label "Resp. rate (per min)". */
+function describeReading(r: OutOfRangeReading): string {
+  const label = VITAL_FIELDS.find(f => f.key === r.field)?.label ?? r.field;
+  const [, name = label, unit] = /^(.*?) \((.*)\)$/.exec(label) ?? [];
+  return unit ? `${name} ${r.value} ${unit}` : `${name} ${r.value}`;
+}
+
 function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onRecorded: () => void }) {
   const { toast } = useToast();
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Set while the nurse decides whether to save readings outside the usual range.
+  const [toConfirm, setToConfirm] = useState<OutOfRangeReading[] | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(confirmOutOfRange: boolean) {
+    if (saving) return;
     // Only send fields the nurse actually filled in — the backend stores a
     // partial body as-is, and an empty body would create an all-null reading.
-    const payload: Record<string, number | string> = {};
+    const payload: Record<string, number | string | boolean> = {};
     for (const f of VITAL_FIELDS) {
       const raw = values[f.key]?.trim();
       if (raw) payload[f.key] = Number(raw);
@@ -404,6 +426,8 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
       setFormError('Enter at least one measurement or a note before saving.');
       return;
     }
+    // The same body, plus the flag: the backend saves exactly what it asked about.
+    if (confirmOutOfRange) payload.confirm_out_of_range = true;
     setFormError(null);
     setSaving(true);
     try {
@@ -411,16 +435,27 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
       toast.success('Vitals recorded');
       setValues({});
       setNotes('');
+      setToConfirm(null);
       onRecorded();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to record vitals');
+      // Asked, never refused (advisor, MEDICAL_REVIEW_PACK §9 Q8). A second ask
+      // after she confirmed would loop, so that one shows as a plain error.
+      const readings = confirmOutOfRange ? null : readingsToConfirm(err);
+      setToConfirm(readings);
+      if (!readings) setFormError(err instanceof Error ? err.message : 'Failed to record vitals');
     } finally {
       setSaving(false);
     }
   }
 
+  // Any edit closes the prompt, so "Save anyway" only ever confirms what it showed.
+  function edit(apply: () => void) {
+    setToConfirm(null);
+    apply();
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-card border border-border shadow-dash-card p-4 space-y-4">
+    <form onSubmit={e => { e.preventDefault(); void submit(false); }} className="bg-white rounded-card border border-border shadow-dash-card p-4 space-y-4">
       <h3 className="text-[13.5px] font-bold text-ink">Record new reading</h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {VITAL_FIELDS.map(f => (
@@ -432,7 +467,7 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
               step={f.step}
               min={'min' in f ? f.min : undefined}
               value={values[f.key] ?? ''}
-              onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))}
+              onChange={e => { const value = e.target.value; edit(() => setValues(v => ({ ...v, [f.key]: value }))); }}
               className={formInputClass}
             />
           </div>
@@ -444,12 +479,42 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
           id="vital-notes"
           rows={2}
           value={notes}
-          onChange={e => setNotes(e.target.value)}
+          onChange={e => { const value = e.target.value; edit(() => setNotes(value)); }}
           className={`${formInputClass} h-auto py-2`}
         />
       </div>
       {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
-      <Button type="submit" loading={saving}>Record reading</Button>
+      {toConfirm ? (
+        // Same warn-and-allow box as the admit forms' GenderOverrideWarning.
+        <div role="alert" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-2">
+          <p className="text-xs font-semibold text-warning-strong">
+            {toConfirm.length === 1 ? 'This reading is' : 'These readings are'} outside the usual range. Check {toConfirm.length === 1 ? 'it' : 'them'}, then save anyway if correct.
+          </p>
+          <ul className="text-xs text-ink space-y-0.5">
+            {toConfirm.map(r => (
+              <li key={r.field}>
+                <span className="font-semibold tabular-nums">{describeReading(r)}</span>
+                <span className="text-text-soft"> (usual range {r.confirm_below}–{r.confirm_above})</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void submit(true)}
+              disabled={saving}
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-warning-strong hover:opacity-90 disabled:opacity-50 rounded-md transition-colors"
+            >
+              {saving ? 'Saving…' : 'Save anyway'}
+            </button>
+            <button type="button" onClick={() => setToConfirm(null)} className="px-3 py-1.5 text-xs font-semibold text-text-soft hover:text-ink">
+              Go back and edit
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Button type="submit" loading={saving}>Record reading</Button>
+      )}
     </form>
   );
 }
