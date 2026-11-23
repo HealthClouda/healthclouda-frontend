@@ -1095,3 +1095,66 @@ describe('Superadmin — Users page: a suspended user (w5-b2, backend FLAG-647)'
     expect(within(panel).queryByRole('button', { name: /reset password/i })).toBeNull();
   });
 });
+
+// ─── w5-b6 walk (23 Nov): group 1 layout fixes ─────────────────────────────
+// An <svg> with no size draws as large as its box allows. Inside a Button that
+// made "Send Invitation" 190×107 px with an 87 px plane, and "+ Invite User" /
+// "+ Add Organisation" 60 px tall with the label wrapped. An icon is sized if
+// it carries a width class itself or its parent sizes it (`[&>svg]:w-…`).
+function unsizedButtonIcons(): string[] {
+  return [...document.querySelectorAll('button svg')]
+    .filter((svg) => {
+      const own = svg.getAttribute('class') ?? '';
+      const parent = svg.parentElement?.getAttribute('class') ?? '';
+      return !/(^|\s)(w|size)-/.test(own) && !svg.hasAttribute('width') && !parent.includes('[&>svg]:w-');
+    })
+    .map((svg) => svg.closest('button')!.textContent!.trim() || svg.closest('button')!.getAttribute('aria-label') || '?');
+}
+
+// The filters were `${inputClass} h-9 w-auto`: inputClass already holds
+// `h-[42px] w-full`, and between two conflicting Tailwind classes the
+// stylesheet order wins, not the class order. Full width won, so the Users
+// filters stacked into three 42px rows and Audit Logs into four.
+function conflictingFilterClasses(): string[] {
+  return [...document.querySelectorAll('select, input')]
+    .map((el) => el.getAttribute('class') ?? '')
+    .filter((c) => (/\bh-9\b/.test(c) && c.includes('h-[42px]')) || (/\bw-full\b/.test(c) && /\bw-(auto|56|72)\b/.test(c)));
+}
+
+describe('w5-b6 group 1 — every icon inside a button has a size', () => {
+  it('Overview', async () => {
+    await openPage('Dashboard', 'Recent Organisations');
+    expect(unsizedButtonIcons()).toEqual([]);
+  });
+
+  it('Organisations, with the Add Organisation panel open', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: /add organisation/i }));
+    expect(unsizedButtonIcons()).toEqual([]);
+  });
+
+  it('Users, with the Invite User panel open', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    expect(screen.getByRole('button', { name: /send invitation/i })).toBeInTheDocument();
+    expect(unsizedButtonIcons()).toEqual([]);
+  });
+});
+
+describe('w5-b6 group 1 — filter controls do not fight the form input size', () => {
+  it('Users filters', async () => {
+    await openPage('Users', 'Chidi Okafor');
+    expect(screen.getByRole('combobox', { name: /filter by role/i })).toBeInTheDocument();
+    expect(conflictingFilterClasses()).toEqual([]);
+  });
+
+  it('Audit Logs filters', async () => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/audit/logs/')) return { count: 1, next: null, previous: null, results: [overrideEntry] };
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      return { count: 0, next: null, previous: null, results: [] };
+    });
+    await openPage('Audit Logs', 'nurse@demo.test');
+    expect(conflictingFilterClasses()).toEqual([]);
+  });
+});

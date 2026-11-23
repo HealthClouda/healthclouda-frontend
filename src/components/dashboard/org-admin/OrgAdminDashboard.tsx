@@ -6,7 +6,7 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { FormField, formInputClass } from '@/components/ui/FormField';
+import { FormField, formInputClass, formFilterClass } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
@@ -37,8 +37,8 @@ function DocIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="current
 function RecordsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>; }
 function SettingsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>; }
 function MergeIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M7 3v6a5 5 0 0 0 5 5h6" /><polyline points="15 11 19 14 15 17" /><path d="M17 3v2" /></svg>; }
-function PlusIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>; }
-function SendIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>; }
+function PlusIcon() { return <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>; }
+function SendIcon() { return <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>; }
 
 // ─── Nav ─────────────────────────────────────────────────────────
 // Notifications/Settings are "Soon" — not built today (D2 scope is staff
@@ -574,7 +574,7 @@ function AccessRequestsPage() {
         emptyTitle="No access requests"
         emptyDescription="Patient data access requests will appear here."
         toolbar={
-          <select aria-label="Filter by request status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select aria-label="Filter by request status" className={`${formFilterClass} w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>
@@ -1026,7 +1026,7 @@ function DuplicateRecordsPage() {
           ? 'Choose "All statuses" to see the whole queue.'
           : 'When the front desk flags two records as the same person, they appear here.'}
         toolbar={
-          <select aria-label="Filter by merge status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select aria-label="Filter by merge status" className={`${formFilterClass} w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
             <option value="FLAGGED">Flagged</option>
             <option value="ESCALATED">Escalated</option>
