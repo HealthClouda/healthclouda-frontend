@@ -72,4 +72,27 @@ describe('useDashboardPage', () => {
     });
     expect(result.current[0]).toBe('audit');
   });
+
+  // Review of #228.
+  it('a garbled address (bad % escape) falls back to home instead of crashing', () => {
+    goTo('#%E0%A4%A');
+    const { result } = renderHook(() => useDashboardPage(NAV));
+    expect(result.current[0]).toBe('overview');
+  });
+
+  it('a double click on one screen adds one history entry, not two', () => {
+    goTo('');
+    const before = window.history.length;
+    const { result } = renderHook(() => useDashboardPage(NAV));
+    const set = result.current[1];
+    act(() => { set('users'); set('users'); });
+    expect(window.history.length).toBe(before + 1);
+  });
+
+  it('picking home from a bad address clears it', () => {
+    goTo('#billing');
+    const { result } = renderHook(() => useDashboardPage(NAV));
+    act(() => result.current[1]('overview'));
+    expect(window.location.hash).toBe('');
+  });
 });

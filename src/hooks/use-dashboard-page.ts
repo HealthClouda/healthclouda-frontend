@@ -15,7 +15,8 @@ function subscribe(onChange: () => void) {
   };
 }
 
-const readHash = () => decodeURIComponent(window.location.hash.slice(1));
+// Not decoded: nav ids are plain ASCII, and decoding a garbled link (`#%E0%A4%A`) throws.
+const readHash = () => window.location.hash.slice(1);
 
 /**
  * The dashboard's current screen, kept in the address as `#<nav id>` so browser
@@ -29,11 +30,16 @@ export function useDashboardPage(nav: NavItem[]): [string, (page: string) => voi
   const page = nav.some((n) => n.id === hash && !n.soon) ? hash : home;
 
   const setPage = useCallback((next: string) => {
-    if (next === page) return;
+    // Compare with the live address, not the rendered page: a double click runs
+    // before the re-render, and a bad `#billing` must still clear on Home.
+    const target = next === home ? '' : next;
+    if (readHash() === target) return;
     const { pathname, search } = window.location;
-    window.history.pushState(window.history.state, '', next === home ? pathname + search : `#${next}`);
+    // `null`, not the current state: Next.js only records the new URL (and so
+    // keeps it on its own later address writes) when the state isn't its own.
+    window.history.pushState(null, '', target ? `#${target}` : pathname + search);
     listeners.forEach((l) => l());
-  }, [page, home]);
+  }, [home]);
 
   return [page, setPage];
 }
