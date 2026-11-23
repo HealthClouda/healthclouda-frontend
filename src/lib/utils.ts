@@ -169,8 +169,13 @@ const ROLE_ALIASES: Record<string, string> = {
   superadmin: 'SUPERADMIN',
 };
 
+/** The canonical uppercase role for any spelling the two endpoints use. */
+export function canonicalRole(role: string): string {
+  return ROLE_ALIASES[role.toLowerCase()] ?? role;
+}
+
 export function roleLabel(role: string): string {
-  const canonical = ROLE_ALIASES[role.toLowerCase()] ?? role;
+  const canonical = canonicalRole(role);
   return ROLE_LABELS[canonical] ?? role;
 }
 

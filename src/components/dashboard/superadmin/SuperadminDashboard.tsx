@@ -14,7 +14,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { formInputClass, formFilterClass } from '@/components/ui/FormField';
-import { formatDate, formatDateTime, timeAgo, truncate, roleLabel } from '@/lib/utils';
+import { formatDate, formatDateTime, timeAgo, truncate, roleLabel, canonicalRole } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
 import type {
@@ -408,7 +408,7 @@ function OrgDetailView({
           {!org.is_verified && <Button onClick={() => onAction(org, 'verify')}>Verify</Button>}
           {org.is_active
             ? <Button variant="dangerOutline" onClick={() => onAction(org, 'suspend')}>Suspend</Button>
-            : <Button onClick={() => onAction(org, 'activate')}>Activate</Button>}
+            : <Button variant={org.is_verified ? 'primary' : 'secondary'} onClick={() => onAction(org, 'activate')}>Activate</Button>}
         </div>
       </div>
 
@@ -653,8 +653,8 @@ function OrgsPage() {
           <button onClick={() => setConfirm({ org, action: 'verify' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary hover:bg-chip transition-colors">Verify</button>
         )}
         {org.is_active
-          ? <button onClick={() => setConfirm({ org, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-danger/40 hover:text-danger hover:bg-danger-bg">Suspend</button>
-          : <button onClick={() => setConfirm({ org, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-success/40 hover:text-success hover:bg-success-bg">Activate</button>}
+          ? <button onClick={() => setConfirm({ org, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-danger/40 hover:text-danger hover:bg-danger-bg focus-visible:border-danger/40 focus-visible:text-danger focus-visible:bg-danger-bg">Suspend</button>
+          : <button onClick={() => setConfirm({ org, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-success/40 hover:text-success hover:bg-success-bg focus-visible:border-success/40 focus-visible:text-success focus-visible:bg-success-bg">Activate</button>}
       </div>
     ) },
   ];
@@ -813,7 +813,6 @@ const ROLE_FILTERS = [
   { value: 'PATIENT', label: 'Patient' },
 ] as const;
 
-// The user confirm dialog's wording, one entry per action (a missing one is a type error).
 // w5-b6: every role was the same blue pill in raw capitals ("ORGANIZATION
 // ADMIN"). Readable names, and the roles an admin scans for get their own hue.
 const ROLE_BADGE_NEUTRAL = 'bg-row-hairline text-text-mid';
@@ -824,6 +823,7 @@ const ROLE_BADGE: Record<string, string> = {
   NURSE: 'bg-teal-bg text-teal',
 };
 
+// The user confirm dialog's wording, one entry per action (a missing one is a type error).
 const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
   title: string; label: string; variant: 'danger' | 'primary'; describe: (name: string, email: string) => string;
 }> = {
@@ -974,7 +974,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
       </div>
     ) },
     { key: 'role', header: 'Role', render: (u) => (
-      <span className={`inline-flex items-center px-[11px] py-[3px] rounded-full text-[11px] font-bold whitespace-nowrap ${ROLE_BADGE[u.role] ?? ROLE_BADGE_NEUTRAL}`}>
+      <span className={`inline-flex items-center px-[11px] py-[3px] rounded-full text-[11px] font-bold whitespace-nowrap ${ROLE_BADGE[canonicalRole(u.role)] ?? ROLE_BADGE_NEUTRAL}`}>
         {roleLabel(u.role)}
       </span>
     ) },
@@ -988,9 +988,10 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
             {justResent.has(u.id) ? 'Invite sent ✓' : 'Resend'}
           </button>
         )}
+        {/* Not on your own account: the backend refuses it, so it was a dead end. */}
         {u.is_active
-          ? <button onClick={() => setConfirm({ user: u, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-danger/40 hover:text-danger hover:bg-danger-bg">Suspend</button>
-          : <button onClick={() => setConfirm({ user: u, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-success/40 hover:text-success hover:bg-success-bg">Activate</button>}
+          ? u.id !== currentUserId && <button onClick={() => setConfirm({ user: u, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-danger/40 hover:text-danger hover:bg-danger-bg focus-visible:border-danger/40 focus-visible:text-danger focus-visible:bg-danger-bg">Suspend</button>
+          : <button onClick={() => setConfirm({ user: u, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-success/40 hover:text-success hover:bg-success-bg focus-visible:border-success/40 focus-visible:text-success focus-visible:bg-success-bg">Activate</button>}
       </div>
     ) },
   ];
@@ -1075,7 +1076,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
               <Button variant="secondary" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'reset' })}>Reset password</Button>
             )}
             {detail.data.is_active
-              ? <Button variant="dangerOutline" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
+              ? detail.data.id !== currentUserId && <Button variant="dangerOutline" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
               : <Button className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'activate' })}>Activate</Button>}
           </>
         ) : undefined}

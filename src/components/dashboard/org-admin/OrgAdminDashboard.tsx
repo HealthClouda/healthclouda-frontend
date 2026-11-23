@@ -205,7 +205,7 @@ function StaffPage() {
         subtitle="Add a new staff member to your organisation"
         footer={
           <>
-            <Button variant="secondary" className="flex-1" onClick={() => setInvitePanel(false)} disabled={saving}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setInvitePanel(false)} disabled={saving}>Cancel</Button>
             <Button className="flex-1 gap-1.5" onClick={submitInvite} loading={saving}>
               <SendIcon />
               Send Invitation
@@ -397,7 +397,7 @@ function EditPatientPanel({ patient, onClose, onSaved }: {
       subtitle={patient ? `${patient.full_name} · ${patient.healthclouda_id}` : undefined}
       footer={
         <>
-          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button className="flex-1" onClick={save} loading={saving} disabled={!canSave}>Save changes</Button>
         </>
       }

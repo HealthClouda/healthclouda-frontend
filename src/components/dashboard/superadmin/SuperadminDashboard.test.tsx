@@ -759,7 +759,8 @@ describe('Superadmin — user detail panel (w2-k2)', () => {
     dataGetMock.mockImplementation(async (path: string) =>
       path === '/auth/users/u-2/' ? { ...activeUserDetail, ...override } : base(path));
     const panel = await openDetail();
-    expect(within(panel).getByRole('button', { name: /suspend|activate/i })).toBeInTheDocument();
+    // Loaded-anchor is the email: on your own account Suspend is hidden too (#227).
+    expect(within(panel).getByText('amara@demo-clinic.test')).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: /reset password/i })).not.toBeInTheDocument();
   });
 });
@@ -1235,5 +1236,56 @@ describe('w5-b6 group 2 — badges carry distinct meanings', () => {
     const doctor = within(doctorRow).getByText('Doctor');
     const nurse = within(nurseRow).getByText('Nurse');
     expect(doctor.className).not.toBe(nurse.className);
+  });
+});
+
+describe('w5-b6 group 2 — review of #227', () => {
+  it('unverified AND suspended org: Verify is the one blue button, not Verify + Activate', async () => {
+    const base = dataGetMock.getMockImplementation()!;
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/org/org-') ? { ...orgDetail, is_verified: false, verified_at: null, is_active: false } : base(path));
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Activate' })).toBeInTheDocument());
+    const solidBlue = ['Edit', 'Verify', 'Activate']
+      .map((n) => screen.getByRole('button', { name: n }))
+      .filter((b) => /(^|\s)bg-primary(\s|$)/.test(b.className))
+      .map((b) => b.textContent);
+    expect(solidBlue).toEqual(['Verify']);
+  });
+
+  it('row actions show their colour on keyboard focus too, not on hover only', async () => {
+    await openPage('Users', 'Amara Nwosu');
+    const row = screen.getByText('Amara Nwosu').closest('tr')!;
+    expect(within(row).getByRole('button', { name: 'Suspend' }).className).toMatch(/focus-visible:text-danger/);
+  });
+
+  it('your own row offers no Suspend (the backend refuses it; the button was a dead end)', async () => {
+    const me = { ...activeUser, id: 'sa1', first_name: 'Zainab', last_name: 'Bello', email: 'admin@healthclouda.com', role: 'SUPERADMIN', organization: null };
+    const base = dataGetMock.getMockImplementation()!;
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/auth/users/?') || path === '/auth/users/'
+        ? { count: 2, next: null, previous: null, results: [me, activeUser] }
+        : path === '/auth/users/sa1/' ? { ...me, phone: null, force_password_change: false, password_changed_at: null } : base(path));
+    await openPage('Users', 'Amara Nwosu');
+    const myRow = within(screen.getByRole('table')).getByText('admin@healthclouda.com').closest('tr')!;
+    expect(within(myRow).queryByRole('button', { name: 'Suspend' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /view details for zainab bello/i }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByText('admin@healthclouda.com')).toBeInTheDocument());
+    // Control: the panel does offer Suspend for someone else (see the Amara tests).
+    expect(within(panel).getByText('Superadmin')).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Suspend' })).toBeNull();
+  });
+
+  it('a lowercase role still gets its colour, not the neutral fallback', async () => {
+    const base = dataGetMock.getMockImplementation()!;
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/auth/users/?') || path === '/auth/users/'
+        ? { count: 1, next: null, previous: null, results: [{ ...activeUser, role: 'nurse' }] }
+        : base(path));
+    await openPage('Users', 'Amara Nwosu');
+    const row = screen.getByText('Amara Nwosu').closest('tr')!;
+    expect(within(row).getByText('Nurse').className).toMatch(/bg-teal-bg/);
   });
 });

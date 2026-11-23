@@ -194,7 +194,7 @@ export function WardSetupPanel({
       subtitle={editingId ? 'Change the ward or its number of beds' : 'Set up a ward and its beds'}
       footer={
         <>
-          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button className="flex-1" onClick={() => void save()} loading={saving} disabled={loadingWard || !editReady}>
             {editingId ? 'Save ward' : 'Add ward'}
           </Button>
