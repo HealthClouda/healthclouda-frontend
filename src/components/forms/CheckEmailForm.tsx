@@ -31,6 +31,9 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
   const params = useSearchParams();
   const email = params.get('email') ?? '';
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows: isSubmitting ends at router.push(), long
+  // before the page changes, so the button looked idle after success (w5-b6).
+  const [leaving, setLeaving] = useState(false);
   const [countdown, setCountdown] = useState(RESEND_SECONDS);
 
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } =
@@ -57,6 +60,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json, 'Invalid or expired code.')); return; }
     const next = orgSlug ? `/${orgSlug}/reset-password` : '/reset-password';
+    setLeaving(true);
     router.push(`${next}?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(data.otp)}`);
   }
 
@@ -110,8 +114,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting || otp.length !== 6} className={authPrimaryBtn}>
-          {isSubmitting ? 'Verifying…' : 'Verify'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving || otp.length !== 6} className={authPrimaryBtn}>
+          {isSubmitting || leaving ? 'Verifying…' : 'Verify'}
         </button>
       </form>
 

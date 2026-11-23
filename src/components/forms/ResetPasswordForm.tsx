@@ -40,6 +40,9 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
   const email = params.get('email') ?? '';
   const otp = params.get('otp') ?? '';
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows: isSubmitting ends at router.push(), long
+  // before the page changes, so the button looked idle after success (w5-b6).
+  const [leaving, setLeaving] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
@@ -59,6 +62,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
+    setLeaving(true);
     router.push(orgSlug ? `/${orgSlug}/password-success` : '/password-success');
   }
 
@@ -112,8 +116,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
-          {isSubmitting ? 'Saving…' : 'Update Password'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting || leaving ? 'Saving…' : 'Update Password'}
         </button>
       </form>
     </AuthCard>

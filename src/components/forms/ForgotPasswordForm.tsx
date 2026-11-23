@@ -27,6 +27,9 @@ interface Props {
 export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows: isSubmitting ends at router.push(), long
+  // before the page changes, so the button looked idle after success (w5-b6).
+  const [leaving, setLeaving] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
   // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
@@ -42,6 +45,7 @@ export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
     const next = orgSlug ? `/${orgSlug}/check-email` : '/check-email';
+    setLeaving(true);
     router.push(`${next}?email=${encodeURIComponent(data.email)}`);
   }
 
@@ -80,8 +84,8 @@ export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting} className={authPrimaryBtn}>
-          {isSubmitting ? 'Sending…' : 'Reset Password'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving} className={authPrimaryBtn}>
+          {isSubmitting || leaving ? 'Sending…' : 'Reset Password'}
         </button>
       </form>
     </AuthCard>

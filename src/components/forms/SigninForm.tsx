@@ -35,6 +35,9 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
   const router = useRouter();
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows: isSubmitting ends at router.push(), long
+  // before the page changes, so the button looked idle after success (w5-b6).
+  const [leaving, setLeaving] = useState(false);
   const [redirectMsg, setRedirectMsg] = useState('');
   // Build 5 / FLAG-044 — landed here after `middleware.ts` or `client-api.ts`
   // ended a lapsed session (idle > 15 min, or the 12h cap). `reason` is the
@@ -104,6 +107,7 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
       setServerError('Signed in, but your organization could not be determined. Please use your organization portal.');
       return;
     }
+    setLeaving(true);
     router.push(roleDashboardPath(user.role, slug));
   }
 
@@ -190,8 +194,8 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting} className={`${authPrimaryBtn} !mt-6`}>
-          {isSubmitting ? 'Signing in…' : 'Sign In'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting || leaving ? 'Signing in…' : 'Sign In'}
         </button>
       </form>
 

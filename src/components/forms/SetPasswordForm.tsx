@@ -59,6 +59,9 @@ function Inner() {
   const token = params.get('token') ?? '';
   const [tokenState, setTokenState] = useState<TokenState>({ phase: 'validating' });
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows: isSubmitting ends at router.push(), long
+  // before the page changes, so the button looked idle after success (w5-b6).
+  const [leaving, setLeaving] = useState(false);
   const [resending, setResending] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
@@ -93,6 +96,7 @@ function Inner() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
+    setLeaving(true);
     router.push('/signin');
   }
 
@@ -240,8 +244,8 @@ function Inner() {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
-          {isSubmitting ? 'Setting password…' : 'Set Password'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting || leaving ? 'Setting password…' : 'Set Password'}
         </button>
       </form>
     </AuthCard>
