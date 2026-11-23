@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -12,6 +12,7 @@ import { AuthCard } from './AuthCard';
 import { MailIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
+import { useLeaving } from '@/hooks/use-leaving';
 import { roleDashboardPath, passwordFlowPath } from '@/lib/router';
 import { formatApiError } from '@/lib/api';
 import { sessionExpiryMessageFor } from '@/lib/session-expiry-code';
@@ -35,7 +36,13 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
   const router = useRouter();
   const searchParams = useSearchParams();
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
   const [redirectMsg, setRedirectMsg] = useState('');
+  // The staff-redirect countdown; cleared if the user leaves first, so it can
+  // never fire a router.push from a page that is gone.
+  const countdown = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (countdown.current) clearInterval(countdown.current); }, []);
   // Build 5 / FLAG-044 — landed here after `middleware.ts` or `client-api.ts`
   // ended a lapsed session (idle > 15 min, or the 12h cap). `reason` is the
   // plain param (`idle` | `max_age`), never the raw backend code.
@@ -73,10 +80,15 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
       const msg = (n: number) =>
         `Staff accounts must sign in via their organisation portal. Redirecting in ${n}s…`;
       setRedirectMsg(msg(secs));
-      const iv = setInterval(() => {
+      // Busy for the countdown: a second click used to start a second countdown
+      // and a second redirect (review of #226).
+      leave();
+      if (countdown.current) clearInterval(countdown.current);
+      countdown.current = setInterval(() => {
         secs--;
         if (secs <= 0) {
-          clearInterval(iv);
+          if (countdown.current) clearInterval(countdown.current);
+          countdown.current = null;
           router.push(`/${json.org_slug}/signin`);
         } else {
           setRedirectMsg(msg(secs));
@@ -104,6 +116,7 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
       setServerError('Signed in, but your organization could not be determined. Please use your organization portal.');
       return;
     }
+    leave();
     router.push(roleDashboardPath(user.role, slug));
   }
 
@@ -190,8 +203,8 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting} className={`${authPrimaryBtn} !mt-6`}>
-          {isSubmitting ? 'Signing in…' : 'Sign In'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting || leaving ? 'Signing in…' : 'Sign In'}
         </button>
       </form>
 

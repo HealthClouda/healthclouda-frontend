@@ -12,6 +12,7 @@ import { MailPlusIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
+import { useLeaving } from '@/hooks/use-leaving';
 
 const schema = z.object({
   otp: z.string().length(6, 'Enter the 6-digit code'),
@@ -31,6 +32,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
   const params = useSearchParams();
   const email = params.get('email') ?? '';
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
   const [countdown, setCountdown] = useState(RESEND_SECONDS);
 
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } =
@@ -57,6 +60,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json, 'Invalid or expired code.')); return; }
     const next = orgSlug ? `/${orgSlug}/reset-password` : '/reset-password';
+    leave();
     router.push(`${next}?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(data.otp)}`);
   }
 
@@ -110,8 +114,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting || otp.length !== 6} className={authPrimaryBtn}>
-          {isSubmitting ? 'Verifying…' : 'Verify'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving || otp.length !== 6} className={authPrimaryBtn}>
+          {isSubmitting || leaving ? 'Verifying…' : 'Verify'}
         </button>
       </form>
 

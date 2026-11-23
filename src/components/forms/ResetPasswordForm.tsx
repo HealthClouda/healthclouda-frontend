@@ -13,6 +13,7 @@ import { ShieldIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
+import { useLeaving } from '@/hooks/use-leaving';
 
 // Enforce the backend rule (≥8, uppercase, digit, special) client-side too.
 const schema = z
@@ -40,6 +41,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
   const email = params.get('email') ?? '';
   const otp = params.get('otp') ?? '';
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
@@ -59,6 +62,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
+    leave();
     router.push(orgSlug ? `/${orgSlug}/password-success` : '/password-success');
   }
 
@@ -112,8 +116,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
-          {isSubmitting ? 'Saving…' : 'Update Password'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving || !canSubmit} className={`${authPrimaryBtn} !mt-6`}>
+          {isSubmitting || leaving ? 'Saving…' : 'Update Password'}
         </button>
       </form>
     </AuthCard>

@@ -12,6 +12,7 @@ import { MailIcon, LockIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
+import { useLeaving } from '@/hooks/use-leaving';
 
 const schema = z.object({
   email: z.email({ message: 'Enter a valid email address' }),
@@ -27,6 +28,8 @@ interface Props {
 export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState('');
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
   // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
@@ -42,6 +45,7 @@ export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
     const next = orgSlug ? `/${orgSlug}/check-email` : '/check-email';
+    leave();
     router.push(`${next}?email=${encodeURIComponent(data.email)}`);
   }
 
@@ -80,8 +84,8 @@ export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
           </div>
         )}
 
-        <button type="submit" disabled={!hydrated || isSubmitting} className={authPrimaryBtn}>
-          {isSubmitting ? 'Sending…' : 'Reset Password'}
+        <button type="submit" disabled={!hydrated || isSubmitting || leaving} className={authPrimaryBtn}>
+          {isSubmitting || leaving ? 'Sending…' : 'Reset Password'}
         </button>
       </form>
     </AuthCard>
