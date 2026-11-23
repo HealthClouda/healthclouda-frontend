@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect, useRef } from 'react';
 
 type IconColor = 'primary' | 'success' | 'warning' | 'danger' | 'purple';
@@ -48,9 +49,11 @@ export function Modal({ open, onClose, title, description, icon, iconColor = 'pr
     if (open) panelRef.current?.focus();
   }, [open]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  // Rendered onto <body>: inside a page wrapper such as `space-y-4` the overlay
+  // took a 16px bottom margin and stopped short of the window bottom (w5-b6).
+  return createPortal(
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -103,6 +106,7 @@ export function Modal({ open, onClose, title, description, icon, iconColor = 'pr
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -48,10 +48,10 @@ function SettingsIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
 }
 function PlusIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
+  return <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 }
 function SendIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>;
+  return <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>;
 }
 function SearchIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
@@ -82,7 +82,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
-const inputClass = 'h-[42px] border-[1.5px] border-border rounded-lg px-3.5 text-[13px] text-ink bg-page outline-none w-full focus:border-primary focus:bg-white transition-colors';
+// The look, shared; the size, per use. Filters used to append `h-9 w-auto` to
+// inputClass, but two conflicting Tailwind classes resolve by stylesheet order,
+// so `h-[42px] w-full` won and every filter stacked full width (w5-b6).
+const fieldLook = 'border-[1.5px] border-border rounded-lg px-3.5 text-ink bg-page outline-none focus:border-primary focus:bg-white transition-colors';
+const inputClass = `h-[42px] w-full text-[13px] ${fieldLook}`;
+const filterClass = `h-9 text-[12.5px] ${fieldLook}`;
 
 // ─── Search input (debounced) ───────────────────────────────────
 
@@ -1004,7 +1009,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
             <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" label="Search users" />
             <select
               aria-label="Filter by role"
-              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              className={`${filterClass} w-auto`}
               value={role}
               onChange={(e) => setRole(e.target.value)}
             >
@@ -1013,7 +1018,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
             </select>
             <select
               aria-label="Filter by organisation"
-              className={`${inputClass} h-9 w-auto max-w-[220px] text-[12.5px]`}
+              className={`${filterClass} w-auto max-w-[220px]`}
               value={orgFilter}
               onChange={(e) => setOrgFilter(e.target.value)}
             >
@@ -1025,7 +1030,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
                 pending" is shown from last_login and counts as Active here. */}
             <select
               aria-label="Filter by status"
-              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              className={`${filterClass} w-auto`}
               value={status}
               onChange={(e) => setStatus(e.target.value as '' | 'true' | 'false')}
             >
@@ -1345,7 +1350,7 @@ function AuditPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <select
               aria-label="Action"
-              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              className={`${filterClass} w-auto`}
               value={action}
               onChange={(e) => setAction(e.target.value)}
             >
@@ -1357,13 +1362,13 @@ function AuditPage() {
               aria-label="Full email address"
               placeholder="Performed by: full email address"
               aria-describedby={emailIncomplete ? 'audit-email-hint' : undefined}
-              className={`${inputClass} h-9 w-56 text-[12.5px]`}
+              className={`${filterClass} w-56`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <select
               aria-label="Record type"
-              className={`${inputClass} h-9 w-auto text-[12.5px]`}
+              className={`${filterClass} w-auto`}
               value={resourceType}
               onChange={(e) => setResourceType(e.target.value)}
             >
@@ -1378,7 +1383,7 @@ function AuditPage() {
               aria-label="Patient record ID"
               placeholder="Patient record ID (full)"
               aria-describedby={patientIncomplete ? 'audit-patient-hint' : undefined}
-              className={`${inputClass} h-9 w-72 text-[12.5px] font-mono`}
+              className={`${filterClass} w-72 font-mono`}
               value={patient}
               onChange={(e) => setPatient(e.target.value)}
             />

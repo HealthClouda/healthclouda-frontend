@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
 
 interface SlidePanelProps {
@@ -35,9 +36,11 @@ export function SlidePanel({ open, onClose, title, subtitle, children, footer }:
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  // Rendered onto <body>: inside a page wrapper such as `space-y-4` the overlay
+  // took a 16px bottom margin and stopped short of the window bottom (w5-b6).
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -80,6 +83,7 @@ export function SlidePanel({ open, onClose, title, subtitle, children, footer }:
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

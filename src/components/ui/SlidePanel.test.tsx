@@ -39,3 +39,26 @@ describe('FLAG-062 — toasts never cover an open slide panel', () => {
     expect(container.querySelector('.hc-toaster')).not.toBeNull();
   });
 });
+
+/**
+ * w5-b6 walk (23 Nov): the panel's backdrop stopped 16px short of the window
+ * bottom on every superadmin panel. The panel was rendered inside the page's
+ * `space-y-4` wrapper, which gives every child but the last a 16px bottom
+ * margin, and a margin shrinks a `fixed inset-0` box. Rendered onto <body>, no
+ * page layout can reach it.
+ */
+describe('SlidePanel renders outside the page layout', () => {
+  it('puts the panel and its backdrop on <body>, not inside the wrapper it was opened from', () => {
+    const { getByTestId } = render(
+      <div data-testid="wrap" className="space-y-4">
+        <p>page content</p>
+        <SlidePanel open onClose={() => {}} title="A">x</SlidePanel>
+      </div>,
+    );
+    const wrap = getByTestId('wrap');
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog).not.toBeNull();
+    expect(wrap.contains(dialog)).toBe(false);
+    expect(wrap.querySelector('[aria-hidden]')).toBeNull();
+  });
+});

@@ -18,7 +18,15 @@ export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   add(message, type = 'info') {
     const id = crypto.randomUUID();
-    set((s) => ({ toasts: [...s.toasts, { id, message, type }] }));
+    // Errors stay until dismissed (WCAG 2.2.1, Toaster.tsx), so without this
+    // they stacked on repeat and outlived the fix (w5-b6). A repeat replaces
+    // its twin; a success clears errors. Warnings stay: they still hold.
+    set((s) => ({
+      toasts: [
+        ...s.toasts.filter((t) => !(t.message === message && t.type === type) && !(type === 'success' && t.type === 'error')),
+        { id, message, type },
+      ],
+    }));
   },
   remove(id) {
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
