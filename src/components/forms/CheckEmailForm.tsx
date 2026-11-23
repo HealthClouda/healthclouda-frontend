@@ -12,6 +12,7 @@ import { MailPlusIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
+import { useLeaving } from '@/hooks/use-leaving';
 
 const schema = z.object({
   otp: z.string().length(6, 'Enter the 6-digit code'),
@@ -31,9 +32,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
   const params = useSearchParams();
   const email = params.get('email') ?? '';
   const [serverError, setServerError] = useState('');
-  // Busy until the next page shows: isSubmitting ends at router.push(), long
-  // before the page changes, so the button looked idle after success (w5-b6).
-  const [leaving, setLeaving] = useState(false);
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
   const [countdown, setCountdown] = useState(RESEND_SECONDS);
 
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } =
@@ -60,7 +60,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json, 'Invalid or expired code.')); return; }
     const next = orgSlug ? `/${orgSlug}/reset-password` : '/reset-password';
-    setLeaving(true);
+    leave();
     router.push(`${next}?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(data.otp)}`);
   }
 

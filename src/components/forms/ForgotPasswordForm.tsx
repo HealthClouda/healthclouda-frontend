@@ -12,6 +12,7 @@ import { MailIcon, LockIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
+import { useLeaving } from '@/hooks/use-leaving';
 
 const schema = z.object({
   email: z.email({ message: 'Enter a valid email address' }),
@@ -27,9 +28,8 @@ interface Props {
 export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState('');
-  // Busy until the next page shows: isSubmitting ends at router.push(), long
-  // before the page changes, so the button looked idle after success (w5-b6).
-  const [leaving, setLeaving] = useState(false);
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
   // FLAG-057: no native (pre-hydration) submit — see use-hydrated.ts.
@@ -45,7 +45,7 @@ export function ForgotPasswordForm({ orgSlug, orgName, orgLogo }: Props) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
     const next = orgSlug ? `/${orgSlug}/check-email` : '/check-email';
-    setLeaving(true);
+    leave();
     router.push(`${next}?email=${encodeURIComponent(data.email)}`);
   }
 

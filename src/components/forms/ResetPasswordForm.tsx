@@ -13,6 +13,7 @@ import { ShieldIcon } from './AuthIcons';
 import { authPrimaryBtn } from './authStyles';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
+import { useLeaving } from '@/hooks/use-leaving';
 
 // Enforce the backend rule (≥8, uppercase, digit, special) client-side too.
 const schema = z
@@ -40,9 +41,8 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
   const email = params.get('email') ?? '';
   const otp = params.get('otp') ?? '';
   const [serverError, setServerError] = useState('');
-  // Busy until the next page shows: isSubmitting ends at router.push(), long
-  // before the page changes, so the button looked idle after success (w5-b6).
-  const [leaving, setLeaving] = useState(false);
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
     useForm<FormData>({ resolver: zodResolver(schema) });
@@ -62,7 +62,7 @@ function Inner({ orgSlug, orgName, orgLogo }: Props) {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
-    setLeaving(true);
+    leave();
     router.push(orgSlug ? `/${orgSlug}/password-success` : '/password-success');
   }
 

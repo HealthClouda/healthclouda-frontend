@@ -16,6 +16,7 @@ import { useHydrated } from '@/hooks/use-hydrated';
 import { formatApiError } from '@/lib/api';
 import type { SetupTokenInfo } from '@/types/auth';
 import type { Role } from '@/lib/config';
+import { useLeaving } from '@/hooks/use-leaving';
 
 // Same backend rule as reset-password (≥8, uppercase, digit, special).
 const schema = z
@@ -59,9 +60,8 @@ function Inner() {
   const token = params.get('token') ?? '';
   const [tokenState, setTokenState] = useState<TokenState>({ phase: 'validating' });
   const [serverError, setServerError] = useState('');
-  // Busy until the next page shows: isSubmitting ends at router.push(), long
-  // before the page changes, so the button looked idle after success (w5-b6).
-  const [leaving, setLeaving] = useState(false);
+  // Busy until the next page shows (w5-b6); see use-leaving.ts.
+  const [leaving, leave] = useLeaving();
   const [resending, setResending] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
@@ -96,7 +96,7 @@ function Inner() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) { setServerError(formatApiError(json)); return; }
-    setLeaving(true);
+    leave();
     router.push('/signin');
   }
 

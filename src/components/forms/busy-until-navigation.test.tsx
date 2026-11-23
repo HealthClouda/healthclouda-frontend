@@ -88,3 +88,37 @@ describe('auth forms stay busy after success, until the next page loads', () => 
     await expectStillBusy(/setting password/i);
   });
 });
+
+// Review of #226: the busy state is for SUCCESS only. A failed sign-in must
+// hand the button straight back, or one wrong password locks the form.
+describe('a failed submit leaves the button usable', () => {
+  it('SigninForm: wrong password → "Sign In" again, enabled, no navigation', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ detail: 'Invalid email or password.' }), {
+      status: 400, headers: { 'content-type': 'application/json' },
+    })));
+    render(<SigninForm loginType="admin" />);
+    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), { target: { value: 'superadmin@demo.test' } });
+    fireEvent.change(screen.getByPlaceholderText(/enter your password/i), { target: { value: 'wrong-pass-1' } });
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+    await waitFor(() => expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /^sign in$/i })).not.toBeDisabled();
+    expect(push).not.toHaveBeenCalled();
+  });
+});
+
+// Review of #226 (pre-existing): a staff member on the general portal gets a
+// 5-second "Redirecting…" countdown. The button stayed clickable, and every
+// extra click started another countdown and another redirect.
+describe('staff redirect countdown on the general portal', () => {
+  it('disables the button for the countdown, so a second click cannot start another', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'Staff members cannot log in here', org_slug: 'demo-clinic' }), {
+      status: 400, headers: { 'content-type': 'application/json' },
+    })));
+    render(<SigninForm loginType="general" />);
+    fireEvent.change(screen.getByPlaceholderText(/enter your email/i), { target: { value: 'nurse@demo.test' } });
+    fireEvent.change(screen.getByPlaceholderText(/enter your password/i), { target: { value: 'whatever-1' } });
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+    await waitFor(() => expect(screen.getByText(/redirecting in/i)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled();
+  });
+});
