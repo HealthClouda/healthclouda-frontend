@@ -1070,13 +1070,14 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
         onClose={() => setDetailId(null)}
         title="User details"
         subtitle={detail.data ? `${detail.data.first_name} ${detail.data.last_name}` : undefined}
-        footer={detail.data ? (
+        // Your own active account has no buttons: pass no footer, not an empty bar.
+        footer={detail.data && (!detail.data.is_active || detail.data.id !== currentUserId) ? (
           <>
-            {detail.data.is_active && detail.data.last_login != null && detail.data.id !== currentUserId && (
+            {detail.data.is_active && detail.data.last_login != null && (
               <Button variant="secondary" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'reset' })}>Reset password</Button>
             )}
             {detail.data.is_active
-              ? detail.data.id !== currentUserId && <Button variant="dangerOutline" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
+              ? <Button variant="dangerOutline" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
               : <Button className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'activate' })}>Activate</Button>}
           </>
         ) : undefined}

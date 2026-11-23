@@ -1276,6 +1276,8 @@ describe('w5-b6 group 2 — review of #227', () => {
     // Control: the panel does offer Suspend for someone else (see the Amara tests).
     expect(within(panel).getByText('Superadmin')).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: 'Suspend' })).toBeNull();
+    // No button to show → no footer bar at all (it rendered as an empty 37px strip).
+    expect(panel.querySelector('.border-t.flex-shrink-0')).toBeNull();
   });
 
   it('a lowercase role still gets its colour, not the neutral fallback', async () => {
