@@ -2,6 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
+import { useToastStore } from '@/store/toast';
 
 interface SlidePanelProps {
   open: boolean;
@@ -23,9 +24,13 @@ export function SlidePanel({ open, onClose, title, subtitle, children, footer }:
     if (!open) return;
     openPanels += 1;
     document.body.setAttribute('data-panel-open', '');
+    // Errors raised while this panel is open are about its form; once it
+    // closes they are stale, and they never time out (w5-b6, review of #225).
+    const openedAt = useToastStore.getState().seq;
     return () => {
       openPanels = Math.max(0, openPanels - 1);
       if (openPanels === 0) document.body.removeAttribute('data-panel-open');
+      useToastStore.getState().clearErrorsSince(openedAt);
     };
   }, [open]);
 

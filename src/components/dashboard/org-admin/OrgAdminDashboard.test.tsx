@@ -804,3 +804,16 @@ describe('FLAG-373 — org admin works the duplicate-records queue', () => {
     });
   });
 });
+
+// Review of #225: the Org Admin filters had the superadmin bug through another
+// variable, `${formInputClass} h-9 w-auto`. formInputClass already holds
+// `h-[42px] w-full`, and the stylesheet order picks those, so the filter
+// rendered full width at 42px.
+describe('#225 review — Org Admin filters do not fight the form input size', () => {
+  it('Access Requests status filter', async () => {
+    await openAccessRequestsPage();
+    const c = screen.getByRole('combobox', { name: /filter by request status/i }).getAttribute('class') ?? '';
+    expect(c).not.toContain('h-[42px]');
+    expect(c).not.toMatch(/\bw-full\b/);
+  });
+});

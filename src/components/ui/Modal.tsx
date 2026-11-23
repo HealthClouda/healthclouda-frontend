@@ -34,12 +34,18 @@ const ICON_COLOR: Record<IconColor, string> = {
 export function Modal({ open, onClose, title, description, icon, iconColor = 'primary', children, size = 'md', footer }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape
+  // Close on Escape. Capture phase + stopPropagation: a dialog opened over a
+  // SlidePanel must take the Escape for itself, or one press closes both
+  // (review of #225).
   useEffect(() => {
     if (!open) return;
-    function handler(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    function handler(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    }
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
   }, [open, onClose]);
 
   // Focuses the panel once on open — not a real focus trap (Tab still walks

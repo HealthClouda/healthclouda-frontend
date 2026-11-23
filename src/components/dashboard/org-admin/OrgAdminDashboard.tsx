@@ -6,7 +6,7 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { FormField, formInputClass } from '@/components/ui/FormField';
+import { FormField, formInputClass, formFilterClass } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
@@ -574,7 +574,7 @@ function AccessRequestsPage() {
         emptyTitle="No access requests"
         emptyDescription="Patient data access requests will appear here."
         toolbar={
-          <select aria-label="Filter by request status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select aria-label="Filter by request status" className={`${formFilterClass} w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
             <option value="PENDING">Pending</option>
             <option value="APPROVED">Approved</option>
@@ -1026,7 +1026,7 @@ function DuplicateRecordsPage() {
           ? 'Choose "All statuses" to see the whole queue.'
           : 'When the front desk flags two records as the same person, they appear here.'}
         toolbar={
-          <select aria-label="Filter by merge status" className={`${formInputClass} h-9 w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select aria-label="Filter by merge status" className={`${formFilterClass} w-auto`} value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
             <option value="FLAGGED">Flagged</option>
             <option value="ESCALATED">Escalated</option>

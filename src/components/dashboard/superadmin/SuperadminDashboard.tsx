@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
+import { formInputClass, formFilterClass } from '@/components/ui/FormField';
 import { formatDate, formatDateTime, timeAgo, truncate, roleLabel } from '@/lib/utils';
 import { ENDPOINTS } from '@/lib/config';
 import type { User } from '@/types/auth';
@@ -82,12 +83,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
-// The look, shared; the size, per use. Filters used to append `h-9 w-auto` to
-// inputClass, but two conflicting Tailwind classes resolve by stylesheet order,
-// so `h-[42px] w-full` won and every filter stacked full width (w5-b6).
-const fieldLook = 'border-[1.5px] border-border rounded-lg px-3.5 text-ink bg-page outline-none focus:border-primary focus:bg-white transition-colors';
-const inputClass = `h-[42px] w-full text-[13px] ${fieldLook}`;
-const filterClass = `h-9 text-[12.5px] ${fieldLook}`;
+// Sizes come from the shared classes; see FormField.tsx for why a size is never
+// appended to inputClass (w5-b6).
+const inputClass = formInputClass;
+const filterClass = formFilterClass;
 
 // ─── Search input (debounced) ───────────────────────────────────
 

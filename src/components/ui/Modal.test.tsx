@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import { Modal } from './Modal';
+import { SlidePanel } from './SlidePanel';
 
 afterEach(cleanup);
 
@@ -19,5 +20,25 @@ describe('Modal renders outside the page layout', () => {
     );
     expect(getByTestId('wrap').textContent).not.toContain('Suspend user');
     expect(document.body.textContent).toContain('Suspend user');
+  });
+});
+
+/**
+ * Review of #225: a confirm dialog opened from inside a panel (Reset password
+ * in the user details panel). Both listened for Escape on window, so one press
+ * closed the dialog AND the panel the admin was working in.
+ */
+describe('Escape in a dialog opened over a panel', () => {
+  it('closes the dialog only', () => {
+    const closePanel = vi.fn();
+    const closeModal = vi.fn();
+    render(
+      <SlidePanel open onClose={closePanel} title="User details">
+        <Modal open onClose={closeModal} title="Reset password">body</Modal>
+      </SlidePanel>,
+    );
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(closeModal).toHaveBeenCalledTimes(1);
+    expect(closePanel).not.toHaveBeenCalled();
   });
 });

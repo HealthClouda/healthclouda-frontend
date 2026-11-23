@@ -19,15 +19,11 @@ describe('toast store', () => {
     expect(toasts()).toHaveLength(1);
   });
 
-  it('clears outstanding errors once an action succeeds', () => {
-    add('Please fill in all required fields', 'error');
+  it('a success leaves an unrelated error on screen (review of #225)', () => {
+    // A failed duty toggle must not vanish because something else then saved.
+    add('Failed to update duty status', 'error');
     add('Organisation updated', 'success');
-    expect(toasts().map((t) => t.type)).toEqual(['success']);
+    expect(toasts().map((t) => t.type)).toEqual(['error', 'success']);
   });
 
-  it('keeps warnings when an action succeeds: they carry information still true', () => {
-    add('Awaiting doctor confirmation.', 'warning');
-    add('Saved', 'success');
-    expect(toasts().map((t) => t.type)).toEqual(['warning', 'success']);
-  });
 });

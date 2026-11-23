@@ -62,3 +62,24 @@ describe('SlidePanel renders outside the page layout', () => {
     expect(wrap.querySelector('[aria-hidden]')).toBeNull();
   });
 });
+
+/**
+ * w5-b6 / review of #225: errors stay until dismissed (WCAG 2.2.1), so a
+ * "Please fill in all required fields" raised inside a panel outlived the
+ * panel. Closing a panel clears the errors raised while it was open. Errors
+ * from before it opened, and warnings, are not its business and stay.
+ */
+describe('closing a panel clears the errors it raised', () => {
+  it('removes errors raised while open, keeps earlier errors and warnings', () => {
+    const add = useToastStore.getState().add;
+    add('Failed to update duty status', 'error');
+    const { rerender } = render(<SlidePanel open onClose={() => {}} title="Add Organisation">x</SlidePanel>);
+    add('Please fill in all required fields', 'error');
+    add('Awaiting doctor confirmation.', 'warning');
+    rerender(<SlidePanel open={false} onClose={() => {}} title="Add Organisation">x</SlidePanel>);
+    expect(useToastStore.getState().toasts.map((t) => t.message)).toEqual([
+      'Failed to update duty status',
+      'Awaiting doctor confirmation.',
+    ]);
+  });
+});
