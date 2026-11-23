@@ -31,12 +31,21 @@ describe('BrandLoader (stand-up w2-k3)', () => {
     expect(trace).toHaveClass('hc-loader-trace');
   });
 
-  it('stops the sweep under prefers-reduced-motion', () => {
+  it('stops the sweep and the heartbeat under prefers-reduced-motion', () => {
     // jsdom does not apply media queries, so pin the rule itself.
     const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
     const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
     expect(reduced).toMatch(/\.hc-loader-trace\s*\{[^}]*animation:\s*none/);
+    expect(reduced).toMatch(/\.hc-loader-logo\s*\{[^}]*animation:\s*none/);
     expect(reduced).toMatch(/\.hc-loader\s*\{[^}]*animation:\s*none/);
+  });
+
+  it('is our real logo, not a drawing of a cloud', () => {
+    const { container } = render(<BrandLoader />);
+    const logo = container.querySelector('image');
+    expect(logo).toHaveAttribute('href', '/assets/images/HealthClouda-icon-tight.png');
+    // The pulse runs along the logo's own ECG line, so it is drawn on top of the image.
+    expect(logo!.nextElementSibling).toBe(screen.getByTestId('brand-loader-trace'));
   });
 });
 
