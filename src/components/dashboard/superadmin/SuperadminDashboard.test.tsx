@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react';
 import { SuperadminDashboard } from './SuperadminDashboard';
 import type { User } from '@/types/auth';
 import { formatDateTime } from '@/lib/utils';
@@ -1289,5 +1289,25 @@ describe('w5-b6 group 2 — review of #227', () => {
     await openPage('Users', 'Amara Nwosu');
     const row = screen.getByText('Amara Nwosu').closest('tr')!;
     expect(within(row).getByText('Nurse').className).toMatch(/bg-teal-bg/);
+  });
+});
+
+describe('w5-b6 group 3a — one address per screen', () => {
+  it('opens the screen named in the address, so a reload stays put', async () => {
+    window.history.replaceState(null, '', '/superadmin#users');
+    render(<SuperadminDashboard user={user} initialStats={stats} />);
+    await waitFor(() => expect(screen.getByText('Amara Nwosu')).toBeInTheDocument());
+  });
+
+  it('picking a screen puts it in the address, and browser Back returns to the last one', async () => {
+    await openPage('Users', 'Amara Nwosu');
+    expect(window.location.hash).toBe('#users');
+    fireEvent.click(screen.getByRole('button', { name: 'Audit Logs' }));
+    expect(window.location.hash).toBe('#audit');
+    act(() => {
+      window.history.replaceState(null, '', '/superadmin#users');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await waitFor(() => expect(screen.getByText('Amara Nwosu')).toBeInTheDocument());
   });
 });

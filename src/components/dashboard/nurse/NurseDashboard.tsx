@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDashboardPage } from '@/hooks/use-dashboard-page';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle, dutyBannerText, type DutyState } from '@/components/dashboard/DutyToggle';
@@ -1970,7 +1971,7 @@ interface Props {
 }
 
 export function NurseDashboard({ user, initialStats, slug: _slug }: Props) {
-  const [page, setPage] = useState('overview');
+  const [page, setPage] = useDashboardPage(NAV);
   // Patient whose vitals are open — set by "Record vitals" row actions so
   // the Vitals page lands with that patient already selected.
   const [vitalsFor, setVitalsFor] = useState<NurseAdmission | null>(null);
