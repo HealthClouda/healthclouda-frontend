@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes } from 'react';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
+type Variant = 'primary' | 'secondary' | 'danger' | 'dangerOutline' | 'ghost' | 'outline';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -14,6 +14,10 @@ const VARIANT: Record<Variant, string> = {
   primary:   'bg-primary hover:bg-primary-dark text-white shadow-btn disabled:opacity-50',
   secondary: 'bg-transparent border-[1.5px] border-border text-text-mid hover:border-primary hover:text-primary hover:bg-chip disabled:opacity-50',
   danger:    'bg-danger hover:bg-danger/90 text-white disabled:opacity-50',
+  // A destructive action that is not yet the final confirm (w5-b6): clearly
+  // dangerous, but not the loudest thing on the screen. Solid red is kept for
+  // the confirm dialog's button.
+  dangerOutline: 'bg-white border-[1.5px] border-danger/40 text-danger hover:bg-danger-bg hover:border-danger disabled:opacity-50',
   ghost:     'hover:bg-page text-text-soft hover:text-ink disabled:opacity-50',
   outline:   'border border-border hover:border-primary hover:text-primary text-text-mid disabled:opacity-50',
 };

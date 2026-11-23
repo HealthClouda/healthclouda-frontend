@@ -8,13 +8,14 @@ const COLORS: Record<string, BadgeColor> = {
   DISPENSED:    { bg: 'bg-success-bg', text: 'text-success' },
   ON_DUTY:      { bg: 'bg-success-bg', text: 'text-success' },
   AVAILABLE:    { bg: 'bg-success-bg', text: 'text-success' },
-  VERIFIED:     { bg: 'bg-success-bg', text: 'text-success' },
   GRANTED:      { bg: 'bg-success-bg', text: 'text-success' },
 
   // Info — scheduled / informational
   SCHEDULED:    { bg: 'bg-info-bg', text: 'text-info' },
   ADMITTED:     { bg: 'bg-info-bg', text: 'text-info' },
   IN_PROGRESS:  { bg: 'bg-info-bg', text: 'text-info' },
+  // Not green: beside an ACTIVE pill the two read as one status (w5-b6).
+  VERIFIED:     { bg: 'bg-info-bg', text: 'text-info' },
 
   // Warning — pending / awaiting
   PENDING:      { bg: 'bg-warning-bg', text: 'text-warning' },
