@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDashboardPage } from '@/hooks/use-dashboard-page';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { useApi, apiAction, usePaginatedList } from '@/hooks/use-api';
@@ -1602,7 +1603,7 @@ interface Props {
 }
 
 export function ReceptionistDashboard({ user, initialStats, slug: _slug }: Props) {
-  const [page, setPage] = useState('overview');
+  const [page, setPage] = useDashboardPage(NAV);
   // AUTH-6: the server render can't refresh an expired session — when it hands
   // us null, fetch stats client-side (client-api refreshes on 401) instead of
   // shimmering forever.

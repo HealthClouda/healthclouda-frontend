@@ -20,3 +20,12 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 }
+
+/**
+ * Dashboards keep their screen in the address (`#users`, use-dashboard-page).
+ * Without a reset, a test that opens Users leaves the next test starting there.
+ */
+import { afterEach } from 'vitest';
+afterEach(() => {
+  if (typeof window !== 'undefined') window.history.replaceState(null, '', '/');
+});

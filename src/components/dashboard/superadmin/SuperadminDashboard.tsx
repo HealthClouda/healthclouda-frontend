@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useId, useRef } from 'react';
+import { useDashboardPage } from '@/hooks/use-dashboard-page';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
@@ -1435,7 +1436,7 @@ interface Props {
 }
 
 export function SuperadminDashboard({ user, initialStats }: Props) {
-  const [page, setPage] = useState('overview');
+  const [page, setPage] = useDashboardPage(NAV);
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch instead of shimmering forever.
   const { data: fetchedStats } = useApi<SuperadminStats>(initialStats ? null : ENDPOINTS.SA_STATS);

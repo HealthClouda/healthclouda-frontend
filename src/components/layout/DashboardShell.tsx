@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { SmallScreenGate } from './SmallScreenGate';
@@ -58,6 +58,19 @@ export function DashboardShell({
   smallScreenGateFor,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // A new screen starts at the top, with focus on the content area so the next
+  // Tab starts there (w5-b6 group 3); skipped on first load so signing in
+  // doesn't move focus. Not a heading: screen titles are h2s and Dashboard has none.
+  const mainRef = useRef<HTMLElement>(null);
+  const shownPage = useRef(activePage);
+  useEffect(() => {
+    if (shownPage.current === activePage) return;
+    shownPage.current = activePage;
+    const main = mainRef.current;
+    if (!main) return;
+    main.scrollTop = 0;
+    main.focus({ preventScroll: true });
+  }, [activePage]);
   const viewport = useWideViewport();
   // Build 5 / FLAG-044 — one listener here covers every dashboard (staff and
   // patient) this shell renders. Mounted unconditionally, ABOVE the small-
@@ -124,7 +137,7 @@ export function DashboardShell({
             onMarkAllRead={onMarkAllRead}
             dutyToggle={dutyToggle}
           />
-          <main className="flex-1 overflow-y-auto p-4 md:px-7 md:py-[26px]">
+          <main ref={mainRef} tabIndex={-1} className="flex-1 overflow-y-auto p-4 md:px-7 md:py-[26px] focus:outline-none">
             {children}
           </main>
         </div>

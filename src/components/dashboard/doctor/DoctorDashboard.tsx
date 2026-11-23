@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useDashboardPage } from '@/hooks/use-dashboard-page';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DutyToggle, dutyBannerText, type DutyState } from '@/components/dashboard/DutyToggle';
@@ -2082,7 +2083,7 @@ interface Props {
 }
 
 export function DoctorDashboard({ user, initialStats, slug: _slug }: Props) {
-  const [page, setPage] = useState('overview');
+  const [page, setPage] = useDashboardPage(NAV);
   const [duty, setDuty] = useState<DutyState>({
     isOnDuty: user.is_on_duty ?? false,
     offDutyOverride: user.off_duty_override ?? false,
