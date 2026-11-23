@@ -10,13 +10,13 @@ const SIZE: Record<AvatarSize, { wrapper: string; text: string }> = {
 };
 
 // Deterministic colour from a string — same name always gets same colour.
-// Exact palette per design_handoff_dashboards/README.md.
-const COLOURS = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#dc2626'];
+// No red: a red circle beside a row reads as an error (w5-b6). Indigo took its place.
+export const AVATAR_COLOURS = ['#0075ff', '#7c3aed', '#16a34a', '#d97706', '#0891b2', '#4f46e5'];
 
 function colourFor(seed: string): string {
   let hash = 0;
   for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffff;
-  return COLOURS[hash % COLOURS.length];
+  return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
 }
 
 interface AvatarProps {

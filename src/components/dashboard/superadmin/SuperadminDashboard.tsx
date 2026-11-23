@@ -398,14 +398,16 @@ function OrgDetailView({
             <span className="font-mono">{org.org_id}</span>
             <StatusBadge status={org.org_type} label={ORG_TYPE_LABEL[org.org_type] ?? org.org_type} />
             <StatusBadge status={org.is_active ? 'ACTIVE' : 'SUSPENDED'} />
-            <StatusBadge status={org.is_verified ? 'VERIFIED' : 'PENDING'} label={org.is_verified ? 'Verified' : 'Not verified'} />
+            <StatusBadge status={org.is_verified ? 'VERIFIED' : 'PENDING'} label={org.is_verified ? '✓ Verified' : 'Not verified'} />
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => onEdit(org)}>Edit</Button>
+          {/* One blue button: the next sensible action (Verify, Activate, else
+              Edit). Suspend is outlined; solid red waits for the confirm (w5-b6). */}
+          <Button variant={org.is_verified && org.is_active ? 'primary' : 'secondary'} onClick={() => onEdit(org)}>Edit</Button>
           {!org.is_verified && <Button onClick={() => onAction(org, 'verify')}>Verify</Button>}
           {org.is_active
-            ? <Button variant="danger" onClick={() => onAction(org, 'suspend')}>Suspend</Button>
+            ? <Button variant="dangerOutline" onClick={() => onAction(org, 'suspend')}>Suspend</Button>
             : <Button onClick={() => onAction(org, 'activate')}>Activate</Button>}
         </div>
       </div>
@@ -641,7 +643,7 @@ function OrgsPage() {
     ) },
     { key: 'type', header: 'Type', render: (org) => <StatusBadge status={org.org_type} label={ORG_TYPE_LABEL[org.org_type] ?? org.org_type} /> },
     { key: 'status', header: 'Status', render: (org) => <StatusBadge status={org.is_active ? 'ACTIVE' : 'SUSPENDED'} /> },
-    { key: 'verified', header: 'Verified', render: (org) => <StatusBadge status={org.is_verified ? 'VERIFIED' : 'PENDING'} label={org.is_verified ? 'Verified' : 'Pending'} /> },
+    { key: 'verified', header: 'Verified', render: (org) => <StatusBadge status={org.is_verified ? 'VERIFIED' : 'PENDING'} label={org.is_verified ? '✓ Verified' : 'Pending'} /> },
     { key: 'staff', header: 'Staff', className: 'tabular-nums', render: (org) => org.total_staff ?? '–' },
     { key: 'created', header: 'Date Added', className: 'whitespace-nowrap', render: (org) => <span className="text-xs text-text-soft">{formatDate(org.created_at)}</span> },
     { key: 'actions', header: 'Actions', render: (org) => (
@@ -651,8 +653,8 @@ function OrgsPage() {
           <button onClick={() => setConfirm({ org, action: 'verify' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary hover:bg-chip transition-colors">Verify</button>
         )}
         {org.is_active
-          ? <button onClick={() => setConfirm({ org, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-danger hover:bg-danger-bg transition-colors">Suspend</button>
-          : <button onClick={() => setConfirm({ org, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-success hover:bg-success-bg transition-colors">Activate</button>}
+          ? <button onClick={() => setConfirm({ org, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-danger/40 hover:text-danger hover:bg-danger-bg">Suspend</button>
+          : <button onClick={() => setConfirm({ org, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-success/40 hover:text-success hover:bg-success-bg">Activate</button>}
       </div>
     ) },
   ];
@@ -707,7 +709,7 @@ function OrgsPage() {
         subtitle={formPanel?.mode === 'edit' ? formPanel.org.name : 'Register a new facility on HealthClouda'}
         footer={
           <>
-            <Button variant="secondary" className="flex-1" onClick={() => setFormPanel(null)} disabled={saving}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setFormPanel(null)} disabled={saving}>Cancel</Button>
             <Button className="flex-1" onClick={submitForm} loading={saving} disabled={loadingDetail || !!detailError}>{formPanel?.mode === 'edit' ? 'Save Changes' : 'Add Organisation'}</Button>
           </>
         }
@@ -812,15 +814,27 @@ const ROLE_FILTERS = [
 ] as const;
 
 // The user confirm dialog's wording, one entry per action (a missing one is a type error).
+// w5-b6: every role was the same blue pill in raw capitals ("ORGANIZATION
+// ADMIN"). Readable names, and the roles an admin scans for get their own hue.
+const ROLE_BADGE_NEUTRAL = 'bg-row-hairline text-text-mid';
+const ROLE_BADGE: Record<string, string> = {
+  SUPERADMIN: 'bg-ink text-white',
+  ORGANIZATION_ADMIN: 'bg-purple-bg text-purple',
+  DOCTOR: 'bg-info-bg text-info',
+  NURSE: 'bg-teal-bg text-teal',
+};
+
 const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
-  title: string; label: string; variant: 'danger' | 'primary'; describe: (name: string) => string;
+  title: string; label: string; variant: 'danger' | 'primary'; describe: (name: string, email: string) => string;
 }> = {
   suspend: { title: 'Suspend User', label: 'Suspend', variant: 'danger',
     describe: (n) => `Are you sure you want to suspend ${n}?` },
   activate: { title: 'Activate User', label: 'Activate', variant: 'primary',
     describe: (n) => `Are you sure you want to activate ${n}?` },
-  reset: { title: 'Reset Password', label: 'Send reset link', variant: 'danger',
-    describe: (n) => `${n} will be signed out on every device and their current password will stop working. We'll email them a link to set a new one.` },
+  // Routine support, not a danger action (w5-b6): blue, and it names the
+  // address so a wrong or stale email is caught before the link is sent.
+  reset: { title: 'Reset Password', label: 'Send reset link', variant: 'primary',
+    describe: (n, email) => `${n} will be signed out on every device and their current password will stop working. We'll email a link to ${email} so they can set a new one.` },
 };
 
 function UsersPage({ currentUserId }: { currentUserId: string }) {
@@ -960,8 +974,8 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
       </div>
     ) },
     { key: 'role', header: 'Role', render: (u) => (
-      <span className="inline-flex items-center px-[11px] py-[3px] rounded-full text-[11px] font-bold bg-chip text-primary">
-        {u.role.replace('_', ' ')}
+      <span className={`inline-flex items-center px-[11px] py-[3px] rounded-full text-[11px] font-bold whitespace-nowrap ${ROLE_BADGE[u.role] ?? ROLE_BADGE_NEUTRAL}`}>
+        {roleLabel(u.role)}
       </span>
     ) },
     { key: 'org', header: 'Organisation', render: (u) => u.organization?.name ?? '–' },
@@ -975,8 +989,8 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
           </button>
         )}
         {u.is_active
-          ? <button onClick={() => setConfirm({ user: u, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-danger hover:bg-danger-bg transition-colors">Suspend</button>
-          : <button onClick={() => setConfirm({ user: u, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-success hover:bg-success-bg transition-colors">Activate</button>}
+          ? <button onClick={() => setConfirm({ user: u, action: 'suspend' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-danger/40 hover:text-danger hover:bg-danger-bg">Suspend</button>
+          : <button onClick={() => setConfirm({ user: u, action: 'activate' })} className="border border-border rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-text-mid transition-colors hover:border-success/40 hover:text-success hover:bg-success-bg">Activate</button>}
       </div>
     ) },
   ];
@@ -1057,12 +1071,11 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
         subtitle={detail.data ? `${detail.data.first_name} ${detail.data.last_name}` : undefined}
         footer={detail.data ? (
           <>
-            <Button variant="secondary" className="flex-1" onClick={() => setDetailId(null)}>Close</Button>
             {detail.data.is_active && detail.data.last_login != null && detail.data.id !== currentUserId && (
               <Button variant="secondary" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'reset' })}>Reset password</Button>
             )}
             {detail.data.is_active
-              ? <Button variant="danger" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
+              ? <Button variant="dangerOutline" className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'suspend' })}>Suspend</Button>
               : <Button className="flex-1" onClick={() => setConfirm({ user: detail.data!, action: 'activate' })}>Activate</Button>}
           </>
         ) : undefined}
@@ -1102,7 +1115,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
         subtitle="Add a new staff member to an organisation"
         footer={
           <>
-            <Button variant="secondary" className="flex-1" onClick={() => setInvitePanel(false)} disabled={saving}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setInvitePanel(false)} disabled={saving}>Cancel</Button>
             <Button className="flex-1 gap-1.5" onClick={submitInvite} loading={saving}>
               <SendIcon />
               Send Invitation
@@ -1162,7 +1175,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
         onConfirm={runAction}
         loading={working}
         title={confirm ? USER_ACTIONS[confirm.action].title : ''}
-        description={confirm ? USER_ACTIONS[confirm.action].describe(`${confirm.user.first_name} ${confirm.user.last_name}`) : ''}
+        description={confirm ? USER_ACTIONS[confirm.action].describe(`${confirm.user.first_name} ${confirm.user.last_name}`, confirm.user.email) : ''}
         confirmLabel={confirm ? USER_ACTIONS[confirm.action].label : ''}
         confirmVariant={confirm ? USER_ACTIONS[confirm.action].variant : 'primary'}
       />

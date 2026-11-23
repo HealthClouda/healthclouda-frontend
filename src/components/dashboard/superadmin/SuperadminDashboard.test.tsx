@@ -1158,3 +1158,82 @@ describe('w5-b6 group 1 — filter controls do not fight the form input size', (
     expect(conflictingFilterClasses()).toEqual([]);
   });
 });
+
+// ─── w5-b6 walk (23 Nov): group 2, hierarchy and colour ────────────────────
+// Red was the loudest thing on every screen: a solid red Suspend on the org
+// page and in the user panel, red/green Suspend/Activate on every table row,
+// and a red warning treatment on Reset password. When everything is red,
+// red stops meaning "this is dangerous". Solid red is reserved for the final
+// confirm of a destructive action; everything before it is quieter.
+const isSolidRed = (el: HTMLElement) => /(^|\s)bg-danger(\s|$)/.test(el.className);
+
+describe('w5-b6 group 2 — red is reserved for the destructive confirm', () => {
+  it('org detail: Edit is the main button; Suspend is outlined, not solid red', async () => {
+    await openOrgDetail();
+    expect(screen.getByRole('button', { name: 'Edit' }).className).toMatch(/(^|\s)bg-primary(\s|$)/);
+    const suspend = screen.getByRole('button', { name: 'Suspend' });
+    expect(isSolidRed(suspend)).toBe(false);
+    expect(suspend.className).toMatch(/text-danger/);
+  });
+
+  it('organisations table: row actions are neutral until hovered', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    const row = screen.getByText('Demo Clinic').closest('tr')!;
+    const suspend = within(row).getByRole('button', { name: 'Suspend' });
+    expect(suspend.className.split(/\s+/)).not.toContain('text-danger');
+    expect(suspend.className).toMatch(/hover:text-danger/);
+  });
+
+  it('users table: row actions are neutral until hovered', async () => {
+    await openPage('Users', 'Amara Nwosu');
+    const row = screen.getByText('Amara Nwosu').closest('tr')!;
+    const suspend = within(row).getByRole('button', { name: 'Suspend' });
+    expect(suspend.className.split(/\s+/)).not.toContain('text-danger');
+  });
+
+  it('user panel: no Close button in the footer (× and Escape close it); Suspend outlined', async () => {
+    await openPage('Users', 'Amara Nwosu');
+    fireEvent.click(screen.getByRole('button', { name: /view details for amara nwosu/i }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByText('+2348011111111')).toBeInTheDocument());
+    expect(within(panel).queryByRole('button', { name: /^close$/i })).toBeNull();
+    expect(isSolidRed(within(panel).getByRole('button', { name: 'Suspend' }))).toBe(false);
+  });
+
+  it('reset password confirm: not a danger dialog, and names the address the link goes to', async () => {
+    await openPage('Users', 'Amara Nwosu');
+    fireEvent.click(screen.getByRole('button', { name: /view details for amara nwosu/i }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByText('+2348011111111')).toBeInTheDocument());
+    fireEvent.click(within(panel).getByRole('button', { name: /reset password/i }));
+    const send = await screen.findByRole('button', { name: /send reset link/i });
+    expect(isSolidRed(send)).toBe(false);
+    expect(screen.getByText(/email a link to amara@demo-clinic\.test/i)).toBeInTheDocument();
+  });
+
+  it('panel footers: Cancel is not stretched to the size of the main action', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: /add organisation/i }));
+    const panel = screen.getByRole('dialog');
+    expect(within(panel).getByRole('button', { name: 'Cancel' }).className.split(/\s+/)).not.toContain('flex-1');
+  });
+});
+
+describe('w5-b6 group 2 — badges carry distinct meanings', () => {
+  it('Verified is not the same green pill as Active', async () => {
+    await openPage('Organisations', 'Demo Clinic');
+    const row = screen.getByText('Demo Clinic').closest('tr')!;
+    const active = within(row).getByText('Active');
+    const verified = within(row).getByText(/verified/i);
+    expect(verified.className).not.toBe(active.className);
+  });
+
+  it('users table: roles read as words, and Doctor and Nurse are told apart', async () => {
+    await openPage('Users', 'Amara Nwosu');
+    const doctorRow = screen.getByText('Chidi Okafor').closest('tr')!;
+    const nurseRow = screen.getByText('Amara Nwosu').closest('tr')!;
+    const doctor = within(doctorRow).getByText('Doctor');
+    const nurse = within(nurseRow).getByText('Nurse');
+    expect(doctor.className).not.toBe(nurse.className);
+  });
+});
