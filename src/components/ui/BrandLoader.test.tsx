@@ -63,6 +63,15 @@ describe('BrandLoader (stand-up w2-k3)', () => {
     expect(loaderCss).not.toMatch(/drop-shadow/);
   });
 
+  it('leaves no dot at the end of the line while the pulse rests', () => {
+    // Round line caps draw a dot for a zero-length dash, and offset -1 parks the
+    // pulse exactly at the line's end. Resting must park it past the end.
+    const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
+    const sweep = css.match(/@keyframes hc-loader-sweep \{(.*)\}/)![1];
+    const offsets = [...sweep.matchAll(/stroke-dashoffset:\s*(-?[\d.]+)/g)].map((m) => Number(m[1]));
+    expect(offsets.at(-1)).toBeLessThan(-1);
+  });
+
   it('beats when the middle of the pulse crosses the deep spike and the tall peak', () => {
     // Walk the path: the pulse (0.22 long) sweeps offset 0.22 -> -1 over the first
     // 50% of the cycle, so its middle reaches fraction s at (s + 0.11) / 2.44.

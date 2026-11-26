@@ -118,7 +118,9 @@
    (61% along) at 30%. The two beats, and the glow's two flares, land there.
    The loader fades in after 200ms so a fast load never flashes it. */
 @keyframes hc-loader-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes hc-loader-sweep { 0% { stroke-dashoffset: 0.22; } 50%, 100% { stroke-dashoffset: -1; } }
+/* Resting at exactly -1 leaves a zero-length dash at the line's end, which the
+   round cap draws as a dot; once across, the pulse jumps clear of the line. */
+@keyframes hc-loader-sweep { 0% { stroke-dashoffset: 0.22; } 50% { stroke-dashoffset: -1; } 50.01%, 100% { stroke-dashoffset: -1.3; } }
 @keyframes hc-loader-beat {
   0%, 12% { transform: scale(1); }
   20% { transform: scale(1.09); }
