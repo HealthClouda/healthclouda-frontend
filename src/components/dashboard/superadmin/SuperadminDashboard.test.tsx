@@ -1214,9 +1214,9 @@ describe('w5-b6 group 2 — red is reserved for the destructive confirm', () => 
     // It signs the user out on every device (owner, 23 Nov): amber warning
     // triangle, not the blue "i" of routine information.
     const dialog = screen.getAllByRole('dialog').find((d) => d !== panel)!;
-    const icon = dialog.querySelector('.bg-warning-bg.text-warning');
+    const icon = dialog.querySelector('[data-icon="warning"]');
     expect(icon).not.toBeNull();
-    expect(icon!.querySelector('path[d^="M10.29 3.86"]')).not.toBeNull();
+    expect(icon!.parentElement!.className).toContain('bg-warning-bg');
   });
 
   it('panel footers: Cancel is not stretched to the size of the main action', async () => {
