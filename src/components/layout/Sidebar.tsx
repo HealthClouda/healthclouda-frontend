@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { SlidePanel } from '@/components/ui/SlidePanel';
@@ -8,6 +8,7 @@ import { ChangePasswordForm, passwordChangedMessage } from '@/components/account
 import { useToast } from '@/store/toast';
 import { Avatar } from '@/components/ui/Avatar';
 import { signinPath } from '@/lib/router';
+import { DASHBOARD_MIN_WIDTH } from '@/hooks/use-wide-viewport';
 import type { User } from '@/types/auth';
 
 export interface NavItem {
@@ -23,6 +24,15 @@ export interface NavItem {
 
 /** localStorage key for the desktop sidebar's collapsed state ('1' / '0'). */
 export const SIDEBAR_COLLAPSED_KEY = 'hc.sidebar.collapsed';
+
+// Storage can throw (Safari "Block all cookies", locked-down browsers): fall back
+// to expanded, and keep a toggle that lasts until the page reloads.
+function readCollapsed(): boolean {
+  try { return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'; } catch { return false; }
+}
+function saveCollapsed(value: boolean) {
+  try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, value ? '1' : '0'); } catch { /* not remembered */ }
+}
 
 /** Drops "Soon" items; a section a dropped item opened moves to the next shown item. */
 function visibleItems(items: NavItem[]): NavItem[] {
@@ -51,16 +61,45 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
   // FLAG-611: every dashboard renders this sidebar, so Change password lives
   // here once instead of six times.
   const [changingPassword, setChangingPassword] = useState(false);
-  // Desktop only: the phone drawer (isOpen) always shows labels.
+  // Desktop only: the phone drawer always shows labels, so it never changes
+  // width while it slides. No matchMedia (tests) counts as desktop: this only
+  // sizes the sidebar; the FLAG-203 gate is useWideViewport, which stays strict.
   const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => { setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'); }, []);
-  const slim = collapsed && !isOpen;
+  const [desktop, setDesktop] = useState(false);
+  // Read before the first paint, so a saved "collapsed" never shows wide and
+  // then shrinks. Not in useState: the server render can't see storage.
+  useLayoutEffect(() => {
+    setCollapsed(readCollapsed());
+    if (typeof window.matchMedia !== 'function') { setDesktop(true); return; }
+    const query = window.matchMedia(`(min-width: ${DASHBOARD_MIN_WIDTH}px)`);
+    setDesktop(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setDesktop(event.matches);
+    query.addEventListener?.('change', onChange);
+    return () => query.removeEventListener?.('change', onChange);
+  }, []);
+  // The width animates only after that first paint, never on load.
+  const [animate, setAnimate] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const slim = collapsed && desktop;
+  // The toggle moves (brand row ↔ top of the icon column), so focus follows it.
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const refocusToggle = useRef(false);
+  useEffect(() => {
+    if (!refocusToggle.current) return;
+    refocusToggle.current = false;
+    toggleRef.current?.focus();
+  }, [slim]);
   function toggleCollapsed() {
-    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '0' : '1');
-    setCollapsed(!collapsed);
+    saveCollapsed(!slim);
+    refocusToggle.current = true;
+    setCollapsed(!slim);
   }
   const toggleButton = (
     <button
+      ref={toggleRef}
       onClick={toggleCollapsed}
       aria-label={slim ? 'Expand sidebar' : 'Collapse sidebar'}
       title={slim ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -73,6 +112,8 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
       </svg>
     </button>
   );
+
+  const signedInAs = [`${user.first_name} ${user.last_name}`, user.organization_name].filter(Boolean).join(', ');
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -100,7 +141,7 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
         className={`
           fixed md:relative inset-y-0 left-0 z-30
           ${slim ? 'w-[68px]' : 'w-[230px]'} flex flex-col bg-white border-r border-border
-          transition-[transform,width] duration-300 ease-in-out
+          ${animate ? 'transition-[transform,width] duration-300 ease-in-out' : ''}
           md:translate-x-0 md:flex
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -111,7 +152,7 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
           <Image src="/assets/images/HealthClouda-icon-tight.png" alt="" width={44} height={22} className="w-11 h-[22px] object-contain" />
           {!slim && (
             <>
-              <span className="flex-1 font-body font-black text-base text-ink">HealthClouda</span>
+              <span className="flex-1 min-w-0 truncate font-body font-black text-base text-ink">HealthClouda</span>
               {toggleButton}
             </>
           )}
@@ -162,7 +203,11 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
             sharing one 230px row with two buttons left the name ~1px wide. */}
         {slim ? (
           <div className="py-3 border-t border-border flex-shrink-0 flex flex-col items-center gap-1">
-            <span title={`${user.first_name} ${user.last_name}`}>
+            <span
+              role="img"
+              aria-label={`Signed in as ${signedInAs}`}
+              title={signedInAs}
+            >
               <Avatar firstName={user.first_name} lastName={user.last_name} size="md" />
             </span>
             <button

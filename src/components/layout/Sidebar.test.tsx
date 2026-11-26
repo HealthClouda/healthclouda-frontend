@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { Sidebar, SIDEBAR_COLLAPSED_KEY, type NavItem } from './Sidebar';
 import type { User } from '@/types/auth';
 
@@ -24,6 +24,15 @@ const renderSidebar = () =>
   render(<Sidebar navItems={NAV} activePage="overview" onPageChange={() => {}} user={USER} isOpen={false} onClose={() => {}} />);
 
 beforeEach(() => window.localStorage.clear());
+afterEach(() => vi.restoreAllMocks());
+
+const realMatchMedia = window.matchMedia;
+function setViewport(wide: boolean) {
+  window.matchMedia = ((query: string) => ({
+    matches: wide, media: query, addEventListener: () => {}, removeEventListener: () => {},
+  })) as unknown as typeof window.matchMedia;
+}
+afterEach(() => { window.matchMedia = realMatchMedia; });
 
 describe('Sidebar', () => {
   it('leaves out "Soon" items, and keeps the section they opened for the next item', () => {
@@ -62,5 +71,50 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
     expect(screen.getByRole('complementary').dataset.collapsed).toBe('false');
     expect(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY)).toBe('0');
+  });
+
+  // Review of #229.
+  it('still works when the browser blocks storage, instead of crashing the dashboard', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError'); });
+    renderSidebar();
+    const aside = screen.getByRole('complementary');
+    expect(aside.dataset.collapsed).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+    expect(aside.dataset.collapsed).toBe('true');
+  });
+
+  it('does not animate the width on load, so a saved "collapsed" never shrinks into place', async () => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
+    renderSidebar();
+    const aside = screen.getByRole('complementary');
+    expect(aside.dataset.collapsed).toBe('true');
+    expect(aside.className).not.toMatch(/duration-300/);
+    await waitFor(() => expect(aside.className).toMatch(/duration-300/));
+  });
+
+  it('keeps keyboard focus on the toggle when it moves', () => {
+    renderSidebar();
+    const collapse = screen.getByRole('button', { name: 'Collapse sidebar' });
+    collapse.focus();
+    fireEvent.click(collapse);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Expand sidebar' }));
+    fireEvent.click(document.activeElement!);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Collapse sidebar' }));
+  });
+
+  it('shows the phone drawer with labels even when "collapsed" was saved on desktop', () => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
+    setViewport(false);
+    renderSidebar();
+    expect(screen.getByRole('complementary').dataset.collapsed).toBe('false');
+    expect(screen.getByText('HealthClouda')).toBeInTheDocument();
+  });
+
+  it('names who is signed in, and where, when collapsed', () => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
+    render(<Sidebar navItems={NAV} activePage="overview" onPageChange={() => {}}
+      user={{ ...USER, organization_name: 'Demo Clinic' } as User} isOpen={false} onClose={() => {}} />);
+    expect(screen.getByRole('img', { name: 'Signed in as Sade Admin, Demo Clinic' })).toBeInTheDocument();
   });
 });
