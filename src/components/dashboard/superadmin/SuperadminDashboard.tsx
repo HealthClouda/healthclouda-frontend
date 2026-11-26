@@ -536,6 +536,16 @@ function OrgsPage() {
   // w2-k1: "View" opens the detail view in place of the table.
   const [viewingId, setViewingId] = useState<string | null>(null);
   const orgDetail = useApi<OrganizationDetail>(viewingId ? ENDPOINTS.SA_ORG(viewingId) : null);
+  // Going back removes the button just pressed (breadcrumb or ← Back), so focus
+  // lands on the list's heading instead of <body> (review of #233).
+  const listHeading = useRef<HTMLHeadingElement>(null);
+  const returning = useRef(false);
+  useEffect(() => {
+    if (viewingId !== null || !returning.current) return;
+    returning.current = false;
+    listHeading.current?.focus();
+  }, [viewingId]);
+  const closeDetail = () => { returning.current = true; setViewingId(null); };
   const [staffVersion, setStaffVersion] = useState(0);
 
   function openAdd() {
@@ -674,7 +684,7 @@ function OrgsPage() {
           orgId={viewingId}
           detail={orgDetail}
           staffVersion={staffVersion}
-          onBack={() => setViewingId(null)}
+          onBack={closeDetail}
           onEdit={(org) => void openEdit(org)}
           onAction={(org, action) => setConfirm({ org, action })}
         />
@@ -682,7 +692,7 @@ function OrgsPage() {
       <>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="font-body font-black text-[22px] text-ink">Organisations</h2>
+          <h2 ref={listHeading} tabIndex={-1} className="font-body font-black text-[22px] text-ink outline-none">Organisations</h2>
           <p className="text-[13px] text-text-soft mt-0.5">Manage all hospitals, clinics and facilities on HealthClouda</p>
         </div>
         <Button onClick={openAdd} className="gap-1.5">

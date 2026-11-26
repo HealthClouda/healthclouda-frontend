@@ -913,10 +913,11 @@ describe('FLAG-222 — stat tiles must read the fields the API actually sends', 
     render(<SuperadminDashboard user={user} initialStats={stats} />);
 
     const activeOrgs = await screen.findByText('Active Organisations');
-    expect(activeOrgs.closest('div')?.parentElement?.textContent).toContain('25');
+    // The tile itself, not a tag path (StatCard's markup changed in group 3c).
+    expect(activeOrgs.closest('.rounded-card')?.textContent).toContain('25');
     const patients = screen.getByText('Total Patients');
-    expect(patients.closest('div')?.parentElement?.textContent).toContain('3106');
-    expect(patients.closest('div')?.parentElement?.textContent).not.toContain('900');
+    expect(patients.closest('.rounded-card')?.textContent).toContain('3106');
+    expect(patients.closest('.rounded-card')?.textContent).not.toContain('900');
   });
 });
 
@@ -1324,10 +1325,14 @@ describe('w5-b6 group 3c — layout', () => {
   it('top bar: a breadcrumb on an organisation page, and its first step goes back', async () => {
     await openOrgDetail();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByText('Demo Clinic')).toHaveAttribute('aria-current', 'page');
+    expect(within(crumbs).getByText('Demo Clinic').closest('li')).toHaveAttribute('aria-current', 'page');
+    // Review of #233: the page keeps a level-1 heading while the breadcrumb shows.
+    expect(screen.getByRole('heading', { level: 1, name: 'Demo Clinic' })).toBeInTheDocument();
     fireEvent.click(within(crumbs).getByRole('button', { name: 'Organisations' }));
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Demo Clinic', level: 2 })).toBeNull());
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+    // The button just pressed is gone; focus lands on the list's heading, not <body>.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Organisations', level: 2 })));
   });
 
   it('overview: each table is one card, not a card inside a card', async () => {

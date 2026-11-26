@@ -65,7 +65,8 @@ export function DashboardHeader({
               <button type="button" onClick={crumb.onBack} className="text-text-soft hover:text-primary hover:underline">{pageTitle}</button>
             </li>
             <li aria-hidden className="text-text-soft font-normal">›</li>
-            <li aria-current="page" className="text-ink truncate">{crumb.label}</li>
+            {/* The current step is the page's level-1 heading (review of #233). */}
+            <li aria-current="page" className="min-w-0 truncate"><h1 className="inline text-ink">{crumb.label}</h1></li>
           </ol>
         </nav>
       ) : pageTitle && (
