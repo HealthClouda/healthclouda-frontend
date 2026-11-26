@@ -26,7 +26,8 @@ const SIZE = {
 const ICON_COLOR: Record<IconColor, string> = {
   primary: 'bg-chip text-primary',
   success: 'bg-success-bg text-success',
-  warning: 'bg-warning-bg text-warning',
+  // warning-strong: plain warning on its pale chip is ~2.9:1, under the 3:1 icons need.
+  warning: 'bg-warning-bg text-warning-strong',
   danger: 'bg-danger-bg text-danger',
   purple: 'bg-purple-bg text-purple',
 };

@@ -826,15 +826,16 @@ const ROLE_BADGE: Record<string, string> = {
 
 // The user confirm dialog's wording, one entry per action (a missing one is a type error).
 const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
-  title: string; label: string; variant: 'danger' | 'primary'; describe: (name: string, email: string) => string;
+  title: string; label: string; variant: 'danger' | 'warning' | 'primary'; describe: (name: string, email: string) => string;
 }> = {
   suspend: { title: 'Suspend User', label: 'Suspend', variant: 'danger',
     describe: (n) => `Are you sure you want to suspend ${n}?` },
   activate: { title: 'Activate User', label: 'Activate', variant: 'primary',
     describe: (n) => `Are you sure you want to activate ${n}?` },
-  // Routine support, not a danger action (w5-b6): blue, and it names the
+  // Not destructive, so no red (w5-b6), but it signs the user out on every
+  // device: amber warning icon, blue button (owner, 23 Nov). It names the
   // address so a wrong or stale email is caught before the link is sent.
-  reset: { title: 'Reset Password', label: 'Send reset link', variant: 'primary',
+  reset: { title: 'Reset Password', label: 'Send reset link', variant: 'warning',
     describe: (n, email) => `${n} will be signed out on every device and their current password will stop working. We'll email a link to ${email} so they can set a new one.` },
 };
 
