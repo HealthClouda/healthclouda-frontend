@@ -39,4 +39,14 @@ describe('StatCard', () => {
     render(<StatCard label="No click" value={3} icon={icon} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  // w5-b6 group 3c: the number sat under a full-height icon row (~118px card).
+  // Compact: label and number stacked together, the icon beside them.
+  it('stacks the label and number together, with the icon beside them', () => {
+    render(<StatCard label="Compact" value={7} icon={icon} />);
+    const label = screen.getByText('Compact');
+    const value = screen.getByText('7');
+    expect(label.parentElement).toBe(value.parentElement);
+    expect(label.parentElement!.contains(screen.getByTestId('icon'))).toBe(false);
+  });
 });

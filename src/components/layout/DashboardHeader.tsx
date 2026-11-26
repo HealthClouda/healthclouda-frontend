@@ -13,6 +13,8 @@ export interface Notification {
 interface DashboardHeaderProps {
   user: User;
   pageTitle?: string;
+  /** A detail view's label: the title becomes a breadcrumb, pageTitle › label (w5-b6 group 3c). */
+  crumb?: { label: string; onBack: () => void } | null;
   notificationCount?: number;
   notifications?: Notification[];
   onMenuClick: () => void;
@@ -23,6 +25,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({
   user,
   pageTitle,
+  crumb,
   notificationCount = 0,
   notifications = [],
   onMenuClick,
@@ -55,7 +58,17 @@ export function DashboardHeader({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      {pageTitle && (
+      {pageTitle && crumb ? (
+        <nav aria-label="Breadcrumb" className="hidden sm:block min-w-0">
+          <ol className="flex items-center gap-2 text-[14.5px] font-bold whitespace-nowrap">
+            <li>
+              <button type="button" onClick={crumb.onBack} className="text-text-soft hover:text-primary hover:underline">{pageTitle}</button>
+            </li>
+            <li aria-hidden className="text-text-soft font-normal">›</li>
+            <li aria-current="page" className="text-ink truncate">{crumb.label}</li>
+          </ol>
+        </nav>
+      ) : pageTitle && (
         <h1 className="text-[14.5px] font-bold text-ink whitespace-nowrap hidden sm:block">{pageTitle}</h1>
       )}
       {user.organization_name && (

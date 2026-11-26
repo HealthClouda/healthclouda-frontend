@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { SmallScreenGate } from './SmallScreenGate';
@@ -18,6 +18,26 @@ import type { Notification } from './DashboardHeader';
 import type { User } from '@/types/auth';
 
 export type { NavItem };
+
+/** A detail view inside a screen (e.g. one organisation): the top bar shows Screen › label. */
+export interface DashboardCrumb { label: string; onBack: () => void }
+const CrumbContext = createContext<(crumb: DashboardCrumb | null) => void>(() => {});
+
+/**
+ * Call from a detail view to put it in the top bar's breadcrumb (w5-b6 group 3c).
+ * `label` null = nothing to show yet (still loading). Cleared on unmount.
+ */
+export function useDashboardCrumb(label: string | null, onBack: () => void) {
+  const setCrumb = useContext(CrumbContext);
+  // The latest onBack without re-publishing the crumb on every render.
+  const back = useRef(onBack);
+  useEffect(() => { back.current = onBack; });
+  useEffect(() => {
+    if (label === null) return;
+    setCrumb({ label, onBack: () => back.current() });
+    return () => setCrumb(null);
+  }, [label, setCrumb]);
+}
 
 interface DashboardShellProps {
   navItems: NavItem[];
@@ -58,6 +78,7 @@ export function DashboardShell({
   smallScreenGateFor,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [crumb, setCrumb] = useState<DashboardCrumb | null>(null);
   // A new screen starts at the top, with focus on the content area so the next
   // Tab starts there (w5-b6 group 3); skipped on first load so signing in
   // doesn't move focus. Not a heading: screen titles are h2s and Dashboard has none.
@@ -131,6 +152,7 @@ export function DashboardShell({
           <DashboardHeader
             user={user}
             pageTitle={pageTitle}
+            crumb={crumb}
             notificationCount={notificationCount}
             notifications={notifications}
             onMenuClick={() => setSidebarOpen(true)}
@@ -138,7 +160,7 @@ export function DashboardShell({
             dutyToggle={dutyToggle}
           />
           <main ref={mainRef} tabIndex={-1} className="flex-1 overflow-y-auto p-4 md:px-7 md:py-[26px] focus:outline-none">
-            {children}
+            <CrumbContext.Provider value={setCrumb}>{children}</CrumbContext.Provider>
           </main>
         </div>
       </div>

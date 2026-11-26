@@ -1318,3 +1318,34 @@ describe('w5-b6 group 3a — one address per screen', () => {
     await waitFor(() => expect(screen.getByText('Amara Nwosu')).toBeInTheDocument());
   });
 });
+
+// ─── w5-b6 walk (23 Nov): group 3c, layout ────────────────────────────────
+describe('w5-b6 group 3c — layout', () => {
+  it('top bar: a breadcrumb on an organisation page, and its first step goes back', async () => {
+    await openOrgDetail();
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByText('Demo Clinic')).toHaveAttribute('aria-current', 'page');
+    fireEvent.click(within(crumbs).getByRole('button', { name: 'Organisations' }));
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Demo Clinic', level: 2 })).toBeNull());
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
+  });
+
+  it('overview: each table is one card, not a card inside a card', async () => {
+    await openPage('Dashboard', 'Recent Organisations');
+    for (const title of ['Recent Organisations', 'Recent Activity']) {
+      const card = screen.getByRole('heading', { name: title }).closest('.rounded-card')!;
+      expect(card.querySelector('.rounded-card')).toBeNull();
+      expect(card.parentElement!.closest('.rounded-card')).toBeNull();
+    }
+  });
+
+  it('organisation page: the Staff table is one card, and Details values sit next to their labels', async () => {
+    await openOrgDetail();
+    const staff = screen.getByRole('heading', { name: 'Staff' }).closest('.rounded-card')!;
+    expect(staff.querySelector('.rounded-card')).toBeNull();
+    expect(staff.parentElement!.closest('.rounded-card')).toBeNull();
+    const row = screen.getByText('12 Awolowo Road, Ikoyi').closest('div')!;
+    expect(row.className).not.toMatch(/justify-between/);
+    expect(screen.getByText('12 Awolowo Road, Ikoyi').className).not.toMatch(/text-right/);
+  });
+});

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useDashboardPage } from '@/hooks/use-dashboard-page';
-import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
+import { DashboardShell, useDashboardCrumb, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SlidePanel } from '@/components/ui/SlidePanel';
@@ -161,12 +161,9 @@ function OverviewPage({
 
       <SystemHealthCard />
 
-      <div className="rounded-card border border-border bg-white shadow-dash-card p-5">
-        <div className="flex items-center justify-between mb-3.5">
-          <h2 className="text-[13.5px] font-bold text-ink">Recent Organisations</h2>
-          <button onClick={() => onNavigate('organizations')} className="text-[11.5px] font-semibold text-primary hover:underline">View all</button>
-        </div>
-        <DataTable
+      {/* The title sits in the table's own header row: one card, not a card in a card (w5-b6 group 3c). */}
+      <DataTable
+          toolbar={<TableHeading title="Recent Organisations" action="View all" onAction={() => onNavigate('organizations')} />}
           columns={[
             { key: 'name', header: 'Organisation', render: (o: OrgSummary) => (
               <div>
@@ -185,14 +182,9 @@ function OverviewPage({
           emptyTitle="No organisations"
           emptyDescription="None registered yet."
         />
-      </div>
 
-      <div className="rounded-card border border-border bg-white shadow-dash-card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-[13.5px] font-bold text-ink">Recent Activity</h2>
-          <button onClick={() => onNavigate('audit')} className="text-[11.5px] font-semibold text-primary hover:underline">View audit logs</button>
-        </div>
-        <DataTable
+      <DataTable
+          toolbar={<TableHeading title="Recent Activity" action="View audit logs" onAction={() => onNavigate('audit')} />}
           columns={activityColumns}
           data={activityList}
           getRowKey={(r) => r.id}
@@ -202,7 +194,19 @@ function OverviewPage({
           emptyTitle="No recent activity"
           emptyDescription="System activity will appear here."
         />
-      </div>
+    </div>
+  );
+}
+
+/** A table's title (and optional link) in DataTable's own header row. */
+function TableHeading({ title, level = 2, action, onAction }: {
+  title: string; level?: 2 | 3; action?: string; onAction?: () => void;
+}) {
+  const H = level === 2 ? 'h2' : 'h3';
+  return (
+    <div className="flex flex-1 items-center justify-between gap-3">
+      <H className="text-[13.5px] font-bold text-ink">{title}</H>
+      {action && <button onClick={onAction} className="text-[11.5px] font-semibold text-primary hover:underline">{action}</button>}
     </div>
   );
 }
@@ -346,6 +350,7 @@ function OrgDetailView({
   // Only this org's data counts as loaded (review of #205): showing the previous
   // org while the next loads put its Suspend button on screen under no warning.
   const org = detail.data?.id === orgId ? detail.data : null;
+  useDashboardCrumb(org?.name ?? null, onBack);
   const heading = useRef<HTMLHeadingElement>(null);
   const loaded = !!org;
   // Move focus to the new view, so keyboard and screen-reader users are not
@@ -486,8 +491,10 @@ function OrgDetailView({
         </div>
       </div>
 
-      <DetailSection title="Staff">
-        <DataTable
+      {/* A labelled region (as DetailSection was), without a second card around the table. */}
+      <section aria-label="Staff">
+      <DataTable
+          toolbar={<TableHeading title="Staff" level={3} />}
           columns={staffColumns}
           data={staff.items}
           getRowKey={(u) => u.id}
@@ -502,7 +509,7 @@ function OrgDetailView({
           totalCount={staff.count}
           pageSize={20}
         />
-      </DetailSection>
+      </section>
     </div>
   );
 }
@@ -783,9 +790,11 @@ const EMPTY_USER_FORM: UserCreateInput = { email: '', first_name: '', last_name:
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
+    // A fixed label column with the value beside it: on a wide card, label left /
+    // value right put them ~600px apart (w5-b6 group 3c).
+    <div className="grid grid-cols-[minmax(0,10rem)_1fr] gap-4 py-2.5">
       <dt className="text-text-soft">{label}</dt>
-      <dd className="text-right font-medium text-ink">{children}</dd>
+      <dd className="font-medium text-ink break-words">{children}</dd>
     </div>
   );
 }
