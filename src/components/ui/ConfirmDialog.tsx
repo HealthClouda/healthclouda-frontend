@@ -10,7 +10,9 @@ interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
-  confirmVariant?: 'primary' | 'danger';
+  /** `warning`: amber triangle with the normal blue button, for an action with a
+   *  side effect worth reading (not destructive enough for red). */
+  confirmVariant?: 'primary' | 'warning' | 'danger';
   loading?: boolean;
 }
 
@@ -47,14 +49,14 @@ export function ConfirmDialog({
       title={title}
       description={description}
       size="sm"
-      icon={confirmVariant === 'danger' ? <WarningIcon /> : <InfoIcon />}
-      iconColor={confirmVariant === 'danger' ? 'danger' : 'primary'}
+      icon={confirmVariant === 'primary' ? <InfoIcon /> : <WarningIcon />}
+      iconColor={confirmVariant}
       footer={
         <>
           <Button variant="secondary" className="flex-1" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant={confirmVariant} className="flex-1" onClick={onConfirm} loading={loading}>
+          <Button variant={confirmVariant === 'danger' ? 'danger' : 'primary'} className="flex-1" onClick={onConfirm} loading={loading}>
             {confirmLabel}
           </Button>
         </>

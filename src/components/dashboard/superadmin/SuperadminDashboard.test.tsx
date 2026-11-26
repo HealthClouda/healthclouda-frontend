@@ -1201,7 +1201,7 @@ describe('w5-b6 group 2 — red is reserved for the destructive confirm', () => 
     expect(isSolidRed(within(panel).getByRole('button', { name: 'Suspend' }))).toBe(false);
   });
 
-  it('reset password confirm: not a danger dialog, and names the address the link goes to', async () => {
+  it('reset password confirm: an amber warning, not red, and names the address the link goes to', async () => {
     await openPage('Users', 'Amara Nwosu');
     fireEvent.click(screen.getByRole('button', { name: /view details for amara nwosu/i }));
     const panel = screen.getByRole('dialog');
@@ -1209,7 +1209,14 @@ describe('w5-b6 group 2 — red is reserved for the destructive confirm', () => 
     fireEvent.click(within(panel).getByRole('button', { name: /reset password/i }));
     const send = await screen.findByRole('button', { name: /send reset link/i });
     expect(isSolidRed(send)).toBe(false);
+    expect(send.className).toMatch(/(^|\s)bg-primary(\s|$)/);
     expect(screen.getByText(/email a link to amara@demo-clinic\.test/i)).toBeInTheDocument();
+    // It signs the user out on every device (owner, 23 Nov): amber warning
+    // triangle, not the blue "i" of routine information.
+    const dialog = screen.getAllByRole('dialog').find((d) => d !== panel)!;
+    const icon = dialog.querySelector('.bg-warning-bg.text-warning');
+    expect(icon).not.toBeNull();
+    expect(icon!.querySelector('path[d^="M10.29 3.86"]')).not.toBeNull();
   });
 
   it('panel footers: Cancel is not stretched to the size of the main action', async () => {
