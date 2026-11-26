@@ -5,7 +5,7 @@ import { BrandLoader } from '@/components/ui/BrandLoader';
 // sign that anything was happening. Stand-up w2-k3.
 export default function Loading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page">
+    <div className="hc-loader-screen">
       <BrandLoader size="lg" />
     </div>
   );

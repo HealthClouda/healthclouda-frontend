@@ -105,7 +105,7 @@ export function DashboardShell({
     ) : (
       // The same loader as src/app/loading.tsx, in the same place, so a page
       // change reads as one wait rather than loader → blank → dashboard.
-      <div className="flex h-screen items-center justify-center bg-page" aria-busy="true">
+      <div className="hc-loader-screen" aria-busy="true">
         <BrandLoader size="lg" label="Loading dashboard" />
       </div>
     );

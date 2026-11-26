@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Lato } from 'next/font/google';
 import { Toaster } from '@/components/ui/Toaster';
+import { LOGO } from '@/components/ui/BrandLoader';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -41,6 +42,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${lato.variable}`}>
       <body>
+        {/* Fetch the loader's logo while idle, so its first show isn't a pulse with no logo.
+            prefetch, not preload: preload warns on every page that doesn't show the loader.
+            shortcut: Safari ignores prefetch, so a cold first load there can still pop the
+            logo in late; upgrade by inlining the mark as SVG if that shows up in use. */}
+        <link rel="prefetch" href={LOGO} as="image" />
         {children}
         <Toaster />
       </body>
