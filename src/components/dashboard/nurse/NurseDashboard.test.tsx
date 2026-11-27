@@ -403,9 +403,8 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     fireEvent.change(screen.getByLabelText(/temperature/i), { target: { value: '44' } });
     fireEvent.click(screen.getByRole('button', { name: /save|record/i }));
 
-    expect(
-      await screen.findByText(/less than or equal to 45/i),
-    ).toBeInTheDocument();
+    // A5: the form's own label and plain words, not "temperature: Ensure this value…".
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Temperature \(°C\) must be 45 or less\./);
   });
 
   it('shows an empty state when the patient has no readings yet (vitals: null)', async () => {
@@ -2178,8 +2177,71 @@ describe('#208: a reading outside the usual range is confirmed, never refused', 
     }, 'Invalid input.'));
     await enterAndSubmit({ 'resp\. rate': '0' });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/invalid input/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Resp. rate (per min) must be more than 0.');
     expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /record reading/i })).toBeInTheDocument();
+  });
+});
+
+describe('A5 — nurse vitals: three fixes from the #224 walk', () => {
+  const empty = {
+    ...reading, temperature: null, blood_pressure_systolic: null, blood_pressure_diastolic: null,
+    pulse_rate: null, respiratory_rate: null, oxygen_saturation: null, weight: null, height: null, notes: '',
+  };
+
+  async function openVitals() {
+    useToastStore.setState({ toasts: [] });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Vitals' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Chidi Nwosu/ }));
+  }
+
+  it('1. the "save anyway?" prompt is scrolled into view when it opens', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    dataActionMock.mockReset();
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, {
+      code: 'VITALS_NEED_CONFIRMATION',
+      details: { out_of_range: [{ field: 'respiratory_rate', value: 70, confirm_below: 5, confirm_above: 60 }] },
+    }, 'x'));
+    await openVitals();
+    await screen.findByText(/108\s*\/\s*93/);
+    fireEvent.change(screen.getByLabelText(/resp\. rate/i), { target: { value: '70' } });
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+    const prompt = await screen.findByRole('alert');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(scroll.mock.contexts.some((el) => el === prompt)).toBe(true);
+  });
+
+  it('2. a refused reading is named with the form\'s label, in plain words, not the API field', async () => {
+    dataActionMock.mockReset();
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, {
+      error: 'oxygen_saturation: Ensure this value is less than or equal to 100.',
+      code: 'VALIDATION_ERROR',
+      details: { oxygen_saturation: ['Ensure this value is less than or equal to 100.'], pulse_rate: ['Must be greater than 0.'] },
+    }, 'oxygen_saturation: Ensure this value is less than or equal to 100.'));
+    await openVitals();
+    await screen.findByText(/108\s*\/\s*93/);
+    fireEvent.change(screen.getByLabelText(/spo2/i), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+    const err = await screen.findByRole('alert');
+    expect(err).toHaveTextContent('SpO2 (%) must be 100 or less.');
+    expect(err).toHaveTextContent('Pulse rate (bpm) must be more than 0.');
+    expect(err).not.toHaveTextContent('oxygen_saturation');
+    expect(err).not.toHaveTextContent('Ensure this value');
+  });
+
+  it('3. a reading with no measurements and no note shows "No vitals recorded", not a card of dashes', async () => {
+    mockBackend({ vitals: { ...vitalsResponse, vitals: empty } });
+    await openVitals();
+    expect(await screen.findByText('No vitals recorded')).toBeInTheDocument();
+    expect(screen.queryByText('Latest reading')).toBeNull();
+  });
+
+  it('3b. a note-only reading shows the note, without a grid of dashes', async () => {
+    mockBackend({ vitals: { ...vitalsResponse, vitals: { ...empty, notes: 'Refused obs, will retry at 8pm' } } });
+    await openVitals();
+    expect(await screen.findByText('Refused obs, will retry at 8pm')).toBeInTheDocument();
+    expect(screen.queryByText('BP (mmHg)')).toBeNull();
   });
 });

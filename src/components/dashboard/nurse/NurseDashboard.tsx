@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDashboardPage } from '@/hooks/use-dashboard-page';
 import { DashboardShell, type NavItem } from '@/components/layout/DashboardShell';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -357,7 +357,9 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function LatestReading({ vitals }: { vitals: PatientVitals }) {
   const r = vitals.vitals;
-  if (!r) {
+  // A reading can hold only a note (the form allows it), or nothing at all: no grid of dashes then (A5).
+  const measured = r != null && VITAL_FIELDS.some(f => r[f.key] != null);
+  if (!r || (!measured && !r.notes)) {
     return <EmptyState title="No vitals recorded" description="Readings recorded for this patient's active episode will appear here." />;
   }
   const bp = r.blood_pressure_systolic != null || r.blood_pressure_diastolic != null
@@ -365,8 +367,8 @@ function LatestReading({ vitals }: { vitals: PatientVitals }) {
     : '–';
   return (
     <div className="bg-white rounded-card border border-border shadow-dash-card p-4 space-y-3">
-      <h3 className="text-[13.5px] font-bold text-ink">Latest reading</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <h3 className="text-[13.5px] font-bold text-ink">{measured ? 'Latest reading' : 'Latest note'}</h3>
+      {measured && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Metric label="BP (mmHg)" value={bp} />
         <Metric label="Pulse" value={r.pulse_rate != null ? `${r.pulse_rate} bpm` : '–'} />
         <Metric label="Temp" value={r.temperature != null ? `${r.temperature}°C` : '–'} />
@@ -375,8 +377,8 @@ function LatestReading({ vitals }: { vitals: PatientVitals }) {
         <Metric label="Weight" value={r.weight != null ? `${r.weight} kg` : '–'} />
         <Metric label="Height" value={r.height != null ? `${r.height} cm` : '–'} />
         <Metric label="Recorded" value={timeAgo(r.recorded_at)} />
-      </div>
-      {r.notes && <p className="text-xs text-text-mid border-t border-border pt-2.5">{r.notes}</p>}
+      </div>}
+      {r.notes && <p className={`text-xs text-text-mid ${measured ? 'border-t border-border pt-2.5' : ''}`}>{r.notes}</p>}
       {r.recorded_by_info && (
         <p className="text-xs text-text-soft">Recorded {timeAgo(r.recorded_at)} by {r.recorded_by_info.full_name}</p>
       )}
@@ -400,6 +402,33 @@ function confirmationAsk(err: unknown): OutOfRangeReading[] | null {
 
 // Never the backend's own sentence here: it tells an API client to resend with a flag.
 const CANNOT_CONFIRM = 'These readings could not be saved. Check them and try again.';
+
+/** DRF's field messages in plain words: "must be 100 or less". Unknown ones pass through. */
+function plainRule(msg: string): string {
+  // A number, not the full stop that ends DRF's sentence ("…equal to 100.").
+  const le = /less than or equal to (\d+(?:\.\d+)?)/.exec(msg);
+  if (le) return `must be ${Number(le[1])} or less`;
+  const ge = /greater than or equal to (\d+(?:\.\d+)?)/.exec(msg);
+  if (ge) return `must be ${Number(ge[1])} or more`;
+  const gt = /greater than (\d+(?:\.\d+)?)/i.exec(msg);
+  if (gt) return `must be more than ${Number(gt[1])}`;
+  if (/valid integer/i.test(msg)) return 'must be a whole number';
+  if (/valid number/i.test(msg)) return 'must be a number';
+  return msg.charAt(0).toLowerCase() + msg.slice(1).replace(/\.$/, '');
+}
+
+/** A refused reading, named with the form's own label (A5): never the API field name. */
+function vitalsFieldErrors(err: unknown): string | null {
+  if (!(err instanceof ClientApiError)) return null;
+  const details = (err.data as { details?: Record<string, unknown> } | null)?.details;
+  if (!details) return null;
+  const lines = VITAL_FIELDS.flatMap(f => {
+    const v = details[f.key];
+    const msg = Array.isArray(v) ? v[0] : v;
+    return typeof msg === 'string' ? [`${f.label} ${plainRule(msg)}.`] : [];
+  });
+  return lines.length ? lines.join(' ') : null;
+}
 
 /** "Resp. rate 70 per min", from the form's own label "Resp. rate (per min)". */
 function describeReading(r: OutOfRangeReading): string {
@@ -451,12 +480,19 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
         setToConfirm(asked);
       } else {
         setToConfirm(null);
-        setFormError(asked ? CANNOT_CONFIRM : err instanceof Error ? err.message : 'Failed to record vitals');
+        setFormError(asked ? CANNOT_CONFIRM
+          : vitalsFieldErrors(err) ?? (err instanceof Error ? err.message : 'Failed to record vitals'));
       }
     } finally {
       setSaving(false);
     }
   }
+
+  // The prompt can open below the fold on a laptop: bring it into view (A5).
+  const promptRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (toConfirm) promptRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [toConfirm]);
 
   // Any edit closes the prompt, so "Save anyway" only ever confirms what it showed.
   function edit(apply: () => void) {
@@ -500,7 +536,7 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
       {formError && <p role="alert" className="text-xs font-semibold text-danger">{formError}</p>}
       {toConfirm ? (
         // Same warn-and-allow box as the admit forms' GenderOverrideWarning.
-        <div role="alert" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-2">
+        <div ref={promptRef} role="alert" className="rounded-lg border border-warning/30 bg-warning-bg px-3 py-2.5 space-y-2">
           <p className="text-xs font-semibold text-warning-strong">
             {toConfirm.length === 1 ? 'This reading is' : 'These readings are'} outside the usual range. Check {toConfirm.length === 1 ? 'it' : 'them'}, then save anyway if correct.
           </p>
