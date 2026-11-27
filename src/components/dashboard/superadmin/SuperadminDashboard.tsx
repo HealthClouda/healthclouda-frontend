@@ -524,7 +524,7 @@ function OrgDetailView({
   );
 }
 
-function OrgsPage({ onInviteAdmin }: { onInviteAdmin: (orgId: string) => void }) {
+function OrgsPage({ onInviteAdmin }: { onInviteAdmin: (org: { id: string; name: string }) => void }) {
   const [justCreated, setJustCreated] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
@@ -721,7 +721,7 @@ function OrgsPage({ onInviteAdmin }: { onInviteAdmin: (orgId: string) => void })
             <b>{justCreated.name}</b> was added. Nobody can run it until someone is invited as its admin.
           </p>
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => { onInviteAdmin(justCreated.id); setJustCreated(null); }}>Invite its first admin</Button>
+            <Button size="sm" onClick={() => { onInviteAdmin(justCreated); setJustCreated(null); }}>Invite its first admin</Button>
             <Button size="sm" variant="secondary" onClick={() => setJustCreated(null)}>Later</Button>
           </div>
         </div>
@@ -900,8 +900,12 @@ const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
 };
 
 function UsersPage({ currentUserId, inviteOrg = null, onInviteOpened }: {
-  currentUserId: string; inviteOrg?: string | null; onInviteOpened?: () => void;
+  currentUserId: string; inviteOrg?: { id: string; name: string } | null; onInviteOpened?: () => void;
 }) {
+  // The org "Invite its first admin" came from. The dropdown lists only the first page
+  // of GET /org/, so a new org may be missing from it: add it, or the select would read
+  // "Select organisation…" while one is chosen (review of #236).
+  const [presetOrg, setPresetOrg] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
   const [status, setStatus] = useState<'' | 'true' | 'false'>('');
@@ -960,7 +964,8 @@ function UsersPage({ currentUserId, inviteOrg = null, onInviteOpened }: {
 
   useEffect(() => {
     if (!inviteOrg) return;
-    setForm({ ...EMPTY_USER_FORM, organization: inviteOrg, role: 'ORGANIZATION_ADMIN' });
+    setPresetOrg(inviteOrg);
+    setForm({ ...EMPTY_USER_FORM, organization: inviteOrg.id, role: 'ORGANIZATION_ADMIN' });
     setInvitePanel(true);
     onInviteOpened?.();
   }, [inviteOrg, onInviteOpened]);
@@ -1188,7 +1193,7 @@ function UsersPage({ currentUserId, inviteOrg = null, onInviteOpened }: {
         open={invitePanel}
         onClose={() => setInvitePanel(false)}
         title="Invite User"
-        subtitle="Add a new staff member to an organisation"
+        subtitle="Invite someone to HealthClouda"
         footer={
           <>
             <Button variant="secondary" onClick={() => setInvitePanel(false)} disabled={saving}>Cancel</Button>
@@ -1207,7 +1212,8 @@ function UsersPage({ currentUserId, inviteOrg = null, onInviteOpened }: {
         {/* Who for, first: a super admin reaches every hospital, so it is never one
             slip away in the same list as Doctor (group 4b). */}
         <FormSection title="Invite for">
-          <div role="radiogroup" aria-label="Invite for" className="flex flex-col gap-2 mb-4">
+          {/* The fieldset + legend already name this group for screen readers. */}
+          <div className="flex flex-col gap-2 mb-4">
             {([['staff', 'Staff at an organisation'], ['platform', 'Platform super admin']] as const).map(([who, label]) => (
               <label key={who} className="flex items-center gap-2 text-[13px] text-ink cursor-pointer">
                 <input
@@ -1226,6 +1232,9 @@ function UsersPage({ currentUserId, inviteOrg = null, onInviteOpened }: {
             <Field label="Organisation">
               <select className={inputClass} value={form.organization} onChange={(e) => setForm({ ...form, organization: e.target.value })}>
                 <option value="">Select organisation…</option>
+                {presetOrg && !orgOptions?.results.some((o) => o.id === presetOrg.id) && (
+                  <option value={presetOrg.id}>{presetOrg.name}</option>
+                )}
                 {orgOptions?.results.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
             </Field>
@@ -1535,7 +1544,7 @@ interface Props {
 export function SuperadminDashboard({ user, initialStats }: Props) {
   const [page, setPage] = useDashboardPage(NAV);
   // "Invite its first admin" on Organisations opens Invite User for that org (group 4b).
-  const [inviteOrg, setInviteOrg] = useState<string | null>(null);
+  const [inviteOrg, setInviteOrg] = useState<{ id: string; name: string } | null>(null);
   const clearInviteOrg = useCallback(() => setInviteOrg(null), []);
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch instead of shimmering forever.
@@ -1552,7 +1561,7 @@ export function SuperadminDashboard({ user, initialStats }: Props) {
       smallScreenGateFor="Super Admin"
     >
       {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} />}
-      {page === 'organizations' && <OrgsPage onInviteAdmin={(id) => { setInviteOrg(id); setPage('users'); }} />}
+      {page === 'organizations' && <OrgsPage onInviteAdmin={(org) => { setInviteOrg(org); setPage('users'); }} />}
       {page === 'users'         && <UsersPage currentUserId={user.id} inviteOrg={inviteOrg} onInviteOpened={clearInviteOrg} />}
       {page === 'audit'         && <AuditPage />}
       {page === 'messages'      && <MessagesPage />}

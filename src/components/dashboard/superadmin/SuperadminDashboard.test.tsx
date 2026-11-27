@@ -1470,7 +1470,7 @@ describe('w5-b6 group 4b — Add Organisation', () => {
   });
 
   it('sends the type and licence number chosen', async () => {
-    dataActionMock.mockResolvedValue({ organization: { id: 'org-new', name: 'New Hospital' } });
+    dataActionMock.mockResolvedValueOnce({ organization: { id: 'org-new', name: 'New Hospital' } });
     const panel = await openAdd();
     fillRequired(panel);
     fireEvent.change(within(panel).getByLabelText('Type'), { target: { value: 'HOSPITAL' } });
@@ -1488,14 +1488,18 @@ describe('w5-b6 group 4b — Add Organisation', () => {
   });
 
   it('after saving, offers "Invite its first admin", which opens Invite User ready for that organisation', async () => {
-    dataActionMock.mockResolvedValue({ organization: { id: 'org-1', name: 'Demo Clinic' } });
+    // A NEW organisation, not on the dropdown's first page of GET /org/ (review of #236):
+    // the admin must still SEE it chosen, or they may pick another hospital.
+    dataActionMock.mockResolvedValueOnce({ organization: { id: 'org-new', name: 'Zenith Hospital' } });
     const panel = await openAdd();
     fillRequired(panel);
     fireEvent.change(within(panel).getByLabelText('Type'), { target: { value: 'HOSPITAL' } });
     fireEvent.click(within(panel).getByRole('button', { name: /^add organisation$/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Invite its first admin' }));
     const invite = await screen.findByRole('dialog', { name: 'Invite User' });
-    expect(within(invite).getByLabelText('Organisation')).toHaveValue('org-1');
+    const org = within(invite).getByLabelText('Organisation') as HTMLSelectElement;
+    expect(org).toHaveValue('org-new');
+    expect(org.selectedOptions[0]?.textContent).toBe('Zenith Hospital');
     expect(within(invite).getByLabelText('Role')).toHaveValue('ORGANIZATION_ADMIN');
   });
 });
@@ -1519,6 +1523,8 @@ describe('w5-b6 group 4b — Invite User asks "who for" first', () => {
 
   it('a platform super admin needs a deliberate choice, shows the warning, and is sent without an organisation', async () => {
     const panel = await openInvite();
+    // The subtitle must not say "staff at an organisation" for a platform invite (review of #236).
+    expect(panel).not.toHaveTextContent(/new staff member to an organisation/i);
     fireEvent.click(within(panel).getByRole('radio', { name: 'Platform super admin' }));
     expect(within(panel).getByText(/Full platform access/)).toBeInTheDocument();
     expect(within(panel).queryByLabelText('Organisation')).toBeNull();
