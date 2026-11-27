@@ -1354,3 +1354,85 @@ describe('w5-b6 group 3c — layout', () => {
     expect(screen.getByText('12 Awolowo Road, Ikoyi').className).not.toMatch(/text-right/);
   });
 });
+
+describe('w5-b6 group 4a — an empty search offers a way back', () => {
+  const empty = { count: 0, next: null, previous: null, results: [] };
+
+  it('Organisations: Clear search empties the box and brings the list back', async () => {
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/org/') ? (path.includes('search=') ? empty : orgsEnvelope) : empty);
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.change(screen.getByLabelText('Search organisations'), { target: { value: 'zzz' } });
+    const clear = await screen.findByRole('button', { name: 'Clear search' });
+    fireEvent.click(clear);
+    expect(screen.getByLabelText('Search organisations')).toHaveValue('');
+    // The empty state unmounts, so focus goes to the search box, not <body>.
+    expect(screen.getByLabelText('Search organisations')).toHaveFocus();
+    await waitFor(() => expect(screen.getByText('Demo Clinic')).toBeInTheDocument());
+  });
+
+  it('Users: Clear filters resets the search and every filter', async () => {
+    dataGetMock.mockImplementation(async (path: string) => {
+      if (path.startsWith('/org/')) return orgsEnvelope;
+      if (path.startsWith('/auth/users/')) return path.includes('role=') ? empty : usersEnvelope;
+      return empty;
+    });
+    await openPage('Users', 'Chidi Okafor');
+    fireEvent.change(screen.getByLabelText('Filter by role'), { target: { value: 'NURSE' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByLabelText('Filter by role')).toHaveValue('');
+    await waitFor(() => expect(screen.getByText('Chidi Okafor')).toBeInTheDocument());
+  });
+
+  it('Audit Logs: Clear filters resets them', async () => {
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/audit/logs/') && path.includes('action=') ? empty
+        : path.startsWith('/org/') ? orgsEnvelope : empty);
+    await openPage('Audit Logs', 'No audit logs');
+    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'LOGIN_FAILURE' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByLabelText('Action')).toHaveValue('');
+    await waitFor(() => expect(screen.getByText('No audit logs')).toBeInTheDocument());
+  });
+
+  it('Audit Logs: a half-typed email counts as a filter, so the message and Clear filters agree', async () => {
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/org/') ? orgsEnvelope : empty);
+    await openPage('Audit Logs', 'No audit logs');
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'bob@' } });
+    expect(await screen.findByText('No matching entries')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+  });
+
+  it('positive control: an empty list with no search or filter offers nothing to clear', async () => {
+    dataGetMock.mockImplementation(async () => empty);
+    await openPage('Organisations', 'No organisations found');
+    expect(screen.queryByRole('button', { name: /^clear/i })).toBeNull();
+  });
+});
+
+describe('w5-b6 group 4a — confirm dialogs say what really happens', () => {
+  it('Suspend user: signed out at once, cannot sign in until activated, records kept', async () => {
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/org/') ? orgsEnvelope
+        : path.startsWith('/auth/users/') ? usersEnvelope : { count: 0, next: null, previous: null, results: [] });
+    await openPage('Users', 'Chidi Okafor');
+    const row = screen.getByText('Amara Nwosu').closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Suspend' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Suspend User' });
+    expect(dialog).toHaveTextContent('Amara Nwosu will be signed out straight away');
+    expect(dialog).toHaveTextContent("can't sign in until you activate them again");
+    expect(dialog).toHaveTextContent('Their records are kept');
+  });
+
+  it('Activate organisation: staff come back on, but a user suspended on their own stays suspended', async () => {
+    const suspendedOrg = { ...activeOrg, is_active: false };
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/org/') ? { ...orgsEnvelope, results: [suspendedOrg] } : { count: 0, next: null, previous: null, results: [] });
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Activate Organisation' });
+    expect(dialog).toHaveTextContent('The staff accounts at "Demo Clinic" will be switched back on and able to sign in.');
+    expect(dialog).toHaveTextContent('Anyone you suspended from the Users page stays suspended.');
+  });
+});

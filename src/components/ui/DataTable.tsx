@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Pagination } from './Pagination';
 import { EmptyState } from './EmptyState';
@@ -24,6 +25,9 @@ interface DataTableProps<T> {
   onRetry?: () => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Shown under the empty message, e.g. a Clear filters button (w5-b6 group 4a). After a
+   *  click, focus moves to the toolbar's first control: the empty state is about to unmount. */
+  emptyAction?: ReactNode;
   /** Search/filter row rendered above the table, below the border. */
   toolbar?: ReactNode;
   rowClassName?: (row: T) => string;
@@ -44,14 +48,15 @@ interface DataTableProps<T> {
  */
 export function DataTable<T>({
   columns, data, getRowKey, loading, error, onRetry,
-  emptyTitle = 'Nothing here yet', emptyDescription, toolbar, rowClassName,
+  emptyTitle = 'Nothing here yet', emptyDescription, emptyAction, toolbar, rowClassName,
   sortKey, sortDirection, onSort,
   page, totalPages, onPageChange, totalCount, pageSize,
 }: DataTableProps<T>) {
+  const toolbarRef = useRef<HTMLDivElement>(null);
   return (
     <div className="bg-white rounded-card border border-border shadow-dash-card overflow-hidden">
       {toolbar && (
-        <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-border">
+        <div ref={toolbarRef} className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-border">
           {toolbar}
         </div>
       )}
@@ -66,7 +71,13 @@ export function DataTable<T>({
         </div>
       ) : data.length === 0 ? (
         <div className="p-5">
-          <EmptyState title={emptyTitle} description={emptyDescription} />
+          <EmptyState
+            title={emptyTitle}
+            description={emptyDescription}
+            action={emptyAction && (
+              <div onClick={() => toolbarRef.current?.querySelector<HTMLElement>('input, select')?.focus()}>{emptyAction}</div>
+            )}
+          />
         </div>
       ) : (
         <div className="overflow-x-auto">

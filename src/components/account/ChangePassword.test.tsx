@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { ENDPOINTS } from '@/lib/config';
 import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
@@ -171,5 +171,78 @@ describe('FLAG-611 — the forced change page', () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/signin'));
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
     vi.unstubAllGlobals();
+  });
+});
+
+describe('w5-b6 group 4a — Change password: show/hide and Cancel', () => {
+  it('each password box has a show/hide toggle a keyboard can reach', () => {
+    render(<ChangePasswordForm onChanged={vi.fn()} />);
+    const current = screen.getByLabelText('Current password') as HTMLInputElement;
+    expect(current.type).toBe('password');
+    const toggle = screen.getByRole('button', { name: 'Show current password' });
+    expect(toggle).not.toHaveAttribute('tabindex', '-1');
+    fireEvent.click(toggle);
+    expect(current.type).toBe('text');
+    expect(screen.getByRole('button', { name: 'Hide current password' })).toBeInTheDocument();
+    // Each box has its own toggle; showing one does not show the others.
+    expect((screen.getByLabelText('New password') as HTMLInputElement).type).toBe('password');
+    expect(screen.getByRole('button', { name: 'Show new password' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show confirmation' })).toBeInTheDocument();
+  });
+
+  it('offers Cancel when the caller can close it, and never on the forced page', () => {
+    const onCancel = vi.fn();
+    const { unmount } = render(<ChangePasswordForm onChanged={vi.fn()} onCancel={onCancel} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    unmount();
+    render(<ChangePasswordForm onChanged={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  });
+
+  it('Cancel in the sidebar panel closes it without sending anything', async () => {
+    render(<Sidebar navItems={[]} activePage="" onPageChange={vi.fn()} user={user} isOpen onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Change password' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Change password' })).toBeNull());
+    expect(dataActionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('w5-b6 group 4a — Sign out shows it is working', () => {
+  it('marks Sign out busy (focus kept), says so, and sends one request on a double click', async () => {
+    let release!: () => void;
+    const fetchMock = vi.fn(() => new Promise<Response>((r) => { release = () => r(new Response(null)); }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      render(<Sidebar navItems={[]} activePage="" onPageChange={vi.fn()} user={user} isOpen onClose={vi.fn()} />);
+      const btn = screen.getByRole('button', { name: 'Sign out' });
+      btn.focus();
+      // Both clicks in one tick, before React re-renders: only the ref guard stops the second.
+      act(() => { btn.click(); btn.click(); });
+      const busy = await screen.findByRole('button', { name: 'Signing out…' });
+      expect(busy).toHaveAttribute('aria-disabled', 'true');
+      expect(busy).not.toBeDisabled();
+      expect(busy).toHaveFocus();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      release();
+      await waitFor(() => expect(pushMock).toHaveBeenCalled());
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('a failed sign-out stays put, unlocks and says so, instead of going to sign-in', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 500 })));
+    try {
+      render(<Sidebar navItems={[]} activePage="" onPageChange={vi.fn()} user={user} isOpen onClose={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+      await waitFor(() => expect(useToastStore.getState().toasts.some(t => /could not sign you out/i.test(t.message))).toBe(true));
+      expect(screen.getByRole('button', { name: 'Sign out' })).not.toHaveAttribute('aria-disabled');
+      expect(pushMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
