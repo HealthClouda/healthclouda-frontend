@@ -7,6 +7,7 @@ import { ENDPOINTS } from '@/lib/config';
 import { formInputClass } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { PasswordStrengthMeter, passwordIsValid } from '@/components/forms/PasswordStrengthMeter';
+import { EyeIcon, EyeOffIcon } from '@/components/forms/AuthIcons';
 
 /**
  * FLAG-611 — change your own password while signed in.
@@ -49,8 +50,36 @@ function fieldErrorsFrom(err: unknown): Partial<Record<Field, string>> & { form?
   return out;
 }
 
-export function ChangePasswordForm({ onChanged, idPrefix = 'change-password' }: {
+// A password box in the dashboard style with its own show/hide toggle. Unlike the
+// sign-in PasswordInput, the toggle is reachable by keyboard (w5-b6 group 4a).
+function PasswordBox({ id, name, value, onChange, autoComplete, invalid, describedBy }: {
+  id: string; name: string; value: string; onChange: (v: string) => void;
+  autoComplete: string; invalid?: boolean; describedBy?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        id={id} type={visible ? 'text' : 'password'} autoComplete={autoComplete}
+        value={value} onChange={e => onChange(e.target.value)}
+        aria-invalid={invalid ? true : undefined} aria-describedby={describedBy}
+        className={`${formInputClass} pr-11`}
+      />
+      <button
+        type="button" onClick={() => setVisible(v => !v)}
+        aria-label={`${visible ? 'Hide' : 'Show'} ${name}`}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-text-soft hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {visible ? <EyeOffIcon /> : <EyeIcon />}
+      </button>
+    </div>
+  );
+}
+
+export function ChangePasswordForm({ onChanged, onCancel, idPrefix = 'change-password' }: {
   onChanged: (otherSessionsEnded: number) => void;
+  /** Shown as a Cancel button. Left out on the forced-change page, which must not be skipped. */
+  onCancel?: () => void;
   idPrefix?: string;
 }) {
   const [current, setCurrent] = useState('');
@@ -95,32 +124,29 @@ export function ChangePasswordForm({ onChanged, idPrefix = 'change-password' }: 
     <form onSubmit={(e) => void submit(e)} noValidate className="space-y-4">
       <div>
         <label htmlFor={`${idPrefix}-current`} className={label}>Current password</label>
-        <input
-          id={`${idPrefix}-current`} type="password" autoComplete="current-password"
-          value={current} onChange={e => setCurrent(e.target.value)}
-          aria-invalid={errors.old_password ? true : undefined} aria-describedby={describe('old_password')}
-          className={formInputClass}
+        <PasswordBox
+          id={`${idPrefix}-current`} name="current password" autoComplete="current-password"
+          value={current} onChange={setCurrent}
+          invalid={!!errors.old_password} describedBy={describe('old_password')}
         />
         {fieldError('old_password')}
       </div>
       <div>
         <label htmlFor={`${idPrefix}-new`} className={label}>New password</label>
-        <input
-          id={`${idPrefix}-new`} type="password" autoComplete="new-password"
-          value={next} onChange={e => setNext(e.target.value)}
-          aria-invalid={errors.new_password ? true : undefined} aria-describedby={describe('new_password')}
-          className={formInputClass}
+        <PasswordBox
+          id={`${idPrefix}-new`} name="new password" autoComplete="new-password"
+          value={next} onChange={setNext}
+          invalid={!!errors.new_password} describedBy={describe('new_password')}
         />
         {fieldError('new_password')}
         <div className="mt-2"><PasswordStrengthMeter password={next} /></div>
       </div>
       <div>
         <label htmlFor={`${idPrefix}-confirm`} className={label}>Confirm new password</label>
-        <input
-          id={`${idPrefix}-confirm`} type="password" autoComplete="new-password"
-          value={confirm} onChange={e => setConfirm(e.target.value)}
-          aria-invalid={errors.confirm ? true : undefined} aria-describedby={describe('confirm')}
-          className={formInputClass}
+        <PasswordBox
+          id={`${idPrefix}-confirm`} name="confirmation" autoComplete="new-password"
+          value={confirm} onChange={setConfirm}
+          invalid={!!errors.confirm} describedBy={describe('confirm')}
         />
         {fieldError('confirm')}
       </div>
@@ -128,7 +154,14 @@ export function ChangePasswordForm({ onChanged, idPrefix = 'change-password' }: 
         Changing it signs you out on your other devices. You stay signed in here.
       </p>
       {errors.form && <p role="alert" className="text-xs font-semibold text-danger">{errors.form}</p>}
-      <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Change password'}</Button>
+      {onCancel ? (
+        <div className="flex gap-3">
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button type="submit" className="flex-1" disabled={saving}>{saving ? 'Saving…' : 'Change password'}</Button>
+        </div>
+      ) : (
+        <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Change password'}</Button>
+      )}
     </form>
   );
 }

@@ -115,8 +115,22 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
 
   const signedInAs = [`${user.first_name} ${user.last_name}`, user.organization_name].filter(Boolean).join(', ');
 
+  // One request per click-through, and a visible "Signing out…" while it runs (w5-b6 group 4a).
+  // Not reset on success: the next page replaces this one.
+  const [signingOut, setSigningOut] = useState(false);
+  const signingOutRef = useRef(false);
   async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    setSigningOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Network failure: unlock so the user can try again rather than be stuck.
+      signingOutRef.current = false;
+      setSigningOut(false);
+      return;
+    }
     // Staff should land back on their org portal, not the patient portal
     router.push(signinPath(user.organization_slug, user.role));
     router.refresh();
@@ -223,9 +237,10 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
             </button>
             <button
               onClick={handleLogout}
-              aria-label="Sign out"
-              title="Sign out"
-              className="flex items-center justify-center w-11 h-11 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
+              disabled={signingOut}
+              aria-label={signingOut ? 'Signing out…' : 'Sign out'}
+              title={signingOut ? 'Signing out…' : 'Sign out'}
+              className="flex items-center justify-center w-11 h-11 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors disabled:opacity-60 disabled:cursor-wait"
             >
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -257,13 +272,14 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
 
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-1.5 min-h-11 px-2 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors"
+                disabled={signingOut}
+                className="flex items-center gap-1.5 min-h-11 px-2 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors disabled:opacity-60 disabled:cursor-wait"
               >
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                 </svg>
-                <span className="text-[11px] font-semibold">Sign out</span>
+                <span className="text-[11px] font-semibold">{signingOut ? 'Signing out…' : 'Sign out'}</span>
               </button>
             </div>
           </div>
@@ -274,6 +290,7 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
         {/* Mounted only while open (SlidePanel returns null when closed), so
             no typed password survives a close. */}
         <ChangePasswordForm
+          onCancel={() => setChangingPassword(false)}
           onChanged={(n) => {
             toast.success(passwordChangedMessage(n));
             setChangingPassword(false);

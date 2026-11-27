@@ -46,6 +46,19 @@ export function DashboardHeader({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Escape closes the dropdown and hands focus back to the bell (w5-b6 group 4a).
+  const bellRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!notifOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      setNotifOpen(false);
+      bellRef.current?.focus();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [notifOpen]);
+
   return (
     <header className="flex h-16 items-center gap-5 px-4 md:px-7 bg-white border-b border-border flex-shrink-0">
       {/* Left: mobile menu + portal title + org context badge */}
@@ -85,6 +98,7 @@ export function DashboardHeader({
         {/* Notification bell */}
         <div ref={notifRef} className="relative">
           <button
+            ref={bellRef}
             onClick={() => setNotifOpen((v) => !v)}
             className="relative w-9 h-9 flex items-center justify-center text-text-soft hover:bg-page rounded-lg transition-colors"
             aria-label={`${notificationCount} unread notifications`}

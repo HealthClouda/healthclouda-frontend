@@ -24,6 +24,8 @@ interface DataTableProps<T> {
   onRetry?: () => void;
   emptyTitle?: string;
   emptyDescription?: string;
+  /** Shown under the empty message, e.g. a Clear filters button (w5-b6 group 4a). */
+  emptyAction?: ReactNode;
   /** Search/filter row rendered above the table, below the border. */
   toolbar?: ReactNode;
   rowClassName?: (row: T) => string;
@@ -44,7 +46,7 @@ interface DataTableProps<T> {
  */
 export function DataTable<T>({
   columns, data, getRowKey, loading, error, onRetry,
-  emptyTitle = 'Nothing here yet', emptyDescription, toolbar, rowClassName,
+  emptyTitle = 'Nothing here yet', emptyDescription, emptyAction, toolbar, rowClassName,
   sortKey, sortDirection, onSort,
   page, totalPages, onPageChange, totalCount, pageSize,
 }: DataTableProps<T>) {
@@ -66,7 +68,7 @@ export function DataTable<T>({
         </div>
       ) : data.length === 0 ? (
         <div className="p-5">
-          <EmptyState title={emptyTitle} description={emptyDescription} />
+          <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
         </div>
       ) : (
         <div className="overflow-x-auto">

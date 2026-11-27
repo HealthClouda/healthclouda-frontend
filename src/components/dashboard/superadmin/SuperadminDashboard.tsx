@@ -710,6 +710,7 @@ function OrgsPage() {
         onRetry={refetch}
         emptyTitle="No organisations found"
         emptyDescription={search ? 'Try adjusting your search.' : 'No organisations have been registered yet.'}
+        emptyAction={search && <Button variant="secondary" size="sm" onClick={() => setSearch('')}>Clear search</Button>}
         toolbar={<SearchInput value={search} onChange={setSearch} placeholder="Search by name or slug…" label="Search organisations" />}
         page={page}
         totalPages={totalPages}
@@ -786,7 +787,9 @@ function OrgsPage() {
         title={`${confirm?.action === 'verify' ? 'Verify' : confirm?.action === 'suspend' ? 'Suspend' : 'Activate'} Organisation`}
         description={confirm?.action === 'suspend'
           ? `Are you sure you want to suspend "${confirm.org.name}"? Every staff member at this organisation will be deactivated and can't sign in until it is activated again.`
-          : `Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
+          : confirm?.action === 'activate'
+            ? `Every staff account at "${confirm.org.name}" will be switched back on and able to sign in.`
+            : `Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
         confirmLabel={confirm?.action === 'suspend' ? 'Suspend' : confirm?.action === 'activate' ? 'Activate' : 'Verify'}
         confirmVariant={confirm?.action === 'suspend' ? 'danger' : 'primary'}
       />
@@ -848,7 +851,8 @@ const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
   title: string; label: string; variant: 'danger' | 'warning' | 'primary'; describe: (name: string, email: string) => string;
 }> = {
   suspend: { title: 'Suspend User', label: 'Suspend', variant: 'danger',
-    describe: (n) => `Are you sure you want to suspend ${n}?` },
+    // Says what happens, not "are you sure" (w5-b6 group 4a).
+    describe: (n) => `${n} will be signed out straight away and can't sign in until you activate them again. Their records are kept.` },
   activate: { title: 'Activate User', label: 'Activate', variant: 'primary',
     describe: (n) => `Are you sure you want to activate ${n}?` },
   // Not destructive, so no red (w5-b6), but it signs the user out on every
@@ -1039,6 +1043,9 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
         onRetry={refetch}
         emptyTitle="No users found"
         emptyDescription={search || filtered ? 'Try adjusting your search or filters.' : 'No users registered yet.'}
+        emptyAction={(search || filtered) && (
+          <Button variant="secondary" size="sm" onClick={() => { setSearch(''); setRole(''); setStatus(''); setOrgFilter(''); }}>Clear filters</Button>
+        )}
         toolbar={
           <div className="flex flex-wrap items-center gap-2.5">
             <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" label="Search users" />
@@ -1380,6 +1387,9 @@ function AuditPage() {
         error={error}
         onRetry={refetch}
         emptyTitle={filtered ? 'No matching entries' : 'No audit logs'}
+        emptyAction={(action || email || resourceType || patient) && (
+          <Button variant="secondary" size="sm" onClick={() => { setAction(''); setEmail(''); setResourceType(''); setPatient(''); }}>Clear filters</Button>
+        )}
         emptyDescription={filtered ? 'Try removing a filter.' : 'System activity will be logged here.'}
         toolbar={
           <div className="flex flex-wrap items-center gap-2.5">
