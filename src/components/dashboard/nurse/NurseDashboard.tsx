@@ -357,17 +357,20 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function LatestReading({ vitals }: { vitals: PatientVitals }) {
   const r = vitals.vitals;
-  // A reading can hold only a note (the form allows it), or nothing at all: no grid of dashes then (A5).
-  const measured = r != null && VITAL_FIELDS.some(f => r[f.key] != null);
-  if (!r || (!measured && !r.notes)) {
+  if (!r) {
     return <EmptyState title="No vitals recorded" description="Readings recorded for this patient's active episode will appear here." />;
   }
+  // An old row can hold no measurement (saved before the backend refused that): say
+  // so plainly instead of a grid of dashes, and never "No vitals recorded", since
+  // earlier readings may exist (A5, review of #235).
+  const measured = VITAL_FIELDS.some(f => r[f.key] != null);
   const bp = r.blood_pressure_systolic != null || r.blood_pressure_diastolic != null
     ? `${r.blood_pressure_systolic ?? '–'} / ${r.blood_pressure_diastolic ?? '–'}`
     : '–';
   return (
     <div className="bg-white rounded-card border border-border shadow-dash-card p-4 space-y-3">
-      <h3 className="text-[13.5px] font-bold text-ink">{measured ? 'Latest reading' : 'Latest note'}</h3>
+      <h3 className="text-[13.5px] font-bold text-ink">Latest reading</h3>
+      {!measured && <p className="text-xs text-text-mid">No measurements in this reading. Recorded {timeAgo(r.recorded_at)}.</p>}
       {measured && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Metric label="BP (mmHg)" value={bp} />
         <Metric label="Pulse" value={r.pulse_rate != null ? `${r.pulse_rate} bpm` : '–'} />
@@ -403,18 +406,18 @@ function confirmationAsk(err: unknown): OutOfRangeReading[] | null {
 // Never the backend's own sentence here: it tells an API client to resend with a flag.
 const CANNOT_CONFIRM = 'These readings could not be saved. Check them and try again.';
 
-/** DRF's field messages in plain words: "must be 100 or less". Unknown ones pass through. */
-function plainRule(msg: string): string {
+/** DRF's field messages in plain words: "must be 100 or less"; null when not recognised. */
+function plainRule(msg: string): string | null {
   // A number, not the full stop that ends DRF's sentence ("…equal to 100.").
-  const le = /less than or equal to (\d+(?:\.\d+)?)/.exec(msg);
+  const le = /less than or equal to (\d+(?:\.\d+)?)/i.exec(msg);
   if (le) return `must be ${Number(le[1])} or less`;
-  const ge = /greater than or equal to (\d+(?:\.\d+)?)/.exec(msg);
+  const ge = /greater than or equal to (\d+(?:\.\d+)?)/i.exec(msg);
   if (ge) return `must be ${Number(ge[1])} or more`;
   const gt = /greater than (\d+(?:\.\d+)?)/i.exec(msg);
   if (gt) return `must be more than ${Number(gt[1])}`;
   if (/valid integer/i.test(msg)) return 'must be a whole number';
   if (/valid number/i.test(msg)) return 'must be a number';
-  return msg.charAt(0).toLowerCase() + msg.slice(1).replace(/\.$/, '');
+  return null;
 }
 
 /** A refused reading, named with the form's own label (A5): never the API field name. */
@@ -422,10 +425,16 @@ function vitalsFieldErrors(err: unknown): string | null {
   if (!(err instanceof ClientApiError)) return null;
   const details = (err.data as { details?: Record<string, unknown> } | null)?.details;
   if (!details) return null;
-  const lines = VITAL_FIELDS.flatMap(f => {
-    const v = details[f.key];
+  // Every key the backend refused is shown: an unmapped one would be fixed blind.
+  const labels: Record<string, string> = { notes: 'Notes' };
+  for (const f of VITAL_FIELDS) labels[f.key] = f.label;
+  const lines = Object.entries(details).flatMap(([key, v]) => {
     const msg = Array.isArray(v) ? v[0] : v;
-    return typeof msg === 'string' ? [`${f.label} ${plainRule(msg)}.`] : [];
+    if (typeof msg !== 'string') return [];
+    if (key === 'non_field_errors') return [msg];
+    const label = labels[key] ?? key;
+    const rule = plainRule(msg);
+    return [rule ? `${label} ${rule}.` : `${label}: ${msg}`];
   });
   return lines.length ? lines.join(' ') : null;
 }
@@ -455,11 +464,12 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
       const raw = values[f.key]?.trim();
       if (raw) payload[f.key] = Number(raw);
     }
-    if (notes.trim()) payload.notes = notes.trim();
+    // The backend refuses a note on its own: a note is context for a measurement.
     if (!Object.keys(payload).length) {
-      setFormError('Enter at least one measurement or a note before saving.');
+      setFormError('Enter at least one measurement before saving. A note can go with it.');
       return;
     }
+    if (notes.trim()) payload.notes = notes.trim();
     // The same body, plus the flag: the backend saves exactly what it asked about.
     if (confirmOutOfRange) payload.confirm_out_of_range = true;
     setFormError(null);
@@ -527,6 +537,7 @@ function RecordVitalsForm({ patientId, onRecorded }: { patientId: string; onReco
         <textarea
           id="vital-notes"
           rows={2}
+          maxLength={500}
           value={notes}
           disabled={saving}
           onChange={e => { const value = e.target.value; edit(() => setNotes(value)); }}
