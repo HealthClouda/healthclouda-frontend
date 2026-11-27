@@ -403,9 +403,8 @@ describe('NURSE-1 — vitals page uses the per-patient endpoint', () => {
     fireEvent.change(screen.getByLabelText(/temperature/i), { target: { value: '44' } });
     fireEvent.click(screen.getByRole('button', { name: /save|record/i }));
 
-    expect(
-      await screen.findByText(/less than or equal to 45/i),
-    ).toBeInTheDocument();
+    // A5: the form's own label and plain words, not "temperature: Ensure this value…".
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Temperature \(°C\) must be 45 or less\./);
   });
 
   it('shows an empty state when the patient has no readings yet (vitals: null)', async () => {
@@ -2178,8 +2177,112 @@ describe('#208: a reading outside the usual range is confirmed, never refused', 
     }, 'Invalid input.'));
     await enterAndSubmit({ 'resp\. rate': '0' });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/invalid input/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Resp. rate (per min) must be more than 0.');
     expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /record reading/i })).toBeInTheDocument();
+  });
+});
+
+describe('A5 — nurse vitals: three fixes from the #224 walk', () => {
+  const empty = {
+    ...reading, temperature: null, blood_pressure_systolic: null, blood_pressure_diastolic: null,
+    pulse_rate: null, respiratory_rate: null, oxygen_saturation: null, weight: null, height: null, notes: '',
+  };
+
+  async function openVitals() {
+    useToastStore.setState({ toasts: [] });
+    render(<NurseDashboard user={user} initialStats={stats} slug="demo-clinic" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Vitals' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Chidi Nwosu/ }));
+  }
+
+  it('1. the "save anyway?" prompt is scrolled into view when it opens', async () => {
+    // jsdom has no scrollIntoView: add a spy for this test only, then put it back.
+    const had = 'scrollIntoView' in Element.prototype;
+    const original = Element.prototype.scrollIntoView;
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    try {
+    dataActionMock.mockReset();
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, {
+      code: 'VITALS_NEED_CONFIRMATION',
+      details: { out_of_range: [{ field: 'respiratory_rate', value: 70, confirm_below: 5, confirm_above: 60 }] },
+    }, 'x'));
+    await openVitals();
+    await screen.findByText(/108\s*\/\s*93/);
+    fireEvent.change(screen.getByLabelText(/resp\. rate/i), { target: { value: '70' } });
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+    const prompt = await screen.findByRole('alert');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(scroll.mock.contexts.some((el) => el === prompt)).toBe(true);
+    } finally {
+      if (had) Element.prototype.scrollIntoView = original;
+      else delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
+  });
+
+  it('2. a refused reading is named with the form\'s label, in plain words, not the API field', async () => {
+    dataActionMock.mockReset();
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, {
+      error: 'oxygen_saturation: Ensure this value is less than or equal to 100.',
+      code: 'VALIDATION_ERROR',
+      details: { oxygen_saturation: ['Ensure this value is less than or equal to 100.'], pulse_rate: ['Must be greater than 0.'] },
+    }, 'oxygen_saturation: Ensure this value is less than or equal to 100.'));
+    await openVitals();
+    await screen.findByText(/108\s*\/\s*93/);
+    fireEvent.change(screen.getByLabelText(/spo2/i), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+    const err = await screen.findByRole('alert');
+    expect(err).toHaveTextContent('SpO2 (%) must be 100 or less.');
+    expect(err).toHaveTextContent('Pulse rate (bpm) must be more than 0.');
+    expect(err).not.toHaveTextContent('oxygen_saturation');
+    expect(err).not.toHaveTextContent('Ensure this value');
+  });
+
+  it('3. an old reading with no measurements says so with its time, not a grid of dashes nor "No vitals recorded"', async () => {
+    mockBackend({ vitals: { ...vitalsResponse, vitals: empty } });
+    await openVitals();
+    expect(await screen.findByText(/No measurements in this reading\. Recorded/)).toBeInTheDocument();
+    expect(screen.queryByText('BP (mmHg)')).toBeNull();
+    // Earlier readings may exist, so the panel must not claim there are none.
+    expect(screen.queryByText('No vitals recorded')).toBeNull();
+  });
+
+  it('3b. an old note-only reading shows the note and its time, without a grid of dashes', async () => {
+    mockBackend({ vitals: { ...vitalsResponse, vitals: { ...empty, notes: 'Refused obs, will retry at 8pm', recorded_by_info: null } } });
+    await openVitals();
+    expect(await screen.findByText('Refused obs, will retry at 8pm')).toBeInTheDocument();
+    expect(screen.getByText(/No measurements in this reading\. Recorded/)).toBeInTheDocument();
+    expect(screen.queryByText('BP (mmHg)')).toBeNull();
+  });
+
+  it('4. a note with no measurement is stopped on the form, as the backend would refuse it', async () => {
+    dataActionMock.mockReset();
+    await openVitals();
+    await screen.findByText(/108\s*\/\s*93/);
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Refused obs' } });
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter at least one measurement before saving.');
+    expect(dataActionMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Notes')).toHaveAttribute('maxlength', '500');
+  });
+
+  it('5. every refused field is shown: notes too, and an unrecognised rule keeps its own words', async () => {
+    dataActionMock.mockReset();
+    dataActionMock.mockRejectedValueOnce(new ClientApiError(400, {
+      error: 'height: Ensure that there are no more than 5 digits in total.', code: 'BAD_REQUEST',
+      details: {
+        height: ['Ensure that there are no more than 5 digits in total.'],
+        notes: ['Ensure this field has no more than 500 characters.'],
+      },
+    }, 'height: Ensure that there are no more than 5 digits in total.'));
+    await openVitals();
+    await screen.findByText(/108\s*\/\s*93/);
+    fireEvent.change(screen.getByLabelText(/height/i), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: /record reading/i }));
+    const err = await screen.findByRole('alert');
+    expect(err).toHaveTextContent('Height (cm): Ensure that there are no more than 5 digits in total.');
+    expect(err).toHaveTextContent('Notes: Ensure this field has no more than 500 characters.');
+    expect(err).not.toHaveTextContent(/height:/);
   });
 });
