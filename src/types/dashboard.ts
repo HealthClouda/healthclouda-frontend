@@ -250,6 +250,7 @@ export interface OrganizationInput {
   state: string;
   country_code: string;
   country_name: string;
+  license_number?: string;
 }
 
 // GET /auth/users/ item — shape verified live 2026-08-14 against UserList.

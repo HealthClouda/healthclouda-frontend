@@ -275,7 +275,9 @@ describe('Superadmin — Organisations page', () => {
     fireEvent.click(screen.getByRole('button', { name: /add organisation/i }));
     const panel = screen.getByRole('dialog');
     fireEvent.change(within(panel).getByLabelText(/organisation name/i), { target: { value: 'New Clinic' } });
-    fireEvent.change(within(panel).getByLabelText(/^email \*/i), { target: { value: 'new@clinic.test' } });
+    fireEvent.change(within(panel).getByLabelText('Email'), { target: { value: 'new@clinic.test' } });
+    // Type has no default since group 4b.
+    fireEvent.change(within(panel).getByLabelText('Type'), { target: { value: 'CLINIC' } });
     fireEvent.change(within(panel).getByLabelText(/address/i), { target: { value: '1 Main St' } });
     fireEvent.change(within(panel).getByLabelText(/city/i), { target: { value: 'Abuja' } });
     fireEvent.change(within(panel).getByLabelText(/state/i), { target: { value: 'FCT' } });
@@ -866,10 +868,10 @@ describe('Superadmin — Users page', () => {
     fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
     fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Tunde' } });
     fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Bakare' } });
-    fireEvent.change(screen.getByLabelText(/^email \*/i), { target: { value: 'tunde@demo-clinic.test' } });
-    fireEvent.change(screen.getByLabelText(/^role \*/i), { target: { value: 'DOCTOR' } });
-    await waitFor(() => screen.getByLabelText(/^organisation \*/i));
-    fireEvent.change(screen.getByLabelText(/^organisation \*/i), { target: { value: 'org-1' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'tunde@demo-clinic.test' } });
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'DOCTOR' } });
+    await waitFor(() => expect(screen.getByLabelText('Organisation')).toHaveTextContent('Demo Clinic'));
+    fireEvent.change(screen.getByLabelText('Organisation'), { target: { value: 'org-1' } });
 
     fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
 
@@ -1434,5 +1436,113 @@ describe('w5-b6 group 4a — confirm dialogs say what really happens', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Activate Organisation' });
     expect(dialog).toHaveTextContent('The staff accounts at "Demo Clinic" will be switched back on and able to sign in.');
     expect(dialog).toHaveTextContent('Anyone you suspended from the Users page stays suspended.');
+  });
+});
+
+describe('w5-b6 group 4b — Add Organisation', () => {
+  async function openAdd() {
+    await openPage('Organisations', 'Demo Clinic');
+    fireEvent.click(screen.getByRole('button', { name: /add organisation/i }));
+    return screen.getByRole('dialog');
+  }
+  function fillRequired(panel: HTMLElement) {
+    fireEvent.change(within(panel).getByLabelText('Organisation name'), { target: { value: 'New Hospital' } });
+    fireEvent.change(within(panel).getByLabelText('Email'), { target: { value: 'new@hospital.test' } });
+    fireEvent.change(within(panel).getByLabelText('Address'), { target: { value: '1 Main St' } });
+    fireEvent.change(within(panel).getByLabelText('City'), { target: { value: 'Abuja' } });
+    fireEvent.change(within(panel).getByLabelText('State'), { target: { value: 'FCT' } });
+  }
+
+  it('Type has no default and must be chosen', async () => {
+    const panel = await openAdd();
+    expect(within(panel).getByLabelText('Type')).toHaveValue('');
+    fillRequired(panel);
+    fireEvent.click(within(panel).getByRole('button', { name: /^add organisation$/i }));
+    expect(dataActionMock).not.toHaveBeenCalledWith('/org/', 'POST', expect.anything());
+  });
+
+  it('is in three headed sections, with "(optional)" instead of asterisks', async () => {
+    const panel = await openAdd();
+    for (const s of ['Facility', 'Contact', 'Location']) expect(within(panel).getByRole('group', { name: s })).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Phone (optional)')).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Licence number (optional)')).toBeInTheDocument();
+    expect(panel.textContent).not.toContain('*');
+  });
+
+  it('sends the type and licence number chosen', async () => {
+    dataActionMock.mockResolvedValueOnce({ organization: { id: 'org-new', name: 'New Hospital' } });
+    const panel = await openAdd();
+    fillRequired(panel);
+    fireEvent.change(within(panel).getByLabelText('Type'), { target: { value: 'HOSPITAL' } });
+    fireEvent.change(within(panel).getByLabelText('Licence number (optional)'), { target: { value: 'LIC-99' } });
+    fireEvent.click(within(panel).getByRole('button', { name: /^add organisation$/i }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith('/org/', 'POST',
+      expect.objectContaining({ org_type: 'HOSPITAL', license_number: 'LIC-99' })));
+  });
+
+  it('edit pre-fills the stored licence number', async () => {
+    await openOrgDetail();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const panel = screen.getByRole('dialog');
+    await waitFor(() => expect(within(panel).getByLabelText('Licence number (optional)')).toHaveValue('LIC-001'));
+  });
+
+  it('after saving, offers "Invite its first admin", which opens Invite User ready for that organisation', async () => {
+    // A NEW organisation, not on the dropdown's first page of GET /org/ (review of #236):
+    // the admin must still SEE it chosen, or they may pick another hospital.
+    dataActionMock.mockResolvedValueOnce({ organization: { id: 'org-new', name: 'Zenith Hospital' } });
+    const panel = await openAdd();
+    fillRequired(panel);
+    fireEvent.change(within(panel).getByLabelText('Type'), { target: { value: 'HOSPITAL' } });
+    fireEvent.click(within(panel).getByRole('button', { name: /^add organisation$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Invite its first admin' }));
+    const invite = await screen.findByRole('dialog', { name: 'Invite User' });
+    const org = within(invite).getByLabelText('Organisation') as HTMLSelectElement;
+    expect(org).toHaveValue('org-new');
+    expect(org.selectedOptions[0]?.textContent).toBe('Zenith Hospital');
+    expect(within(invite).getByLabelText('Role')).toHaveValue('ORGANIZATION_ADMIN');
+  });
+});
+
+describe('w5-b6 group 4b — Invite User asks "who for" first', () => {
+  async function openInvite() {
+    await openPage('Users', 'Chidi Okafor');
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    return screen.findByRole('dialog', { name: 'Invite User' });
+  }
+
+  it('starts on staff: organisation then role, and Super Admin is not a role choice', async () => {
+    const panel = await openInvite();
+    expect(within(panel).getByRole('radio', { name: 'Staff at an organisation' })).toBeChecked();
+    const role = within(panel).getByLabelText('Role') as HTMLSelectElement;
+    expect([...role.options].map(o => o.value)).not.toContain('SUPERADMIN');
+    const org = within(panel).getByLabelText('Organisation');
+    // Organisation comes before Role in the form.
+    expect(org.compareDocumentPosition(role) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a platform super admin needs a deliberate choice, shows the warning, and is sent without an organisation', async () => {
+    const panel = await openInvite();
+    // The subtitle must not say "staff at an organisation" for a platform invite (review of #236).
+    expect(panel).not.toHaveTextContent(/new staff member to an organisation/i);
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Platform super admin' }));
+    expect(within(panel).getByText(/Full platform access/)).toBeInTheDocument();
+    expect(within(panel).queryByLabelText('Organisation')).toBeNull();
+    expect(within(panel).queryByLabelText('Role')).toBeNull();
+    fireEvent.change(within(panel).getByLabelText('First name'), { target: { value: 'Ada' } });
+    fireEvent.change(within(panel).getByLabelText('Last name'), { target: { value: 'Obi' } });
+    fireEvent.change(within(panel).getByLabelText('Email'), { target: { value: 'ada@healthclouda.test' } });
+    fireEvent.click(within(panel).getByRole('button', { name: /send invitation/i }));
+    await waitFor(() => expect(dataActionMock).toHaveBeenCalledWith('/auth/users/', 'POST', expect.objectContaining({ role: 'SUPERADMIN' })));
+    const [, , body] = dataActionMock.mock.calls.find((c) => c[0] === '/auth/users/')!;
+    expect(body).not.toHaveProperty('organization');
+  });
+
+  it('switching back to staff clears the super admin role', async () => {
+    const panel = await openInvite();
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Platform super admin' }));
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Staff at an organisation' }));
+    expect(within(panel).getByLabelText('Role')).toHaveValue('');
+    expect(within(panel).queryByText(/Full platform access/)).toBeNull();
   });
 });

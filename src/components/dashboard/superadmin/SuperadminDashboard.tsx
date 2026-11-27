@@ -84,6 +84,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+// A headed group of fields in a panel (w5-b6 group 4b). Required is the normal case,
+// so only optional fields are marked, "(optional)", never an asterisk.
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="mb-2">
+      <legend className="text-[11px] font-bold text-text-soft uppercase tracking-wider mb-2.5">{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
 // Sizes come from the shared classes; see FormField.tsx for why a size is never
 // appended to inputClass (w5-b6).
 const inputClass = formInputClass;
@@ -314,7 +324,7 @@ const ORG_TYPE_LABEL: Record<string, string> = {
 };
 
 const EMPTY_ORG_FORM: OrganizationInput = {
-  name: '', org_type: 'CLINIC', email: '', phone: '', address: '', city: '', state: '', country_code: 'NG', country_name: 'Nigeria',
+  name: '', org_type: '', license_number: '', email: '', phone: '', address: '', city: '', state: '', country_code: 'NG', country_name: 'Nigeria',
 };
 
 // ─── Organisation detail view (stand-up w2-k1) ───────────────────
@@ -514,7 +524,8 @@ function OrgDetailView({
   );
 }
 
-function OrgsPage() {
+function OrgsPage({ onInviteAdmin }: { onInviteAdmin: (org: { id: string; name: string }) => void }) {
+  const [justCreated, setJustCreated] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
   const endpoint = ENDPOINTS.SA_ORGS + (debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '');
@@ -578,6 +589,7 @@ function OrgsPage() {
         name: detail.name, org_type: detail.org_type, email: detail.email,
         phone: detail.phone ?? '', address: detail.address, city: detail.city,
         state: detail.state, country_code: detail.country_code, country_name: detail.country_name,
+        license_number: detail.license_number ?? '',
       };
       setForm(prefilled);
       setOriginal(prefilled);
@@ -589,7 +601,7 @@ function OrgsPage() {
   }
 
   async function submitForm() {
-    if (!form.name || !form.email || !form.address || !form.city || !form.state || !form.country_name) {
+    if (!form.name || !form.org_type || !form.email || !form.address || !form.city || !form.state || !form.country_name) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -611,8 +623,10 @@ function OrgsPage() {
         await apiAction(ENDPOINTS.SA_ORG(formPanel.org.id), 'PATCH', changed);
         toast.success('Organisation updated');
       } else {
-        await apiAction(ENDPOINTS.SA_ORGS, 'POST', form);
+        const res = (await apiAction(ENDPOINTS.SA_ORGS, 'POST', form)) as { organization?: { id: string; name: string } } | null;
         toast.success('Organisation created');
+        // Nobody can run a new organisation until someone is invited to (group 4b).
+        if (res?.organization) setJustCreated(res.organization);
       }
       setFormPanel(null);
       refetch();
@@ -701,6 +715,18 @@ function OrgsPage() {
         </Button>
       </div>
 
+      {justCreated && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 bg-success-bg border border-success/20 rounded-lg px-4 py-3">
+          <p className="text-[13px] text-ink">
+            <b>{justCreated.name}</b> was added. Nobody can run it until someone is invited as its admin.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => { onInviteAdmin(justCreated); setJustCreated(null); }}>Invite its first admin</Button>
+            <Button size="sm" variant="secondary" onClick={() => setJustCreated(null)}>Later</Button>
+          </div>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={orgs}
@@ -745,36 +771,47 @@ function OrgsPage() {
           <div className="py-14 text-center text-[13px] text-text-soft" role="status">Loading organisation details…</div>
         ) : (
         <>
-        <Field label="Organisation Name *">
-          <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        </Field>
-        <Field label="Type *">
-          <select className={inputClass} value={form.org_type} onChange={(e) => setForm({ ...form, org_type: e.target.value })}>
-            <option value="HOSPITAL">Hospital</option>
-            <option value="CLINIC">Clinic</option>
-            <option value="SCHOOL_CLINIC">School Clinic</option>
-          </select>
-        </Field>
-        <Field label="Email *">
-          <input type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        </Field>
-        <Field label="Phone">
-          <input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        </Field>
-        <Field label="Address *">
-          <input className={inputClass} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="City *">
-            <input className={inputClass} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+        <FormSection title="Facility">
+          <Field label="Organisation name">
+            <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
-          <Field label="State *">
-            <input className={inputClass} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+          <Field label="Type">
+            {/* No default: a silent "Clinic" saved hospitals as clinics (group 4b). */}
+            <select className={inputClass} value={form.org_type} onChange={(e) => setForm({ ...form, org_type: e.target.value })}>
+              <option value="">Select type…</option>
+              <option value="HOSPITAL">Hospital</option>
+              <option value="CLINIC">Clinic</option>
+              <option value="SCHOOL_CLINIC">School Clinic</option>
+            </select>
           </Field>
-        </div>
-        <Field label="Country *">
-          <input className={inputClass} value={form.country_name} onChange={(e) => setForm({ ...form, country_name: e.target.value })} />
-        </Field>
+          <Field label="Licence number (optional)">
+            <input className={inputClass} value={form.license_number ?? ''} onChange={(e) => setForm({ ...form, license_number: e.target.value })} />
+          </Field>
+        </FormSection>
+        <FormSection title="Contact">
+          <Field label="Email">
+            <input type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </Field>
+          <Field label="Phone (optional)">
+            <input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </Field>
+        </FormSection>
+        <FormSection title="Location">
+          <Field label="Address">
+            <input className={inputClass} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="City">
+              <input className={inputClass} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            </Field>
+            <Field label="State">
+              <input className={inputClass} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+            </Field>
+          </div>
+          <Field label="Country">
+            <input className={inputClass} value={form.country_name} onChange={(e) => setForm({ ...form, country_name: e.target.value })} />
+          </Field>
+        </FormSection>
         </>
         )}
       </SlidePanel>
@@ -862,7 +899,13 @@ const USER_ACTIONS: Record<'suspend' | 'activate' | 'reset', {
     describe: (n, email) => `${n} will be signed out on every device and their current password will stop working. We'll email a link to ${email} so they can set a new one.` },
 };
 
-function UsersPage({ currentUserId }: { currentUserId: string }) {
+function UsersPage({ currentUserId, inviteOrg = null, onInviteOpened }: {
+  currentUserId: string; inviteOrg?: { id: string; name: string } | null; onInviteOpened?: () => void;
+}) {
+  // The org "Invite its first admin" came from. The dropdown lists only the first page
+  // of GET /org/, so a new org may be missing from it: add it, or the select would read
+  // "Select organisation…" while one is chosen (review of #236).
+  const [presetOrg, setPresetOrg] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
   const [status, setStatus] = useState<'' | 'true' | 'false'>('');
@@ -918,6 +961,14 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
     setForm(EMPTY_USER_FORM);
     setInvitePanel(true);
   }
+
+  useEffect(() => {
+    if (!inviteOrg) return;
+    setPresetOrg(inviteOrg);
+    setForm({ ...EMPTY_USER_FORM, organization: inviteOrg.id, role: 'ORGANIZATION_ADMIN' });
+    setInvitePanel(true);
+    onInviteOpened?.();
+  }, [inviteOrg, onInviteOpened]);
 
   async function submitInvite() {
     if (!form.email || !form.first_name || !form.last_name || !form.role) {
@@ -1142,7 +1193,7 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
         open={invitePanel}
         onClose={() => setInvitePanel(false)}
         title="Invite User"
-        subtitle="Add a new staff member to an organisation"
+        subtitle="Invite someone to HealthClouda"
         footer={
           <>
             <Button variant="secondary" onClick={() => setInvitePanel(false)} disabled={saving}>Cancel</Button>
@@ -1158,27 +1209,46 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
             No password needed: they will receive an email with a secure link to set their own password.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="First Name *">
-            <input className={inputClass} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
-          </Field>
-          <Field label="Last Name *">
-            <input className={inputClass} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
-          </Field>
-        </div>
-        <Field label="Email *">
-          <input type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        </Field>
-        <Field label="Role *">
-          <select className={inputClass} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-            <option value="">Select role…</option>
-            <option value="ORGANIZATION_ADMIN">Org Admin</option>
-            <option value="DOCTOR">Doctor</option>
-            <option value="NURSE">Nurse</option>
-            <option value="RECEPTIONIST">Receptionist</option>
-            <option value="SUPERADMIN">Super Admin (platform)</option>
-          </select>
-        </Field>
+        {/* Who for, first: a super admin reaches every hospital, so it is never one
+            slip away in the same list as Doctor (group 4b). */}
+        <FormSection title="Invite for">
+          {/* The fieldset + legend already name this group for screen readers. */}
+          <div className="flex flex-col gap-2 mb-4">
+            {([['staff', 'Staff at an organisation'], ['platform', 'Platform super admin']] as const).map(([who, label]) => (
+              <label key={who} className="flex items-center gap-2 text-[13px] text-ink cursor-pointer">
+                <input
+                  type="radio"
+                  name="invite-for"
+                  checked={(form.role === 'SUPERADMIN') === (who === 'platform')}
+                  onChange={() => setForm({ ...form, role: who === 'platform' ? 'SUPERADMIN' : '', organization: '' })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </FormSection>
+        {form.role !== 'SUPERADMIN' && (
+          <>
+            <Field label="Organisation">
+              <select className={inputClass} value={form.organization} onChange={(e) => setForm({ ...form, organization: e.target.value })}>
+                <option value="">Select organisation…</option>
+                {presetOrg && !orgOptions?.results.some((o) => o.id === presetOrg.id) && (
+                  <option value={presetOrg.id}>{presetOrg.name}</option>
+                )}
+                {orgOptions?.results.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Role">
+              <select className={inputClass} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                <option value="">Select role…</option>
+                <option value="ORGANIZATION_ADMIN">Org Admin</option>
+                <option value="DOCTOR">Doctor</option>
+                <option value="NURSE">Nurse</option>
+                <option value="RECEPTIONIST">Receptionist</option>
+              </select>
+            </Field>
+          </>
+        )}
         {form.role === 'SUPERADMIN' && (
           <div className="flex gap-2.5 items-start bg-danger-bg border-[1.5px] border-danger/30 rounded-lg p-3.5 mb-4">
             <p className="text-xs text-danger leading-relaxed">
@@ -1186,15 +1256,18 @@ function UsersPage({ currentUserId }: { currentUserId: string }) {
             </p>
           </div>
         )}
-        {form.role && form.role !== 'SUPERADMIN' && (
-          <Field label="Organisation *">
-            <select className={inputClass} value={form.organization} onChange={(e) => setForm({ ...form, organization: e.target.value })}>
-              <option value="">Select organisation…</option>
-              {orgOptions?.results.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First name">
+            <input className={inputClass} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
           </Field>
-        )}
-        <Field label="Phone">
+          <Field label="Last name">
+            <input className={inputClass} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+          </Field>
+        </div>
+        <Field label="Email">
+          <input type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        </Field>
+        <Field label="Phone (optional)">
           <input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </Field>
       </SlidePanel>
@@ -1470,6 +1543,9 @@ interface Props {
 
 export function SuperadminDashboard({ user, initialStats }: Props) {
   const [page, setPage] = useDashboardPage(NAV);
+  // "Invite its first admin" on Organisations opens Invite User for that org (group 4b).
+  const [inviteOrg, setInviteOrg] = useState<{ id: string; name: string } | null>(null);
+  const clearInviteOrg = useCallback(() => setInviteOrg(null), []);
   // AUTH-6: server render can't refresh an expired session — fall back to a
   // client-side stats fetch instead of shimmering forever.
   const { data: fetchedStats } = useApi<SuperadminStats>(initialStats ? null : ENDPOINTS.SA_STATS);
@@ -1485,8 +1561,8 @@ export function SuperadminDashboard({ user, initialStats }: Props) {
       smallScreenGateFor="Super Admin"
     >
       {page === 'overview'      && <OverviewPage stats={stats} onNavigate={setPage} />}
-      {page === 'organizations' && <OrgsPage />}
-      {page === 'users'         && <UsersPage currentUserId={user.id} />}
+      {page === 'organizations' && <OrgsPage onInviteAdmin={(org) => { setInviteOrg(org); setPage('users'); }} />}
+      {page === 'users'         && <UsersPage currentUserId={user.id} inviteOrg={inviteOrg} onInviteOpened={clearInviteOrg} />}
       {page === 'audit'         && <AuditPage />}
       {page === 'messages'      && <MessagesPage />}
     </DashboardShell>
