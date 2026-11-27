@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SigninForm } from './SigninForm';
 
 /**
@@ -10,9 +10,10 @@ import { SigninForm } from './SigninForm';
  */
 
 let search = '';
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(search),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => router,
 }));
 
 describe('SigninForm — session-expiry message', () => {
@@ -58,5 +59,26 @@ describe('SigninForm — session-expiry message', () => {
     render(<SigninForm loginType="general" />);
     expect(screen.queryByText(/inactivity/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/session ended/i)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * w5-b6 group 3c: after signing in, browser Back showed the sign-in form to a
+ * signed-in admin. `push` left the sign-in page in history, and Back restores
+ * it from the browser's cache without asking middleware. `replace` swaps it out.
+ */
+describe('SigninForm — after a successful sign-in', () => {
+  afterEach(() => { vi.unstubAllGlobals(); router.push.mockClear(); router.replace.mockClear(); });
+
+  it('replaces the sign-in page in history instead of adding the dashboard after it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ user: { role: 'SUPERADMIN' } }), { status: 200 })));
+    render(<SigninForm loginType="admin" />);
+    fireEvent.change(screen.getByPlaceholderText('Enter your email'), { target: { value: 'sa@demo.test' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter your password'), { target: { value: 'pw-for-test' } });
+    const submit = screen.getByRole('button', { name: /sign in/i });
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    fireEvent.click(submit);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/superadmin'));
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

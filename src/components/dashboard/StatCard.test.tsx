@@ -39,4 +39,24 @@ describe('StatCard', () => {
     render(<StatCard label="No click" value={3} icon={icon} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  // w5-b6 group 3c: the number sat under a full-height icon row (~118px card).
+  // Compact: label and number stacked together, the icon beside them.
+  it('stacks the label and number together, with the icon beside them', () => {
+    render(<StatCard label="Compact" value={7} icon={icon} />);
+    const label = screen.getByText('Compact');
+    const value = screen.getByText('7');
+    expect(label.parentElement).toBe(value.parentElement);
+    expect(label.parentElement!.contains(screen.getByTestId('icon'))).toBe(false);
+  });
+
+  // Review of #233: a clickable card is a <button>, which may only hold inline
+  // content; and in a narrow tile a long label or number must not run under the icon.
+  it('holds only inline content when clickable, and keeps long text off the icon', () => {
+    render(<StatCard label="Notifications" value={1234567} icon={icon} delta="+2" onClick={() => {}} />);
+    const button = screen.getByRole('button');
+    expect(button.querySelector('div, p')).toBeNull();
+    expect(screen.getByText('Notifications').className).toMatch(/break-words/);
+    expect(screen.getByText('1234567').className).toMatch(/\btruncate\b/);
+  });
 });

@@ -15,9 +15,11 @@ import { SetPasswordForm } from './SetPasswordForm';
  * the same gap; each must stay busy until the page actually changes.
  */
 
+// Sign-in navigates with replace (group 3c: keeps the sign-in page out of history); the rest push.
 const push = vi.fn();
+const replace = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace }),
   useSearchParams: () => new URLSearchParams('email=doctor@demo.test&otp=123456&token=tok'),
 }));
 
@@ -26,6 +28,7 @@ const ok = (body: unknown) =>
 
 beforeEach(() => {
   push.mockClear();
+  replace.mockClear();
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (String(url).startsWith('/api/auth/login')) {
       return ok({ user: { id: 'u1', email: 'superadmin@demo.test', role: 'SUPERADMIN' } });
@@ -39,7 +42,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 async function expectStillBusy(busyLabel: RegExp) {
-  await waitFor(() => expect(push).toHaveBeenCalled());
+  await waitFor(() => expect(push.mock.calls.length + replace.mock.calls.length).toBeGreaterThan(0));
   const btn = screen.getByRole('button', { name: busyLabel });
   expect(btn).toBeDisabled();
 }

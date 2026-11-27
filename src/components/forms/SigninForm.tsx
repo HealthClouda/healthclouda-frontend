@@ -117,7 +117,9 @@ function SigninFormInner({ loginType, orgSlug, orgName, orgLogo }: SigninFormPro
       return;
     }
     leave();
-    router.push(roleDashboardPath(user.role, slug));
+    // replace, not push: the sign-in page leaves history, so browser Back from
+    // the dashboard can't show a signed-in user the form from cache (w5-b6 group 3c).
+    router.replace(roleDashboardPath(user.role, slug));
   }
 
   const isOrg = loginType === 'org';

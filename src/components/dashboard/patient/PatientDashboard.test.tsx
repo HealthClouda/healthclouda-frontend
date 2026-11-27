@@ -200,8 +200,9 @@ describe('FLAG-231 — overview stat tiles read fields the endpoint actually pub
       .getAllByText(label)
       .find((el) => el.tagName === 'SPAN' && el.className.includes('uppercase'));
     if (!span) throw new Error(`no stat tile labelled "${label}"`);
-    const tile = span.parentElement!.parentElement!;
-    return tile.querySelector('p.tabular-nums')?.textContent?.trim() ?? '';
+    // The tile and its number, not a tag path (StatCard's markup changed in group 3c).
+    const tile = span.closest('.rounded-card')!;
+    return tile.querySelector('.tabular-nums')?.textContent?.trim() ?? '';
   }
 
   it('renders a real number in every tile — no em dash, no NaN', async () => {
