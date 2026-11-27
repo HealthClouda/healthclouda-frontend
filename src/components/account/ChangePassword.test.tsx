@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { ENDPOINTS } from '@/lib/config';
 import { useToastStore } from '@/store/toast';
 import type { User } from '@/types/auth';
@@ -211,20 +211,36 @@ describe('w5-b6 group 4a — Change password: show/hide and Cancel', () => {
 });
 
 describe('w5-b6 group 4a — Sign out shows it is working', () => {
-  it('disables Sign out and says so while signing out, and sends one request on a double click', async () => {
+  it('marks Sign out busy (focus kept), says so, and sends one request on a double click', async () => {
     let release!: () => void;
     const fetchMock = vi.fn(() => new Promise<Response>((r) => { release = () => r(new Response(null)); }));
     vi.stubGlobal('fetch', fetchMock);
     try {
       render(<Sidebar navItems={[]} activePage="" onPageChange={vi.fn()} user={user} isOpen onClose={vi.fn()} />);
       const btn = screen.getByRole('button', { name: 'Sign out' });
-      fireEvent.click(btn);
-      fireEvent.click(btn);
+      btn.focus();
+      // Both clicks in one tick, before React re-renders: only the ref guard stops the second.
+      act(() => { btn.click(); btn.click(); });
       const busy = await screen.findByRole('button', { name: 'Signing out…' });
-      expect(busy).toBeDisabled();
+      expect(busy).toHaveAttribute('aria-disabled', 'true');
+      expect(busy).not.toBeDisabled();
+      expect(busy).toHaveFocus();
       expect(fetchMock).toHaveBeenCalledTimes(1);
       release();
       await waitFor(() => expect(pushMock).toHaveBeenCalled());
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('a failed sign-out stays put, unlocks and says so, instead of going to sign-in', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 500 })));
+    try {
+      render(<Sidebar navItems={[]} activePage="" onPageChange={vi.fn()} user={user} isOpen onClose={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+      await waitFor(() => expect(useToastStore.getState().toasts.some(t => /could not sign you out/i.test(t.message))).toBe(true));
+      expect(screen.getByRole('button', { name: 'Sign out' })).not.toHaveAttribute('aria-disabled');
+      expect(pushMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }

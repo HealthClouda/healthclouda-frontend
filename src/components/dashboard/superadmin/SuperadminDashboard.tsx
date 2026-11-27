@@ -788,7 +788,7 @@ function OrgsPage() {
         description={confirm?.action === 'suspend'
           ? `Are you sure you want to suspend "${confirm.org.name}"? Every staff member at this organisation will be deactivated and can't sign in until it is activated again.`
           : confirm?.action === 'activate'
-            ? `Every staff account at "${confirm.org.name}" will be switched back on and able to sign in.`
+            ? `The staff accounts at "${confirm.org.name}" will be switched back on and able to sign in. Anyone you suspended from the Users page stays suspended.`
             : `Are you sure you want to ${confirm?.action} "${confirm?.org.name}"?`}
         confirmLabel={confirm?.action === 'suspend' ? 'Suspend' : confirm?.action === 'activate' ? 'Activate' : 'Verify'}
         confirmVariant={confirm?.action === 'suspend' ? 'danger' : 'primary'}
@@ -1372,6 +1372,9 @@ function AuditPage() {
   const { items: logs, count, page, setPage, totalPages, loading, error, refetch } =
     usePaginatedList<AuditLogEntry>(endpoint);
   const filtered = qs !== '';
+  // Anything typed counts, even a half-typed email that is not sent yet, so the
+  // empty state, its message and Clear filters agree (review of #234).
+  const anyFilter = !!(action || email.trim() || resourceType || patient.trim());
 
   return (
     <div className="space-y-4">
@@ -1386,11 +1389,11 @@ function AuditPage() {
         loading={loading}
         error={error}
         onRetry={refetch}
-        emptyTitle={filtered ? 'No matching entries' : 'No audit logs'}
-        emptyAction={(action || email || resourceType || patient) && (
+        emptyTitle={anyFilter ? 'No matching entries' : 'No audit logs'}
+        emptyAction={anyFilter && (
           <Button variant="secondary" size="sm" onClick={() => { setAction(''); setEmail(''); setResourceType(''); setPatient(''); }}>Clear filters</Button>
         )}
-        emptyDescription={filtered ? 'Try removing a filter.' : 'System activity will be logged here.'}
+        emptyDescription={anyFilter ? 'Try removing a filter.' : 'System activity will be logged here.'}
         toolbar={
           <div className="flex flex-wrap items-center gap-2.5">
             <select

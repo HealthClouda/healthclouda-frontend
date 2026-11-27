@@ -123,12 +123,15 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
     if (signingOutRef.current) return;
     signingOutRef.current = true;
     setSigningOut(true);
+    let ok = false;
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-      // Network failure: unlock so the user can try again rather than be stuck.
+      ok = (await fetch('/api/auth/logout', { method: 'POST' })).ok;
+    } catch { /* network failure: handled as not ok */ }
+    if (!ok) {
+      // Unlock so the user can try again, rather than land on sign-in still signed in.
       signingOutRef.current = false;
       setSigningOut(false);
+      toast.error('Could not sign you out. Please try again.');
       return;
     }
     // Staff should land back on their org portal, not the patient portal
@@ -237,10 +240,10 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
             </button>
             <button
               onClick={handleLogout}
-              disabled={signingOut}
+              aria-disabled={signingOut || undefined}
               aria-label={signingOut ? 'Signing out…' : 'Sign out'}
               title={signingOut ? 'Signing out…' : 'Sign out'}
-              className="flex items-center justify-center w-11 h-11 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors disabled:opacity-60 disabled:cursor-wait"
+              className="flex items-center justify-center w-11 h-11 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait"
             >
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -272,8 +275,8 @@ export function Sidebar({ navItems, activePage, onPageChange, user, isOpen, onCl
 
               <button
                 onClick={handleLogout}
-                disabled={signingOut}
-                className="flex items-center gap-1.5 min-h-11 px-2 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors disabled:opacity-60 disabled:cursor-wait"
+                aria-disabled={signingOut || undefined}
+                className="flex items-center gap-1.5 min-h-11 px-2 rounded-md text-text-soft hover:text-danger hover:bg-danger-bg transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait"
               >
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

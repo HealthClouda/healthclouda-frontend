@@ -47,17 +47,17 @@ export function DashboardHeader({
   }, []);
 
   // Escape closes the dropdown and hands focus back to the bell (w5-b6 group 4a).
+  // Handled on the bell's own wrapper, so an Escape meant for a panel or dialog
+  // elsewhere never reaches it; focus leaving the wrapper closes it (review of #234).
   const bellRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!notifOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return;
-      setNotifOpen(false);
-      bellRef.current?.focus();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [notifOpen]);
+  function onNotifKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== 'Escape' || !notifOpen) return;
+    setNotifOpen(false);
+    bellRef.current?.focus();
+  }
+  function onNotifBlur(e: React.FocusEvent) {
+    if (!notifRef.current?.contains(e.relatedTarget as Node | null)) setNotifOpen(false);
+  }
 
   return (
     <header className="flex h-16 items-center gap-5 px-4 md:px-7 bg-white border-b border-border flex-shrink-0">
@@ -96,7 +96,7 @@ export function DashboardHeader({
         {dutyToggle}
 
         {/* Notification bell */}
-        <div ref={notifRef} className="relative">
+        <div ref={notifRef} className="relative" onKeyDown={onNotifKeyDown} onBlur={onNotifBlur}>
           <button
             ref={bellRef}
             onClick={() => setNotifOpen((v) => !v)}

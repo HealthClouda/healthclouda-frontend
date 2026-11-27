@@ -1366,6 +1366,8 @@ describe('w5-b6 group 4a — an empty search offers a way back', () => {
     const clear = await screen.findByRole('button', { name: 'Clear search' });
     fireEvent.click(clear);
     expect(screen.getByLabelText('Search organisations')).toHaveValue('');
+    // The empty state unmounts, so focus goes to the search box, not <body>.
+    expect(screen.getByLabelText('Search organisations')).toHaveFocus();
     await waitFor(() => expect(screen.getByText('Demo Clinic')).toBeInTheDocument());
   });
 
@@ -1393,6 +1395,15 @@ describe('w5-b6 group 4a — an empty search offers a way back', () => {
     await waitFor(() => expect(screen.getByText('No audit logs')).toBeInTheDocument());
   });
 
+  it('Audit Logs: a half-typed email counts as a filter, so the message and Clear filters agree', async () => {
+    dataGetMock.mockImplementation(async (path: string) =>
+      path.startsWith('/org/') ? orgsEnvelope : empty);
+    await openPage('Audit Logs', 'No audit logs');
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'bob@' } });
+    expect(await screen.findByText('No matching entries')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+  });
+
   it('positive control: an empty list with no search or filter offers nothing to clear', async () => {
     dataGetMock.mockImplementation(async () => empty);
     await openPage('Organisations', 'No organisations found');
@@ -1414,13 +1425,14 @@ describe('w5-b6 group 4a — confirm dialogs say what really happens', () => {
     expect(dialog).toHaveTextContent('Their records are kept');
   });
 
-  it('Activate organisation: says every staff account comes back on', async () => {
+  it('Activate organisation: staff come back on, but a user suspended on their own stays suspended', async () => {
     const suspendedOrg = { ...activeOrg, is_active: false };
     dataGetMock.mockImplementation(async (path: string) =>
       path.startsWith('/org/') ? { ...orgsEnvelope, results: [suspendedOrg] } : { count: 0, next: null, previous: null, results: [] });
     await openPage('Organisations', 'Demo Clinic');
     fireEvent.click(screen.getByRole('button', { name: 'Activate' }));
     const dialog = await screen.findByRole('dialog', { name: 'Activate Organisation' });
-    expect(dialog).toHaveTextContent('Every staff account at "Demo Clinic" will be switched back on and able to sign in.');
+    expect(dialog).toHaveTextContent('The staff accounts at "Demo Clinic" will be switched back on and able to sign in.');
+    expect(dialog).toHaveTextContent('Anyone you suspended from the Users page stays suspended.');
   });
 });
